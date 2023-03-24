@@ -112,7 +112,7 @@ def InitialGUI():
     stopbutton.config(font=("Arial Bold", 10), fg=TextColor , bg=TextBackgroundColor)
     stopbutton.place(x=166,y=BBH)
 
-    savebutton = tk.Button(root, text="保存設置",command=save)
+    savebutton = tk.Button(root, text="保存設置",command=SaveSettings)
     savebutton.config(font=("Arial Bold", 10), fg=TextColor , bg=TextBackgroundColor)
     savebutton.place(x=241,y=BBH)
 
@@ -251,7 +251,7 @@ def InitialGUI():
     """============================滑鼠設置==================================="""
     def mouse(*Key):
         value = mousebutton_option.get()
-        Mousebutton(value)
+        MouseButton(value)
     mousebutton = ["無","右鍵","左鍵"]
     mousebutton_option = tk.StringVar()
     mousebutton_option.set(mousebutton[0])
@@ -262,10 +262,10 @@ def InitialGUI():
     keyboarddefault = tk.BooleanVar(value=False)
 
     def enablemouse():
-        MouseSwitch(True)
-        mouseoptions.config(state='normal')
-        keyboard_AT.config(state='disabled')
-        keyboard_A.config(state='disabled')
+        MouseSwitch(True) #觸發滑鼠切換狀態(函式)
+        mouseoptions.config(state='normal') # 啟用滑鼠選項
+        keyboard_AT.config(state='disabled') # 關閉A鍵盤的名子
+        keyboard_A.config(state='disabled') # 關閉A鍵盤的輸入框
         keyboard_BT.config(state='disabled')
         keyboard_B.config(state='disabled')
         keyboard_CT.config(state='disabled')
@@ -274,11 +274,11 @@ def InitialGUI():
         keyboard_D.config(state='disabled')
         keyboard_ET.config(state='disabled')
         keyboard_E.config(state='disabled')
-        keyboarddefault.set(False)
+        keyboarddefault.set(False) # 關閉鍵盤單選紐的選取狀態
 
     def enablekeyboard():
-        keyboardSwitch(True)
-        mouseoptions.config(state='disabled')
+        keyboardSwitch(True) #觸發鍵盤切換狀態(函式)
+        mouseoptions.config(state='disabled') # 這邊就是啟用鍵盤時,所以把所有改變反過來操作
         keyboard_AT.config(state='normal')
         keyboard_A.config(state='normal')
         keyboard_BT.config(state='normal')
@@ -289,7 +289,7 @@ def InitialGUI():
         keyboard_D.config(state='normal')
         keyboard_ET.config(state='normal')
         keyboard_E.config(state='normal')
-        mousedefault.set(False)
+        mousedefault.set(False) # 關閉滑鼠單選紐的選取狀態
 
     mouseradio = tk.Radiobutton(MouseBox, text="啟用滑鼠連點", variable=mousedefault , command=enablemouse)
     mouseradio.config(fg=TextColor, bg=TextBackgroundColor)
@@ -313,7 +313,7 @@ def InitialGUI():
     keyboard_A = tk.Entry(root, font=("Microsoft Positive Bold", 12), width=5 , justify='center',borderwidth=3, highlightthickness=2.5, highlightcolor=MarqueeHighlight2)
     keyboard_A.config(state='disabled')
     keyboard_A.place(in_=keyboardBox, x=frame_x+4, y=frame_y+10)
-    keyboard_A.bind("<KeyRelease>", lambda event, unit=keyboard_A: keyboardkeys("keybA", unit))
+    keyboard_A.bind("<KeyRelease>", lambda event, unit=keyboard_A: keyboardkey("keybA", unit))
     def keyA(event):
         if event.keycode in []:return
         keyboard_A.config(state='normal')
@@ -328,7 +328,7 @@ def InitialGUI():
     keyboard_B = tk.Entry(root, font=("Microsoft Positive Bold", 12), width=5 , justify='center',borderwidth=3, highlightthickness=2.5, highlightcolor=MarqueeHighlight2)
     keyboard_B.config(state='disabled')
     keyboard_B.place(in_=keyboardBox, x=frame_x+74, y=frame_y+10)
-    keyboard_B.bind("<KeyRelease>", lambda event, unit=keyboard_B: keyboardkeys("keybB", unit))
+    keyboard_B.bind("<KeyRelease>", lambda event, unit=keyboard_B: keyboardkey("keybB", unit))
     def keyB(event):
         if event.keycode in []:return
         keyboard_B.config(state='normal')
@@ -343,7 +343,7 @@ def InitialGUI():
     keyboard_C = tk.Entry(root, font=("Microsoft Positive Bold", 12), width=5 , justify='center',borderwidth=3, highlightthickness=2.5, highlightcolor=MarqueeHighlight2)
     keyboard_C.config(state='disabled')
     keyboard_C.place(in_=keyboardBox, x=frame_x+144, y=frame_y+10)
-    keyboard_C.bind("<KeyRelease>", lambda event, unit=keyboard_C: keyboardkeys("keybC", unit))
+    keyboard_C.bind("<KeyRelease>", lambda event, unit=keyboard_C: keyboardkey("keybC", unit))
     def keyC(event):
         if event.keycode in []:return
         keyboard_C.config(state='normal')
@@ -358,7 +358,7 @@ def InitialGUI():
     keyboard_D = tk.Entry(root, font=("Microsoft Positive Bold", 12), width=5 , justify='center',borderwidth=3, highlightthickness=2.5, highlightcolor=MarqueeHighlight2)
     keyboard_D.config(state='disabled')
     keyboard_D.place(in_=keyboardBox, x=frame_x+214, y=frame_y+10)
-    keyboard_D.bind("<KeyRelease>", lambda event, unit=keyboard_D: keyboardkeys("keybD", unit))
+    keyboard_D.bind("<KeyRelease>", lambda event, unit=keyboard_D: keyboardkey("keybD", unit))
     def keyD(event):
         if event.keycode in []:return
         keyboard_D.config(state='normal')
@@ -373,7 +373,7 @@ def InitialGUI():
     keyboard_E = tk.Entry(root, font=("Microsoft Positive Bold", 12), width=5 , justify='center',borderwidth=3, highlightthickness=2.5, highlightcolor=MarqueeHighlight2)
     keyboard_E.config(state='disabled')
     keyboard_E.place(in_=keyboardBox, x=frame_x+284, y=frame_y+10)
-    keyboard_E.bind("<KeyRelease>", lambda event, unit=keyboard_E: keyboardkeys("keybE", unit))
+    keyboard_E.bind("<KeyRelease>", lambda event, unit=keyboard_E: keyboardkey("keybE", unit))
     def keyE(event):
         if event.keycode in []:return
         keyboard_E.config(state='normal')

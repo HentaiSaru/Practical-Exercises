@@ -11,12 +11,14 @@ sys.path.append(dir) # 將該文件絕對路徑,加入至Python的文件查找�
 from Secondaryfunction import *
 IntervalsT = ['0'] * 5              # 存放輸入的時間間隔(時,分,秒,1/10,1/100)
 shortcutk = ['Alt','F1','Alt','F2'] # 存放快捷鍵(開始1,開始2,結束1,結束2)
-Mouseb = ['none']                   # 存放滑鼠按鍵
-Mousebcache = ['none']              # 滑鼠恢復緩存      
-keyboardk = ['none'] * 5            # 存放鍵盤按鍵
-keyboardkcache = ['none'] * 5       # 鍵盤恢復緩存
+MouseB = ['none']                   # 存放滑鼠按鍵
+MouseBcache = ['none']              # 滑鼠恢復緩存      
+keyboardK = ['none'] * 5            # 存放鍵盤按鍵
+keyboardKcache = ['none'] * 5       # 鍵盤恢復緩存
+global MS,KS # 滑鼠鍵盤的啟用狀態
 global SKeycache , A_startcombo , B_startcombo # 開始緩存狀態,開始組合鍵1,開始組合鍵2
 global EKeycache , A_endcombo , B_endcombo     # 結束緩存狀態,結束組合鍵1,結束組合鍵2
+MS = KS = False
 SKeycache = [Alt,F1] # 開始緩存狀態預設
 EKeycache = [Alt,F2] # 結束緩存狀態預設
 A_startcombo = Alt   # 開始組合鍵1預設
@@ -59,22 +61,24 @@ def shortcut_key_stop(keyA,KeyB):
 """無窮Loop取得設置"""
 def setup():
     while True:
-        time.sleep(1.5)
+        global button , combospeed
+        time.sleep(0.5)
         hour = int(IntervalsT[0])
         Minute = int(IntervalsT[1])
         Seconds = int(IntervalsT[2])
         Tenthofasecond = int(IntervalsT[3])
         Hundredthsofasecond = int(IntervalsT[4])
-        global button
-        global combospeed
-
+        
         # 取得滑鼠按鍵
-        button = Mouseb[0]
+        button = MouseB[0]
+
         # 時間換算方法
         combospeed = speed(hour,Minute,Seconds,Tenthofasecond,Hundredthsofasecond)
+
         # 取得快捷鍵變化
         startshortcut = Judgmentshortcut(shortcutk[0],shortcutk[1]) 
         endshortcut = Judgmentshortcut(shortcutk[2],shortcutk[3])
+
         if startshortcut[0] != endshortcut[0] or startshortcut[1] != endshortcut[1]: 
             shortcut_key_start(*startshortcut)
             shortcut_key_stop(*endshortcut)
@@ -112,29 +116,40 @@ def start_listener():
             pass
     #持續監聽鍵盤按鍵
     with keyboard.Listener(on_press=on_press, on_release=on_release) as listener:
+        time.sleep(0.1)
         listener.join()
 listener_thread = threading.Thread(target=start_listener)
 listener_thread.start()
 
-# 開始執行觸發
+"""開始運行"""
 def SetupComplete():
-    global stop
+    global stop , MS , KS # MS = 滑鼠開起狀態 KS = 鍵盤開啟狀態
     stop = True
     
     try:
         # 啟用滑鼠連點
-        if button != 'none' and combospeed != 0:
-            combo = threading.Thread(target=MouseRunning,args=(combospeed,button))
-            combo.start()
+        if combospeed != 0 and button != 'none' and MS:
+            Mcombo = threading.Thread(target=MouseRunning,args=(combospeed,button))
+            Mcombo.start()
+        elif combospeed != 0 and keyboardK.count('none') != 5 and KS:
+            Kcombo = threading.Thread(target=keyboardRunning,args=(combospeed,*keyboardK))
+            Kcombo.start()
     except NameError:
-        # 當setup開始時,會丟入0,因此只有再程式一運行就按開始才會觸發
-        messagebox.showerror("設置錯誤", "請設置間隔") 
+        messagebox.showerror("設置錯誤", "請設置間隔\n或啟用點擊") 
 
+"""滑鼠連點運行"""
+"""
+為什麼要這麼麻煩,分開兩個線程,其實可以很簡潔合併?
 
-# 檢測點擊function是否被調用狀態
+因為假設我設置的combospeed為1小時,而我是將他設置為time.sleep(combospeed)
+這樣設置的原因也是因為當我設 interval=combospeed 的話,我設1小時,迴圈就卡那了
+他不能一直判斷我停止他了嗎,當然設置time.sleep(combospeed)也會有這問題
+這就是我分成兩個線程的原因,一個用於判斷,另一個用於執行,就算我設1小時,還是能停
+"""
+
+# 檢測點擊線程是否被調用狀態
 global clickstatu
-clickstatu = True
-
+clickstatu = True # 首次為開啟
 # 滑鼠連點線程
 def clickstart(combospeed,button):
     global stop , clickstatu 
@@ -143,17 +158,69 @@ def clickstart(combospeed,button):
         time.sleep(combospeed)  # 迴圈延遲時間就是設置的間隔
         pyautogui.click(x=None, y=None, interval=0 , clicks=numberofclicks(combospeed) , button=button) #點擊間隔0,點擊次數呼叫換算方法
     clickstatu = True           # 點擊完畢就開啟調用(線程中止,自動關閉)
-
-# 滑鼠連點首先觸發(主要是來確認是否觸發了停止)
+# 該線程用來確認停止
 def MouseRunning(combospeed,button):
     global stop , clickstatu
     while stop:             # 當我觸發暫停就會停止
-        time.sleep(0.1)     # 每隔0.1去嘗試調用連點線程
+        time.sleep(0.01)    # 每隔0.01去嘗試調用連點線程
         if clickstatu:      # 確認連點被調用狀態
             click = threading.Thread(target=clickstart,args=(combospeed,button)) 
             click.start()   # 開始連點線程
         while not stop:
             sys.exit(1)     # 拋出例外終止線程
+
+
+"""鍵盤連點運行"""
+def Keyboarclickstart(combospeed,*button):
+    global stop , clickstatu
+
+    clickstatu = False
+    if button.count('none') == 4:
+        while stop:
+            time.sleep(combospeed)
+            pyautogui.press([button[0]])
+    elif button.count("none") == 3:
+        while stop:
+            time.sleep(combospeed)
+            pyautogui.press([button[0],button[1]])
+    elif button.count("none") == 2:
+        while stop:
+            time.sleep(combospeed)
+            pyautogui.press([button[0],button[1],button[2]])
+    elif button.count("none") == 1:
+        while stop:
+            time.sleep(combospeed)
+            pyautogui.press([button[0],button[1],button[2],button[3]])
+    elif button.count("none") == 0:
+        while stop:
+            time.sleep(combospeed)
+            pyautogui.press([button[0],button[1],button[2],button[3],button[4]])
+    clickstatu = True
+
+def keyboardRunning(combospeed,*button):
+    global stop , clickstatu
+    while stop:
+        time.sleep(0.01)
+        if clickstatu:
+            Keyboarclick = threading.Thread(target=Keyboarclickstart,args=(combospeed,*button)) 
+            Keyboarclick.start()
+        while not stop:
+            sys.exit(1)
+
+# 保存設置
+def SaveSettings():
+    # 開始快捷1,開始快捷2,結束快捷1,結束快捷2,滑鼠啟用狀態,鍵盤啟用狀態
+    global A_startcombo , B_startcombo , A_endcombo , B_endcombo , MS , KS
+    # 連點速度
+    combospeed
+    # 滑鼠按鈕
+    button
+    # 鍵盤按鍵
+    keyboardK
+
+    print(A_startcombo , B_startcombo , A_endcombo , B_endcombo , MS , KS,combospeed,button,keyboardK)
+    messagebox.showinfo("保存設置", "\b\b保存成功\n\n預設為程式目錄下")
+
 
 """
 try:
@@ -276,11 +343,11 @@ def on_press(key):
 
 def on_release(key):
 
-    if key.char == keyboard.Key.esc:
+    if key.char == keyboardK.Key.esc:
         print("結束")
         pass
 
-with keyboard.Listener(
+with keyboardK.Listener(
        on_press=on_press,
        on_release=on_release) as listener:
    listener.join()
@@ -317,46 +384,46 @@ def shortcutkey(state,key):
 def MouseSwitch(state):
         global MS
         MS = state
-        Mouseb[0] = Mousebcache[0]
-        for i in range(len(keyboardk)):
-            keyboardk[i] = 'none'
+        MouseB[0] = MouseBcache[0] # 當滑鼠啟用,會將前面對於滑鼠的設置還原
+        for i in range(len(keyboardK)): # 當滑鼠啟用,會將鍵盤設置全部變成none
+            keyboardK[i] = 'none'
 # 確認鍵盤啟用狀態
 def keyboardSwitch(state):
         global KS
         KS = state
-        Mouseb[0] = 'none'
-        for i in range(len(keyboardkcache)):
-            keyboardk[i] = keyboardkcache[i]
+        MouseB[0] = 'none' # 當鍵盤啟用,會將滑鼠設置變成none
+        for i in range(len(keyboardKcache)): # 當鍵盤啟用,會將前面對於鍵盤的設置還原
+            keyboardK[i] = keyboardKcache[i]
 
 # 取得設置的滑鼠按鍵
-def Mousebutton(key):
+def MouseButton(key):
     if MS:
         match key:
             case "無":
                 key = "none"
-                Mouseb[0] = key
+                MouseB[0] = key
             case "右鍵":
                 key = "right"
-                Mouseb[0] = key
+                MouseB[0] = key
             case "左鍵":
                 key = "left"
-                Mouseb[0] = key
-    Mousebcache[0] = Mouseb[0]
+                MouseB[0] = key
+    MouseBcache[0] = MouseB[0]
 
 # 取得鍵盤按鍵
-def keyboardkeys(unit,key):
+def keyboardkey(unit,key):
     value = key.get()
     if KS:
         match unit:
             case "keybA":
-                keyboardk[0] = value
+                keyboardK[0] = value
             case "keybB":
-                keyboardk[1] = value
+                keyboardK[1] = value
             case "keybC":
-                keyboardk[2] = value
+                keyboardK[2] = value
             case "keybD":
-                keyboardk[3] = value
+                keyboardK[3] = value
             case "keybE":
-                keyboardk[4] = value
-    for i in range(len(keyboardk)):
-        keyboardkcache[i] = keyboardk[i]
+                keyboardK[4] = value
+    for i in range(len(keyboardK)):
+        keyboardKcache[i] = keyboardK[i]

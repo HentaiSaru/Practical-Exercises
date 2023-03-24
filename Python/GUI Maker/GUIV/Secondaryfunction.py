@@ -1,5 +1,6 @@
 from tkinter import messagebox
 import tkinter
+import pyautogui
 from pynput import keyboard
 import configparser as config
 import win32gui
@@ -10,10 +11,6 @@ import os
 # 時間輸入驗證是否為數字
 def validate_numeric_input(new_value):
     return new_value.isdigit()
-
-# 保存設置
-def save():
-    messagebox.showinfo("保存設置", "\b\b保存成功\n\n預設為程式目錄下")
 
 # 驗證解鎖
 def Authentication(key):
