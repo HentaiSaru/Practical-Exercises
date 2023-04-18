@@ -265,6 +265,8 @@ print("\n")
 python 的 remove 要使用 pop(索引值) 刪除 無指定就刪最後1個
 clear() 清空陣列
 陣列.index(判斷值) 取得該判斷值 在陣列內的索引值
+del 陣列[0] 也可以刪除某索引值
+直接 del 陣列 則是直接刪除全部
 
 """
 # !遍利
@@ -326,3 +328,6 @@ print(text[5])  #? 輸出指定位置的字串
 print("free" in text) #? 輸出是否存在該字串
 print("free" not in text) #? 輸出是否不存在該字串
 
+# !列表特別的寫法
+list = ['a','b','c']
+[print(out) for out in list]
