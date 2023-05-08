@@ -27,10 +27,10 @@ class team{
     public synchronized int runA(){
 
         int scend = 0;
-        System.out.println("teamA ¶}©l");
+        System.out.println("teamA é–‹å§‹");
         scend = order();
-        System.out.println("teamA ¦@¶]¤F"+scend+"¬í");
-        System.out.println("teamA µ²§ô");
+        System.out.println("teamA å…±è·‘äº†"+scend+"ç§’");
+        System.out.println("teamA çµæŸ");
 
         AExecuted = true;
         notify();
@@ -40,7 +40,7 @@ class team{
     public synchronized int runB(){
 
         int scend = 0;
-        System.out.println("teamB µ¥«İ¤¤");
+        System.out.println("teamB ç­‰å¾…ä¸­");
 
         while(!AExecuted) {
             try{
@@ -48,10 +48,10 @@ class team{
             }catch(Exception e){}
         }
 
-        System.out.println("teamB ¶}©l");
+        System.out.println("teamB é–‹å§‹");
         scend=order();
-        System.out.println("teamB ¦@¶]¤F"+scend+"¬í" );
-        System.out.println("teamB µ²§ô");
+        System.out.println("teamB å…±è·‘äº†"+scend+"ç§’" );
+        System.out.println("teamB çµæŸ");
         return scend; 
 
     }
@@ -62,12 +62,12 @@ class team{
         for(int i=1;i<=2;i++){
             running = (int)(Math.random() * 6)+5;
             scend += running;
-            System.out.println( "²Ä"+i+"´Î¶]¤F"+running+ "¬í,");
+            System.out.println( "ç¬¬"+i+"æ£’è·‘äº†"+running+ "ç§’,");
         }
         return scend;
     }
 }
-public class j5test{
+public class Javapractice{
     public static void main(String argv[]) {
         int a,b;
         teamA A = new teamA();
@@ -80,8 +80,8 @@ public class j5test{
             B.join();
         }catch(Exception e){}
 
-        if(A.scend < B.scend)System.out.println("teamA Àò³Ó");
-        else if(A.scend > B.scend)System.out.println("teamB Àò³Ó");
-        else System.out.println("¥­");
+        if(A.scend < B.scend)System.out.println("teamA ç²å‹");
+        else if(A.scend > B.scend)System.out.println("teamB ç²å‹");
+        else System.out.println("å¹³");
     }
 }
