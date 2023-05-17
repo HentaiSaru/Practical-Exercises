@@ -38,8 +38,54 @@ public class Exercise_09 {
 
         String line = sc.nextLine();
 
+        String[] data = line.split(" ");
 
+        if(data.length < 6){
+            System.out.print("error");
+            return;
+        }
+
+        int k = 0 , n;
+        for(int i=0;i<2;i++){
+            for(int j=0;j<3;j++){
+                try{
+
+                    n = Integer.parseInt(data[k]);
+
+                    if(n>=1 && n<=100){
+                        b[i][j] = n;
+                        k++;
+                    }else{
+                        throw new Exception();
+                    }
+
+                }catch(Exception e){
+                    System.out.print("error"+e);
+                    return;
+                }
+            }
+        }
+
+        compute(a, b, c);
+        print(c);
 
     }
- 
+
+    public static void compute(int[][] a, int[][] b, int[][] c) {
+
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++){
+                c[i][j] = a[i][j] + b[i][j];
+            }       
+        }
+    }
+
+    public static void print(int[][] s) {
+
+        for (int i = 0; i < 2; i++) {
+            for (int j = 0; j < 3; j++)
+                System.out.printf("%4d", s[i][j]);
+            System.out.println("");
+        }
+    }
 }
