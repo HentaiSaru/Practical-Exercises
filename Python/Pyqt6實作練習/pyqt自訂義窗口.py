@@ -91,6 +91,7 @@ btn1.setStyleSheet('''
     }
 ''') # 可以使用 QPushButton:disabled 設置停用按鈕時的樣式
 
+#################################################
 
 Form.show() # 顯示視窗
 sys.exit(app.exec())
