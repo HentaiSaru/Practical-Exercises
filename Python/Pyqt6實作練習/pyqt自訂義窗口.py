@@ -5,7 +5,7 @@ app = QtWidgets.QApplication(sys.argv) # 建立視窗
 
 Form = QtWidgets.QWidget()          # 建立視窗元件
 
-#################################################
+################################################# ? 框架設置
 
 Form.setWindowTitle('標題文字')      # 設定視窗標題
 Form.resize(1280, 720)               # 設定視窗尺寸
@@ -16,7 +16,7 @@ def getsize():
     print(Form.width())
     print(Form.height())
 
-#################################################
+################################################# ? 標籤設置
 
 label = QtWidgets.QLabel(Form)      # 在 Form 裡加入標籤
 label.setText('使用move方法定位')    # 設定標籤文字
@@ -35,7 +35,7 @@ label2.setContentsMargins(0,0,0,0) # 設置邊界
 label2.setWordWrap(True) # 可以換行
 label2.setAlignment(QtCore.Qt.AlignmentFlag.AlignCenter) # 對齊方式
 
-#################################################
+################################################# ? 文字樣式
 
 font = QtGui.QFont() # 建立文字樣式元件
 font.setFamily("Verdana") # 設置字體
@@ -46,14 +46,14 @@ font.setStrikeOut(True) # 刪除線
 font.setUnderline(True) # 底線
 label2.setFont(font)
 
-#################################################
+################################################# ? 讀取圖片
 
 img_label = QtWidgets.QLabel(Form)
 img_label.setGeometry(250, 50 , 512,512)
 img = QtGui.QImage("python.png") # 讀取圖片
 img_label.setPixmap(QtGui.QPixmap.fromImage(img)) # 加入圖片
 
-#################################################
+################################################# ? 按鈕
 
 btn = QtWidgets.QPushButton(Form)
 btn.setText("一個按鈕")
@@ -76,20 +76,50 @@ btn.clicked.connect(getsize) # 點擊事件
 btn1 = QtWidgets.QPushButton(Form)
 btn1.setText("二個按鈕")
 btn1.setGeometry(50, 350 , 100 , 50)
-btn1.setDisabled(True) # 停用按鈕
+btn1.setEnabled(False) # 停用按鈕
 btn1.setStyleSheet('''
-
     background:#ff0;
     color:#f00;
     font-size:20px;
     border:2px solid #000;
-
-    QPushButton:disabled {
-        color:#fff;
-        background:#ccc;
-        border: 2px solid #aaa;
-    }
 ''') # 可以使用 QPushButton:disabled 設置停用按鈕時的樣式
+
+################################################# ? 單選紐
+
+def show():
+    RBlabel.setText(str(f"你按下了按鈕:{group1.checkedId()}"))
+
+Rba = QtWidgets.QRadioButton(Form)
+Rba.setGeometry(50, 450 , 100 , 20)
+Rba.setText("單選紐a")
+Rba.setChecked(True) # 設置選取狀態
+Rba.setStyleSheet('''
+    QRadioButton {
+        color: #00f;
+    }
+
+    QRadioButton:hover {
+        color:#f00;
+        }
+''')
+
+Rbb = QtWidgets.QRadioButton(Form)
+Rbb.setGeometry(150, 450 , 100 , 20)
+Rbb.setText("單選紐b")
+Rbb.setEnabled(False) # 設置啟用狀態 (現在是鎖定)
+
+Rbc = QtWidgets.QRadioButton(Form)
+Rbc.setGeometry(250, 450 , 100 , 20)
+Rbc.setText("單選紐c")
+
+group1 = QtWidgets.QButtonGroup(Form) # 按鈕群組
+group1.addButton(Rba,1) # 後面為ID設置 , 也可不填
+group1.addButton(Rbb,2)
+group1.addButton(Rbc,3)
+group1.buttonClicked.connect(show) # 事件綁定
+
+RBlabel = QtWidgets.QLabel(Form)
+RBlabel.setGeometry(100, 420 , 100 , 20)
 
 #################################################
 
