@@ -86,7 +86,7 @@ btn1.setStyleSheet('''
 
 ################################################# ? 單選紐
 
-def show():
+def RBshow():
     RBlabel.setText(str(f"你按下了按鈕:{group1.checkedId()}"))
 
 Rba = QtWidgets.QRadioButton(Form)
@@ -116,10 +116,56 @@ group1 = QtWidgets.QButtonGroup(Form) # 按鈕群組
 group1.addButton(Rba,1) # 後面為ID設置 , 也可不填
 group1.addButton(Rbb,2)
 group1.addButton(Rbc,3)
-group1.buttonClicked.connect(show) # 事件綁定
+group1.buttonClicked.connect(RBshow) # 事件綁定
 
 RBlabel = QtWidgets.QLabel(Form)
 RBlabel.setGeometry(100, 420 , 100 , 20)
+
+################################################# ? 複選紐
+
+cb_style = '''
+    QCheckBox {
+        color: #00f;
+    }
+    QCheckBox:hover {
+        color: #f00;
+    }
+    QCheckBox:checked {
+        color: #fff;
+        background: #000;
+    }
+'''
+cbarr = ['']*3
+
+def CBshow(cb,i):
+    if cb.isChecked():
+        cbarr[i] = cb.text()
+    else:
+        cbarr[i] = ""
+
+    output = ''.join(cbarr)
+    CBlabel.setText(str(f"你按下了按鈕:{output}"))
+
+CBlabel = QtWidgets.QLabel(Form)
+CBlabel.setGeometry(80, 420 , 300 , 20)
+
+cb_a = QtWidgets.QCheckBox(Form)
+cb_a.setGeometry(50,500,70,20)
+cb_a.setText("複選A")
+cb_a.setStyleSheet(cb_style)
+cb_a.clicked.connect(lambda:CBshow(cb_a, 0))
+
+cb_b = QtWidgets.QCheckBox(Form)
+cb_b.setGeometry(150,500,70,20)
+cb_b.setText("複選B")
+cb_b.setStyleSheet(cb_style)
+cb_b.clicked.connect(lambda:CBshow(cb_b, 1))
+
+cb_c = QtWidgets.QCheckBox(Form)
+cb_c.setGeometry(250,500,70,20)
+cb_c.setText("複選C")
+cb_c.setStyleSheet(cb_style)
+cb_c.clicked.connect(lambda:CBshow(cb_c, 2))
 
 #################################################
 
