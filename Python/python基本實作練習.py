@@ -331,3 +331,11 @@ print("free" not in text) #? 輸出是否不存在該字串
 # !列表特別的寫法
 list = ['a','b','c']
 [print(out) for out in list]
+
+# !生成器
+def generate():
+    for i in range(1,6):
+        yield i #? yield 也是回傳值 , 但是不會像是 , return 直接中止
+
+for gen in generate():
+    print(gen)
