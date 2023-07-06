@@ -1,24 +1,27 @@
 // ==UserScript==
 // @name         Automatic-Login
 // @namespace    http://tampermonkey.net/
-// @version      0.1
+
+// @version      0.2
 // @description  test script
 // @author       HentiSaru
+
 // @icon         http://g.e-hentai.org/favicon.ico
+// @match        https://e-hentai.org/*
+// @match        https://exhentai.org/*
+
+// @license      GPL-3.0
 // @run-at       document-start
-// @match        https://e-hentai.org/g/*
-// @match        https://exhentai.org/g/*
-// @include      https://e-hentai.org/g/*
-// @include      https://exhentai.org/g/*
 // @grant        unsafeWindow
-// @grant        GM_deleteValue
-// @grant        GM_listValues
+// @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_openInTab
+// @grant        GM_listValues
+// @grant        GM_notification
+// @grant        GM_deleteValue
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
-// @grant        GM_openInTab
-// @grant        GM_notification
 // ==/UserScript==
 
 // 要檢查的 cookie 名稱
