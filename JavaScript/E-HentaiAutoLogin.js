@@ -2,7 +2,7 @@
 // @name         E/Ex - Hentai - AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.3
+// @version      0.0.4
 // @description  test script
 // @author       HentiSaru
 
@@ -51,7 +51,6 @@ function AddCookies() {
 // 刪除所有 cookie
 function DeleteAllCookies() {
     var cookies = document.cookie.split("; ");
-    
     for (var i = 0; i < cookies.length; i++) {
         var cookie = cookies[i];
         var eqPos = cookie.indexOf("=");
@@ -64,14 +63,12 @@ function DeleteAllCookies() {
 function GetCookies() {
   var cookies = {};
   var cookiePairs = document.cookie.split("; ");
-
   for (var i = 0; i < cookiePairs.length; i++) {
     var cookiePair = cookiePairs[i].split("=");
     var cookieName = decodeURIComponent(cookiePair[0]);
     var cookieValue = decodeURIComponent(cookiePair[1]);
     cookies[cookieName] = cookieValue;
   }
-
   return cookies;
 }
 
@@ -81,15 +78,24 @@ function CheckCookies() {
     var cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName);
     });
-
     // 如果未找到所有指定的 cookie，則進行相應操作
     if (!cookiesFound) {
-        console.log("需進行登入");
-        DeleteAllCookies();         // 刪除當前頁面的所有 cookie
-        AddCookies();               // 添加指定的 cookie
-        location.reload();          // 刷新頁面
+        // 刪除當前頁面的所有 cookie
+        DeleteAllCookies();
+        // 添加指定的 cookie
+        AddCookies();
+        // 刷新頁面
+        location.reload();
     }
+    // 檢查後設置為 true
+    sessionStorage.setItem('UseCheck', true);
 }
 
-// 啟用檢測
-CheckCookies();
+// 本地保存會是永久的 localStorage.getItem();
+// 判斷是否使用檢查方法
+var UseCheck = sessionStorage.getItem('UseCheck');
+
+if (!UseCheck) {
+    // 啟用檢測
+    CheckCookies();
+}
