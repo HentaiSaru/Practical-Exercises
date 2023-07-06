@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Automatic-Login
+// @name         E/Ex - Hentai - AutoLogin
 // @namespace    http://tampermonkey.net/
 
 // @version      0.0.3
