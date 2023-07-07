@@ -2,7 +2,7 @@
 // @name         (E/Ex-Hentai) AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -61,11 +61,7 @@ if (!UseCheck) {
             CheckCookies();
         } else {
             if (!NoReminderSet) {
-                if (domain === "e-hentai.org") {
-                    alert("根據同源政策表裏站必須分別設置\ne-hentai未設置 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
-                } else if (domain === "exhentai.org") {
-                    alert("根據同源政策表裏站必須分別設置\nexhentai未設置 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
-                }
+                alert("根據同源政策[表裏站]必須分別設置!!\n未設置 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
                 sessionStorage.setItem('NoReminderSet', true);
             }
         }
