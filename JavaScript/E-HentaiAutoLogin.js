@@ -2,7 +2,7 @@
 // @name         (E/Ex-Hentai) AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -61,7 +61,7 @@ if (!UseCheck) {
             CheckCookies();
         } else {
             if (!NoReminderSet) {
-                alert("根據同源政策[表裏站]必須分別設置!!\n未設置 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
+                alert("未檢測到設置的 Cookies!!\n根據同源政策[表裏站]必須分別設置!!\n請從 [登入 Cookie 設置] 選單中進行設置");
                 sessionStorage.setItem('NoReminderSet', true);
             }
         }
