@@ -2,7 +2,7 @@
 // @name         (E/Ex-Hentai) AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -10,16 +10,23 @@
 // @match        https://exhentai.org/*
 // @icon         http://g.e-hentai.org/favicon.ico
 
-// @license      GPL-3.0
+// @license      Apache
 // @run-at       document-end
-// @grant        unsafeWindow
+
+// @grant        GM_getTab
+// @grant        GM_saveTab
+// @grant        GM_getTabs
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        unsafeWindow
 // @grant        GM_openInTab
 // @grant        GM_listValues
 // @grant        GM_deleteValue
 // @grant        GM_notification
+// @grant        GM_getResourceURL
+// @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
@@ -27,19 +34,85 @@
 - 教學 -
 => https://juejin.cn/post/6844903997698998285
 */
-
 // 檢查的需要的 cookie 名稱
 var RequiredCookies = ["ipb_member_id","ipb_pass_hash","igneous","sk","sl"];
+// 登入的 cookie (字典)
+var LoginCookies;
 
-// 登入的 cookie
-var LoginCookies = [
-    { name: "igneous", value: "f9353cf57" },
-    { name: "ipb_member_id", value: "7367154" },
-    { name: "ipb_pass_hash", value: "45278fc586de19ade85f8efbd26e40b2" },
-    { name: "sk", value: "gy8wgij076agx1ax6is9htzrj40i" },
-    { name: "yay", value: "louder" },
-    { name: "sl", value: "dm_2" }
-];
+// 設置選單
+GM_registerMenuCommand("登入 Cookie 設置", CookieSettings);
+
+// 登入 cookie 設置方法
+function CookieSettings() {
+    // 設定的項目
+    var igneous , ipb_member_id , ipb_pass_hash , Input;
+
+    // 使用 prompt 輸入框進行添加數據
+    Input = prompt("[可直接取消]\n輸入 igneous：");
+    if (Input !== null) {
+        igneous = Input.trim();
+    } else {
+        igneous = null
+    }
+    while (true) {
+        Input = prompt("[*必要輸入]\n輸入 ipb_member_id：");
+        if (Input !== null) {
+            ipb_member_id = Input.trim();
+            break;
+        } else {
+            alert("[ipb_member_id] 不得為空");
+        }
+    }
+    while (true) {
+        Input = prompt('[*必要輸入]\n輸入 ipb_pass_hash：');
+        if (Input !== null) {
+            ipb_pass_hash = Input.trim();
+            break;
+        } else {
+            alert("[ipb_pass_hash] 不得為空");
+        }
+    }
+
+    // 確認輸入字串
+    var Confirm_input;
+
+    if (igneous !== null) {
+        LoginCookies = [
+            { name: "igneous", value: igneous },
+            { name: "ipb_member_id", value: ipb_member_id },
+            { name: "ipb_pass_hash", value: ipb_pass_hash },
+            { name: "sk", value: "gy8wgij076agx1ax6is9htzrj40i" },
+            { name: "yay", value: "louder" },
+            { name: "sl", value: "dm_2" }
+        ];
+
+        Confirm_input = "\n--------------------\nigneous : " + igneous + "\nipb_member_id : " + ipb_member_id + "\nipb_pass_hash : " + ipb_pass_hash + "\n--------------------"
+    } else {
+        LoginCookies = [
+            { name: "ipb_member_id", value: ipb_member_id },
+            { name: "ipb_pass_hash", value: ipb_pass_hash },
+            { name: "sk", value: "gy8wgij076agx1ax6is9htzrj40i" },
+            { name: "yay", value: "louder" },
+            { name: "sl", value: "dm_2" }
+        ];
+
+        Confirm_input = "\n--------------------\nipb_member_id : " + ipb_member_id + "\nipb_pass_hash : " + ipb_pass_hash + "\n--------------------"
+    }
+    // 使用 confirm() 進行確認
+    var confirmed = confirm("確認輸入是否正確？" + Confirm_input);
+
+    // 確認正確，進行保存
+    if (confirmed) {
+        // 將 LoginCookies 對象轉換為字符串並存儲在 localStorage 中
+        var CookiesJson = JSON.stringify(LoginCookies);
+        localStorage.setItem("E/Ex_Cookies", CookiesJson);
+        alert("保存成功");
+        location.reload();
+    } else {
+        // 不正確，重新調用方法重新輸入
+        CookieSettings();
+    }
+}
 
 // 添加 cookie
 function AddCookies() {
@@ -101,11 +174,25 @@ function CheckCookies() {
     sessionStorage.setItem('UseCheck', true);
 }
 
-// 本地保存會是永久的 localStorage.getItem();
-// 判斷是否使用檢查方法
+// localStorage.getItem() 將保存在本地 , 直到數據被清除 , 不然理論上永久;
+
+// 判斷是否使用檢查方法(會話檢測)
 var UseCheck = sessionStorage.getItem('UseCheck');
+// 判斷是否提醒過設置 cookie
+var NoReminderSet = sessionStorage.getItem('NoReminderSet');
 
 if (!UseCheck) {
-    // 啟用檢測
-    CheckCookies();
+    // 從 localStorage 中獲取存儲的 Cookies 字串 , 轉換為 LoginCookies 對象
+    var cookies = localStorage.getItem("E/Ex_Cookies")
+
+    if (cookies !== null) {
+        LoginCookies = JSON.parse(cookies);
+        // 啟用檢測
+        CheckCookies();
+    } else {
+        if (!NoReminderSet) {
+            alert("未檢測到設置的 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
+            sessionStorage.setItem('NoReminderSet', true);
+        }
+    }
 }
