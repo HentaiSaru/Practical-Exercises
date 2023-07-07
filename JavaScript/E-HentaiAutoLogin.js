@@ -1,14 +1,14 @@
 // ==UserScript==
-// @name         E/Ex - Hentai - AutoLogin
+// @name         (E/Ex-Hentai) AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.5
-// @description  test script
+// @version      0.0.1
 // @author       HentiSaru
+// @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
-// @icon         http://g.e-hentai.org/favicon.ico
 // @match        https://e-hentai.org/*
 // @match        https://exhentai.org/*
+// @icon         http://g.e-hentai.org/favicon.ico
 
 // @license      GPL-3.0
 // @run-at       document-end
@@ -18,8 +18,8 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_listValues
-// @grant        GM_notification
 // @grant        GM_deleteValue
+// @grant        GM_notification
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
@@ -92,13 +92,12 @@ function CheckCookies() {
 
     // 判斷 exhentai 的 cookie 值是否符合要求
     var currentDomain = window.location.hostname;
-    if (currentDomain === "exhentai.org" && cookies["igneous"] === "mystery") {
-        var cookie = LoginCookies[i];
-        document.cookie = cookie.name + "=" + cookie.value;
+    if (currentDomain === "exhentai.org" && cookies.igneous === "mystery") {
+        DeleteAllCookies();
         location.reload();
     }
 
-    // 檢查後設置為 true
+    // 檢查後將 會話標籤 設置為 true , 重開瀏覽器重置會話
     sessionStorage.setItem('UseCheck', true);
 }
 
