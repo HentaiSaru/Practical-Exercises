@@ -2,7 +2,7 @@
 // @name         (E/Ex-Hentai) AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -30,19 +30,96 @@
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
 // ==/UserScript==
-/*
-- 教學 -
-=> https://juejin.cn/post/6844903997698998285
-*/
-// 檢查的需要的 cookie 名稱
-var RequiredCookies = ["ipb_member_id","ipb_pass_hash","igneous","sk","sl"];
-// 登入的 cookie (字典)
-var LoginCookies;
+/*=> https://juejin.cn/post/6844903997698998285 */
 
-// 設置選單
-GM_registerMenuCommand("登入 Cookie 設置", CookieSettings);
+/* ==================== 全局設置變數 ==================== */
+// [RequiredCookies] 需要存在的 cookie / [LoginCookies] 登入 cookie (字典)
+var RequiredCookies = ["ipb_member_id","ipb_pass_hash"] , LoginCookies;
+GM_registerMenuCommand("登入 Cookie 設置", CookieSettings);// 設置選單(顯示)
 
-// 登入 cookie 設置方法
+// localStorage.getItem() 將保存在本地 , 直到數據被清除 , 不然理論上永久;
+var UseCheck = sessionStorage.getItem('UseCheck');// 判斷是否使用檢查方法(會話檢測)
+var NoReminderSet = sessionStorage.getItem('NoReminderSet');// 判斷是否提醒過 設置cookie
+/* ==================== 全局設置變數 ==================== */
+
+/* ==================== 檢查會話狀態/呼叫檢查方法 ==================== */
+if (!UseCheck) {
+    // 從 localStorage 中獲取存儲的 Cookies 字串 , 轉換為 LoginCookies 對象
+    var cookies = localStorage.getItem("E/Ex_Cookies")
+
+    if (cookies !== null) {
+        LoginCookies = JSON.parse(cookies);
+        // 啟用檢測
+        CheckCookies();
+    } else {
+        if (!NoReminderSet) {
+            alert("未檢測到設置的 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
+            sessionStorage.setItem('NoReminderSet', true);
+        }
+    }
+}/* ==================== 檢查會話狀態/呼叫檢查方法 ==================== */
+
+/* ==================== 檢查 cookie 狀態 ==================== */
+function CheckCookies() {
+    var cookies = GetCookies();
+    var cookiesFound = RequiredCookies.every(function(cookieName) {
+        return cookies.hasOwnProperty(cookieName);
+    });
+
+    // 如果未找到所有指定的 cookie，則進行相應操作
+    if (!cookiesFound) {
+        // 刪除當前頁面的所有 cookie
+        DeleteAllCookies();
+        // 添加指定的 cookie
+        AddCookies();
+        // 刷新頁面
+        location.reload();
+    }
+
+    // 判斷 exhentai 的 cookie 值是否符合要求
+    var currentDomain = window.location.hostname;
+    if (currentDomain === "exhentai.org" && cookies.igneous === "mystery") {
+        DeleteAllCookies();
+        location.reload();
+    }
+
+    // 檢查後將 會話標籤 設置為 true , 重開瀏覽器重置會話
+    sessionStorage.setItem('UseCheck', true);
+}/* ==================== 檢查 cookie 狀態 ==================== */
+
+/* ==================== 獲取頁面 cookie ==================== */
+function GetCookies() {
+    var cookies = {};
+    var cookiePairs = document.cookie.split("; ");
+    for (var i = 0; i < cookiePairs.length; i++) {
+      var cookiePair = cookiePairs[i].split("=");
+      var cookieName = decodeURIComponent(cookiePair[0]);
+      var cookieValue = decodeURIComponent(cookiePair[1]);
+      cookies[cookieName] = cookieValue;
+    }
+    return cookies;
+}/* ==================== 獲取頁面 cookie ==================== */
+
+/* ==================== 添加 cookie ==================== */
+function AddCookies() {
+    for (var i = 0; i < LoginCookies.length; i++) {
+        var cookie = LoginCookies[i];
+        document.cookie = cookie.name + "=" + cookie.value;
+    }
+}/* ==================== 添加 cookie ==================== */
+
+/* ==================== 刪除 cookie ==================== */
+function DeleteAllCookies() {
+    var cookies = document.cookie.split("; ");
+    for (var i = 0; i < cookies.length; i++) {
+        var cookie = cookies[i];
+        var eqPos = cookie.indexOf("=");
+        var cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    }
+}/* ==================== 刪除 cookie ==================== */
+
+/* ==================== cookie 設置函式 ==================== */
 function CookieSettings() {
     // 設定的項目
     var igneous , ipb_member_id , ipb_pass_hash , Input;
@@ -112,87 +189,4 @@ function CookieSettings() {
         // 不正確，重新調用方法重新輸入
         CookieSettings();
     }
-}
-
-// 添加 cookie
-function AddCookies() {
-    for (var i = 0; i < LoginCookies.length; i++) {
-        var cookie = LoginCookies[i];
-        document.cookie = cookie.name + "=" + cookie.value;
-    }
-}
-
-// 刪除所有 cookie
-function DeleteAllCookies() {
-    var cookies = document.cookie.split("; ");
-    for (var i = 0; i < cookies.length; i++) {
-        var cookie = cookies[i];
-        var eqPos = cookie.indexOf("=");
-        var cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
-        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    }
-}
-
-// 獲取當前頁面 cookie
-function GetCookies() {
-  var cookies = {};
-  var cookiePairs = document.cookie.split("; ");
-  for (var i = 0; i < cookiePairs.length; i++) {
-    var cookiePair = cookiePairs[i].split("=");
-    var cookieName = decodeURIComponent(cookiePair[0]);
-    var cookieValue = decodeURIComponent(cookiePair[1]);
-    cookies[cookieName] = cookieValue;
-  }
-  return cookies;
-}
-
-// 檢查 cookie 是否存在
-function CheckCookies() {
-    var cookies = GetCookies();
-    var cookiesFound = RequiredCookies.every(function(cookieName) {
-        return cookies.hasOwnProperty(cookieName);
-    });
-
-    // 如果未找到所有指定的 cookie，則進行相應操作
-    if (!cookiesFound) {
-        // 刪除當前頁面的所有 cookie
-        DeleteAllCookies();
-        // 添加指定的 cookie
-        AddCookies();
-        // 刷新頁面
-        location.reload();
-    }
-
-    // 判斷 exhentai 的 cookie 值是否符合要求
-    var currentDomain = window.location.hostname;
-    if (currentDomain === "exhentai.org" && cookies.igneous === "mystery") {
-        DeleteAllCookies();
-        location.reload();
-    }
-
-    // 檢查後將 會話標籤 設置為 true , 重開瀏覽器重置會話
-    sessionStorage.setItem('UseCheck', true);
-}
-
-// localStorage.getItem() 將保存在本地 , 直到數據被清除 , 不然理論上永久;
-
-// 判斷是否使用檢查方法(會話檢測)
-var UseCheck = sessionStorage.getItem('UseCheck');
-// 判斷是否提醒過設置 cookie
-var NoReminderSet = sessionStorage.getItem('NoReminderSet');
-
-if (!UseCheck) {
-    // 從 localStorage 中獲取存儲的 Cookies 字串 , 轉換為 LoginCookies 對象
-    var cookies = localStorage.getItem("E/Ex_Cookies")
-
-    if (cookies !== null) {
-        LoginCookies = JSON.parse(cookies);
-        // 啟用檢測
-        CheckCookies();
-    } else {
-        if (!NoReminderSet) {
-            alert("未檢測到設置的 Cookies\n請從 [登入 Cookie 設置] 選單中進行設置");
-            sessionStorage.setItem('NoReminderSet', true);
-        }
-    }
-}
+}/* ==================== cookie 設置函式 ==================== */
