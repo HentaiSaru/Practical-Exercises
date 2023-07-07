@@ -2,7 +2,7 @@
 // @name         E/Ex - Hentai - AutoLogin
 // @namespace    http://tampermonkey.net/
 
-// @version      0.0.4
+// @version      0.0.5
 // @description  test script
 // @author       HentiSaru
 
@@ -37,6 +37,7 @@ var LoginCookies = [
     { name: "ipb_member_id", value: "7367154" },
     { name: "ipb_pass_hash", value: "45278fc586de19ade85f8efbd26e40b2" },
     { name: "sk", value: "gy8wgij076agx1ax6is9htzrj40i" },
+    { name: "yay", value: "louder" },
     { name: "sl", value: "dm_2" }
 ];
 
@@ -78,6 +79,7 @@ function CheckCookies() {
     var cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName);
     });
+
     // 如果未找到所有指定的 cookie，則進行相應操作
     if (!cookiesFound) {
         // 刪除當前頁面的所有 cookie
@@ -87,6 +89,15 @@ function CheckCookies() {
         // 刷新頁面
         location.reload();
     }
+
+    // 判斷 exhentai 的 cookie 值是否符合要求
+    var currentDomain = window.location.hostname;
+    if (currentDomain === "exhentai.org" && cookies["igneous"] === "mystery") {
+        var cookie = LoginCookies[i];
+        document.cookie = cookie.name + "=" + cookie.value;
+        location.reload();
+    }
+
     // 檢查後設置為 true
     sessionStorage.setItem('UseCheck', true);
 }
