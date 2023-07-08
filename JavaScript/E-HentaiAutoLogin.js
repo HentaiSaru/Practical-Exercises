@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -156,30 +156,36 @@ function CookieSettings() {
     if (domain === "exhentai.org") {
         while (true) {
             Input = prompt("輸入 igneous：");
-            if (Input !== null) {
+            if (Input === "") {
+                alert("[igneous] 不得為空");
+            } else if (Input !== null) {
                 igneous = Input.trim();
                 break;
             } else {
-                alert("[igneous] 不得為空");
+                break;
             }
         }
     }
     while (true) {
         Input = prompt("輸入 ipb_member_id：");
-        if (Input !== null) {
+        if (Input === "") {
+            alert("[ipb_member_id] 不得為空");
+        } else if (Input !== null) {
             ipb_member_id = Input.trim();
             break;
         } else {
-            alert("[ipb_member_id] 不得為空");
+            break;
         }
     }
     while (true) {
         Input = prompt("輸入 ipb_pass_hash：");
-        if (Input !== null) {
+        if (Input === "") {
+            alert("[ipb_pass_hash] 不得為空");
+        } else if (Input !== null) {
             ipb_pass_hash = Input.trim();
             break;
         } else {
-            alert("[ipb_pass_hash] 不得為空");
+            break;
         }
     }
 
