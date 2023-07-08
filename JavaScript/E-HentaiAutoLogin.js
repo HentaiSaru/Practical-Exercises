@@ -1,8 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @namespace    http://tampermonkey.net/
-
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
 
@@ -29,15 +27,22 @@
 // @grant        GM_unregisterMenuCommand
 // @grant        GM_addValueChangeListener
 // @grant        GM_removeValueChangeListener
+
+// @require      https://cdn.jsdelivr.net/npm/vue
+// @require      https://cdn.jsdelivr.net/npm/jquery
+// @resource     https://cdn.jsdelivr.net/npm/bootstrap
+
 // ==/UserScript==
 /*=> https://juejin.cn/post/6844903997698998285 */
 
 /* ==================== 全局設置變數 ==================== */
 // [RequiredCookies] 需要存在的 cookie / [LoginCookies] 登入 cookie (字典)
 var RequiredCookies = ["ipb_member_id","ipb_pass_hash"] , LoginCookies;
-GM_registerMenuCommand("登入 Cookie 設置", CookieSettings);// 設置選單(顯示)
 var domain = window.location.hostname; // 取得域名
 var custom = false; // 自訂使用狀態
+
+GM_registerMenuCommand("登入 Cookie 設置 [分別設置]", CookieSettings);// 設置選單(顯示)
+GM_registerMenuCommand("登入 Cookie 設置 [單條設置]", CookieSettings2);
 
 // localStorage.getItem() 將保存在本地 , 直到數據被清除 , 不然理論上永久 , 受同源政策限制;
 var UseCheck = sessionStorage.getItem('UseCheck');// 判斷是否使用檢查方法(會話檢測)
@@ -217,3 +222,50 @@ function CookieSettings() {
         CookieSettings();
     }
 }/* ==================== cookie 設置函式 ==================== */
+
+function CookieSettings2() {
+    var cookies , Input , Confirm_input;
+
+    LoginCookies = [
+        { name: "sk", value: "gy8wgij076agx1ax6is9htzrj40i" },
+        { name: "yay", value: "louder" },
+        { name: "sl", value: "dm_2" }
+    ];
+
+    if (domain === "exhentai.org") {
+        while (true) {
+            Input = prompt("根據以下格式設置\n中間使用/來隔開\n{igneous/ipb_member_id/ipb_pass_hash}：").trim();
+            cookies = Input.split("/")
+            if (cookies.length === 3) {
+                LoginCookies.push({ name: "igneous", value: cookies[0] });
+                LoginCookies.push({ name: "ipb_member_id", value: cookies[1] });
+                LoginCookies.push({ name: "ipb_pass_hash", value: cookies[2] });
+                Confirm_input = "\n--------------------\nigneous : " + cookies[0] + "\nipb_member_id : " + cookies[1] + "\nipb_pass_hash : " + cookies[2] + "\n--------------------"
+                break;
+            } else {
+                alert("請完整設置三個參數");
+            }
+        }
+    } else {
+        while (true) {
+            Input = prompt("根據以下格式設置\n中間使用/來隔開\n{ipb_member_id/ipb_pass_hash}：").trim();
+            cookies = Input.split("/")
+            if (cookies.length === 2) {
+                LoginCookies.push({ name: "ipb_member_id", value: cookies[0] });
+                LoginCookies.push({ name: "ipb_pass_hash", value: cookies[1] });
+                Confirm_input = "\n--------------------\nipb_member_id : " + cookies[0] + "\nipb_pass_hash : " + cookies[1] + "\n--------------------"
+                break;
+            } else {
+                alert("請完整設置二個參數");
+            }
+        }
+    }
+    var confirmed = confirm("確認輸入是否正確？" + Confirm_input);
+    if (confirmed) {
+        localStorage.setItem("E/Ex_Cookies", JSON.stringify(LoginCookies));
+        alert("保存成功");
+        location.reload();
+    } else {
+        CookieSettings2();
+    }
+}
