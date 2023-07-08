@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookie 自動添加進去
 
@@ -38,8 +38,11 @@
 // @resource     https://cdn.jsdelivr.net/npm/bootstrap
 
 // ==/UserScript==
-// 上方好像導入太多的 API 會影響效能 , 不過此代碼較少 , 感覺沒啥影響
-/*=> https://juejin.cn/post/6844903997698998285 */
+
+/*
+上方好像導入太多的 API 會影響效能 , 不過此代碼較少 , 感覺沒啥影響
+=> https://juejin.cn/post/6844903997698998285 
+*/
 
 /* ==================== 全局設置變數 ==================== */
 // [RequiredCookies] 需要存在的 cookie / [LoginCookies] 登入 cookie (字典)
@@ -48,7 +51,8 @@ var domain = window.location.hostname; // 取得域名
 var custom = false; // 自訂使用狀態
 
 // 設置選單
-GM_registerMenuCommand("複製網站 Cookie [需要權限]", CookieClipboard);
+GM_registerMenuCommand("複製網站 Cookie", CookieClipboard);
+GM_registerMenuCommand("刪除網站 Cookie", CookieDelete);
 GM_registerMenuCommand("登入 Cookie 設置 [分別設置]", CookieSettings);
 GM_registerMenuCommand("登入 Cookie 設置 [單條設置]", CookieSettings2);
 
@@ -294,21 +298,22 @@ function CookieClipboard() {
             cookie_list.push({"name" : cookieName,"value" : cookieValue})
         }
     }
-    navigator.clipboard.writeText(JSON.stringify(cookie_list, null, 4));
+    // 創建文本框 , 添加 cookie_list
+    var textBox = document.createElement('textarea');
+    textBox.value = JSON.stringify(cookie_list, null, 4);
+    document.body.appendChild(textBox);
+    // 選取文本框內容
+    textBox.select();
+    // 複製 (被棄用方法)
+    document.execCommand('copy');
+    // 移除文本框
+    document.body.removeChild(textBox);
+    //navigator.clipboard.writeText(JSON.stringify(cookie_list, null, 4));
     alert("已複制 cookie 資訊");
 }/* ==================== 取得網頁 cookie ==================== */
 
-/* 無須剪貼簿權限 ,  複製內容
-    // 創建一個文本框並設置顯示內容
-    var textBox = document.createElement('textarea');
-    textBox.value = JSON.stringify(cookie_list, null, 4);
-    // 將文本框添加到頁面中
-    document.body.appendChild(textBox);
-    // 選中文本框中的內容
-    textBox.select();
-    textBox.setSelectionRange(0, textBox.value.length);
-    // 複制選中的文本
-    document.execCommand('copy');
-    // 從頁面中移除文本框
-    document.body.removeChild(textBox);
-*/
+/* ==================== 刪除網頁 cookie ==================== */
+function CookieDelete() {
+    DeleteAllCookies()
+    location.reload();
+}/* ==================== 刪除網頁 cookie ==================== */
