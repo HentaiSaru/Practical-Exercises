@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentiSaru
-// @description  檢測 E 站的登入狀態 , 沒有登入就添加 cookie 進去
+// @description  檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookie 自動添加進去
 
 // @match        https://e-hentai.org/*
 // @match        https://exhentai.org/*
@@ -11,18 +11,23 @@
 // @license      Apache
 // @run-at       document-end
 
+// @grant        GM_info
 // @grant        GM_getTab
 // @grant        GM_saveTab
 // @grant        GM_getTabs
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_download
 // @grant        unsafeWindow
 // @grant        GM_openInTab
 // @grant        GM_listValues
 // @grant        GM_deleteValue
+// @grant        GM_setClipboard
 // @grant        GM_notification
 // @grant        GM_getResourceURL
+// @grant        GM_xmlhttpRequest
+// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 // @grant        GM_addValueChangeListener
@@ -33,6 +38,7 @@
 // @resource     https://cdn.jsdelivr.net/npm/bootstrap
 
 // ==/UserScript==
+// 上方好像導入太多的 API 會影響效能 , 不過此代碼較少 , 感覺沒啥影響
 /*=> https://juejin.cn/post/6844903997698998285 */
 
 /* ==================== 全局設置變數 ==================== */
@@ -41,7 +47,9 @@ var RequiredCookies = ["ipb_member_id","ipb_pass_hash"] , LoginCookies;
 var domain = window.location.hostname; // 取得域名
 var custom = false; // 自訂使用狀態
 
-GM_registerMenuCommand("登入 Cookie 設置 [分別設置]", CookieSettings);// 設置選單(顯示)
+// 設置選單
+GM_registerMenuCommand("複製網站 Cookie [需要權限]", CookieClipboard);
+GM_registerMenuCommand("登入 Cookie 設置 [分別設置]", CookieSettings);
 GM_registerMenuCommand("登入 Cookie 設置 [單條設置]", CookieSettings2);
 
 // localStorage.getItem() 將保存在本地 , 直到數據被清除 , 不然理論上永久 , 受同源政策限制;
@@ -94,7 +102,6 @@ function CheckCookies() {
     var cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName);
     });
-    
     // 如果未找到所有指定的 cookie，則進行相應操作
     if (!cookiesFound) {
         // 刪除當前頁面的所有 cookie
@@ -148,7 +155,7 @@ function DeleteAllCookies() {
     }
 }/* ==================== 刪除 cookie ==================== */
 
-/* ==================== cookie 設置函式 ==================== */
+/* ==================== cookie 設置函式 [分別設置] ==================== */
 function CookieSettings() {
     // 設定的項目
     var igneous=null , ipb_member_id , ipb_pass_hash , Input;
@@ -162,7 +169,7 @@ function CookieSettings() {
                 igneous = Input.trim();
                 break;
             } else {
-                break;
+                return;
             }
         }
     }
@@ -174,7 +181,7 @@ function CookieSettings() {
             ipb_member_id = Input.trim();
             break;
         } else {
-            break;
+            return;
         }
     }
     while (true) {
@@ -185,7 +192,7 @@ function CookieSettings() {
             ipb_pass_hash = Input.trim();
             break;
         } else {
-            break;
+            return;
         }
     }
 
@@ -223,12 +230,10 @@ function CookieSettings() {
         localStorage.setItem("E/Ex_Cookies", JSON.stringify(LoginCookies));
         alert("保存成功");
         location.reload();
-    } else {
-        // 不正確，重新調用方法重新輸入
-        CookieSettings();
     }
-}/* ==================== cookie 設置函式 ==================== */
+}/* ==================== cookie 設置函式 [分別設置] ==================== */
 
+/* ==================== cookie 設置函式 [單條設置] ==================== */
 function CookieSettings2() {
     var cookies , Input , Confirm_input;
 
@@ -240,7 +245,7 @@ function CookieSettings2() {
 
     if (domain === "exhentai.org") {
         while (true) {
-            Input = prompt("根據以下格式設置\n中間使用/來隔開\n{igneous/ipb_member_id/ipb_pass_hash}：").trim();
+            Input = prompt("根據以下格式設置\n中間使用/來隔開\nigneous/ipb_member_id/ipb_pass_hash：").trim();
             cookies = Input.split("/")
             if (cookies.length === 3) {
                 LoginCookies.push({ name: "igneous", value: cookies[0] });
@@ -248,21 +253,25 @@ function CookieSettings2() {
                 LoginCookies.push({ name: "ipb_pass_hash", value: cookies[2] });
                 Confirm_input = "\n--------------------\nigneous : " + cookies[0] + "\nipb_member_id : " + cookies[1] + "\nipb_pass_hash : " + cookies[2] + "\n--------------------"
                 break;
+            } else if (cookies.length !== 3) {
+                alert("請以 / 符號分格\n設置三個 Cookie 值");
             } else {
-                alert("請完整設置三個參數");
+                return;
             }
         }
     } else {
         while (true) {
-            Input = prompt("根據以下格式設置\n中間使用/來隔開\n{ipb_member_id/ipb_pass_hash}：").trim();
+            Input = prompt("根據以下格式設置\n中間使用/來隔開\nipb_member_id/ipb_pass_hash：").trim();
             cookies = Input.split("/")
             if (cookies.length === 2) {
                 LoginCookies.push({ name: "ipb_member_id", value: cookies[0] });
                 LoginCookies.push({ name: "ipb_pass_hash", value: cookies[1] });
                 Confirm_input = "\n--------------------\nipb_member_id : " + cookies[0] + "\nipb_pass_hash : " + cookies[1] + "\n--------------------"
                 break;
+            } else if (cookies.length !== 3) {
+                alert("請以 / 符號分格\n設置二個 Cookie 值");
             } else {
-                alert("請完整設置二個參數");
+                return;
             }
         }
     }
@@ -272,6 +281,34 @@ function CookieSettings2() {
         alert("保存成功");
         location.reload();
     } else {
-        CookieSettings2();
+        return;
     }
-}
+}/* ==================== cookie 設置函式 [單條設置] ==================== */
+
+/* ==================== 取得網頁 cookie ==================== */
+function CookieClipboard() {
+    var cookies = GetCookies() , cookie_list = [];
+    for (var cookieName in cookies) {
+        if (cookies.hasOwnProperty(cookieName)) {
+            var cookieValue = cookies[cookieName];
+            cookie_list.push({"name" : cookieName,"value" : cookieValue})
+        }
+    }
+    navigator.clipboard.writeText(JSON.stringify(cookie_list, null, 4));
+    alert("已複制 cookie 資訊");
+}/* ==================== 取得網頁 cookie ==================== */
+
+/* 無須剪貼簿權限 ,  複製內容
+    // 創建一個文本框並設置顯示內容
+    var textBox = document.createElement('textarea');
+    textBox.value = JSON.stringify(cookie_list, null, 4);
+    // 將文本框添加到頁面中
+    document.body.appendChild(textBox);
+    // 選中文本框中的內容
+    textBox.select();
+    textBox.setSelectionRange(0, textBox.value.length);
+    // 複制選中的文本
+    document.execCommand('copy');
+    // 從頁面中移除文本框
+    document.body.removeChild(textBox);
+*/
