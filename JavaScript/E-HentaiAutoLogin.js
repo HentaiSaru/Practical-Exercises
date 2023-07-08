@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookie 自動添加進去
 
@@ -53,6 +53,7 @@ var custom = false; // 自訂使用狀態
 // 設置選單
 GM_registerMenuCommand("複製網站 Cookie", CookieClipboard);
 GM_registerMenuCommand("刪除網站 Cookie", CookieDelete);
+GM_registerMenuCommand("手動添加 Cookie", ManuallyAddCookies);
 GM_registerMenuCommand("登入 Cookie 設置 [分別設置]", CookieSettings);
 GM_registerMenuCommand("登入 Cookie 設置 [單條設置]", CookieSettings2);
 
@@ -317,3 +318,15 @@ function CookieDelete() {
     DeleteAllCookies()
     location.reload();
 }/* ==================== 刪除網頁 cookie ==================== */
+
+/* ==================== 手動添加 cookie ==================== */
+function ManuallyAddCookies() {
+    var cookies = localStorage.getItem("E/Ex_Cookies")
+    if (cookies !== null) {
+        LoginCookies = JSON.parse(cookies);
+        AddCookies();
+        location.reload()
+    } else {
+        alert("無效的添加!!\n未檢測到設置的 Cookies")
+    }
+}/* ==================== 手動添加 cookie ==================== */
