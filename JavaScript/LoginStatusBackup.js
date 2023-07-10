@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LoginStatusBackup
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
 // @description  備份登入狀態 , 如果登出了嘗試進行登入
 
@@ -111,9 +111,13 @@ function CheckCookies() {
 
 /* ==================== 測試手動添加 ==================== */
 function Manual_Login() {
-    DeleteCookies();
-    AddCookies();
-    location.reload();
+    if (Cookies_Backup !== null) {
+        DeleteCookies();
+        AddCookies();
+        location.reload();
+    } else {
+        alert("未檢測到備份項目");
+    }
 }/* ==================== 測試手動添加 ==================== */
 
 /* ==================== 添加 cookie ==================== */
