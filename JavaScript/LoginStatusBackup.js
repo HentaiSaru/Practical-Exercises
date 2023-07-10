@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LoginStatusBackup
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  備份登入狀態 , 如果登出了嘗試進行登入
 
@@ -46,7 +46,8 @@ var MenuRegistered = GM_listValues().includes(MenuId);
 
 /* ==================== 菜單創建 (有Bug) ==================== */
 if (!MenuRegistered) {
-    GM_registerMenuCommand("備份網站登入狀態 [請先登入]", login_backup)
+    GM_registerMenuCommand("自動備份網站登入狀態 [請先登入]", login_backup)
+    GM_registerMenuCommand("備份手動登入測試 [測試功能]", Manual_Login)
     GM_registerMenuCommand(Detect_enabled_state(), AutomaticLogin);
 }/* ==================== 菜單創建 ==================== */
 
@@ -70,7 +71,7 @@ function login_backup() {
     }
     if (cookie_list.length > 0) {
         localStorage.setItem("CookiesBackup", JSON.stringify(cookie_list));
-        alert("以備份保存");
+        alert("以備份 Cookie");
     } else {
         alert("無可備份項目");
     }
@@ -107,6 +108,13 @@ function CheckCookies() {
         location.reload();
     }
 }/* ==================== 檢查 cookie 狀態 ==================== */
+
+/* ==================== 測試手動添加 ==================== */
+function Manual_Login() {
+    DeleteCookies();
+    AddCookies();
+    location.reload();
+}/* ==================== 測試手動添加 ==================== */
 
 /* ==================== 添加 cookie ==================== */
 function AddCookies() {
