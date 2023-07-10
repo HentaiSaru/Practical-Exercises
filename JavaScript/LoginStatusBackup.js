@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LoginStatusBackup
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentiSaru
 // @description  備份登入狀態 , 如果登出了嘗試進行登入
 
@@ -35,6 +35,11 @@
 
 // ==/UserScript==
 
+/* 聲明 !
+此腳本當前的多項邏輯 , 包含 Cookie 的獲取數據處理 , 和表單設置等問題 , 都還有許多問題
+本人第一次寫 js 和開發油猴腳本 , 還有需多問題待研究
+*/
+
 var check_settings = ["自動登入檢測設置 [已啟用✅]" , "自動登入檢測設置 [未啟用❌]"];
 var enabledDomains = GM_getValue("enabledDomains", []);
 var Cookies_Backup = localStorage.getItem("CookiesBackup");
@@ -51,7 +56,7 @@ if (!MenuRegistered) {
     GM_registerMenuCommand(Detect_enabled_state(), AutomaticLogin);
 }/* ==================== 菜單創建 ==================== */
 
-/* ==================== 檢測登入 (CheckCookies 邏輯不夠好 , 待修正) ==================== */
+/* ==================== 檢測登入 ==================== */
 login_detection = sessionStorage.getItem("login_detection");
 if (!login_detection) {
     if (enabledDomains.includes(domain) & Cookies_Backup !== null) {
@@ -112,6 +117,7 @@ function CheckCookies() {
 /* ==================== 測試手動添加 ==================== */
 function Manual_Login() {
     if (Cookies_Backup !== null) {
+        LoginCookies = JSON.parse(Cookies_Backup);
         DeleteCookies();
         AddCookies();
         location.reload();
