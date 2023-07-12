@@ -1,5 +1,5 @@
 // ==UserScript==
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentaiSaru
 // @name         YT Hide Recom
 // @description  將影片結尾推薦框透明化 , 滑鼠懸浮恢復 , 按下 Shift 則完全隱藏 , 再次按下恢復
@@ -11,7 +11,7 @@
 // @match        *://www.youtube.com/*
 // ==/UserScript==
 
-/* 
+/*
 Original Author Page : [https://github.com/hoothin/]
 Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide-related-suggestion-which-occlude-the-video]
 */
