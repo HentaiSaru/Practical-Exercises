@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 // @namespace    https://greasyfork.org/users/989635
@@ -41,7 +41,7 @@ v0.0.1 基本架構完成
 */
 
 /* ==================== 初始化設置 ==================== */
-var modal, Domain, UseCheck = sessionStorage.getItem("UseCheck"), NoReminderSet = sessionStorage.getItem("NoReminderSet");
+var modal, Domain;
 
 GM_addStyle(`
     .show-modal-background {
@@ -267,17 +267,14 @@ function deleteCookies(cookies) {
 }/* ==================== 刪除所有 Cookies (菜單) ==================== */
 /* ---------------------------------------------------------------- */
 /* ==================== 程式入口點 ==================== */
-// if (!UseCheck) {
-//     try {
-//         let cookies = GM_getValue("E/Ex_Cookies", []);
-//         AutomaticLoginCheck(JSON.parse(cookies));
-//     } catch (error) {
-//         if (!NoReminderSet) {
-//             alert("未檢測到設置的 Cookies !!\n請從選單中進行設置");
-//             sessionStorage.setItem("NoReminderSet", true);
-//         }
-//     }
-// }/* ==================== 程式入口點 ==================== */
+if (sessionStorage.getItem("UseCheck") !== "true") {
+    try {
+        let cookies = GM_getValue("E/Ex_Cookies", []);
+        AutomaticLoginCheck(JSON.parse(cookies));
+    } catch (error) {
+        alert("未檢測到設置的 Cookies !!\n請從選單中進行設置");
+    }
+}/* ==================== 程式入口點 ==================== */
 
 /* ==================== 登入檢測方法 ==================== */
 function AutomaticLoginCheck(login_cookies) {
