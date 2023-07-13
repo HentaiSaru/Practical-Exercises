@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         (E/Ex-Hentai) AutoLogin
+// @name         Test - AutoLogin
 // @version      0.0.11
 // @author       HentiSaru
 // @description  檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookie 自動添加進去
