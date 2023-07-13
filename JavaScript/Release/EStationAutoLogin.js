@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 
@@ -10,8 +10,7 @@
 
 // @license      Apache
 // @run-at       document-end
-// @updateURL
-// @downloadURL
+// @updateURL    https://raw.githubusercontent.com/TenshinoOtoKafu/Practical-Exercises/Main/JavaScript/Release/EStationAutoLogin.js
 
 // @grant        GM_cookie
 // @grant        GM_addStyle
