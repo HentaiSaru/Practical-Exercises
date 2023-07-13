@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 
@@ -24,13 +24,24 @@
 
 // ==/UserScript==
 
-/* 程式小白新手開發
+/*
+新手開發 !!
+
 待修正添加 :
+
 表單動畫效果
 表單排版問題
+
+版本更新 :
+v0.0.4 修正支援Edge , 代碼排版
+v0.0.3 添加手動注入功能
+v0.0.2 菜單顯示邏輯修正
+v0.0.1 基本架構完成
 */
 
-/* ==================== CSS 設置 ==================== */
+/* ==================== 初始化設置 ==================== */
+var modal, Domain, UseCheck = sessionStorage.getItem("UseCheck"), NoReminderSet = sessionStorage.getItem("NoReminderSet");
+
 GM_addStyle(`
     .show-modal-background {
         top: 0;
@@ -87,45 +98,9 @@ GM_addStyle(`
     .hidden {
         display: none;
     }
-`);/* ==================== CSS 設置 ==================== */
+`);/* ==================== 初始化設置 ==================== */
 
-var modal, Domain, UseCheck = sessionStorage.getItem("UseCheck"), NoReminderSet = sessionStorage.getItem("NoReminderSet");
-
-if (!UseCheck) {
-    let cookies = GM_getValue("E/Ex_Cookies", []);
-    if (cookies !== null) {
-        AutomaticLoginCheck(JSON.parse(cookies));
-    } else {
-        if (!NoReminderSet) {
-            alert("未檢測到設置的 Cookies!!\n請從選單中進行設置");
-            sessionStorage.setItem("NoReminderSet", true);
-        }
-    }
-}
-
-function AutomaticLoginCheck(login_cookies) {
-    // 需要的 cookie 值
-    const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
-    Domain = window.location.hostname;
-    let cookies = GetCookies();
-    let cookiesFound = RequiredCookies.every(function(cookieName) {
-        return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
-    });
-    if (!cookiesFound || RequiredCookies.length !== 2) {
-        let cookies = document.cookie.split("; ");
-        deleteCookies(cookies);
-        AddCookies(login_cookies);
-        location.reload();
-        if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
-            deleteCookies(cookies);
-            AddCookies(login_cookies);
-            location.reload();
-        }
-    }
-    sessionStorage.setItem("UseCheck", true);
-}
-
-/* ==================== 自動獲取 Cookies ==================== */
+/* ==================== 自動獲取 Cookies (菜單) ==================== */
 const GetCookiesAutomatically = GM_registerMenuCommand(
     "📜 自動獲取 Cookies [請先登入]",
     function() {
@@ -174,9 +149,9 @@ function Cookies_Show(cookie_list) {
         modal.classList.add('hidden');
         document.removeEventListener('click', SaveButton);
     });
-}/* ==================== 自動獲取 Cookies ==================== */
+}/* ==================== 自動獲取 Cookies (菜單) ==================== */
 
-/* ==================== 手動輸入 Cookies ==================== */
+/* ==================== 手動輸入 Cookies (菜單) ==================== */
 const ManualSetting = GM_registerMenuCommand(
     "📝 手動輸入 Cookies",
     function() {
@@ -252,26 +227,26 @@ const ManualSetting = GM_registerMenuCommand(
             document.removeEventListener("click", CloseButton);
         });
     }
-)/* ==================== 手動輸入 Cookies ==================== */
+)/* ==================== 手動輸入 Cookies (菜單) ==================== */
 
-/* ==================== 手動注入 Cookies ==================== */
+/* ==================== 手動注入 Cookies (菜單) ==================== */
 const CookieInjection = GM_registerMenuCommand(
-    "🔃 手動注入 Cookies 登入",
+    "🔃 手動注入 Cookies",
     function() {
-        let cookies = GM_getValue("E/Ex_Cookies", []);
-        if (cookies !== null) { // 簡易邏輯 (有問題再修正 , 有點懶)
-            let login_cookies = JSON.parse(cookies);
+        try {
+            let login_cookies = GM_getValue("E/Ex_Cookies", []);
             let cookies = GetCookies();
+            login_cookies = JSON.parse(login_cookies);
             deleteCookies(cookies);
             AddCookies(login_cookies);
             location.reload();
-        } else {
-            alert("未檢測到可注入的 Cookies!!\n請從選單中進行設置");
+        } catch (error) {
+            alert("未檢測到可注入的 Cookies !!\n請從選單中進行設置");
         }
     }
-);/* ==================== 手動注入 Cookies ==================== */
+);/* ==================== 手動注入 Cookies (菜單) ==================== */
 
-/* ==================== 刪除所有 Cookies ==================== */
+/* ==================== 刪除所有 Cookies (菜單) ==================== */
 const CookieDelete = GM_registerMenuCommand(
     "🗑️ 刪除所有 Cookies",
     function() {
@@ -288,7 +263,43 @@ function deleteCookies(cookies) {
         let cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
         document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
-}/* ==================== 刪除所有 Cookies ==================== */
+}/* ==================== 刪除所有 Cookies (菜單) ==================== */
+/* ---------------------------------------------------------------- */
+/* ==================== 程式入口點 ==================== */
+if (!UseCheck) {
+    try {
+        let cookies = GM_getValue("E/Ex_Cookies", []);
+        AutomaticLoginCheck(JSON.parse(cookies));
+    } catch (error) {
+        if (!NoReminderSet) {
+            alert("未檢測到設置的 Cookies !!\n請從選單中進行設置");
+            sessionStorage.setItem("NoReminderSet", true);
+        }
+    }
+}/* ==================== 程式入口點 ==================== */
+
+/* ==================== 登入檢測方法 ==================== */
+function AutomaticLoginCheck(login_cookies) {
+    // 需要的 cookie 值
+    const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
+    Domain = window.location.hostname;
+    let cookies = GetCookies();
+    let cookiesFound = RequiredCookies.every(function(cookieName) {
+        return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
+    });
+    if (!cookiesFound || RequiredCookies.length !== 2) {
+        let cookies = document.cookie.split("; ");
+        deleteCookies(cookies);
+        AddCookies(login_cookies);
+        location.reload();
+        if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
+            deleteCookies(cookies);
+            AddCookies(login_cookies);
+            location.reload();
+        }
+    }
+    sessionStorage.setItem("UseCheck", true);
+}/* ==================== 登入檢測方法 ==================== */
 
 /* ==================== 添加 cookie ==================== */
 function AddCookies(LoginCookies) {
