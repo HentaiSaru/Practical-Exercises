@@ -34,6 +34,7 @@
 表單排版問題
 
 版本更新 :
+v0.0.5 改成每次都會檢測 (會話數據有Bug)
 v0.0.4 修正支援Edge , 代碼排版
 v0.0.3 添加手動注入功能
 v0.0.2 菜單顯示邏輯修正
@@ -267,25 +268,23 @@ function deleteCookies(cookies) {
 }/* ==================== 刪除所有 Cookies (菜單) ==================== */
 /* ---------------------------------------------------------------- */
 /* ==================== 程式入口點 ==================== */
-if (sessionStorage.getItem("UseCheck") !== "true") {
-    try {
-        let cookies = GM_getValue("E/Ex_Cookies", []);
-        AutomaticLoginCheck(JSON.parse(cookies));
-    } catch (error) {
-        alert("未檢測到設置的 Cookies !!\n請從選單中進行設置");
-    }
+try { // 暫時就讓他每次都檢測
+    let cookies = GM_getValue("E/Ex_Cookies", []);
+    AutomaticLoginCheck(JSON.parse(cookies));
+} catch (error) {
+    console.log(error);
 }/* ==================== 程式入口點 ==================== */
 
 /* ==================== 登入檢測方法 ==================== */
 function AutomaticLoginCheck(login_cookies) {
     // 需要的 cookie 值
     const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
-    Domain = window.location.hostname;
     let cookies = GetCookies();
     let cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
     if (!cookiesFound || RequiredCookies.length !== 2) {
+        Domain = window.location.hostname;
         let cookies = document.cookie.split("; ");
         deleteCookies(cookies);
         AddCookies(login_cookies);
@@ -296,7 +295,6 @@ function AutomaticLoginCheck(login_cookies) {
             location.reload();
         }
     }
-    sessionStorage.setItem("UseCheck", true);
 }/* ==================== 登入檢測方法 ==================== */
 
 /* ==================== 添加 cookie ==================== */
