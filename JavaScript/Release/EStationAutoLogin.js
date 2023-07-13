@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 
@@ -10,7 +10,6 @@
 
 // @license      Apache
 // @run-at       document-end
-// @updateURL    https://raw.githubusercontent.com/TenshinoOtoKafu/Practical-Exercises/Main/JavaScript/Release/EStationAutoLogin.js
 
 // @grant        GM_cookie
 // @grant        GM_addStyle
@@ -27,8 +26,6 @@
 
 /* 程式小白新手開發
 待修正添加 :
-Ex 手動輸入 Css 配色問題
-手動注入 🔃 cookie 功能
 表單動畫效果
 表單排版問題
 */
@@ -43,7 +40,7 @@ GM_addStyle(`
         z-index: 9999;
         position: fixed;
         overflow: auto;
-        background-color: rgba(0,0,0,0.4);
+        background-color: rgba(0,0,0,0.5);
     }
     .show-modal-content {
         width: 23%;
@@ -78,7 +75,6 @@ GM_addStyle(`
         overflow: auto;
         border-radius: 10px;
         text-align: center;
-        background-color: #fefefe;
         border: 2px ridge #5C0D12;
         border-collapse: collapse;
         margin: 2% auto 8px auto;
@@ -93,7 +89,7 @@ GM_addStyle(`
     }
 `);/* ==================== CSS 設置 ==================== */
 
-var modal , UseCheck = sessionStorage.getItem("UseCheck") , NoReminderSet = sessionStorage.getItem("NoReminderSet");
+var modal, Domain, UseCheck = sessionStorage.getItem("UseCheck"), NoReminderSet = sessionStorage.getItem("NoReminderSet");
 
 if (!UseCheck) {
     let cookies = GM_getValue("E/Ex_Cookies", []);
@@ -110,7 +106,7 @@ if (!UseCheck) {
 function AutomaticLoginCheck(login_cookies) {
     // 需要的 cookie 值
     const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
-    const Domain = window.location.hostname;
+    Domain = window.location.hostname;
     let cookies = GetCookies();
     let cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
@@ -188,6 +184,14 @@ const ManualSetting = GM_registerMenuCommand(
             modal.remove();
             modal = null;
         }
+
+        Domain = window.location.hostname;
+        if (Domain === "e-hentai.org") {
+            GM_addStyle('.set-modal-content { background-color: #fefefe; }');
+        } else if (Domain === "exhentai.org") {
+            GM_addStyle('.set-modal-content { background-color: #34353b; }');
+        }
+
         modal = document.createElement('div');
         modal.innerHTML = `
             <div class="set-modal-content">
@@ -239,7 +243,6 @@ const ManualSetting = GM_registerMenuCommand(
                 formDiv.appendChild(textarea);
                 alert("保存成功!\n[確認正確後 按下退出選單]");
             }
-            modal.classList.add("hidden");
         });
 
         // 退出按鈕
@@ -250,6 +253,23 @@ const ManualSetting = GM_registerMenuCommand(
         });
     }
 )/* ==================== 手動輸入 Cookies ==================== */
+
+/* ==================== 手動注入 Cookies ==================== */
+const CookieInjection = GM_registerMenuCommand(
+    "🔃 手動注入 Cookies 登入",
+    function() {
+        let cookies = GM_getValue("E/Ex_Cookies", []);
+        if (cookies !== null) { // 簡易邏輯 (有問題再修正 , 有點懶)
+            let login_cookies = JSON.parse(cookies);
+            let cookies = GetCookies();
+            deleteCookies(cookies);
+            AddCookies(login_cookies);
+            location.reload();
+        } else {
+            alert("未檢測到可注入的 Cookies!!\n請從選單中進行設置");
+        }
+    }
+);/* ==================== 手動注入 Cookies ==================== */
 
 /* ==================== 刪除所有 Cookies ==================== */
 const CookieDelete = GM_registerMenuCommand(
