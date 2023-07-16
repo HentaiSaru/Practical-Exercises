@@ -28,7 +28,7 @@
 
 /* ==================== 選項菜單 ==================== */
 const GetCookiesAutomatically = GM_registerMenuCommand(
-    "🔍 獲取內容 [期間請勿操作]",
+    "🔍 下載內容 Json [期間請勿操作]",
     function() {
         GM_setValue("Enabled", true);
         GetData();
