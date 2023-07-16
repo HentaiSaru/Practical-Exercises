@@ -89,7 +89,7 @@ function OutputData(data) {
     link.href = "data:application/json;charset=utf-8," + encodeURIComponent(data);
 
     // 連結保存名
-    link.download = "${author}.json";
+    link.download = author + ".json";
     //點擊下載
     link.click();
 }/* ==================== 完成輸出下載 ==================== */
