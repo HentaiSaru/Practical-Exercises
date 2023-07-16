@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Get Content Dictionary
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  啟動後從當前頁面開始 , 獲取頁面數據 , 直到最後一頁 , 並將所有數據保存成 Json 下載
 
@@ -27,15 +27,21 @@
 })();
 
 /* ==================== 選項菜單 ==================== */
-const GetCookiesAutomatically = GM_registerMenuCommand(
-    "🔍 下載內容 Json [期間請勿操作]",
+const GetJson = GM_registerMenuCommand(
+    "🔍 下載帖子 Json 文件 [期間請勿操作]",
     function() {
         GM_setValue("Enabled", true);
         GetData();
     }
+)
+const OpenPage = GM_registerMenuCommand(
+    "📃 開啟當前頁面所有帖子",
+    function() {
+        OpenData();
+    }
 )/* ==================== 選項菜單 ==================== */
 
-/* ==================== 處理數據方法 ==================== */
+/* ==================== 獲取/處理數據方法 ==================== */
 function GetData() {
     // 保存的內容字典
     let ContentDict = {} , OrdDict , MergedDict;
@@ -63,7 +69,17 @@ function GetData() {
     // 保存合併後的數據
     GM_setValue("OutDict", JSON.stringify(MergedDict, null, 4));
     NextPage();
-}/* ==================== 處理數據方法 ==================== */
+}/* ==================== 獲取/處理數據方法 ==================== */
+
+/* ==================== 獲取/開啟方法 ==================== */
+function OpenData() {
+    let content = document.querySelector('.card-list__items').querySelectorAll('article.post-card');
+
+    content.forEach(function(content) {
+        let link = content.querySelector('a').getAttribute('href');
+        window.open("https://kemono.party" + link , "_blank");
+    });
+}/* ==================== 獲取/開啟方法 ==================== */
 
 /* ==================== 下一頁自動化操作 ==================== */
 function NextPage() {
