@@ -74,10 +74,11 @@ function GetData() {
 /* ==================== 獲取/開啟方法 ==================== */
 function OpenData() {
     let content = document.querySelector('.card-list__items').querySelectorAll('article.post-card');
-
     content.forEach(function(content) {
         let link = content.querySelector('a').getAttribute('href');
-        window.open("https://kemono.party" + link , "_blank");
+        setTimeout(() => {
+            window.open("https://kemono.party" + link , "_blank");
+        }, 100);
     });
 }/* ==================== 獲取/開啟方法 ==================== */
 
