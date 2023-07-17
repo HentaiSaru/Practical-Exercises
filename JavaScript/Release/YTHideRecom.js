@@ -73,7 +73,7 @@ const Mene = GM_registerMenuCommand(
     "📜 [功能說明]",
     function() {
         alert(
-            "功能失效時(請重新整理)!!\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏播放清單資訊"
+            "功能失效時 [請重新整理] !!\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏播放清單資訊"
         );
     }
 );
