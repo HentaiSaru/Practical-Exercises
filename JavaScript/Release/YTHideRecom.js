@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentaiSaru
 // @description  將影片結尾推薦框透明化 , 滑鼠懸浮恢復 , 按下 Shift 則完全隱藏 , 再次按下恢復
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -21,7 +21,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
 */
 
 (function() {
-    let currentUrl = window.location.href;
+    var currentUrl = window.location.href;
     let pattern = /^https:\/\/www\.youtube\.com\/.+$/;
     if (pattern.test(currentUrl)) {
         // 為推薦卡添加 css 樣式
@@ -82,24 +82,50 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                 }
             }
         });
-        setTimeout(function() {
+        // 判斷在播放頁面運行
+        let VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/;
+        // 判斷在播放清單運行
+        let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
+        if (VVP_Pattern.test(currentUrl)) {
+            var interval;
             if (GM_getValue("Trigger_Shift", [])){
-                let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-                elements.forEach(function(element) {element.style.display = "none";});
+                interval = setInterval(function() {
+                    let element = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
+                    if (element.length > 0) {
+                        element.forEach(function(element) {element.style.display = "none";});
+                        clearInterval(interval);
+                    }
+                }, 1000);
             }
             if (GM_getValue("Trigger_1", [])){
-                let element = document.getElementById("secondary");
-                element.style.display = "none";
+                interval = setInterval(function() {
+                    let element = document.getElementById("secondary");
+                    if (element) {
+                        element.style.display = "none";
+                        clearInterval(interval);
+                    }
+                }, 1000);
             }
             if (GM_getValue("Trigger_2", [])){
-                let element = document.getElementById("comments");
-                element.style.display = "none";
+                interval = setInterval(function() {
+                    let element = document.getElementById("comments");
+                    if (element) {
+                        element.style.display = "none";
+                        clearInterval(interval);
+                    }
+                }, 1000);
             }
+        } else if (Playlist_Pattern.test(currentUrl)) {
             if (GM_getValue("Trigger_3", [])){
-                let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                element.style.display = "none";
+                interval = setInterval(function() {
+                    let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                    if (element) {
+                        element.style.display = "none";
+                        clearInterval(interval);
+                    }
+                }, 1000);
             }
-        } , 2500);
+        }
     }
 })();
 
