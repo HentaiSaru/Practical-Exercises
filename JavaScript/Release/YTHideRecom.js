@@ -98,8 +98,8 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             if (GM_getValue("Trigger_3", [])){
                 let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                 element.style.display = "none";
-            }  
-        } , 2000);
+            }
+        } , 1500);
     }
 })();
 
