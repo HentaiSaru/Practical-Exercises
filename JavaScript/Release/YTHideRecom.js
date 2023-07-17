@@ -22,7 +22,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
 
 (function() {
     let currentUrl = window.location.href;
-    let pattern = /^https?:\/\/.*\.youtube\.com\/watch\?v=.*$/;
+    let pattern = /^https:\/\/www\.youtube\.com\/.+$/;
     if (pattern.test(currentUrl)) {
         // 為推薦卡添加 css 樣式
         let css = `
