@@ -6,7 +6,7 @@
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
 
 // @run-at       document-start
-// @match        *://www.youtube.com/*
+// @match        *://*youtube.com/watch*
 
 // @license      MIT
 // @grant        GM_addStyle
