@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentaiSaru
 // @description  將影片結尾推薦框透明化 , 滑鼠懸浮恢復 , 按下 Shift 則完全隱藏 , 再次按下恢復
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -21,34 +21,20 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
 */
 
 (function() {
-    // 為推薦卡添加 css 樣式
-    let css = `
-        .ytp-ce-element{opacity: 0.1!important;}
-        .ytp-ce-element:hover{opacity: 1!important;}
-    `;
-    if (typeof GM_addStyle !== "undefined") {
-        GM_addStyle(css);
-    } else {
-        let ElementNode = document.createElement("style");
-        ElementNode.appendChild(document.createTextNode(css));
-        (document.querySelector("head") || document.documentElement).appendChild(ElementNode);
-    }
-    setTimeout(function() {
-        if (GM_getValue("Trigger_Shift", [])){
-            let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-            elements.forEach(function(element) {element.style.display = "none";});
-        }
-        if (GM_getValue("Trigger_1", [])){
-            let element = document.getElementById("secondary");
-            element.style.display = "none";
-        }
-        if (GM_getValue("Trigger_2", [])){
-            let element = document.getElementById("comments");
-            element.style.display = "none";
-        }
-        if (GM_getValue("Trigger_3", [])){
-            let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-            element.style.display = "none";
+    let currentUrl = window.location.href;
+    let pattern = /^https?:\/\/.*\.youtube\.com\/watch\?v=.*$/;
+    if (pattern.test(currentUrl)) {
+        // 為推薦卡添加 css 樣式
+        let css = `
+            .ytp-ce-element{opacity: 0.1!important;}
+            .ytp-ce-element:hover{opacity: 1!important;}
+        `;
+        if (typeof GM_addStyle !== "undefined") {
+            GM_addStyle(css);
+        } else {
+            let ElementNode = document.createElement("style");
+            ElementNode.appendChild(document.createTextNode(css));
+            (document.querySelector("head") || document.documentElement).appendChild(ElementNode);
         }
         // 監聽快捷鍵
         document.addEventListener("keydown", function(event) {
@@ -95,11 +81,29 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     GM_setValue("Trigger_3", true);
                 }
             }
-        });  
-    } , 2000);
+        });
+        setTimeout(function() {
+            if (GM_getValue("Trigger_Shift", [])){
+                let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
+                elements.forEach(function(element) {element.style.display = "none";});
+            }
+            if (GM_getValue("Trigger_1", [])){
+                let element = document.getElementById("secondary");
+                element.style.display = "none";
+            }
+            if (GM_getValue("Trigger_2", [])){
+                let element = document.getElementById("comments");
+                element.style.display = "none";
+            }
+            if (GM_getValue("Trigger_3", [])){
+                let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                element.style.display = "none";
+            }  
+        } , 2000);
+    }
 })();
 
-const Mene = GM_registerMenuCommand(
+const Menu = GM_registerMenuCommand(
     "📜 [功能說明]",
     function() {
         alert(
