@@ -1,12 +1,12 @@
 // ==UserScript==
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentaiSaru
 // @name         YT Hide Recom Tool
 // @description  將影片結尾推薦框透明化 , 滑鼠懸浮恢復 , 按下 Shift 則完全隱藏 , 再次按下恢復
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
 
-// @run-at       document-start
-// @match        *://*.youtube.com/watch?v=*
+// @run-at       document-end
+// @match        *://www.youtube.com/*
 
 // @license      MIT
 // @grant        GM_addStyle
@@ -22,12 +22,6 @@ document.getElementById('below') / 包含影片訊息到留言元素
 */
 
 (function() {
-    const Mene = GM_registerMenuCommand(
-        "📜 [功能說明]",
-        function() {
-            alert("功能失效時(請重新整理)!!\n\nShift : 完全隱藏影片尾部推薦\nCtrl : 隱藏右側影片推薦");
-        }
-    )
     let css = `
         .ytp-ce-element{opacity: 0.1!important;}
         .ytp-ce-element:hover{opacity: 1!important;}
@@ -61,3 +55,10 @@ document.getElementById('below') / 包含影片訊息到留言元素
         }
     });
 })();
+
+const Mene = GM_registerMenuCommand(
+        "📜 [功能說明]",
+        function() {
+            alert("功能失效時(請重新整理)!!\n\nShift : 完全隱藏影片尾部推薦\nCtrl : 隱藏右側影片推薦");
+        }
+);
