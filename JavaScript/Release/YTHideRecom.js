@@ -99,7 +99,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                 let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                 element.style.display = "none";
             }
-        } , 1500);
+        } , 2500);
     }
 })();
 
