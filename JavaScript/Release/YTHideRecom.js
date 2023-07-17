@@ -25,7 +25,7 @@ document.getElementById('below') / 包含影片訊息到留言元素
     const Mene = GM_registerMenuCommand(
         "📜 [功能說明]",
         function() {
-            alert("Shift : 完全隱藏影片尾部推薦\nCtrl : 隱藏右側影片推薦");
+            alert("功能失效時(請重新整理)!!\n\nShift : 完全隱藏影片尾部推薦\nCtrl : 隱藏右側影片推薦");
         }
     )
     let css = `
