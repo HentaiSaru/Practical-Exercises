@@ -49,7 +49,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                             element.style.display = "none";
                         }
                     });
-                } else if (event.ctrlKey && event.shiftKey) {
+                } else if (event.ctrlKey && event.key === "z") {
                     event.preventDefault();
                     let UserMenu = document.getElementById("end");
                     let Message = document.getElementById("below");
@@ -85,7 +85,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                         element.style.display = "none";
                         GM_setValue("Trigger_2", true);
                     }
-                }  else if (event.altKey && event.key === "3") {
+                } else if (event.altKey && event.key === "3") {
                     event.preventDefault();
                     let element = document.getElementById("menu-container");
                     if (element.style.display === "none") {
@@ -179,7 +179,7 @@ const Menu = GM_registerMenuCommand(
     "📜 [功能說明]",
     function() {
         alert(
-            "功能失效時 [請重新整理] !!\n以下功能在首頁無效\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊\n(Ctrl + Shift) : 使用極簡化"
+            "功能失效時 [請重新整理] !!\n以下功能在首頁無效\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊\n(Ctrl + Z) : 使用極簡化"
         );
     }
 );
