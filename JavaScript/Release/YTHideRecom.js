@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.11
+// @version      0.0.12
 // @author       HentaiSaru
 // @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
