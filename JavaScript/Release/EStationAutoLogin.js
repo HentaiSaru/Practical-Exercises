@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 // @namespace    https://greasyfork.org/users/989635
@@ -22,24 +22,7 @@
 // @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
-
 // ==/UserScript==
-
-/*
-新手開發 !!
-
-待修正添加 :
-
-表單動畫效果
-表單排版問題
-
-版本更新 :
-v0.0.5 改成每次都會檢測 (會話數據有Bug)
-v0.0.4 修正支援Edge , 代碼排版
-v0.0.3 添加手動注入功能
-v0.0.2 菜單顯示邏輯修正
-v0.0.1 基本架構完成
-*/
 
 /* ==================== 初始化設置 ==================== */
 var modal, Domain;
@@ -268,15 +251,15 @@ function deleteCookies(cookies) {
 }/* ==================== 刪除所有 Cookies (菜單) ==================== */
 /* ---------------------------------------------------------------- */
 /* ==================== 程式入口點 ==================== */
-try { // 暫時就讓他每次都檢測
+try {
     let cookies = GM_getValue("E/Ex_Cookies", []);
-    AutomaticLoginCheck(JSON.parse(cookies));
+    AutomaticLoginCheck(JSON.parse(cookies), window.location.hostname);
 } catch (error) {
-    console.log(error);
+    //console.log(error);
 }/* ==================== 程式入口點 ==================== */
 
 /* ==================== 登入檢測方法 ==================== */
-function AutomaticLoginCheck(login_cookies) {
+async function AutomaticLoginCheck(login_cookies , Domain) {
     // 需要的 cookie 值
     const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
     let cookies = GetCookies();
@@ -284,7 +267,6 @@ function AutomaticLoginCheck(login_cookies) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
     if (!cookiesFound || RequiredCookies.length !== 2) {
-        Domain = window.location.hostname;
         let cookies = document.cookie.split("; ");
         deleteCookies(cookies);
         AddCookies(login_cookies);
