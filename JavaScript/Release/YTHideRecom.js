@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentaiSaru
 // @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -49,6 +49,22 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                             element.style.display = "none";
                         }
                     });
+                } else if (event.ctrlKey && event.shiftKey) {
+                    event.preventDefault();
+                    let UserMenu = document.getElementById("end");
+                    let Message = document.getElementById("below");
+                    let RecommViewing = document.getElementById("secondary");
+                    if (GM_getValue("極簡化", [])) {
+                        UserMenu.style.display = "block";
+                        Message.style.display = "block";
+                        RecommViewing.style.display = "block";
+                        GM_setValue("極簡化", false);
+                    } else {
+                        UserMenu.style.display = "none";
+                        Message.style.display = "none";
+                        RecommViewing.style.display = "none";
+                        GM_setValue("極簡化", true);
+                    }
                 } else if (event.altKey && event.key === "1") {
                     event.preventDefault();
                     let element = document.getElementById("secondary");
@@ -96,6 +112,21 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             // 判斷在播放清單運行
             let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
             if (VVP_Pattern.test(currentUrl)) {
+                if (GM_getValue("極簡化", [])) {
+                    let interval;
+                    interval = setInterval(function() {
+                        let UserMenu = document.getElementById("end");
+                        let Message = document.getElementById("below");
+                        let RecommViewing = document.getElementById("secondary");
+                        if (UserMenu && Message && RecommViewing) {
+                            UserMenu.style.display = "none";
+                            Message.style.display = "none";
+                            RecommViewing.style.display = "none";
+                            clearInterval(interval);
+                            return;
+                        }
+                    }, 1000);
+                }
                 if (GM_getValue("Trigger_1", [])){
                     let interval;
                     interval = setInterval(function() {
@@ -148,7 +179,7 @@ const Menu = GM_registerMenuCommand(
     "📜 [功能說明]",
     function() {
         alert(
-            "功能失效時 [請重新整理] !!\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊"
+            "功能失效時 [請重新整理] !!\n以下功能在首頁無效\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊\n(Ctrl + Shift) : 使用極簡化"
         );
     }
 );
