@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentaiSaru
-// @description  將影片結尾推薦框透明化 , 滑鼠懸浮恢復 , 按下 Shift 則完全隱藏 , 再次按下恢復
+// @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
 
 // @run-at       document-end
@@ -36,87 +36,91 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             ElementNode.appendChild(document.createTextNode(css));
             (document.querySelector("head") || document.documentElement).appendChild(ElementNode);
         }
-        // 監聽快捷鍵
-        document.addEventListener("keydown", function(event) {
-            if (event.shiftKey) {
-                event.preventDefault();
-                let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-                elements.forEach(function(element) {
+        async function runAsync() {
+            // 監聽快捷鍵
+            document.addEventListener("keydown", function(event) {
+                if (event.shiftKey) {
+                    event.preventDefault();
+                    let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
+                    elements.forEach(function(element) {
+                        if (element.style.display === "none") {
+                            element.style.display = "block";
+                        } else {
+                            element.style.display = "none";
+                        }
+                    });
+                } else if (event.altKey && event.key === "1") {
+                    event.preventDefault();
+                    let element = document.getElementById("secondary");
                     if (element.style.display === "none") {
                         element.style.display = "block";
+                        GM_setValue("Trigger_1", false);
                     } else {
                         element.style.display = "none";
+                        GM_setValue("Trigger_1", true);
                     }
-                });
-            } else if (event.altKey && event.key === "1") {
-                event.preventDefault();
-                let element = document.getElementById("secondary");
-                if (element.style.display === "none") {
-                    element.style.display = "block";
-                    GM_setValue("Trigger_1", false);
-                } else {
-                    element.style.display = "none";
-                    GM_setValue("Trigger_1", true);
-                }
-            } else if (event.altKey && event.key === "2") {
-                event.preventDefault();
-                let element = document.getElementById("comments");
-                if (element.style.display === "none") {
-                    element.style.display = "block";
-                    GM_setValue("Trigger_2", false);
-                } else {
-                    element.style.display = "none";
-                    GM_setValue("Trigger_2", true);
-                }
-            } else if (event.altKey && event.key === "3") {
-                event.preventDefault();
-                let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                if (element.style.display === "none") {
-                    element.style.display = "block";
-                    GM_setValue("Trigger_3", false);
-                } else {
-                    element.style.display = "none";
-                    GM_setValue("Trigger_3", true);
-                }
-            }
-        });
-        // 判斷在播放頁面運行
-        let VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/;
-        // 判斷在播放清單運行
-        let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
-        if (VVP_Pattern.test(currentUrl)) {
-            if (GM_getValue("Trigger_1", [])){
-                let interval;
-                interval = setInterval(function() {
-                    let element = document.getElementById("secondary");
-                    if (element) {
-                        element.style.display = "none";
-                        clearInterval(interval);
-                    }
-                }, 1000);
-            }
-            if (GM_getValue("Trigger_2", [])){
-                let interval;
-                interval = setInterval(function() {
+                } else if (event.altKey && event.key === "2") {
+                    event.preventDefault();
                     let element = document.getElementById("comments");
-                    if (element) {
+                    if (element.style.display === "none") {
+                        element.style.display = "block";
+                        GM_setValue("Trigger_2", false);
+                    } else {
                         element.style.display = "none";
-                        clearInterval(interval);
+                        GM_setValue("Trigger_2", true);
                     }
-                }, 1000);
-            }
-        } else if (Playlist_Pattern.test(currentUrl)) {
-            if (GM_getValue("Trigger_3", [])){
-                let interval;
-                interval = setInterval(function() {
+                } else if (event.altKey && event.key === "3") {
+                    event.preventDefault();
                     let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                    if (element) {
+                    if (element.style.display === "none") {
+                        element.style.display = "block";
+                        GM_setValue("Trigger_3", false);
+                    } else {
                         element.style.display = "none";
-                        clearInterval(interval);
+                        GM_setValue("Trigger_3", true);
                     }
-                }, 1000);
+                }
+            });
+            // 判斷在播放頁面運行
+            let VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/;
+            // 判斷在播放清單運行
+            let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
+            if (VVP_Pattern.test(currentUrl)) {
+                if (GM_getValue("Trigger_1", [])){
+                    let interval;
+                    interval = setInterval(function() {
+                        let element = document.getElementById("secondary");
+                        if (element) {
+                            element.style.display = "none";
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+                if (GM_getValue("Trigger_2", [])){
+                    let interval;
+                    interval = setInterval(function() {
+                        let element = document.getElementById("comments");
+                        if (element) {
+                            element.style.display = "none";
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+            } else if (Playlist_Pattern.test(currentUrl)) {
+                if (GM_getValue("Trigger_3", [])){
+                    let interval;
+                    interval = setInterval(function() {
+                        let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div")
+                        if (element) {
+                            element.style.display = "none";
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }
             }
         }
+        // 異步運行
+        runAsync();
     }
 })();
 
