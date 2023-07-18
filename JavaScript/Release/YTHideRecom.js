@@ -44,10 +44,8 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                 elements.forEach(function(element) {
                     if (element.style.display === "none") {
                         element.style.display = "block";
-                        GM_setValue("Trigger_Shift", false);
                     } else {
                         element.style.display = "none";
-                        GM_setValue("Trigger_Shift", true);
                     }
                 });
             } else if (event.altKey && event.key === "1") {
@@ -87,17 +85,8 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
         // 判斷在播放清單運行
         let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
         if (VVP_Pattern.test(currentUrl)) {
-            var interval;
-            if (GM_getValue("Trigger_Shift", [])){
-                interval = setInterval(function() {
-                    let element = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-                    if (element.length > 0) {
-                        element.forEach(function(element) {element.style.display = "none";});
-                        clearInterval(interval);
-                    }
-                }, 1000);
-            }
             if (GM_getValue("Trigger_1", [])){
+                let interval;
                 interval = setInterval(function() {
                     let element = document.getElementById("secondary");
                     if (element) {
@@ -107,6 +96,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                 }, 1000);
             }
             if (GM_getValue("Trigger_2", [])){
+                let interval;
                 interval = setInterval(function() {
                     let element = document.getElementById("comments");
                     if (element) {
@@ -117,6 +107,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             }
         } else if (Playlist_Pattern.test(currentUrl)) {
             if (GM_getValue("Trigger_3", [])){
+                let interval;
                 interval = setInterval(function() {
                     let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                     if (element) {
