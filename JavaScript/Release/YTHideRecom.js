@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentaiSaru
 // @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -69,15 +69,25 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                         element.style.display = "none";
                         GM_setValue("Trigger_2", true);
                     }
-                } else if (event.altKey && event.key === "3") {
+                }  else if (event.altKey && event.key === "3") {
                     event.preventDefault();
-                    let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                    let element = document.getElementById("menu-container");
                     if (element.style.display === "none") {
                         element.style.display = "block";
                         GM_setValue("Trigger_3", false);
                     } else {
                         element.style.display = "none";
                         GM_setValue("Trigger_3", true);
+                    }
+                } else if (event.altKey && event.key === "4") {
+                    event.preventDefault();
+                    let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                    if (element.style.display === "none") {
+                        element.style.display = "block";
+                        GM_setValue("Trigger_4", false);
+                    } else {
+                        element.style.display = "none";
+                        GM_setValue("Trigger_4", true);
                     }
                 }
             });
@@ -106,11 +116,21 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                         }
                     }, 1000);
                 }
-            } else if (Playlist_Pattern.test(currentUrl)) {
                 if (GM_getValue("Trigger_3", [])){
                     let interval;
                     interval = setInterval(function() {
-                        let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div")
+                        let element = document.getElementById("menu-container");
+                        if (element) {
+                            element.style.display = "none";
+                            clearInterval(interval);
+                        }
+                    }, 1000);
+                }
+            } else if (Playlist_Pattern.test(currentUrl)) {
+                if (GM_getValue("Trigger_4", [])){
+                    let interval;
+                    interval = setInterval(function() {
+                        let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                         if (element) {
                             element.style.display = "none";
                             clearInterval(interval);
@@ -128,7 +148,7 @@ const Menu = GM_registerMenuCommand(
     "📜 [功能說明]",
     function() {
         alert(
-            "功能失效時 [請重新整理] !!\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏播放清單資訊"
+            "功能失效時 [請重新整理] !!\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊"
         );
     }
 );
