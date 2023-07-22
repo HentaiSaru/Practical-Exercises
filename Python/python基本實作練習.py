@@ -1,6 +1,7 @@
 import os
 
-""" Python的變數Type
+""" 
+! Python的變數Type
 
 Numeric:
 int = 1,2,-3
@@ -38,7 +39,8 @@ bool = True or False
 NoneType
 """
 
-"""常用方法
+"""
+! 常用方法
 
 .capitalize()               首字母大寫
 .title()                    每個單字首字母轉大寫
@@ -80,6 +82,13 @@ NoneType
 .split(拆分符)              可用 . / 空白等 作為拆分依據
 
 isinstance(value,Type)     檢測變數是否為指定類型
+
+! 數字轉換方法
+
+abs()   絕對值(正整數)
+bin()   轉成二進位
+
+
 """
 
 print("字串測試輸出")
