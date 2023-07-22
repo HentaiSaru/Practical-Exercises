@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentaiSaru
 // @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -23,6 +23,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
 (function() {
     var currentUrl = window.location.href;
     let pattern = /^https:\/\/www\.youtube\.com\/.+$/;
+    // 在首頁不會載入以下方法
     if (pattern.test(currentUrl)) {
         // 為推薦卡添加 css 樣式
         let css = `
@@ -36,6 +37,37 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             ElementNode.appendChild(document.createTextNode(css));
             (document.querySelector("head") || document.documentElement).appendChild(ElementNode);
         }
+        /* -------------------------------------------- */
+        const Menu = GM_registerMenuCommand(
+            "📜 [功能說明]",
+            function() {
+                alert(
+                    "功能失效時 [請重新整理] !!\n以下功能在首頁無效\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊\n(Ctrl + Z) : 使用極簡化"
+                );
+            }
+        );/* -------------------------------------------- */
+        // 隱藏判斷
+        function HideJudgment(element, gm="") {
+            if (element.style.display === "none") {
+                element.style.display = "block";
+                if (gm !== "") {GM_setValue(gm, false);}
+            } else {
+                element.style.display = "none";
+                if (gm !== "") {GM_setValue(gm, true);}
+            }
+        }
+        function SetTrigger(element) {
+            element.style.display = "none";
+            return new Promise(resolve => {
+                setTimeout(function() {
+                    if (element.style.display === "none") {
+                        resolve(true);
+                    } else {
+                        resolve(false);
+                    }
+                }, 300);
+            });
+        }
         async function runAsync() {
             // 監聽快捷鍵
             document.addEventListener("keydown", function(event) {
@@ -43,11 +75,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     event.preventDefault();
                     let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
                     elements.forEach(function(element) {
-                        if (element.style.display === "none") {
-                            element.style.display = "block";
-                        } else {
-                            element.style.display = "none";
-                        }
+                        HideJudgment(element);
                     });
                 } else if (event.ctrlKey && event.key === "z") {
                     event.preventDefault();
@@ -68,43 +96,19 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                 } else if (event.altKey && event.key === "1") {
                     event.preventDefault();
                     let element = document.getElementById("secondary");
-                    if (element.style.display === "none") {
-                        element.style.display = "block";
-                        GM_setValue("Trigger_1", false);
-                    } else {
-                        element.style.display = "none";
-                        GM_setValue("Trigger_1", true);
-                    }
+                    HideJudgment(element, "Trigger_1");
                 } else if (event.altKey && event.key === "2") {
                     event.preventDefault();
                     let element = document.getElementById("comments");
-                    if (element.style.display === "none") {
-                        element.style.display = "block";
-                        GM_setValue("Trigger_2", false);
-                    } else {
-                        element.style.display = "none";
-                        GM_setValue("Trigger_2", true);
-                    }
+                    HideJudgment(element, "Trigger_2");
                 } else if (event.altKey && event.key === "3") {
                     event.preventDefault();
                     let element = document.getElementById("menu-container");
-                    if (element.style.display === "none") {
-                        element.style.display = "block";
-                        GM_setValue("Trigger_3", false);
-                    } else {
-                        element.style.display = "none";
-                        GM_setValue("Trigger_3", true);
-                    }
+                    HideJudgment(element, "Trigger_3");
                 } else if (event.altKey && event.key === "4") {
                     event.preventDefault();
                     let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                    if (element.style.display === "none") {
-                        element.style.display = "block";
-                        GM_setValue("Trigger_4", false);
-                    } else {
-                        element.style.display = "none";
-                        GM_setValue("Trigger_4", true);
-                    }
+                    HideJudgment(element, "Trigger_4");
                 }
             });
             // 判斷在播放頁面運行
@@ -119,11 +123,12 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                         let Message = document.getElementById("below");
                         let RecommViewing = document.getElementById("secondary");
                         if (UserMenu && Message && RecommViewing) {
-                            UserMenu.style.display = "none";
-                            Message.style.display = "none";
-                            RecommViewing.style.display = "none";
-                            clearInterval(interval);
-                            return;
+                            Promise.all([SetTrigger(UserMenu), SetTrigger(Message), SetTrigger(RecommViewing)]).then(results => {
+                                if (results[0] && results[1] && results[2]) {
+                                    clearInterval(interval);
+                                    return;
+                                }
+                            });
                         }
                     }, 1000);
                 }
@@ -132,8 +137,9 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     interval = setInterval(function() {
                         let element = document.getElementById("secondary");
                         if (element) {
-                            element.style.display = "none";
-                            clearInterval(interval);
+                            SetTrigger(element).then(result => {
+                                clearInterval(interval);
+                            });
                         }
                     }, 1000);
                 }
@@ -142,8 +148,9 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     interval = setInterval(function() {
                         let element = document.getElementById("comments");
                         if (element) {
-                            element.style.display = "none";
-                            clearInterval(interval);
+                            SetTrigger(element).then(result => {
+                                clearInterval(interval);
+                            });
                         }
                     }, 1000);
                 }
@@ -152,8 +159,9 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     interval = setInterval(function() {
                         let element = document.getElementById("menu-container");
                         if (element) {
-                            element.style.display = "none";
-                            clearInterval(interval);
+                            SetTrigger(element).then(result => {
+                                clearInterval(interval);
+                            });
                         }
                     }, 1000);
                 }
@@ -163,8 +171,9 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     interval = setInterval(function() {
                         let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                         if (element) {
-                            element.style.display = "none";
-                            clearInterval(interval);
+                            SetTrigger(element).then(result => {
+                                clearInterval(interval);
+                            });
                         }
                     }, 1000);
                 }
@@ -174,12 +183,3 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
         runAsync();
     }
 })();
-
-const Menu = GM_registerMenuCommand(
-    "📜 [功能說明]",
-    function() {
-        alert(
-            "功能失效時 [請重新整理] !!\n以下功能在首頁無效\n\n(Shift) : 完全隱藏影片尾部推薦\n(Alt + 1) : 隱藏右側影片推薦\n(Alt + 2) : 隱藏留言區\n(Alt + 3) : 隱藏功能選項\n(Alt + 4) : 隱藏播放清單資訊\n(Ctrl + Z) : 使用極簡化"
-        );
-    }
-);
