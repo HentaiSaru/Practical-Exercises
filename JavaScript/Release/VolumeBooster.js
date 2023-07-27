@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -15,7 +15,7 @@
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
-var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.0;
+var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.1;
 GM_addStyle(`
     .show-modal-background {
         top: 0;
@@ -23,8 +23,11 @@ GM_addStyle(`
         width: 100%;
         height: 100%;
         z-index: 9999;
+        display: flex;
         position: fixed;
         overflow: auto;
+        justify-content: center;
+        align-items: center;
         background-color: rgba(0, 0, 0, 0.1);
     }
     .show-button {
@@ -87,7 +90,7 @@ GM_addStyle(`
     }
     if (enabledDomains.includes(domain)) {
         let inc = GM_getValue(domain, []);
-        if (inc !== undefined) {
+        if (inc.length !== 0) {
             Increase = inc;
         }
         // 啟用查找
@@ -99,8 +102,6 @@ GM_addStyle(`
 
 /* 音量增量 */
 function booster(video, increase) {
-    // 將預設音量調整至 100%
-    video.volume = 1;
     const audioContext = new (window.AudioContext || window.webkitAudioContext);
     // 音頻來源
     const source = audioContext.createMediaElementSource(video);
@@ -109,7 +110,9 @@ function booster(video, increase) {
     // 動態壓縮節點
     const compressorNode = audioContext.createDynamicsCompressor();
 
-    // 設置音量
+    // 將預設音量調整至 100%
+    video.volume = 1;
+    // 設置增量
     gainNode.gain.value = increase;
 
     // 設置動態壓縮器的參數(通用性設置)
