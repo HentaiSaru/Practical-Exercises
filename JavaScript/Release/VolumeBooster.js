@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Volume Booster
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -15,11 +15,16 @@
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
+/*
+後續開發!!
+
+增加設置調整倍率功能
+*/
 (function() {
-    // 預設增強2倍
-    var Booster ,Increase=2.0;
+    var Booster, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=2.0;// 預設增強2倍
+    GM_registerMenuCommand("網域[啟用/禁用]自動增幅", Useboost(enabledDomains, domain));
     async function FindVideo() {
-        const videoElement = document.querySelector('video');
+        const videoElement = document.querySelector("video");
         let interval ,timeout=0;
         interval = setInterval(function() {
             if (videoElement) {
@@ -33,8 +38,10 @@
             }
         }, 1000);
     }
-    // 開始查找
-    FindVideo();
+    if (enabledDomains.includes(domain)) {
+        // 啟用查找
+        FindVideo();
+    }
 })();
 
 function booster(video, increase) {
@@ -60,4 +67,20 @@ function booster(video, increase) {
             return gainNode.gain.value;
         }
     };
+}
+
+function Useboost(enabledDomains, domain) {
+    if (enabledDomains.includes(domain)) {
+        // 從已啟用列表中移除當前網域
+        enabledDomains = enabledDomains.filter(function(value) {
+            return value !== domain;
+        });
+        alert("已禁用自動增幅");
+    } else {
+        // 添加當前網域到已啟用列表
+        enabledDomains.push(domain);
+        alert("已啟用自動增幅");
+    }
+    GM_setValue("啟用網域", enabledDomains);
+    location.reload();
 }
