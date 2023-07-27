@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Volume Booster
+// @name         Video Volume Booster
 // @version      0.0.4
 // @author       HentaiSaru
 // @description  加強影片的音量大小
