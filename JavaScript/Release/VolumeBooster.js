@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Volume Booster
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -46,6 +46,8 @@
 })();
 
 function booster(video, increase) {
+    // 將預設音量調整至 100%
+    video.volume = 1;
     const audioContext = new (window.AudioContext || window.webkitAudioContext);
     // 音頻來源
     const source = audioContext.createMediaElementSource(video);
