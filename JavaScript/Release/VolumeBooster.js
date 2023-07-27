@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -22,7 +22,7 @@
 */
 
 (function() {
-    var Booster, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=2.0;// 預設增強2倍
+    var Booster, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=2.5;
     async function FindVideo() {
         let interval ,timeout=0;
         interval = setInterval(function() {
@@ -53,17 +53,27 @@ function booster(video, increase) {
     const source = audioContext.createMediaElementSource(video);
     // 增益節點
     const gainNode = audioContext.createGain();
+    // 動態壓縮節點
+    const compressorNode = audioContext.createDynamicsCompressor();
 
     // 設置音量
     gainNode.gain.value = increase;
 
+    // 設置動態壓縮器的參數(通用性設置)
+    compressorNode.ratio.value = 6;
+    compressorNode.knee.value = 15;
+    compressorNode.threshold.value = -12;
+    compressorNode.attack.value = 0.005;
+    compressorNode.release.value = 0.4;
+
     // 進行節點連結
     source.connect(gainNode);
     gainNode.connect(audioContext.destination);
+    compressorNode.connect(audioContext.destination);
     return {
-        // 重新設置音量
+        // 設置音量(範圍 1.0 ~ 10.0)
         setVolume: function(increase) {
-            gainNode.gain.value = increase;
+            gainNode.gain.value = Math.min(Math.max(increase, 1.0), 10.0);
         },
         // 獲取當前的設定值
         getAmpLevel: function() {
