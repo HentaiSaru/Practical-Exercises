@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -165,9 +165,9 @@ function IncrementalSetting() {
             <h2 style="color: #3754f8;">音量增量</h2>
             <div style="margin:1rem auto 1rem auto;">
                 <div class="multiplier">
-                    <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="currentValue">1.1</span><span> 倍</span>
+                    <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="currentValue">${Increase}</span><span> 倍</span>
                 </div>
-                <input type="range" class="slider" min="1.1" max="10.0" value="1.1" step="0.1"><br>
+                <input type="range" class="slider" min="1.1" max="10.0" value="${Increase}" step="0.1"><br>
             </div>
             <div style="text-align: right;">
                 <button class="show-button" id="save">保存設置</button>
@@ -178,9 +178,6 @@ function IncrementalSetting() {
     modal.classList.add('show-modal-background');
     document.body.appendChild(modal);
     modal.classList.remove('hidden');
-
-    let rangeInput = document.querySelector(".slider");
-    rangeInput.value = Increase;
 
     // 監聽設定拉條
     modal.addEventListener("input", function(event) {
