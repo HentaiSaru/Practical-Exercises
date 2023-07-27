@@ -115,12 +115,12 @@ function booster(video, increase) {
     // 設置增量
     gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
 
-    // 設置動態壓縮器的參數(通用性設置)
-    compressorNode.ratio.value = 6;
-    compressorNode.knee.value = 15;
-    compressorNode.threshold.value = -12;
-    compressorNode.attack.value = 0.005;
-    compressorNode.release.value = 0.4;
+    // 設置動態壓縮器的參數(通用性測試)
+    compressorNode.ratio.value = 4;
+    compressorNode.knee.value = 5;
+    compressorNode.threshold.value = -10;
+    compressorNode.attack.value = 0.003;
+    compressorNode.release.value = 0.6;
 
     // 進行節點連結
     source.connect(gainNode);
