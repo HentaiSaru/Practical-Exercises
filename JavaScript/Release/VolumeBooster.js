@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -15,16 +15,63 @@
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
-/*
-後續開發!!
+var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.0;
+GM_addStyle(`
+    .show-modal-background {
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        position: fixed;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.1);
+    }
+    .show-button {
+        top: 0;
+        margin: 3% 2%;
+        color: #d877ff;
+        font-size: 16px;
+        font-weight: bold;
+        border-radius: 3px;
+        background-color: #ffebfa;
+        border: 1px solid rgb(124, 183, 252);
+    }
+    .show-button:hover,
+    .show-button:focus {
+        color: #fc0e85;
+        cursor: pointer;
+        text-decoration: none;
+    }
+    .set-modal-content {
+        width: 400px;
+        padding: 5px;
+        overflow: auto;
+        background-color: #cff4ff;
+        border-radius: 10px;
+        text-align: center;
+        border: 2px ridge #82c4e2;
+        border-collapse: collapse;
+        margin: 2% auto 8px auto;
+    }
+    .multiplier {
+        font-size:25px;
+        color:rgb(253, 1, 85);
+        margin: 10px;
+        font-weight:bold;
+    }
+    .slider {
+        width: 350px;
+    }
+    .hidden {
+        display: none;
+    }
+`);
 
-增加設置調整倍率功能
-*/
-
+/* 主程式運行入口 */
 (function() {
-    var Booster, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=2.5;
     async function FindVideo() {
-        let interval ,timeout=0;
+        let interval, timeout=0;
         interval = setInterval(function() {
             const videoElement = document.querySelector("video");
             if (videoElement) {
@@ -39,12 +86,18 @@
         }, 1000);
     }
     if (enabledDomains.includes(domain)) {
+        let inc = GM_getValue(domain, []);
+        if (inc !== undefined) {
+            Increase = inc;
+        }
         // 啟用查找
         FindVideo();
     }
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
+    GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
 })();
 
+/* 音量增量 */
 function booster(video, increase) {
     // 將預設音量調整至 100%
     video.volume = 1;
@@ -82,6 +135,7 @@ function booster(video, increase) {
     };
 }
 
+/* 使用自動增幅 */
 function Useboost(enabledDomains, domain) {
     if (enabledDomains.includes(domain)) {
         // 從已啟用列表中移除當前網域
@@ -96,4 +150,59 @@ function Useboost(enabledDomains, domain) {
     }
     GM_setValue("啟用網域", enabledDomains);
     location.reload();
+}
+
+/* 設定模態 */
+function IncrementalSetting() {
+    if (modal) {
+        modal.remove();
+        modal = null;
+    }
+
+    modal = document.createElement('div');
+    modal.innerHTML = `
+        <div class="set-modal-content">
+            <h2 style="color: #3754f8;">音量增量</h2>
+            <div style="margin:1rem auto 1rem auto;">
+                <div class="multiplier">
+                    <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="currentValue">1.1</span><span> 倍</span>
+                </div>
+                <input type="range" class="slider" min="1.1" max="10.0" value="1.1" step="0.1"><br>
+            </div>
+            <div style="text-align: right;">
+                <button class="show-button" id="save">保存設置</button>
+                <button class="show-button" id="close">退出選單</button>
+            </div>
+        </div>
+    `
+    modal.classList.add('show-modal-background');
+    document.body.appendChild(modal);
+    modal.classList.remove('hidden');
+
+    let rangeInput = document.querySelector(".slider");
+    rangeInput.value = Increase;
+
+    // 監聽設定拉條
+    modal.addEventListener("input", function(event) {
+        if (event.target.classList.contains("slider")) {
+            let currentValueElement = document.getElementById("currentValue");
+            let currentValue = event.target.value;
+            currentValueElement.textContent = currentValue;
+            Booster.setVolume(currentValue);
+        }
+    });
+
+    // 監聽保存按鈕
+    let saveButton = modal.querySelector("#save");
+    saveButton.addEventListener("click", () => {
+        let rangeValue = parseFloat(modal.querySelector(".slider").value);
+        GM_setValue(domain, rangeValue);
+        modal.classList.add("hidden");
+    });
+
+    // 監聽關閉按鈕點擊
+    let CloseButton = modal.querySelector("#close");
+    CloseButton.addEventListener("click", () => {
+        modal.classList.add("hidden");
+    });
 }
