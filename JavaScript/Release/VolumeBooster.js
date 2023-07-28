@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.14
+// @version      0.0.15
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
-// @description:zh-TW  增強影片音量上限 , 最高增幅至30倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
+// @description:zh-TW  增強影片音量上限 , 最高增幅至100倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
 
 // @run-at       document-start
 // @match        *://*.twitch.tv/*
@@ -18,7 +18,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.1;
+var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.0;
 GM_addStyle(`
     .YT-modal-background {
         top: 0;
@@ -90,7 +90,7 @@ GM_addStyle(`
                 Booster = booster(videoElement, Increase);
                 clearInterval(interval);
             } else {
-                timeout++; // 超時到5秒後退出
+                timeout++; // 超時退出
                 if (timeout === 5) {
                     clearInterval(interval);
                 }
@@ -126,7 +126,7 @@ function booster(video, increase) {
     // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
     video.volume = 1;
     // 設置增量
-    gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
+    gainNode.gain.value = increase;
 
     // 設置動態壓縮器的參數(通用性測試)
     compressorNode.ratio.value = 10;
@@ -142,8 +142,8 @@ function booster(video, increase) {
     return {
         // 設置音量
         setVolume: function(increase) {
-            gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
-            this.Increase = increase;
+            gainNode.gain.value = increase;
+            Increase = increase;
         }
     }
 }
@@ -180,7 +180,7 @@ function IncrementalSetting() {
                 <div class="multiplier">
                     <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="currentValue">${Increase}</span><span> 倍</span>
                 </div>
-                <input type="range" class="slider" min="1.1" max="30.0" value="${Increase}" step="0.1"><br>
+                <input type="range" class="slider" min="0" max="100.0" value="${Increase}" step="0.5"><br>
             </div>
             <div style="text-align: right;">
                 <button class="YT-modal-button" id="save">保存設置</button>
