@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -89,7 +89,6 @@ GM_addStyle(`
     }
     async function MenuHotkey() {
         document.addEventListener("keydown", function(event) {
-            event.preventDefault();
             if (event.altKey && event.key === "b") {
                 IncrementalSetting();
             }
@@ -121,7 +120,7 @@ function booster(video, increase) {
     // 動態壓縮節點
     const compressorNode = audioContext.createDynamicsCompressor();
 
-    // 將預設音量調整至 100%
+    // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
     video.volume = 1;
     // 設置增量
     gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
@@ -142,7 +141,7 @@ function booster(video, increase) {
         setVolume: function(increase) {
             gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
         }
-    };
+    }
 }
 
 /* 使用自動增幅 */
