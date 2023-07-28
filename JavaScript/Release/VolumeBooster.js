@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -16,7 +16,7 @@
 // ==/UserScript==
 var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.1;
 GM_addStyle(`
-    .show-modal-background {
+    .YT-modal-background {
         top: 0;
         left: 0;
         width: 100%;
@@ -29,7 +29,7 @@ GM_addStyle(`
         align-items: center;
         background-color: rgba(0, 0, 0, 0.1);
     }
-    .show-button {
+    .YT-modal-button {
         top: 0;
         margin: 3% 2%;
         color: #d877ff;
@@ -39,13 +39,13 @@ GM_addStyle(`
         background-color: #ffebfa;
         border: 1px solid rgb(124, 183, 252);
     }
-    .show-button:hover,
-    .show-button:focus {
+    .YT-modal-button:hover,
+    .YT-modal-button:focus {
         color: #fc0e85;
         cursor: pointer;
         text-decoration: none;
     }
-    .set-modal-content {
+    .YT-modal-content {
         width: 400px;
         padding: 5px;
         overflow: auto;
@@ -171,7 +171,7 @@ function IncrementalSetting() {
 
     modal = document.createElement('div');
     modal.innerHTML = `
-        <div class="set-modal-content">
+        <div class="YT-modal-content">
             <h2 style="color: #3754f8;">音量增量</h2>
             <div style="margin:1rem auto 1rem auto;">
                 <div class="multiplier">
@@ -180,12 +180,12 @@ function IncrementalSetting() {
                 <input type="range" class="slider" min="1.1" max="30.0" value="${Increase}" step="0.1"><br>
             </div>
             <div style="text-align: right;">
-                <button class="show-button" id="save">保存設置</button>
-                <button class="show-button" id="close">退出選單</button>
+                <button class="YT-modal-button" id="save">保存設置</button>
+                <button class="YT-modal-button" id="close">退出選單</button>
             </div>
         </div>
     `
-    modal.classList.add('show-modal-background');
+    modal.classList.add('YT-modal-background');
     document.body.appendChild(modal);
     modal.classList.remove('hidden');
 
