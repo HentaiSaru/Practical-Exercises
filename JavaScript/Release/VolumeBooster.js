@@ -126,14 +126,14 @@ function booster(video, increase) {
     // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
     video.volume = 1;
     // 設置增量
-    gainNode.gain.value = increase * 2;
+    gainNode.gain.value = increase * increase;
 
-    // 設置動態壓縮器的參數(通用性測試)
-    compressorNode.ratio.value = 5;
-    compressorNode.knee.value = 5;
-    compressorNode.threshold.value = -12;
-    compressorNode.attack.value = 0.003;
-    compressorNode.release.value = 0.6;
+    // 設置動態壓縮器的參數(通用性測試!!)
+    compressorNode.ratio.value = 6; // 壓縮率
+    compressorNode.knee.value = 12; // 壓縮過度反應時間(越小越快)
+    compressorNode.threshold.value = -6; // 壓縮閾值
+    compressorNode.attack.value = 0.003; // 開始壓縮的速度
+    compressorNode.release.value = 0.4; // 釋放壓縮的速度
 
     // 進行節點連結
     source.connect(gainNode);
@@ -142,7 +142,7 @@ function booster(video, increase) {
     return {
         // 設置音量
         setVolume: function(increase) {
-            gainNode.gain.value = increase * 2;
+            gainNode.gain.value = increase * increase;
             Increase = increase;
         }
     }
