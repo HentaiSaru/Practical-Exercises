@@ -4,7 +4,7 @@
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
-// @description:zh-TW  增強影片音量上限 , 最高增幅至100倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
+// @description:zh-TW  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
 
 // @run-at       document-start
 // @match        *://*.twitch.tv/*
@@ -126,12 +126,12 @@ function booster(video, increase) {
     // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
     video.volume = 1;
     // 設置增量
-    gainNode.gain.value = increase;
+    gainNode.gain.value = increase * 2;
 
     // 設置動態壓縮器的參數(通用性測試)
-    compressorNode.ratio.value = 10;
+    compressorNode.ratio.value = 5;
     compressorNode.knee.value = 5;
-    compressorNode.threshold.value = -10;
+    compressorNode.threshold.value = -12;
     compressorNode.attack.value = 0.003;
     compressorNode.release.value = 0.6;
 
@@ -142,7 +142,7 @@ function booster(video, increase) {
     return {
         // 設置音量
         setVolume: function(increase) {
-            gainNode.gain.value = increase;
+            gainNode.gain.value = increase * 2;
             Increase = increase;
         }
     }
@@ -180,7 +180,7 @@ function IncrementalSetting() {
                 <div class="multiplier">
                     <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="currentValue">${Increase}</span><span> 倍</span>
                 </div>
-                <input type="range" class="slider" min="0" max="100.0" value="${Increase}" step="0.5"><br>
+                <input type="range" class="slider" min="0" max="10.0" value="${Increase}" step="0.1"><br>
             </div>
             <div style="text-align: right;">
                 <button class="YT-modal-button" id="save">保存設置</button>
