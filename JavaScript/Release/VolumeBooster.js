@@ -91,7 +91,7 @@ GM_addStyle(`
     async function MenuHotkey() {
         document.addEventListener("keydown", function(event) {
             event.preventDefault();
-            if (event.altKey && event.key === "v" && event.key === "b") {
+            if (event.altKey && event.key === "b") {
                 IncrementalSetting();
             }
         });
@@ -107,7 +107,7 @@ GM_addStyle(`
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
-        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + v + b)");
+        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
     });
     MenuHotkey()
 })();
