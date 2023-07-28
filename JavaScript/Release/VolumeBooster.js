@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentaiSaru
 // @description  加強影片的音量大小
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -88,6 +88,14 @@ GM_addStyle(`
             }
         }, 1000);
     }
+    async function MenuHotkey() {
+        document.addEventListener("keydown", function(event) {
+            event.preventDefault();
+            if (event.altKey && event.key === "v" && event.key === "b") {
+                IncrementalSetting();
+            }
+        });
+    }
     if (enabledDomains.includes(domain)) {
         let inc = GM_getValue(domain, []);
         if (inc.length !== 0) {
@@ -98,6 +106,7 @@ GM_addStyle(`
     }
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
+    MenuHotkey()
 })();
 
 /* 音量增量 */
@@ -130,10 +139,6 @@ function booster(video, increase) {
         // 設置音量(範圍 1.0 ~ 30.0)
         setVolume: function(increase) {
             gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
-        },
-        // 獲取當前的設定值
-        getAmpLevel: function() {
-            return gainNode.gain.value;
         }
     };
 }
