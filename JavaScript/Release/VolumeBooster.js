@@ -14,7 +14,6 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-// 待添加 : 快捷呼叫設置選單
 var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.1;
 GM_addStyle(`
     .show-modal-background {
