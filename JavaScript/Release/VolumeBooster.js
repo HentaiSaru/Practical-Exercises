@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -129,11 +129,11 @@ function booster(video, increase) {
     gainNode.gain.value = increase * increase;
 
     // 設置動態壓縮器的參數(通用性測試!!)
-    compressorNode.ratio.value = 6; // 壓縮率
-    compressorNode.knee.value = 12; // 壓縮過度反應時間(越小越快)
-    compressorNode.threshold.value = -6; // 壓縮閾值
+    compressorNode.ratio.value = 9; // 壓縮率
+    compressorNode.knee.value = 6; // 壓縮過度反應時間(越小越快)
+    compressorNode.threshold.value = -9; // 壓縮閾值
     compressorNode.attack.value = 0.003; // 開始壓縮的速度
-    compressorNode.release.value = 0.4; // 釋放壓縮的速度
+    compressorNode.release.value = 0.6; // 釋放壓縮的速度
 
     // 進行節點連結
     source.connect(gainNode);
