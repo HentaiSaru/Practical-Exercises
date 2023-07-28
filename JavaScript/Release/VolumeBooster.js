@@ -1,20 +1,24 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentaiSaru
-// @description  加強影片的音量大小
+// @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
+// @description:zh-TW  增強影片音量上限 , 最高增幅至30倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
 
 // @run-at       document-start
-// @match        *://*/*
+// @match        *://*.twitch.tv/*
+// @match        *://*.youtube.com/*
+// @match        *://*.bilibili.com/*
 
-// @license      MIT
+// @exclude      *://video.eyny.com/*
+
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase=1.1;
+var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.1;
 GM_addStyle(`
     .YT-modal-background {
         top: 0;
@@ -77,6 +81,12 @@ GM_addStyle(`
         interval = setInterval(function() {
             const videoElement = document.querySelector("video");
             if (videoElement) {
+                if (enabledDomains.includes(domain)) {
+                    let inc = GM_getValue(domain, []);
+                    if (inc.length !== 0) {
+                        Increase = inc;
+                    }
+                }
                 Booster = booster(videoElement, Increase);
                 clearInterval(interval);
             } else {
@@ -94,20 +104,13 @@ GM_addStyle(`
             }
         });
     }
-    if (enabledDomains.includes(domain)) {
-        let inc = GM_getValue(domain, []);
-        if (inc.length !== 0) {
-            Increase = inc;
-        }
-        // 啟用查找
-        FindVideo();
-    }
+    FindVideo();
+    MenuHotkey();
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
         alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
     });
-    MenuHotkey()
 })();
 
 /* 音量增量 */
@@ -126,7 +129,7 @@ function booster(video, increase) {
     gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
 
     // 設置動態壓縮器的參數(通用性測試)
-    compressorNode.ratio.value = 4;
+    compressorNode.ratio.value = 10;
     compressorNode.knee.value = 5;
     compressorNode.threshold.value = -10;
     compressorNode.attack.value = 0.003;
@@ -134,13 +137,13 @@ function booster(video, increase) {
 
     // 進行節點連結
     source.connect(gainNode);
-    gainNode.connect(audioContext.destination);
+    gainNode.connect(compressorNode);
     compressorNode.connect(audioContext.destination);
     return {
-        // 設置音量(範圍 1.0 ~ 30.0)
+        // 設置音量
         setVolume: function(increase) {
             gainNode.gain.value = Math.min(Math.max(increase, 1.0), 30.0);
-            Increase = increase;
+            this.Increase = increase;
         }
     }
 }
@@ -202,9 +205,13 @@ function IncrementalSetting() {
     // 監聽保存按鈕
     let saveButton = modal.querySelector("#save");
     saveButton.addEventListener("click", () => {
-        let rangeValue = parseFloat(modal.querySelector(".slider").value);
-        GM_setValue(domain, rangeValue);
-        modal.classList.add("hidden");
+        if (enabledDomains.includes(domain)) {
+            let rangeValue = parseFloat(modal.querySelector(".slider").value);
+            GM_setValue(domain, rangeValue);
+            modal.classList.add("hidden");
+        } else {
+            alert("需啟用自動增幅才可保存");
+        }
     });
 
     // 監聽關閉按鈕點擊
