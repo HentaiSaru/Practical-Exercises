@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -17,26 +17,42 @@
 
 (function() {
     GM_registerMenuCommand("🛠️ [啟用/禁用] 美化播放介面", function() {Use()});
-    var pattern = /^https:\/\/www\.twitch\.tv\/.+/;
     if (GM_getValue("Beautify", [])) {
-        async function main() {
-            let interval
-            interval = setInterval(function() {
-                const currentUrl = window.location.href;
-                if (pattern.test(currentUrl)) {
-                    const video = document.querySelector("video");
-                    if (video) {
-                        FindChannel();
-                        clearInterval(interval);
-                    }
-                }
-            }, 3000);
-        }
-        main()
+        main();
     }
 })();
 
-async function FindChannel() {
+/* 使用美化監聽 */
+async function main() {
+    let interval, pattern = /^https:\/\/www\.twitch\.tv\/.+/;
+    interval = setInterval(function() {
+        const currentUrl = window.location.href;
+        if (pattern.test(currentUrl)) {
+            const video = document.querySelector("video");
+            if (video) {
+                FindPlayPage();
+                clearInterval(interval);
+            }
+        }
+    }, 3000);
+}
+
+/* 首頁恢復監聽 */
+async function HomeRecovery(Nav, CB, CX) {
+    let interval
+    interval = setInterval(function() {
+        if (window.location.href === "https://www.twitch.tv/") {
+            CX.singleNodeValue.classList.remove("Channel_Effect");
+            Nav.classList.remove("Nav_Effect");
+            CB.style.display = "block";
+            main();
+            clearInterval(interval);
+        }
+    }, 3000);
+}
+
+/* 查找元素方法 */
+async function FindPlayPage() {
     let interval;
     interval = setInterval(function() {
         // 取得導覽
@@ -54,14 +70,17 @@ async function FindChannel() {
             if (Channel_State === "hidden") {
                 Channel_Button.click();
             }
-            Channel_Button.remove();
+            Channel_Button.style.display = "none";
             AutoClickC(Chat_button);
             Beautify(Nav, Channel_Xpath);
             clearInterval(interval);
+            // 首頁復原監聽
+            HomeRecovery(Nav, Channel_Button, Channel_Xpath);
         }
     }, 1000);
 }
 
+/* 美化 */
 async function Beautify(Nav, CX) {
     GM_addStyle(`
         .Nav_Effect {
@@ -84,9 +103,10 @@ async function Beautify(Nav, CX) {
         }
     `);
     Nav.classList.add("Nav_Effect");
-    CX.singleNodeValue.classList.add("Channel_Effect");;
+    CX.singleNodeValue.classList.add("Channel_Effect");
 }
 
+/* 懶人自動點擊 */
 async function AutoClickC(CH) {
     GM_addStyle(`
         .Chat_Effect {
@@ -110,6 +130,7 @@ async function AutoClickC(CH) {
     });
 }
 
+/* 使用設置開關 */
 function Use() {
     if (GM_getValue("Beautify", [])) {
         GM_setValue("Beautify", false);
