@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -34,7 +34,7 @@ async function main() {
                 clearInterval(interval);
             }
         }
-    }, 3000);
+    }, 500);
 }
 
 /* 首頁恢復監聽 */
@@ -48,7 +48,7 @@ async function HomeRecovery(Nav, CB, CX) {
             main();
             clearInterval(interval);
         }
-    }, 3000);
+    }, 500);
 }
 
 /* 查找元素方法 */
@@ -77,7 +77,7 @@ async function FindPlayPage() {
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
         }
-    }, 1000);
+    }, 300);
 }
 
 /* 美化 */
