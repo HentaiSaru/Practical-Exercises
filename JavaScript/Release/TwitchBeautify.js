@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -88,14 +88,24 @@ async function Beautify(Nav, CX) {
 }
 
 async function AutoClickC(CH) {
+    GM_addStyle(`
+        .Chat_Effect {
+            transform: translateY(10px);
+            color: rgba(239, 239, 241, 0.3) !important;
+        }
+        .Chat_Effect:hover {
+            color: rgb(239, 239, 241) !important;
+        }
+    `);
     let timer;
-    CH.style.transform = "translateY(10px)";
+    CH.classList.add("Chat_Effect");
     CH.addEventListener('mouseenter', function() {
         timer = setTimeout(function() {
             CH.click();
         }, 300);
     });
     CH.addEventListener('mouseleave', function() {
+        CH.classList.add("Chat_Effect");
         clearTimeout(timer);
     });
 }
