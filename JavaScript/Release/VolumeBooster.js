@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.17
+// @version      0.0.18
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -104,9 +104,16 @@ GM_addStyle(`
             }
         });
     }
+    FindVideo();
+    MenuHotkey();
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
-    // 可運行原則
-    async function Principle() {
+    GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
+    GM_registerMenuCommand("📜 菜單熱鍵", function() {
+        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
+    });
+
+    // 可運行原則 [暫時還原後續開發]
+    /*async function Principle() {
         let interval,
         timeout=0,
         twitch = /^https:\/\/www\.twitch\.tv\/.+/,
@@ -123,14 +130,8 @@ GM_addStyle(`
                 }
             }
         }, 500);
-        FindVideo();
-        MenuHotkey();
-        GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
-        GM_registerMenuCommand("📜 菜單熱鍵", function() {
-            alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
-        });
     }
-    Principle();
+    Principle();*/
 })();
 
 /* 檢測匹配方法 */
