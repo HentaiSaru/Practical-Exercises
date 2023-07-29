@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -17,24 +17,22 @@
 
 (function() {
     GM_registerMenuCommand("🛠️ [啟用/禁用] 美化播放介面", function() {Use()});
-    var currentUrl = window.location.href;
-    const pattern = /^https:\/\/www\.twitch\.tv\/.+/;
-    if (pattern.test(currentUrl)) {
-        if (GM_getValue("Beautify", [])) { //預設是自動啟用美化
-            let interval, timeout=0;
+    var pattern = /^https:\/\/www\.twitch\.tv\/.+/;
+    if (GM_getValue("Beautify", [])) {
+        async function main() {
+            let interval
             interval = setInterval(function() {
-                const video = document.querySelector("video");
-                if (video) {
-                    FindChannel();
-                    clearInterval(interval);
-                } else {
-                    timeout++;
-                    if (timeout === 3) {
+                const currentUrl = window.location.href;
+                if (pattern.test(currentUrl)) {
+                    const video = document.querySelector("video");
+                    if (video) {
+                        FindChannel();
                         clearInterval(interval);
                     }
                 }
-            }, 1000);
+            }, 3000);
         }
+        main()
     }
 })();
 
