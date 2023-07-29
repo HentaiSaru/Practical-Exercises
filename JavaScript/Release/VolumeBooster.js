@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.19
+// @version      0.0.20
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -83,6 +83,7 @@ GM_addStyle(`
 
 /* 主程式運行入口 */
 (function() {
+    FindVideo();
     async function FindVideo() {
         let interval, timeout=0;
         interval = setInterval(function() {
@@ -97,12 +98,12 @@ GM_addStyle(`
                 Booster = booster(videoElement, Increase);
                 clearInterval(interval);
             } else {
-                timeout++; // 超時退出
-                if (timeout === 5) {
+                timeout++;
+                if (timeout === 6) {
                     clearInterval(interval);
                 }
             }
-        }, 1000);
+        }, 500);
     }
     async function MenuHotkey() {
         document.addEventListener("keydown", function(event) {
@@ -111,7 +112,6 @@ GM_addStyle(`
             }
         });
     }
-    FindVideo();
     MenuHotkey();
     GM_registerMenuCommand("無效果時請重新整理❗️", function() {location.reload();});
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
@@ -120,15 +120,6 @@ GM_addStyle(`
         alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
     });
 })();
-
-/* 檢測匹配方法 */
-function Match(match, string) {
-    if (match.test(string)) {
-        return true;
-    } else {
-        return false;
-    }
-}
 
 /* 音量增量 */
 function booster(video, increase) {
