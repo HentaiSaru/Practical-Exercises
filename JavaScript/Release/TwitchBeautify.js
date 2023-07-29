@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -26,10 +26,8 @@
 async function main() {
     let interval, pattern = /^https:\/\/www\.twitch\.tv\/.+/;
     interval = setInterval(function() {
-        const currentUrl = window.location.href;
-        if (pattern.test(currentUrl)) {
-            const video = document.querySelector("video");
-            if (video) {
+        if (pattern.test(window.location.href)) {
+            if (document.querySelector("video")) {
                 FindPlayPage();
                 clearInterval(interval);
             }
@@ -45,8 +43,7 @@ async function HomeRecovery(Nav, CB, CX) {
             CX.singleNodeValue.classList.remove("Channel_Effect");
             Nav.classList.remove("Nav_Effect");
             CB.style.display = "block";
-            // 當處於被折疊自動展開
-            if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {
+            if (document.querySelector(".simplebar-track.vertical").style.visibility !== "hidden") {
                 CB.click();
             }
             main();// 重新執行美化監聽
@@ -70,18 +67,15 @@ async function FindPlayPage() {
         // 取得頻道元素
         const Channel_Xpath = document.evaluate('//*[@id="root"]/div/div[2]/div/div[1]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
         if (Nav && Chat_button &&Channel_State && Channel_Button && Channel_Xpath) {
-            // 已展開狀態刪除按鈕
-            if (Channel_State === "hidden") {
-                Channel_Button.click();
-            }
-            Channel_Button.style.display = "none";
+            if (Channel_State === "hidden") {Channel_Button.click()}
             AutoClickC(Chat_button);
             Beautify(Nav, Channel_Xpath);
-            clearInterval(interval);
+            Channel_Button.style.display = "none";
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
+            clearInterval(interval);
         }
-    }, 200);
+    }, 250);
 }
 
 /* 美化 */
