@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.18
+// @version      0.0.19
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -18,6 +18,13 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
+/* 開發問題!!
+    經過幾版本的開發測試後
+    為了確保功能的穩定性
+    放棄對Ajex生成的網頁
+    做特別的處理方式
+    有問題就自己重新整理
+*/
 var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.0;
 GM_addStyle(`
     .YT-modal-background {
@@ -106,32 +113,12 @@ GM_addStyle(`
     }
     FindVideo();
     MenuHotkey();
+    GM_registerMenuCommand("無效果時請重新整理❗️", function() {location.reload();});
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
         alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
     });
-
-    // 可運行原則 [暫時還原後續開發]
-    /*async function Principle() {
-        let interval,
-        timeout=0,
-        twitch = /^https:\/\/www\.twitch\.tv\/.+/,
-        youtube = /^https:\/\/www\.youtube\.com\/.+/,
-        bilibili = /^https:\/\/www\.bilibili\.com\/video\/.+/;
-        interval = setInterval(function() {
-            const currentUrl = window.location.href;
-            if (Match(twitch, currentUrl) || Match(youtube, currentUrl) || Match(bilibili, currentUrl)) {
-                clearInterval(interval);
-            } else if(currentUrl === "https://www.youtube.com/" || currentUrl === "https://www.bilibili.com/") {
-                timeout++;
-                if (timeout === 4) {
-                    return;
-                }
-            }
-        }, 500);
-    }
-    Principle();*/
 })();
 
 /* 檢測匹配方法 */
