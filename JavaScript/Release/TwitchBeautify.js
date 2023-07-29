@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -45,7 +45,11 @@ async function HomeRecovery(Nav, CB, CX) {
             CX.singleNodeValue.classList.remove("Channel_Effect");
             Nav.classList.remove("Nav_Effect");
             CB.style.display = "block";
-            main();
+            // 當處於被折疊自動展開
+            if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {
+                CB.click();
+            }
+            main();// 重新執行美化監聽
             clearInterval(interval);
         }
     }, 500);
@@ -77,7 +81,7 @@ async function FindPlayPage() {
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
         }
-    }, 100);
+    }, 200);
 }
 
 /* 美化 */
