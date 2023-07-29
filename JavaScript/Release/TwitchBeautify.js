@@ -77,7 +77,7 @@ async function FindPlayPage() {
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
         }
-    }, 300);
+    }, 100);
 }
 
 /* 美化 */
