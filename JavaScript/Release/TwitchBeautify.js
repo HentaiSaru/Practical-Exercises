@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
-// @description  美化 Twitch 觀看畫面
+// @description  美化 Twitch 觀看畫面 , 還是有些Bug在解決時 , 又會受其他因素影響 , 根據應答速度與準確性進行平衡 , 當前能力只能這樣設置 , 有問題自己重新整理
 
 // @run-at       document-end
 // @match        *://*.twitch.tv/*
@@ -42,10 +42,8 @@ async function HomeRecovery(Nav, CB, CX) {
         if (window.location.href === "https://www.twitch.tv/") {
             CX.singleNodeValue.classList.remove("Channel_Effect");
             Nav.classList.remove("Nav_Effect");
-            CB.style.display = "block";
-            if (document.querySelector(".simplebar-track.vertical").style.visibility !== "hidden") {
-                CB.click();
-            }
+            // 嘗試重新展開(非強制)
+            if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {CB.click()}
             main();// 重新執行美化監聽
             clearInterval(interval);
         }
@@ -53,29 +51,30 @@ async function HomeRecovery(Nav, CB, CX) {
 }
 
 /* 查找元素方法 */
-async function FindPlayPage() {
+function FindPlayPage() {
     let interval;
     interval = setInterval(function() {
-        // 取得導覽
+        // 取得導覽列
         const Nav = document.querySelector("nav.InjectLayout-sc-1i43xsx-0.ghHeNF");
         // 取得聊天室 button
         const Chat_button = document.querySelector("button[data-a-target='right-column__toggle-collapse-btn']");
-        // 取得狀態
-        const Channel_State = document.querySelector(".simplebar-track.vertical").style.visibility;
-        // 取得按鈕
+        // 取得頻道列 button
         const Channel_Button = document.querySelector("button[data-a-target='side-nav-arrow']");
         // 取得頻道元素
         const Channel_Xpath = document.evaluate('//*[@id="root"]/div/div[2]/div/div[1]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        if (Nav && Chat_button &&Channel_State && Channel_Button && Channel_Xpath) {
-            if (Channel_State === "hidden") {Channel_Button.click()}
-            AutoClickC(Chat_button);
+        if (Nav && Chat_button && Channel_Button && Channel_Xpath) {
+            AutoClickC(Chat_button, Channel_Button);
+            if (document.querySelector(".simplebar-track.vertical").style.visibility !== "visible") {Channel_Button.click()}
             Beautify(Nav, Channel_Xpath);
-            Channel_Button.style.display = "none";
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
             clearInterval(interval);
         }
     }, 250);
+    try {
+        const Notlogged = document.getElementById("twilight-sticky-footer-root");
+        Notlogged.style.display = "none";
+    } catch {}
 }
 
 /* 美化 */
@@ -84,47 +83,57 @@ async function Beautify(Nav, CX) {
         .Nav_Effect {
             opacity: 0;
             height: 1rem !important;
-            transition: opacity 0.3s , height 1s;
+            transition: opacity 0.3s , height 0.8s;
         }
         .Nav_Effect:hover {
             opacity: 1;
             height: 5rem !important;
         }
-        .Channel_Effect {
+        .Channel_Expand_Effect {
             opacity: 0;
             width: 1rem;
-            transition: opacity 0.3s , width 0.5s;
+            transition: opacity 0.3s , width 0.6s;
         }
-        .Channel_Effect:hover {
+        .Channel_Expand_Effect:hover {
             opacity: 1;
             width: 24rem;
         }
     `);
     Nav.classList.add("Nav_Effect");
-    CX.singleNodeValue.classList.add("Channel_Effect");
+    CX.singleNodeValue.classList.add("Channel_Expand_Effect");
 }
 
 /* 懶人自動點擊 */
-async function AutoClickC(CH) {
+async function AutoClickC(Chat_button, Channel_Button) {
     GM_addStyle(`
-        .Chat_Effect {
+        .button_Effect {
             transform: translateY(10px);
             color: rgba(239, 239, 241, 0.3) !important;
         }
-        .Chat_Effect:hover {
+        .button_Effect:hover {
             color: rgb(239, 239, 241) !important;
         }
     `);
-    let timer;
-    CH.classList.add("Chat_Effect");
-    CH.addEventListener('mouseenter', function() {
+    let timer, timer2;
+    Chat_button.classList.add("button_Effect");
+    Chat_button.addEventListener('mouseenter', function() {
         timer = setTimeout(function() {
-            CH.click();
-        }, 300);
+            Chat_button.click();
+        }, 250);
     });
-    CH.addEventListener('mouseleave', function() {
-        CH.classList.add("Chat_Effect");
+    Chat_button.addEventListener('mouseleave', function() {
+        Chat_button.classList.add("button_Effect");
         clearTimeout(timer);
+    });
+    Channel_Button.classList.add("button_Effect");
+    Channel_Button.addEventListener('mouseenter', function() {
+        timer2 = setTimeout(function() {
+            Channel_Button.click();
+        }, 250);
+    });
+    Channel_Button.addEventListener('mouseleave', function() {
+        Channel_Button.classList.add("button_Effect");
+        clearTimeout(timer2);
     });
 }
 
