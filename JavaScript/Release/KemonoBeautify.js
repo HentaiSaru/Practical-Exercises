@@ -1,11 +1,13 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
-// @match        https://kemono.su/*
-// @match        https://kemono.party/*
+// @match        *://kemono.su/*
+// @match        *://*.kemono.su/*
+// @match        *://kemono.party/*
+// @match        *://*.kemono.party/*
 // @icon         https://kemono.party/static/favicon.ico
 
 // @license      MIT

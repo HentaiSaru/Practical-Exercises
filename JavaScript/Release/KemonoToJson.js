@@ -4,8 +4,10 @@
 // @author       HentiSaru
 // @description  啟動後從當前頁面開始 , 獲取頁面數據 , 直到最後一頁 , 並將所有數據保存成 Json 下載
 
-// @match        https://kemono.su/*
-// @match        https://kemono.party/*
+// @match        *://kemono.su/*
+// @match        *://*.kemono.su/*
+// @match        *://kemono.party/*
+// @match        *://*.kemono.party/*
 // @icon         https://kemono.party/static/favicon.ico
 
 // @license      Apache
