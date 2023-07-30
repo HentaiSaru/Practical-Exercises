@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -17,15 +17,15 @@
 // ==/UserScript==
 
 (function() {
-    var pattern2 = /^https:\/\/kemono\..+\/.+\/user\/.+\/post\/.+$/, interval;
+    var pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, interval;
     interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
         const box = document.querySelector("div.content-wrapper.shifted");
         const announce = document.querySelector("body > div.content-wrapper.shifted > a");
         if (box && list || announce) {Beautify(box, list, announce);clearInterval(interval);}
     }, 500);
-    if (pattern2.test(window.location.href)) {
-        setTimeout(OriginalImage, 1000);
+    if (pattern.test(window.location.href)) {
+        setTimeout(OriginalImage, 500);
     }
 })();
 
@@ -61,17 +61,18 @@ async function Beautify(box, list, announce) {
 
 async function OriginalImage() {
     try {
-        let link, preview;
+        let link, img;
         document.querySelectorAll("div.post__thumbnail").forEach(image => {
             image.classList.remove("post__thumbnail");
             link = image.querySelector("a");
-            preview = link.querySelector("img");
-            preview.src = link.href;
-            preview.onload = () => {
-                preview.style.width = "100%";
-                preview.removeAttribute("data-src");
-                preview.removeAttribute("loading");
-            };
+            link.querySelector("img").remove();
+            img = document.createElement("img");
+            img.src = link.href;
+            img.style = "width:100%;"
+            img.loading = "lazy";
+            link.appendChild(img);
         });
-    } catch {}
+    } catch (error) {
+        console.log(error);
+    }
 }
