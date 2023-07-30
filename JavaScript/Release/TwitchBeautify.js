@@ -127,6 +127,7 @@ async function AutoClickC(Chat_button, Channel_Button) {
         clearTimeout(timer);
     });
     Channel_Button.classList.add("button_Effect");
+    Channel_Button.style.transform = "translateY(19px)";
     Channel_Button.addEventListener('mouseenter', function() {
         timer2 = setTimeout(function() {
             Channel_Button.click();
