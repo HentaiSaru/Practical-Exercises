@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -40,8 +40,9 @@ async function HomeRecovery(Nav, CB, CX) {
     let interval
     interval = setInterval(function() {
         if (window.location.href === "https://www.twitch.tv/") {
-            CX.singleNodeValue.classList.remove("Channel_Effect");
             Nav.classList.remove("Nav_Effect");
+            CX.singleNodeValue.classList.remove("Channel_Expand_Effect");
+            CB.classList.remove("button_Effect");
             // 嘗試重新展開(非強制)
             if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {CB.click()}
             main();// 重新執行美化監聽
