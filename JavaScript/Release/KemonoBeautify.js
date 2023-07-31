@@ -123,15 +123,16 @@ async function Additional(comments) {
     // 監聽按鍵
     const main = document.querySelector("main");
     document.addEventListener("keydown", function(event) {
-        if (event.key === "4") {
-            event.preventDefault();
-            AjexReplace(prev.href, main);
-        } else if (event.key === "6") {
-            event.preventDefault();
-            AjexReplace(next.href, main);
-        }
-        // 跳轉
-        //window.location.href = prev.href;
+        try {
+            if (event.key === "4") {
+                event.preventDefault();
+                AjexReplace(prev.href, main);
+            } else if (event.key === "6") {
+                event.preventDefault();
+                AjexReplace(next.href, main);
+            }
+        } catch {}
+        //跳轉 window.location.href = prev.href;
     });
 }
 
