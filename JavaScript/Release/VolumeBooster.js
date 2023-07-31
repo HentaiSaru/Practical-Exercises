@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.22
+// @version      0.0.23
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -24,7 +24,6 @@ var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = w
     FindVideo();
     MenuHotkey();
     MonitorAjax();// 暴力解法(多少影響效能)
-    GM_registerMenuCommand("無效果時請重新整理❗️", function() {location.reload();});
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
@@ -32,13 +31,18 @@ var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = w
     });
 })();
 
-/* 監聽 Ajex 變化(測試) */
+/* 監聽 Ajex 變化(fetch的不支援) */
 async function MonitorAjax() {
+    let Video, VideoCache;
     const originalXHROpen = XMLHttpRequest.prototype.open;
     XMLHttpRequest.prototype.open = function () {
         this.addEventListener("readystatechange", function () {
-            if (this.readyState === 4 && document.querySelector("video")) {
-                FindVideo();
+            Video = document.querySelector("video");
+            if (this.readyState === 4 && Video) {
+                if (!Video.hasAttribute("data-audio-context") && Video !== VideoCache) {
+                    FindVideo();
+                    VideoCache = Video;
+                }
             }
         });
         return originalXHROpen.apply(this, arguments);
@@ -59,8 +63,8 @@ async function FindVideo() {
             }
             try {
                 Booster = booster(videoElement, Increase);
-            } catch {
-                //console.log(error);
+            } catch (error) {
+                console.log(error);
             }
             clearInterval(interval);
         } else {
@@ -107,6 +111,7 @@ function booster(video, increase) {
     source.connect(gainNode);
     gainNode.connect(compressorNode);
     compressorNode.connect(audioContext.destination);
+    video.setAttribute("data-audio-context", true);
     return {
         // 設置音量
         setVolume: function(increase) {
