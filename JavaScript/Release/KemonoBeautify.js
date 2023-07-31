@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -70,8 +70,10 @@ async function OriginalImage() {
             img.loading = "lazy";
             img.src = link.href;
             img.srcset = link.href;
-            img.style = "width:100%;"
-            img.onerror= function() {AjexReload(this)}
+            img.style = "width:100%;";
+            img.onerror = function() {
+                AjexReload(link, this);
+            };
             link.appendChild(img);
         });
     } catch (error) {
@@ -80,16 +82,22 @@ async function OriginalImage() {
 }
 
 var xhr = new XMLHttpRequest(), retry;
-async function AjexReload(img) {
+// 修改後已經不需要 Ajex了 , 但我懶得改
+async function AjexReload(location, img) {
     retry = 0;
     xhr.onreadystatechange = function () {
+        img.remove();
         if (xhr.readyState === 4 && xhr.status === 200) {
-            img.src = xhr.responseURL;
-        } else if (retry < 3) {
+            let New_img = document.createElement("img");
+            New_img.src = xhr.responseURL;
+            New_img.srcset = xhr.responseURL;
+            New_img.style = "width:100%;"
+            location.appendChild(New_img);
+        } else if (retry < 5) {
             setTimeout(function() {
                 xhr.send();
                 retry++;
-            }, 1000);
+            }, 1500);
         }
     }
     xhr.open("GET", img.src, true);
