@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -19,20 +19,19 @@
 var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, limit=5, retry;
 
 (function() {
-    let interval;
-    interval = setInterval(function() {
+    let interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
         const box = document.querySelector("div.content-wrapper.shifted");
         const comments = document.querySelector("h2.site-section__subheading"); // 評論區標題
         const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
         if (box && list || comments || announce) {
             Beautify(box, list, announce);
-            Additional(comments);
+            if (pattern.test(window.location.href)) {Additional(comments)}
             clearInterval(interval);
         }
     }, 300);
     if (pattern.test(window.location.href)) {
-        setTimeout(OriginalImage, 200);
+        setTimeout(OriginalImage, 500);
     }
 })();
 
@@ -124,22 +123,29 @@ async function Additional(comments) {
     // 監聽按鍵
     const main = document.querySelector("main");
     document.addEventListener("keydown", function(event) {
-        if (event.key === "ArrowLeft") {
+        if (event.key === "4") {
             event.preventDefault();
             AjexReplace(prev.href, main);
-            //window.location.href = prev.href;
-        } else if (event.key === "ArrowRight") {
+        } else if (event.key === "6") {
             event.preventDefault();
             AjexReplace(next.href, main);
-            //window.location.href = next.href;
         }
+        // 跳轉
+        //window.location.href = prev.href;
     });
 }
 
 /* Ajex 替換頁面的初始化 */
 async function Initialization() {
-    setTimeout(OriginalImage, 200);
-    setTimeout(Additional(document.querySelector("h2.site-section__subheading")), 500);
+    let interval = setInterval(function() {
+        const comments = document.querySelector("h2.site-section__subheading");
+        if (comments) {
+            Additional(comments);
+            clearInterval(interval);
+        }
+    }, 300);
+    setTimeout(OriginalImage, 500);
+    document.querySelector("h1.post__title").scrollIntoView();
 }
 
 async function AjexReplace(url , old_main) {
