@@ -1,15 +1,13 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.20
+// @version      0.0.21
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
-// @description:zh-TW  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 , 要全測試就把匹配改成 *://*/* , 單獨測試就是增加匹配的網域
+// @description:zh-TW  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用*://*/* , 要不影響效能match改成 , 針對特定網域 
 
 // @run-at       document-start
-// @match        *://*.twitch.tv/*
-// @match        *://*.youtube.com/*
-// @match        *://*.bilibili.com/*
+// @match        *://*/*
 
 // @exclude      *://video.eyny.com/*
 
@@ -18,14 +16,121 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-/* 開發問題!!
-    經過幾版本的開發測試後
-    為了確保功能的穩定性
-    放棄對Ajex生成的網頁
-    做特別的處理方式
-    有問題就自己重新整理
-*/
+
 var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.0;
+(function() {
+    FindVideo();
+    MenuHotkey();
+    MonitorAjax();// 暴力解法(多少影響效能)
+    GM_registerMenuCommand("無效果時請重新整理❗️", function() {location.reload();});
+    GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
+    GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
+    GM_registerMenuCommand("📜 菜單熱鍵", function() {
+        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
+    });
+})();
+
+/* 監聽 Ajex 變化(測試) */
+async function MonitorAjax() {
+    const originalXHROpen = XMLHttpRequest.prototype.open;
+    XMLHttpRequest.prototype.open = function () {
+        this.addEventListener("readystatechange", function () {
+            if (this.readyState === 4 && document.querySelector("video")) {
+                FindVideo();
+            }
+        });
+        return originalXHROpen.apply(this, arguments);
+    }
+}
+
+/* 搜索 Video 元素 */
+async function FindVideo() {
+    let interval, timeout=0;
+    interval = setInterval(function() {
+        const videoElement = document.querySelector("video");
+        if (videoElement) {
+            if (enabledDomains.includes(domain)) { // 沒開啟自動增幅的網頁也可以嘗試使用
+                let inc = GM_getValue(domain, []);
+                if (inc.length !== 0) {
+                    Increase = inc;
+                }
+            }
+            try {
+                Booster = booster(videoElement, Increase);
+            } catch (error) {
+                //console.log(error);
+            }
+            clearInterval(interval);
+        } else {
+            timeout++;
+            if (timeout === 3) {
+                clearInterval(interval);
+            }
+        }
+    }, 100);
+}
+
+/* 註冊快捷鍵(開啟菜單) */
+async function MenuHotkey() {
+    document.addEventListener("keydown", function(event) {
+        if (event.altKey && event.key === "b") {
+            IncrementalSetting();
+        }
+    });
+}
+
+/* 音量增量 */
+function booster(video, increase) {
+    const audioContext = new (window.AudioContext || window.webkitAudioContext);
+    // 音頻來源
+    const source = audioContext.createMediaElementSource(video);
+    // 增益節點
+    const gainNode = audioContext.createGain();
+    // 動態壓縮節點
+    const compressorNode = audioContext.createDynamicsCompressor();
+
+    // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
+    video.volume = 1;
+    // 設置增量
+    gainNode.gain.value = increase * increase;
+
+    // 設置動態壓縮器的參數(通用性測試!!)
+    compressorNode.ratio.value = 9; // 壓縮率
+    compressorNode.knee.value = 6; // 壓縮過度反應時間(越小越快)
+    compressorNode.threshold.value = -9; // 壓縮閾值
+    compressorNode.attack.value = 0.003; // 開始壓縮的速度
+    compressorNode.release.value = 0.6; // 釋放壓縮的速度
+
+    // 進行節點連結
+    source.connect(gainNode);
+    gainNode.connect(compressorNode);
+    compressorNode.connect(audioContext.destination);
+    return {
+        // 設置音量
+        setVolume: function(increase) {
+            gainNode.gain.value = increase * increase;
+            Increase = increase;
+        }
+    }
+}
+
+/* 使用自動增幅 */
+function Useboost(enabledDomains, domain) {
+    if (enabledDomains.includes(domain)) {
+        // 從已啟用列表中移除當前網域
+        enabledDomains = enabledDomains.filter(function(value) {
+            return value !== domain;
+        });
+        alert("❌ 禁用自動增幅");
+    } else {
+        // 添加當前網域到已啟用列表
+        enabledDomains.push(domain);
+        alert("✅ 啟用自動增幅");
+    }
+    GM_setValue("啟用網域", enabledDomains);
+    location.reload();
+}
+
 GM_addStyle(`
     .YT-modal-background {
         top: 0;
@@ -80,98 +185,6 @@ GM_addStyle(`
         display: none;
     }
 `);
-
-/* 主程式運行入口 */
-(function() {
-    FindVideo();
-    async function FindVideo() {
-        let interval, timeout=0;
-        interval = setInterval(function() {
-            const videoElement = document.querySelector("video");
-            if (videoElement) {
-                if (enabledDomains.includes(domain)) {
-                    let inc = GM_getValue(domain, []);
-                    if (inc.length !== 0) {
-                        Increase = inc;
-                    }
-                }
-                Booster = booster(videoElement, Increase);
-                clearInterval(interval);
-            } else {
-                timeout++;
-                if (timeout === 6) {
-                    clearInterval(interval);
-                }
-            }
-        }, 500);
-    }
-    async function MenuHotkey() {
-        document.addEventListener("keydown", function(event) {
-            if (event.altKey && event.key === "b") {
-                IncrementalSetting();
-            }
-        });
-    }
-    MenuHotkey();
-    GM_registerMenuCommand("無效果時請重新整理❗️", function() {location.reload();});
-    GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
-    GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
-    GM_registerMenuCommand("📜 菜單熱鍵", function() {
-        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
-    });
-})();
-
-/* 音量增量 */
-function booster(video, increase) {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext);
-    // 音頻來源
-    const source = audioContext.createMediaElementSource(video);
-    // 增益節點
-    const gainNode = audioContext.createGain();
-    // 動態壓縮節點
-    const compressorNode = audioContext.createDynamicsCompressor();
-
-    // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
-    video.volume = 1;
-    // 設置增量
-    gainNode.gain.value = increase * increase;
-
-    // 設置動態壓縮器的參數(通用性測試!!)
-    compressorNode.ratio.value = 9; // 壓縮率
-    compressorNode.knee.value = 6; // 壓縮過度反應時間(越小越快)
-    compressorNode.threshold.value = -9; // 壓縮閾值
-    compressorNode.attack.value = 0.003; // 開始壓縮的速度
-    compressorNode.release.value = 0.6; // 釋放壓縮的速度
-
-    // 進行節點連結
-    source.connect(gainNode);
-    gainNode.connect(compressorNode);
-    compressorNode.connect(audioContext.destination);
-    return {
-        // 設置音量
-        setVolume: function(increase) {
-            gainNode.gain.value = increase * increase;
-            Increase = increase;
-        }
-    }
-}
-
-/* 使用自動增幅 */
-function Useboost(enabledDomains, domain) {
-    if (enabledDomains.includes(domain)) {
-        // 從已啟用列表中移除當前網域
-        enabledDomains = enabledDomains.filter(function(value) {
-            return value !== domain;
-        });
-        alert("❌ 禁用自動增幅");
-    } else {
-        // 添加當前網域到已啟用列表
-        enabledDomains.push(domain);
-        alert("✅ 啟用自動增幅");
-    }
-    GM_setValue("啟用網域", enabledDomains);
-    location.reload();
-}
 
 /* 設定模態 */
 function IncrementalSetting() {
