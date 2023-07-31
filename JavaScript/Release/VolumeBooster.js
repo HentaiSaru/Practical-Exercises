@@ -7,9 +7,9 @@
 // @description:zh-TW  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用*://*/* , 要不影響效能match改成 , 針對特定網域
 
 // @run-at       document-start
-// @match        *://*.twitch.*/*
-// @match        *://*.youtube.*/*
-// @match        *://*.bilibili.*/*
+// @match        *://*.twitch.tv/*
+// @match        *://*.youtube.com/*
+// @match        *://*.bilibili.com/*
 
 // @exclude      *://video.eyny.com/*
 
