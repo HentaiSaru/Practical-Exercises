@@ -59,7 +59,7 @@ async function FindVideo() {
             }
             try {
                 Booster = booster(videoElement, Increase);
-            } catch (error) {
+            } catch {
                 //console.log(error);
             }
             clearInterval(interval);
