@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -16,13 +16,20 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 
+var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, limit=5, retry;
+
 (function() {
-    var pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, interval;
+    let interval;
     interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
         const box = document.querySelector("div.content-wrapper.shifted");
-        const announce = document.querySelector("body > div.content-wrapper.shifted > a");
-        if (box && list || announce) {Beautify(box, list, announce);clearInterval(interval);}
+        const comments = document.querySelector("h2.site-section__subheading"); // 評論區標題
+        const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
+        if (box && list || comments || announce) {
+            Beautify(box, list, announce);
+            Additional(comments);
+            clearInterval(interval);
+        }
     }, 300);
     if (pattern.test(window.location.href)) {
         setTimeout(OriginalImage, 200);
@@ -72,34 +79,79 @@ async function OriginalImage() {
             img.srcset = link.href;
             img.style = "width:100%;";
             img.onerror = function() {
-                AjexReload(link, this);
+                AjexReload(link, this, 0);
             };
             link.appendChild(img);
+            link.classList.add("image-link");
         });
     } catch (error) {
         console.log(error);
     }
 }
 
-var xhr = new XMLHttpRequest(), retry;
 // 修改後已經不需要 Ajex了 , 但我懶得改
-async function AjexReload(location, img) {
-    retry = 0;
+async function AjexReload(location, img, retry) {
     xhr.onreadystatechange = function () {
-        img.remove();
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            let New_img = document.createElement("img");
-            New_img.src = xhr.responseURL;
-            New_img.srcset = xhr.responseURL;
-            New_img.style = "width:100%;"
-            location.appendChild(New_img);
-        } else if (retry < 5) {
-            setTimeout(function() {
+        setTimeout(function() {
+            img.remove();
+            if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
+                let New_img = document.createElement("img");
+                New_img.src = xhr.responseURL;
+                New_img.srcset = xhr.responseURL;
+                New_img.style = "width:100%;"
+                New_img.onerror = function() {AjexReload(location, New_img, retry)};
+                retry++;
+                location.appendChild(New_img);
+            } else if (retry < limit) {
+                xhr.open("GET", img.src, true);
                 xhr.send();
                 retry++;
-            }, 1500);
-        }
+            }
+        }, 1000);
     }
     xhr.open("GET", img.src, true);
+    xhr.send();
+}
+
+/* 額外添加功能 */
+async function Additional(comments) {
+    const prev = document.querySelector("a.post__nav-link.prev");
+    const next = document.querySelector("a.post__nav-link.next");
+    const split = document.createElement("span");
+    split.style = "float: right;"
+    split.appendChild(next.cloneNode(true));
+    comments.appendChild(split);
+    // 監聽按鍵
+    const main = document.querySelector("main");
+    document.addEventListener("keydown", function(event) {
+        if (event.key === "ArrowLeft") {
+            event.preventDefault();
+            AjexReplace(prev.href, main);
+            //window.location.href = prev.href;
+        } else if (event.key === "ArrowRight") {
+            event.preventDefault();
+            AjexReplace(next.href, main);
+            //window.location.href = next.href;
+        }
+    });
+}
+
+/* Ajex 替換頁面的初始化 */
+async function Initialization() {
+    setTimeout(OriginalImage, 200);
+    setTimeout(Additional(document.querySelector("h2.site-section__subheading")), 500);
+}
+
+async function AjexReplace(url , old_main) {
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            let New_data = parser.parseFromString(xhr.responseText, "text/html");
+            let New_main = New_data.querySelector("main");
+            old_main.innerHTML = New_main.innerHTML;
+            Initialization();
+            history.pushState(null, null, url);
+        }
+    }
+    xhr.open("GET", url, true);
     xhr.send();
 }
