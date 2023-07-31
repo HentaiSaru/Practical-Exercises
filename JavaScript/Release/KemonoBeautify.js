@@ -138,6 +138,7 @@ async function Additional(comments) {
 
 /* Ajex 替換頁面的初始化 */
 async function Initialization() {
+    setTimeout(OriginalImage, 500);
     let interval = setInterval(function() {
         const comments = document.querySelector("h2.site-section__subheading");
         if (comments) {
@@ -145,7 +146,6 @@ async function Initialization() {
             clearInterval(interval);
         }
     }, 300);
-    setTimeout(OriginalImage, 500);
     document.querySelector("h1.post__title").scrollIntoView();
 }
 
