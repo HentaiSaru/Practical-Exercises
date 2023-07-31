@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -17,7 +17,6 @@
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, limit=5, retry;
-
 (function() {
     let interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
@@ -33,6 +32,7 @@ var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/
     if (pattern.test(window.location.href)) {
         setTimeout(OriginalImage, 500);
     }
+    setTimeout(AdHiding, 500);
 })();
 
 async function Beautify(box, list, announce) {
@@ -63,6 +63,25 @@ async function Beautify(box, list, announce) {
             box.style.marginLeft = "0rem";
         });
     } catch {}
+}
+
+async function AdHiding() {
+    document.querySelectorAll(".ad-container").forEach(function(element) {
+        try {element.style.display = "none"} catch {element.style.visibility = "hidden"} 
+    })
+    let attempts = 0, interval = setInterval(function() {
+        if (attempts < 3) {
+            document.querySelectorAll(".root--ujvuu").forEach((element) => {
+                try {
+                    element.style.opacity = 0;
+                    element.style.visibility = "hidden";
+                } catch {
+                    element.style.visibility = "hidden";
+                }
+            });
+            attempts++;
+        } else {clearInterval(interval);}
+    }, 500);
 }
 
 async function OriginalImage() {
