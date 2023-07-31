@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         YT Hide Recom Tool
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentaiSaru
 // @description  將 YT 某些元素進行隱藏
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -21,7 +21,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
 */
 
 (function() {
-    var currentUrl = window.location.href;
+    var currentUrl = window.location.href, transform=false;
     let pattern = /^https:\/\/www\.youtube\.com\/.+$/;
     // 在首頁不會載入以下方法
     if (pattern.test(currentUrl)) {
@@ -48,7 +48,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
         );/* -------------------------------------------- */
         // 隱藏判斷
         function HideJudgment(element, gm="") {
-            if (element.style.display === "none") {
+            if (element.style.display === "none" || transform) {
                 element.style.display = "block";
                 if (gm !== "") {GM_setValue(gm, false);}
             } else {
@@ -82,21 +82,34 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                     let UserMenu = document.getElementById("end");
                     let Message = document.getElementById("below");
                     let RecommViewing = document.getElementById("secondary");
+                    let RecommViewing2 = document.getElementById("related");
                     if (GM_getValue("極簡化", [])) {
                         UserMenu.style.display = "block";
                         Message.style.display = "block";
                         RecommViewing.style.display = "block";
+                        RecommViewing2.style.display = "block";
                         GM_setValue("極簡化", false);
                     } else {
                         UserMenu.style.display = "none";
                         Message.style.display = "none";
                         RecommViewing.style.display = "none";
+                        RecommViewing2.style.display = "none";
                         GM_setValue("極簡化", true);
                     }
                 } else if (event.altKey && event.key === "1") {
                     event.preventDefault();
-                    let element = document.getElementById("secondary");
-                    HideJudgment(element, "Trigger_1");
+                    let child = document.getElementById("secondary-inner").childElementCount;
+                    if (child > 1) {// 子元素數量
+                        let element1 = document.getElementById("secondary");
+                        HideJudgment(element1, "Trigger_1");
+                        let element2 = document.getElementById("related");
+                        HideJudgment(element2, "Trigger_1");
+                        transform = false;
+                    } else {
+                        let element2 = document.getElementById("related");
+                        HideJudgment(element2, "Trigger_1");
+                        transform = true;
+                    }
                 } else if (event.altKey && event.key === "2") {
                     event.preventDefault();
                     let element = document.getElementById("comments");
@@ -115,6 +128,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
             let VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/;
             // 判斷在播放清單運行
             let Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/;
+            let Lookup_Delay = 500;
             if (VVP_Pattern.test(currentUrl)) {
                 if (GM_getValue("極簡化", [])) {
                     let interval;
@@ -122,26 +136,29 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                         let UserMenu = document.getElementById("end");
                         let Message = document.getElementById("below");
                         let RecommViewing = document.getElementById("secondary");
-                        if (UserMenu && Message && RecommViewing) {
-                            Promise.all([SetTrigger(UserMenu), SetTrigger(Message), SetTrigger(RecommViewing)]).then(results => {
-                                if (results[0] && results[1] && results[2]) {
+                        let RecommViewing2 = document.getElementById("related");
+                        if (UserMenu && Message && RecommViewing && RecommViewing2) {
+                            Promise.all([SetTrigger(UserMenu), SetTrigger(Message), SetTrigger(RecommViewing), SetTrigger(RecommViewing2)]).then(results => {
+                                if (results[0] && results[1] && results[2] && results[3]) {
                                     clearInterval(interval);
-                                    return;
                                 }
                             });
                         }
-                    }, 1000);
+                    }, Lookup_Delay);
                 }
                 if (GM_getValue("Trigger_1", [])){
                     let interval;
                     interval = setInterval(function() {
                         let element = document.getElementById("secondary");
-                        if (element) {
-                            SetTrigger(element).then(result => {
-                                clearInterval(interval);
+                        let element2 = document.getElementById("related");
+                        if (element && element2) {
+                            Promise.all([SetTrigger(element), SetTrigger(element2)]).then(results => {
+                                if (results[0] && results[1]) {
+                                    clearInterval(interval);
+                                }
                             });
                         }
-                    }, 1000);
+                    }, Lookup_Delay);
                 }
                 if (GM_getValue("Trigger_2", [])){
                     let interval;
@@ -152,7 +169,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                                 clearInterval(interval);
                             });
                         }
-                    }, 1000);
+                    }, Lookup_Delay);
                 }
                 if (GM_getValue("Trigger_3", [])){
                     let interval;
@@ -163,7 +180,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                                 clearInterval(interval);
                             });
                         }
-                    }, 1000);
+                    }, Lookup_Delay);
                 }
             } else if (Playlist_Pattern.test(currentUrl)) {
                 if (GM_getValue("Trigger_4", [])){
@@ -175,7 +192,7 @@ Original Author Link : [https://greasyfork.org/zh-TW/scripts/438403-youtube-hide
                                 clearInterval(interval);
                             });
                         }
-                    }, 1000);
+                    }, Lookup_Delay);
                 }
             }
         }
