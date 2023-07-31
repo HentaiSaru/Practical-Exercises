@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -23,9 +23,9 @@
         const box = document.querySelector("div.content-wrapper.shifted");
         const announce = document.querySelector("body > div.content-wrapper.shifted > a");
         if (box && list || announce) {Beautify(box, list, announce);clearInterval(interval);}
-    }, 500);
+    }, 300);
     if (pattern.test(window.location.href)) {
-        setTimeout(OriginalImage, 500);
+        setTimeout(OriginalImage, 200);
     }
 })();
 
@@ -67,12 +67,31 @@ async function OriginalImage() {
             link = image.querySelector("a");
             link.querySelector("img").remove();
             img = document.createElement("img");
-            img.src = link.href;
-            img.style = "width:100%;"
             img.loading = "lazy";
+            img.src = link.href;
+            img.srcset = link.href;
+            img.style = "width:100%;"
+            img.onerror= function() {AjexReload(this)}
             link.appendChild(img);
         });
     } catch (error) {
         console.log(error);
     }
+}
+
+var xhr = new XMLHttpRequest(), retry;
+async function AjexReload(img) {
+    retry = 0;
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            img.src = xhr.responseURL;
+        } else if (retry < 3) {
+            setTimeout(function() {
+                xhr.send();
+                retry++;
+            }, 1000);
+        }
+    }
+    xhr.open("GET", img.src, true);
+    xhr.send();
 }
