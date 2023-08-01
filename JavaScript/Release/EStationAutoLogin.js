@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 // @namespace    https://greasyfork.org/users/989635
@@ -12,16 +12,10 @@
 // @license      Apache
 // @run-at       document-end
 
-// @grant        GM_cookie
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addElement
-// @grant        GM_listValues
-// @grant        GM_deleteValue
-// @grant        GM_setClipboard
 // @grant        GM_registerMenuCommand
-// @grant        GM_unregisterMenuCommand
 // ==/UserScript==
 
 /* ==================== 初始化設置 ==================== */
