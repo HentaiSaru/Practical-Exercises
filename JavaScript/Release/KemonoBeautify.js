@@ -16,9 +16,13 @@
 // @grant        GM_addStyle
 // ==/UserScript==
 
-var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, limit=5, retry;
+var xhr = new XMLHttpRequest(),
+parser = new DOMParser(),
+pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
+limit=5,
+retry;
+
 (function() {
-    setTimeout(AdHiding, 500);
     let interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
         const box = document.querySelector("div.content-wrapper.shifted");
@@ -31,10 +35,12 @@ var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/
         }
     }, 300);
     if (pattern.test(window.location.href)) {
-        setTimeout(OriginalImage, 300);
+        setTimeout(OriginalImage, 500);
     }
+    setTimeout(AdHiding, 500);
 })();
 
+/* 美化介面 */
 async function Beautify(box, list, announce) {
     GM_addStyle(`
         .list_column {
@@ -65,6 +71,7 @@ async function Beautify(box, list, announce) {
     } catch {}
 }
 
+/* 簡易隱藏廣告 */
 async function AdHiding() {
     document.querySelectorAll(".ad-container").forEach(function(element) {
         try {element.style.display = "none"} catch {element.style.visibility = "hidden"} 
@@ -84,34 +91,49 @@ async function AdHiding() {
     }, 500);
 }
 
-async function OriginalImage() {
+/* 載入原始圖像 (測試死圖是否發生) */
+function OriginalImage() {
     try {
         let link, img;
         document.querySelectorAll("div.post__thumbnail").forEach(image => {
-            image.classList.remove("post__thumbnail"); // 圖片間隔
             link = image.querySelector("a");
-            link.classList.add("image-link");
             img = document.createElement("img");
-            img.loading = "lazy";
+            img.setAttribute("data-src", link.href);
             img.src = link.href;
-            img.srcset = link.href;
+            img.loading = "lazy";
             img.style = "width:100%;";
             img.onerror = function() {
                 AjexReload(link, this, 0);
             };
+            image.classList.remove("post__thumbnail");
             link.querySelector("img").remove();
             link.appendChild(img);
-        });
+            link.classList.add("image-link");
+        })
     } catch (error) {
         console.log(error);
+    } finally {
+        const images = document.querySelectorAll('div.post__files div a img');
+        const observer = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                const img = entry.target;
+                img.src = img.dataset.src;
+                observer.unobserve(img);
+                }
+            });
+        });
+        images.forEach(image => {
+            observer.observe(image);
+        });
     }
 }
 
-// 修改後已經不需要 Ajex了 , 但我懶得改
 async function AjexReload(location, img, retry) {
     xhr.onreadystatechange = function () {
         setTimeout(function() {
             img.remove();
+            console.log("debug : 圖片載入失敗 , url :" + img.src);
             if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
                 let New_img = document.createElement("img");
                 New_img.src = xhr.responseURL;
@@ -127,7 +149,7 @@ async function AjexReload(location, img, retry) {
             }
         }, 1000);
     }
-    xhr.open("GET", img.src, true);
+    xhr.open("GET", location.src, true);
     xhr.send();
 }
 
