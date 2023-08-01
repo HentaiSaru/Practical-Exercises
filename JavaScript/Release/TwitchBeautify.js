@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
-// @description  美化 Twitch 觀看畫面 , 還是有些Bug在解決時 , 又會受其他因素影響 , 根據應答速度與準確性進行平衡 , 當前能力只能這樣設置 , 有問題自己重新整理
+// @description  美化 Twitch 觀看畫面 , 懶人自動點擊 , 在觀看介面啟用 , 回到大廳就會恢復
 
 // @run-at       document-end
 // @match        *://*.twitch.tv/*
