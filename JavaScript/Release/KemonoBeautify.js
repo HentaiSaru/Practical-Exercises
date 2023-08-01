@@ -19,7 +19,7 @@
 var xhr = new XMLHttpRequest(),
 parser = new DOMParser(),
 pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-limit=10,
+limit=5,
 retry;
 
 (function() {
@@ -133,7 +133,7 @@ async function AjexReload(location, retry) {
     let New_img;
     xhr.onreadystatechange = function () {
         setTimeout(function() {
-            console.log("debug : 圖片載入失敗 , url :" + location.href + "\n");
+            console.log(`debug ${retry} : 圖片載入失敗 , url : ${location.href}\n`);
             location.querySelector("img").remove();
             if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
                 New_img = document.createElement("img");
@@ -141,15 +141,18 @@ async function AjexReload(location, retry) {
                 New_img.src = link.href;
                 New_img.loading = "lazy";
                 New_img.style = "width:100%;";
-                New_img.onerror = function() {AjexReload(location, retry)};
-                retry++;
+                New_img.onerror = function() {
+                    xhr.open("GET", location.href, true);
+                    xhr.send();
+                };
                 location.appendChild(New_img);
+                retry++;
             } else if (retry < limit) {
                 xhr.open("GET", location.href, true);
                 xhr.send();
                 retry++;
             }
-        }, 1500);
+        }, 2500);
     }
     xhr.open("GET", location.href, true);
     xhr.send();
