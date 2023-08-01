@@ -19,7 +19,7 @@
 var xhr = new XMLHttpRequest(),
 parser = new DOMParser(),
 pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-limit=5,
+limit=10,
 retry;
 
 (function() {
@@ -92,7 +92,7 @@ async function AdHiding() {
 }
 
 /* 載入原始圖像 (測試死圖是否發生) */
-function OriginalImage() {
+async function OriginalImage() {
     try {
         let link, img;
         document.querySelectorAll("div.post__thumbnail").forEach(image => {
@@ -103,7 +103,7 @@ function OriginalImage() {
             img.loading = "lazy";
             img.style = "width:100%;";
             img.onerror = function() {
-                AjexReload(link, this, 0);
+                AjexReload(link, 0);
             };
             image.classList.remove("post__thumbnail");
             link.querySelector("img").remove();
@@ -129,11 +129,11 @@ function OriginalImage() {
     }
 }
 
-async function AjexReload(location, img, retry) {
+async function AjexReload(location, retry) {
     xhr.onreadystatechange = function () {
         setTimeout(function() {
-            img.remove();
-            console.log("debug : 圖片載入失敗 , url :" + img.src);
+            location.querySelector("img").remove();
+            console.log("debug : 圖片載入失敗 , url :" + location.src);
             if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
                 let New_img = document.createElement("img");
                 New_img.src = xhr.responseURL;
@@ -143,11 +143,11 @@ async function AjexReload(location, img, retry) {
                 retry++;
                 location.appendChild(New_img);
             } else if (retry < limit) {
-                xhr.open("GET", img.src, true);
+                xhr.open("GET", location.src, true);
                 xhr.send();
                 retry++;
             }
-        }, 1000);
+        }, 1500);
     }
     xhr.open("GET", location.src, true);
     xhr.send();
