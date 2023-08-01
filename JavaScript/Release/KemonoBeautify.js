@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -130,16 +130,18 @@ async function OriginalImage() {
 }
 
 async function AjexReload(location, retry) {
+    let New_img;
     xhr.onreadystatechange = function () {
         setTimeout(function() {
+            console.log("debug : 圖片載入失敗 , url :" + location.href + "\n");
             location.querySelector("img").remove();
-            console.log("debug : 圖片載入失敗 , url :" + location.href);
             if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
-                let New_img = document.createElement("img");
-                New_img.src = xhr.responseURL;
-                New_img.srcset = xhr.responseURL;
-                New_img.style = "width:100%;"
-                New_img.onerror = function() {AjexReload(location, New_img, retry)};
+                New_img = document.createElement("img");
+                New_img.setAttribute("data-src", link.href);
+                New_img.src = link.href;
+                New_img.loading = "lazy";
+                New_img.style = "width:100%;";
+                New_img.onerror = function() {AjexReload(location, retry)};
                 retry++;
                 location.appendChild(New_img);
             } else if (retry < limit) {
