@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -18,6 +18,7 @@
 
 var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, limit=5, retry;
 (function() {
+    setTimeout(AdHiding, 500);
     let interval = setInterval(function() {
         const list = document.querySelector("div.global-sidebar");
         const box = document.querySelector("div.content-wrapper.shifted");
@@ -30,9 +31,8 @@ var xhr = new XMLHttpRequest(), parser = new DOMParser(), pattern = /^(https?:\/
         }
     }, 300);
     if (pattern.test(window.location.href)) {
-        setTimeout(OriginalImage, 500);
+        setTimeout(OriginalImage, 300);
     }
-    setTimeout(AdHiding, 500);
 })();
 
 async function Beautify(box, list, announce) {
@@ -88,9 +88,9 @@ async function OriginalImage() {
     try {
         let link, img;
         document.querySelectorAll("div.post__thumbnail").forEach(image => {
-            image.classList.remove("post__thumbnail");
+            image.classList.remove("post__thumbnail"); // 圖片間隔
             link = image.querySelector("a");
-            link.querySelector("img").remove();
+            link.classList.add("image-link");
             img = document.createElement("img");
             img.loading = "lazy";
             img.src = link.href;
@@ -99,8 +99,8 @@ async function OriginalImage() {
             img.onerror = function() {
                 AjexReload(link, this, 0);
             };
+            link.querySelector("img").remove();
             link.appendChild(img);
-            link.classList.add("image-link");
         });
     } catch (error) {
         console.log(error);
