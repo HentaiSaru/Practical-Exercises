@@ -1,10 +1,10 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.23
+// @version      0.0.24
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
-// @description:zh-TW  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用*://*/* , 要不影響效能match改成 , 針對特定網域
+// @description  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 *://*/* , 目前只match特定網域
 
 // @run-at       document-start
 // @match        *://*.twitch.tv/*
@@ -23,7 +23,7 @@ var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = w
 (function() {
     FindVideo();
     MenuHotkey();
-    MonitorAjax();// 暴力解法(多少影響效能)
+    MonitorAjax();// 暴力解法(多少影響效能 , 個人沒感覺)
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
@@ -63,9 +63,7 @@ async function FindVideo() {
             }
             try {
                 Booster = booster(videoElement, Increase);
-            } catch (error) {
-                console.log(error);
-            }
+            } catch (error) {console.log(error)}
             clearInterval(interval);
         } else {
             timeout++;
@@ -73,7 +71,7 @@ async function FindVideo() {
                 clearInterval(interval);
             }
         }
-    }, 100);
+    }, 300);
 }
 
 /* 註冊快捷鍵(開啟菜單) */
@@ -95,7 +93,7 @@ function booster(video, increase) {
     // 動態壓縮節點
     const compressorNode = audioContext.createDynamicsCompressor();
 
-    // 將預設音量調整至 100% [如果被其他腳本改變音量 , 可以使用監聽器持續修改 , 但會占用資源]
+    // 將預設音量調整至 100% (有可能被其他腳本調整)
     video.volume = 1;
     // 設置增量
     gainNode.gain.value = increase * increase;
