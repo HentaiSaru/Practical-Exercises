@@ -133,7 +133,7 @@ async function AjexReload(location, retry) {
     xhr.onreadystatechange = function () {
         setTimeout(function() {
             location.querySelector("img").remove();
-            console.log("debug : 圖片載入失敗 , url :" + location.src);
+            console.log("debug : 圖片載入失敗 , url :" + location.href);
             if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
                 let New_img = document.createElement("img");
                 New_img.src = xhr.responseURL;
@@ -143,13 +143,13 @@ async function AjexReload(location, retry) {
                 retry++;
                 location.appendChild(New_img);
             } else if (retry < limit) {
-                xhr.open("GET", location.src, true);
+                xhr.open("GET", location.href, true);
                 xhr.send();
                 retry++;
             }
         }, 1500);
     }
-    xhr.open("GET", location.src, true);
+    xhr.open("GET", location.href, true);
     xhr.send();
 }
 
