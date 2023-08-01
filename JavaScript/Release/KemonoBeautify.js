@@ -19,8 +19,7 @@
 var xhr = new XMLHttpRequest(),
 parser = new DOMParser(),
 pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-limit=5,
-retry;
+limit=6;
 
 (function() {
     let interval = setInterval(function() {
@@ -103,7 +102,7 @@ async function OriginalImage() {
             img.loading = "lazy";
             img.style = "width:100%;";
             img.onerror = function() {
-                AjexReload(link, 0);
+                Reload(link, this, 1);
             };
             image.classList.remove("post__thumbnail");
             link.querySelector("img").remove();
@@ -129,33 +128,25 @@ async function OriginalImage() {
     }
 }
 
-async function AjexReload(location, retry) {
+async function Reload(location, old_img, retry) {
     let New_img;
-    xhr.onreadystatechange = function () {
+    ReTry();
+    async function ReTry() {
         setTimeout(function() {
-            console.log(`debug ${retry} : 圖片載入失敗 , url : ${location.href}\n`);
-            location.querySelector("img").remove();
-            if (xhr.readyState === 4 && xhr.status === 200 && retry < limit) {
+            console.log(`圖片載入失敗 : debug [${retry}]\t\n`);
+            if (retry <= limit) {
                 New_img = document.createElement("img");
-                New_img.setAttribute("data-src", link.href);
-                New_img.src = link.href;
+                New_img.setAttribute("data-src", location.href);
+                New_img.src = location.href;
                 New_img.loading = "lazy";
                 New_img.style = "width:100%;";
-                New_img.onerror = function() {
-                    xhr.open("GET", location.href, true);
-                    xhr.send();
-                };
+                New_img.onerror = function() {ReTry()};
+                old_img.remove();
                 location.appendChild(New_img);
                 retry++;
-            } else if (retry < limit) {
-                xhr.open("GET", location.href, true);
-                xhr.send();
-                retry++;
             }
-        }, 2500);
+        }, 1500);
     }
-    xhr.open("GET", location.href, true);
-    xhr.send();
 }
 
 /* 額外添加功能 */
