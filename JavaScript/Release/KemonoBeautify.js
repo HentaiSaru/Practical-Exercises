@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.11
+// @version      0.0.12
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -19,8 +19,12 @@
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(),
+Url = window.location.href,
 parser = new DOMParser(),
 pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
+UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
+PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
+DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
 limit=6;
 
 (function() {
@@ -31,15 +35,18 @@ limit=6;
         const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
         if (box && list || comments || announce) {
             Beautify(box, list, announce);
-            if (pattern.test(window.location.href)) {Additional(comments)} // (帖子內) Ajex 換頁
+            if (pattern.test(Url)) {Additional(comments)} // (帖子內) Ajex 換頁
             clearInterval(interval);
         }
     }, 300);
-    if (pattern.test(window.location.href)) {
+    if (pattern.test(Url)) {
         setTimeout(OriginalImage, 500); // 自動大圖
     }
     setTimeout(AdHiding, 500); // 隱藏廣告
-    setTimeout(AjexPostToggle, 500); // Ajex 換頁 [測試功能]
+    console.log(`匹配:${PostsPage.test(Url)}`);
+    if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
+        setTimeout(AjexPostToggle, 500); // Ajex 換頁 [測試功能]
+    }
 })();
 
 /* 美化介面 */
@@ -76,7 +83,7 @@ async function Beautify(box, list, announce) {
 /* 簡易隱藏廣告 */
 async function AdHiding() {
     document.querySelectorAll(".ad-container").forEach(function(element) {
-        try {element.style.display = "none"} catch {element.style.visibility = "hidden"} 
+        try {element.style.display = "none"} catch {element.style.visibility = "hidden"}
     })
     let attempts = 0, interval = setInterval(function() {
         if (attempts < 3) {
@@ -217,8 +224,8 @@ GM_addStyle(`
     }
 `);
 async function AjexPostToggle() {
-    let Old_data, New_data, item;
-    async function Request(a) {
+    let Old_data, New_data, item, link;
+    async function Request(link) {
         item = document.querySelector("div.card-list__items");
         item.style.position = "relative";
         GM_addElement(item, "img", {
@@ -227,7 +234,7 @@ async function AjexPostToggle() {
         });
         GM_xmlhttpRequest({
             method: "GET",
-            url: a.href,
+            url: link,
             nocache: false,
             timeout: 10000,
             onload: response => {
@@ -235,7 +242,7 @@ async function AjexPostToggle() {
                 New_data = parser.parseFromString(response.responseText, "text/html");
                 New_data = New_data.querySelector("section");
                 Old_data.innerHTML = New_data.innerHTML;
-                history.pushState(null, null, a.href);
+                history.pushState(null, null, link);
                 AjexPostToggle();
                 AdHiding();
             }
@@ -245,7 +252,7 @@ async function AjexPostToggle() {
         document.querySelectorAll("menu a").forEach(a => {
             a.addEventListener("click", (event) => {
                 event.preventDefault();
-                Request(a);
+                Request(a.href);
             });
         });
     } catch {}
