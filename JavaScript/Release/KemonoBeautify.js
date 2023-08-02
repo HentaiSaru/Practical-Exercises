@@ -224,7 +224,7 @@ GM_addStyle(`
     }
 `);
 async function AjexPostToggle() {
-    let Old_data, New_data, item, link;
+    let Old_data, New_data, item;
     async function Request(link) {
         item = document.querySelector("div.card-list__items");
         item.style.position = "relative";
