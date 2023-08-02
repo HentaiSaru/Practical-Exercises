@@ -43,7 +43,6 @@ limit=6;
         setTimeout(OriginalImage, 500); // 自動大圖
     }
     setTimeout(AdHiding, 500); // 隱藏廣告
-    console.log(`匹配:${PostsPage.test(Url)}`);
     if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
         setTimeout(AjexPostToggle, 500); // Ajex 換頁 [測試功能]
     }
