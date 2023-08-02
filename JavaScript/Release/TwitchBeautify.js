@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -14,12 +14,16 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-
+ 
 (function() {
-    GM_registerMenuCommand("🛠️ [啟用/禁用] 美化播放介面", function() {Use()});
+    var enabledstate;
     if (GM_getValue("Beautify", [])) {
+        enabledstate = "🛠️ 以啟用美化✅";
         main();
+    } else {
+        enabledstate = "🛠️ 以禁用美化❌";
     }
+    const enabled = GM_registerMenuCommand(enabledstate, function() {Use()});
 })();
 
 /* 使用美化監聽 */
@@ -143,10 +147,8 @@ async function AutoClickC(Chat_button, Channel_Button) {
 function Use() {
     if (GM_getValue("Beautify", [])) {
         GM_setValue("Beautify", false);
-        alert("❌ 禁用美化");
     } else {
         GM_setValue("Beautify", true);
-        alert("✅ 啟用美化");
     }
     location.reload();
 }
