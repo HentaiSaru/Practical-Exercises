@@ -53,10 +53,10 @@
 // GM_setClipboard(訊息, 文本) 設置剪貼簿的文字
 
 // @grant        GM_getTab
-// GM_getTab(取得菜單選項)
+// GM_getTab(不同分頁數據取得)
 
 // @grant        GM_saveTab
-// GM_saveTab(保存菜單選項)
+// GM_saveTab(不同分頁數據設置)
 
 // @grant        GM_setValue
 // GM_setValue(key , value)
