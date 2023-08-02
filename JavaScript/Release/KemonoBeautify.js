@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -14,6 +14,8 @@
 // @run-at       document-start
 
 // @grant        GM_addStyle
+// @grant        GM_addElement
+// @grant        GM_xmlhttpRequest
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(),
@@ -29,14 +31,15 @@ limit=6;
         const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
         if (box && list || comments || announce) {
             Beautify(box, list, announce);
-            if (pattern.test(window.location.href)) {Additional(comments)}
+            if (pattern.test(window.location.href)) {Additional(comments)} // (帖子內) Ajex 換頁
             clearInterval(interval);
         }
     }, 300);
     if (pattern.test(window.location.href)) {
-        setTimeout(OriginalImage, 500);
+        setTimeout(OriginalImage, 500); // 自動大圖
     }
-    setTimeout(AdHiding, 500);
+    setTimeout(AdHiding, 500); // 隱藏廣告
+    setTimeout(AjexPostToggle, 500); // Ajex 換頁 [測試功能]
 })();
 
 /* 美化介面 */
@@ -198,4 +201,52 @@ async function AjexReplace(url , old_main) {
     }
     xhr.open("GET", url, true);
     xhr.send();
+}
+
+GM_addStyle(`
+    .gif-overlay {
+        position: absolute;
+        opacity: 0.5;
+        top: 50%;
+        left: 50%;
+        width: 50%;
+        height: 50%;
+        z-index: 9999;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+`);
+async function AjexPostToggle() {
+    let Old_data, New_data, item;
+    async function Request(a) {
+        item = document.querySelector("div.card-list__items");
+        item.style.position = "relative";
+        GM_addElement(item, "img", {
+            src: "https://upload.wikimedia.org/wikipedia/commons/b/b9/Youtube_loading_symbol_1_(wobbly).gif",
+            class: "gif-overlay"
+        });
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: a.href,
+            nocache: false,
+            timeout: 10000,
+            onload: response => {
+                Old_data = document.querySelector("section");
+                New_data = parser.parseFromString(response.responseText, "text/html");
+                New_data = New_data.querySelector("section");
+                Old_data.innerHTML = New_data.innerHTML;
+                history.pushState(null, null, a.href);
+                AjexPostToggle();
+                AdHiding();
+            }
+        });
+    }
+    try {
+        document.querySelectorAll("menu a").forEach(a => {
+            a.addEventListener("click", (event) => {
+                event.preventDefault();
+                Request(a);
+            });
+        });
+    } catch {}
 }
