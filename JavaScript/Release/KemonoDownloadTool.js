@@ -26,7 +26,7 @@
 // ==/UserScript==
 
 (function() {
-    setTimeout(ButtonCreation, 500);
+    setTimeout(ButtonCreation, 300);
     const OpenPage = GM_registerMenuCommand(
         "📃 開啟當前頁面所有帖子",
         function() {
@@ -55,14 +55,21 @@ async function ButtonCreation() {
             font-family: Arial, sans-serif;
         }
     `);
-    const spanElement = GM_addElement(document.querySelector("div.post__body h2:nth-child(4)"), "span", {class: "File_Span"});
-    const download_button = GM_addElement(spanElement, "button", {
-        class: "Download_Button",
-    });
-    download_button.textContent = "下載圖片";
-    download_button.addEventListener("click", function() {
-        DownloadTrigger(download_button);
-    });
+    let download_button;
+    try {
+        const Files = document.querySelectorAll("div.post__body h2")
+        const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
+        download_button = GM_addElement(spanElement, "button", {
+            class: "Download_Button",
+        });
+        download_button.textContent = "下載圖片";
+        download_button.addEventListener("click", function() {
+            DownloadTrigger(download_button);
+        });
+    } catch {
+        download_button.textContent = "無法下載";
+        download_button.disabled = true;
+    }
 }
 
 function IllegalFilter(Name) {
