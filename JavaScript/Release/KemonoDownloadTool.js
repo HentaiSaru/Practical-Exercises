@@ -2,7 +2,7 @@
 // @name         Kemono Download Tool
 // @version      0.0.1
 // @author       HentiSaru
-// @description  一鍵下載圖片以壓縮檔下載 , json 數據創建
+// @description  一鍵下載圖片以壓縮檔下載 , json 數據創建 (還沒添加)
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
