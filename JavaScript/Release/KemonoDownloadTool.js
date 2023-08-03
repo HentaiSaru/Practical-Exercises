@@ -26,7 +26,8 @@
 // ==/UserScript==
 
 (function() {
-    setTimeout(ButtonCreation, 300);
+    const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
+    if (pattern.test(Url)) {setTimeout(ButtonCreation, 300)}
     const OpenPage = GM_registerMenuCommand(
         "📃 開啟當前頁面所有帖子",
         function() {
