@@ -196,6 +196,8 @@ async function ImageDownload(Folder, ImgData, Button) {
             }
         });
     }
+    Button.textContent = "下載完成";
+    setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
 }
 
 function OpenData() {
