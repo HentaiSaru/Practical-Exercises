@@ -8,7 +8,7 @@
 // @match        *://*.kemono.su/*
 // @match        *://kemono.party/*
 // @match        *://*.kemono.party/*
-// @icon         https://kemono.party/static/favicon.ico
+// @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @license      MIT
 // @run-at       document-end
@@ -27,7 +27,7 @@
 
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
-    if (pattern.test(Url)) {setTimeout(ButtonCreation, 300)}
+    if (pattern.test(window.location.href)) {setTimeout(ButtonCreation, 300)}
     const OpenPage = GM_registerMenuCommand(
         "📃 開啟當前頁面所有帖子",
         function() {
