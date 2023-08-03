@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         Kemono Download Tool
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
-// @description  一鍵下載圖片以壓縮檔下載 , json 數據創建 (還沒添加)
+// @description  一鍵下載圖片 [壓縮下載/單圖下載] , json 數據創建 (還沒添加)
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
@@ -16,8 +16,10 @@
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_download
 // @grant        GM_addElement
 // @grant        GM_deleteValue
+// @grant        GM_notification
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 
@@ -25,16 +27,32 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
+var CompressMode = GM_getValue("壓縮下載", []), ModeDisplay;
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
     if (pattern.test(window.location.href)) {setTimeout(ButtonCreation, 300)}
-    const OpenPage = GM_registerMenuCommand(
-        "📃 開啟當前頁面所有帖子",
-        function() {
-            OpenData();
-        }
-    )
+    GM_registerMenuCommand("🔁 切換下載模式", function() {DownloadModeSwitch()}, "C")
+    GM_registerMenuCommand("📃 開啟當前頁面所有帖子", function() {OpenData()}, "O")
 })();
+
+async function DownloadModeSwitch() {
+    if (GM_getValue("壓縮下載", [])){
+        GM_setValue("壓縮下載", false);
+        GM_notification({
+            title: "模式切換",
+            text: "單圖下載模式",
+            timeout: 2500
+        });
+    } else {
+        GM_setValue("壓縮下載", true);
+        GM_notification({
+            title: "模式切換",
+            text: "壓縮下載模式",
+            timeout: 2500
+        });
+    }
+    location.reload();
+}
 
 async function ButtonCreation() {
     GM_addStyle(`
@@ -63,7 +81,12 @@ async function ButtonCreation() {
         download_button = GM_addElement(spanElement, "button", {
             class: "Download_Button",
         });
-        download_button.textContent = "下載圖片";
+        if (CompressMode) {
+            ModeDisplay = "壓縮下載";
+        } else {
+            ModeDisplay = "單圖下載";
+        }
+        download_button.textContent = ModeDisplay;
         download_button.addEventListener("click", function() {
             DownloadTrigger(download_button);
         });
@@ -87,39 +110,46 @@ async function DownloadTrigger(button) {
         let user = document.querySelector("a.post__user-name").textContent.trim();
         if (imgdata && title && user) {
             button.textContent = "開始下載";
-            Download(`[${user}] ${title}`, imgdata, button);
+            if (CompressMode) {
+                ZipDownload(`[${user}] ${title}`, imgdata, button);
+            } else {
+                ImageDownload(`[${user}] ${title}`, imgdata, button)
+            }
             clearInterval(interval);
         }
     }, 500);
 }
 
-async function Download(Folder, ImgData, Button) {
+async function ZipDownload(Folder, ImgData, Button) {
     const zip = new JSZip(),
     Data = Object.values(ImgData),
     File = Conversion(Folder),
+    Total = Data.length,
     name = IllegalFilter(Folder.split(" ")[1]);
-
     let pool = [], poolSize = 5, progress = 1, mantissa;
-    const Total = Data.length;
-
-    for (let i = 0; i < Total; i++) {
-        let promise = new Promise((resolve) => {
+    function createPromise(i) {
+        return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: "GET",
                 url: Data[i].href.split("?f=")[0],
                 responseType: "blob",
                 onload: response => {
-                    mantissa = progress.toString().padStart(3, '0');
-                    zip.file(`${File}/${name}_${mantissa}.png`, response.response);
-                    Button.textContent = `下載進度 [${progress}/${Total}]`;
-                    progress++;
+                    if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                        mantissa = progress.toString().padStart(3, '0');
+                        zip.file(`${File}/${name}_${mantissa}.png`, response.response);
+                        Button.textContent = `下載進度 [${progress}/${Total}]`;
+                        progress++;
+                    } else {
+                        i--;
+                    }
                     resolve();
-                },
-                onprogress: data => {
-                    console.log(data);
                 }
             });
+
         });
+    }
+    for (let i = 0; i < Total; i++) {
+        let promise = createPromise(i);
         pool.push(promise);
         if (pool.length >= poolSize) {
             await Promise.all(pool);
@@ -139,10 +169,31 @@ async function Download(Folder, ImgData, Button) {
         }).then(zip => {
             Button.textContent = "下載完成";
             saveAs(zip, `${Folder}.zip`);
-            setTimeout(() => {Button.textContent = "下載圖片"}, 4000);
-        }).catch(error => {
+            setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+        }).catch( result => {
             Button.textContent = "壓縮封裝失敗";
-            setTimeout(() => {Button.textContent = "下載圖片"}, 6000);
+            setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
+        });
+    }
+}
+
+async function ImageDownload(Folder, ImgData, Button) {
+    const name = IllegalFilter(Folder.split(" ")[1]),
+    Data = Object.values(ImgData),
+    Total = Data.length;
+    let progress = 1;
+    for (let i = 0; i < Total; i++) {
+        GM_download({
+            url: Data[i].href.split("?f=")[0],
+            name: `${name}_${(progress+i).toString().padStart(3, '0')}.png`,
+            ontimeout: 5000,
+            onload: () => {
+                Button.textContent = `下載進度 [${progress}/${Total}]`;
+                progress++;
+            },
+            onerror: () => {
+                i--;
+            }
         });
     }
 }
