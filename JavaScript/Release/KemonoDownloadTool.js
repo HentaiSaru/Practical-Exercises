@@ -1,8 +1,13 @@
 // ==UserScript==
-// @name         Kemono Download Tool
-// @version      0.0.3
-// @author       HentiSaru
-// @description  一鍵下載圖片 [壓縮下載/單圖下載] , json 數據創建 (還沒添加)
+// @name         Kemono 下載工具
+// @name:zh-TW   Kemono 下載工具
+// @name:zh-CN   Kemono 下载工具
+// @name:ja      Kemono ダウンロードツール
+// @name:en      Kemono DownloadTool
+// @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
+// @description:zh-CN   一键下载图片 (压缩下载/单图下载) , 页面数据创建 json 下载 , 一键开启当前所有帖子
+// @description:ja      画像をワンクリックでダウンロード（圧縮ダウンロード/単一画像ダウンロード）、ページデータを作成してjsonでダウンロード、現在のすべての投稿をワンクリックで開く
+// @description:en      One-click download of images (compressed download/single image download), create page data for json download, one-click open all current posts
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
@@ -11,14 +16,16 @@
 // @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @license      MIT
-// @run-at       document-end
+// @author       HentiSaru
+// @version      0.0.4
+// @namespace    https://greasyfork.org/users/989635
 
+// @run-at       document-end
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
 // @grant        GM_addElement
-// @grant        GM_deleteValue
 // @grant        GM_notification
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
@@ -27,11 +34,18 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
-var CompressMode = GM_getValue("壓縮下載", []), ModeDisplay;
+const regex = /^https:\/\/[^/]+/;
+var CompressMode = GM_getValue("壓縮下載", []), parser = new DOMParser(), url = window.location.href.match(regex), dict = {}, ModeDisplay, Pages=0;
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
     if (pattern.test(window.location.href)) {setTimeout(ButtonCreation, 300)}
     GM_registerMenuCommand("🔁 切換下載模式", function() {DownloadModeSwitch()}, "C")
+    GM_registerMenuCommand("📑 獲取所有帖子 Json 數據", function() {
+        const section = document.querySelector("section");
+        if (section) {
+            GetPageData(section);
+        }
+    }, "J")
     GM_registerMenuCommand("📃 開啟當前頁面所有帖子", function() {OpenData()}, "O")
 })();
 
@@ -198,6 +212,58 @@ async function ImageDownload(Folder, ImgData, Button) {
     }
     Button.textContent = "下載完成";
     setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+}
+
+async function GetPageData(section) {
+    const menu = section.querySelector("a.pagination-button-after-current");
+    const item = section.querySelectorAll(".card-list__items article");
+    let title, link;
+    item.forEach(card => {
+        title = card.querySelector(".post-card__header").textContent.trim()
+        link = card.querySelector("a").href
+        dict[`${link}`] = title;
+    })
+    try { // 當沒有下一頁連結就會發生例外
+        let NextPage = menu.href;
+        if (NextPage) {
+            Pages++;
+            GM_notification({
+                title: "數據處理中",
+                text: `當前處理頁數 : ${Pages}`,
+                image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                timeout: 800
+            });
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: NextPage,
+                nocache: false,
+                ontimeout: 8000,
+                onload: response => {
+                    const DOM = parser.parseFromString(response.responseText, "text/html");
+                    GetPageData(DOM.querySelector("section"));
+                }
+            });
+        }
+    } catch {
+        try {
+            // 進行簡單排序
+            Object.keys(dict).sort();
+            const author = document.querySelector('span[itemprop="name"]').textContent;
+            const json = document.createElement("a");
+            json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dict, null, 4));
+            json.download = `${author}.json`;
+            json.click();
+            json.remove();
+            GM_notification({
+                title: "數據處理完成",
+                text: "Json 數據下載",
+                image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                timeout: 2000
+            });
+        } catch {
+            alert("錯誤的請求頁面");
+        }
+    }
 }
 
 function OpenData() {
