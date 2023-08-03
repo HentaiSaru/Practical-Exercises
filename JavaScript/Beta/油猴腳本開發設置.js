@@ -40,7 +40,7 @@
 // @grant        GM_notification
 // GM_notification(text文字, title標題, image圖片, silent是否播放通知音, timeout自動關閉時間, onclick通知被點觸發, ondone通知關閉觸發(自動關閉也算))
 
-// @grant        GM_notification
+// @grant        GM_openInTab
 // GM_openInTab("URL", active(新分頁是否轉移焦點), insert(是否插入至當前頁面的後方))
 
 // @grant        GM_registerMenuCommand
