@@ -1,8 +1,16 @@
 // ==UserScript==
-// @name         Kemono Beautify
-// @version      0.0.13
+// @name         Kemono 使用增強
+// @name:zh-TW   Kemono 使用增強
+// @name:zh-CN   Kemono 使用增强
+// @name:ja      Kemono 使用を強化
+// @name:en      Kemono Usage Enhancement
+// @version      0.0.14
 // @author       HentiSaru
-// @description  圖像自動加載大圖 , 簡易美化觀看介面
+// @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
+// @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁 
+// @description:zh-CN  侧边栏收缩美化界面 , 自动加载大图 , 简易隐藏广告 , 翻页优化 , 自动开新分页
+// @description:ja     サイドバーの収縮によるインターフェースの美化、大画像の自動読み込み、広告の簡易非表示、ページめくりの最適化、新しいページの自動開封
+// @description:en     Sidebar contraction beautifies interface, automatically loads large images, easily hides ads, optimizes paging, and automatically opens new tabs.
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
@@ -11,8 +19,9 @@
 // @icon         https://kemono.party/static/favicon.ico
 
 // @license      MIT
-// @run-at       document-start
+// @namespace    https://greasyfork.org/users/989635
 
+// @run-at       document-start
 // @grant        GM_addStyle
 // @grant        GM_openInTab
 // @grant        GM_addElement
@@ -35,8 +44,8 @@ limit=6;
         const comments = document.querySelector("h2.site-section__subheading"); // 評論區標題
         const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
         if (box && list || comments || announce) {
-            Beautify(box, list, announce);
-            if (pattern.test(Url)) {Additional(comments)} // (帖子內) Ajex 換頁
+            Beautify(box, list, announce); // 側邊欄收縮
+            if (pattern.test(Url)) {Additional(comments)} // (帖子內) Ajex 快捷換頁
             clearInterval(interval);
         }
     }, 300);
@@ -46,7 +55,7 @@ limit=6;
     setTimeout(AdHiding, 500); // 隱藏廣告
     if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
         setTimeout(AjexPostToggle, 500); // Ajex 換頁
-        setTimeout(NewTabOpens, 500); // 開新分頁功能
+        setTimeout(NewTabOpens, 500); // 自動新分頁
     }
 })();
 
@@ -268,11 +277,4 @@ async function NewTabOpens() {
             GM_openInTab(link.href, { active: false, insert: true });
         });
     });
-    /*let tag;
-        document.addEventListener("click", event => {
-            tag = event.target.tagName;
-            if (tag === "IMG" || tag === "HEADER" || tag === "TIME" || tag === "DIV" || tag === "FOOTER") {
-                event.preventDefault();
-        }
-    });*/
 }
