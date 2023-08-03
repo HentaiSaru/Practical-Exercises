@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -34,13 +34,13 @@ var modal, Domain;
 
 (function() {
     try {
-        let cookies = GM_getValue("E/Ex_Cookies", []), sessiontime = new Date(GM_getValue("SessionTime", [])), time = new Date(), conversion;
+        let cookies = GM_getValue("E/Ex_Cookies", []), domain = window.location.hostname,
+        sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)), time = new Date(), conversion;
         if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 6 * 60 * 1000)}
         conversion = (time - sessiontime) / (1000 * 60);
-        console.log(conversion);
         if (conversion > 5) {
-            GM_setValue("SessionTime", time.getTime());
-            AutomaticLoginCheck(JSON.parse(cookies), window.location.hostname);
+            GM_setValue(`${domain}_SessionTime`, time.getTime());
+            AutomaticLoginCheck(JSON.parse(cookies), domain);
         }
     } catch (error) {console.log(error)}
 })();
@@ -319,8 +319,7 @@ const CookieInjection = GM_registerMenuCommand(
 const CookieDelete = GM_registerMenuCommand(
     "🗑️ 刪除所有 Cookies",
     function() {
-        let cookies = document.cookie.split("; ");
-        DeleteCookies(cookies);
+        DeleteCookies(GetCookies());
         location.reload();
     }
 );
@@ -360,8 +359,9 @@ function AddCookies(LoginCookies) {
 function DeleteCookies(cookies) {
     const cookieNames = Object.keys(cookies);
     for (let i = 0; i < cookieNames.length; i++) {
-        let cookieName = cookieNames[i]; // ex 要指定域名才刪的乾淨
+        let cookieName = cookieNames[i]; // 為了避免例外狀況沒刪除乾淨
         document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.exhentai.org";
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.e-hentai.org";
         document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
 }
