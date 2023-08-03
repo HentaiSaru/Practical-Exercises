@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Beautify
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentiSaru
 // @description  圖像自動加載大圖 , 簡易美化觀看介面
 
@@ -14,6 +14,7 @@
 // @run-at       document-start
 
 // @grant        GM_addStyle
+// @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
 // ==/UserScript==
@@ -44,7 +45,8 @@ limit=6;
     }
     setTimeout(AdHiding, 500); // 隱藏廣告
     if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
-        setTimeout(AjexPostToggle, 500); // Ajex 換頁 [測試功能]
+        setTimeout(AjexPostToggle, 500); // Ajex 換頁
+        setTimeout(NewTabOpens, 500); // 開新分頁功能
     }
 })();
 
@@ -243,6 +245,7 @@ async function AjexPostToggle() {
                 Old_data.innerHTML = New_data.innerHTML;
                 history.pushState(null, null, link);
                 AjexPostToggle();
+                NewTabOpens();
                 AdHiding();
             }
         });
@@ -255,4 +258,21 @@ async function AjexPostToggle() {
             });
         });
     } catch {}
+}
+
+async function NewTabOpens() {
+    const card = document.querySelectorAll("div.card-list__items article a");
+    card.forEach(link => {
+        link.addEventListener("click", event => {
+            event.preventDefault();
+            GM_openInTab(link.href, { active: false, insert: true });
+        });
+    });
+    /*let tag;
+        document.addEventListener("click", event => {
+            tag = event.target.tagName;
+            if (tag === "IMG" || tag === "HEADER" || tag === "TIME" || tag === "DIV" || tag === "FOOTER") {
+                event.preventDefault();
+        }
+    });*/
 }
