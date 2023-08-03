@@ -7,7 +7,7 @@
 
 // @match        https://e-hentai.org/*
 // @match        https://exhentai.org/*
-// @icon         http://g.e-hentai.org/favicon.ico
+// @icon         https://e-hentai.org/favicon.ico
 
 // @license      MIT
 // @run-at       document-end
