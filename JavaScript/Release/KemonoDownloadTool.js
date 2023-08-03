@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Kemono Download Tool
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
 // @description  一鍵下載圖片以壓縮檔下載 , json 數據創建 (還沒添加)
 
@@ -99,7 +99,7 @@ async function Download(Folder, ImgData, Button) {
     File = Conversion(Folder),
     name = IllegalFilter(Folder.split(" ")[1]);
 
-    let pool = [], poolSize = 5, progress, mantissa;
+    let pool = [], poolSize = 5, progress = 1, mantissa;
     const Total = Data.length;
 
     for (let i = 0; i < Total; i++) {
@@ -109,10 +109,10 @@ async function Download(Folder, ImgData, Button) {
                 url: Data[i].href.split("?f=")[0],
                 responseType: "blob",
                 onload: response => {
-                    progress = i + 1;
                     mantissa = progress.toString().padStart(3, '0');
                     zip.file(`${File}/${name}_${mantissa}.png`, response.response);
                     Button.textContent = `下載進度 [${progress}/${Total}]`;
+                    progress++;
                     resolve();
                 },
                 onprogress: data => {
