@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 // @namespace    https://greasyfork.org/users/989635
@@ -9,12 +9,13 @@
 // @match        https://exhentai.org/*
 // @icon         http://g.e-hentai.org/favicon.ico
 
-// @license      Apache
+// @license      MIT
 // @run-at       document-end
 
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_notification
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
@@ -77,7 +78,7 @@ GM_addStyle(`
     .hidden {
         display: none;
     }
-`);/* ==================== 初始化設置 ==================== */
+`);
 
 /* ==================== 自動獲取 Cookies (菜單) ==================== */
 const GetCookiesAutomatically = GM_registerMenuCommand(
@@ -128,7 +129,7 @@ function Cookies_Show(cookie_list) {
         modal.classList.add('hidden');
         document.removeEventListener('click', SaveButton);
     });
-}/* ==================== 自動獲取 Cookies (菜單) ==================== */
+}
 
 /* ==================== 手動輸入 Cookies (菜單) ==================== */
 const ManualSetting = GM_registerMenuCommand(
@@ -169,6 +170,7 @@ const ManualSetting = GM_registerMenuCommand(
         modal.classList.add('show-modal-background');
         document.body.appendChild(modal);
         modal.classList.remove('hidden');
+        const textarea = document.createElement("textarea");
 
         // 捕獲表單提交事件
         document.getElementById("set_cookies").addEventListener("submit", function(event) {
@@ -180,8 +182,6 @@ const ManualSetting = GM_registerMenuCommand(
                     return { name: input.name, value: input.value };
                 });
 
-                // 創建 textarea 元素
-                const textarea = document.createElement("textarea");
                 textarea.name = "confirm_cookies";
                 textarea.style = "margin-top:20px";
                 textarea.rows = 20;
@@ -195,7 +195,12 @@ const ManualSetting = GM_registerMenuCommand(
                 // 將 textarea 添加到指定的 div 元素中
                 const formDiv = document.querySelector("#set_cookies div");
                 formDiv.appendChild(textarea);
-                alert("保存成功!\n[確認正確後 按下退出選單]");
+                GM_notification({
+                    title: "保存通知",
+                    text: "[確認輸入正確]按下退出選單保存",
+                    image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
+                    timeout: 4000
+                });
             }
         });
 
@@ -206,7 +211,68 @@ const ManualSetting = GM_registerMenuCommand(
             document.removeEventListener("click", CloseButton);
         });
     }
-)/* ==================== 手動輸入 Cookies (菜單) ==================== */
+)
+
+/* ==================== 查看保存的 Cookies (菜單) ==================== */
+const ViewSaveCookie = GM_registerMenuCommand(
+    "🔍 查看保存的 Cookies",
+    function() {
+        if (modal) {
+            modal.remove();
+            modal = null;
+        }
+
+        Domain = window.location.hostname;
+        if (Domain === "e-hentai.org") {
+            GM_addStyle('.set-modal-content { background-color: #fefefe; }');
+        } else if (Domain === "exhentai.org") {
+            GM_addStyle('.set-modal-content { background-color: #34353b; }');
+        }
+
+        modal = document.createElement('div');
+        modal.innerHTML = `
+            <div class="set-modal-content">
+            <h1>當前設置 Cookies</h1>
+                <div id="view_cookies" style="margin:10px"></div>
+                <button class="show-button" id="save_changes">更改保存</button>
+                <button class="show-button" id="close">退出選單</button>
+            </div>
+        `
+
+        modal.classList.add('show-modal-background');
+        document.body.appendChild(modal);
+        modal.classList.remove('hidden');
+
+        const textarea = document.createElement("textarea");
+        const login_cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
+        textarea.value = JSON.stringify(login_cookies , null, 4);
+
+        textarea.id = "view_SC";
+        textarea.style = "margin-top:20px";
+        textarea.rows = 20;
+        textarea.cols = 60;
+        document.getElementById("view_cookies").appendChild(textarea);
+
+        let SaveButton = document.getElementById("save_changes");
+        SaveButton.addEventListener("click", () => {
+            GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
+            GM_notification({
+                title: "變更通知",
+                text: "以保存變更",
+                image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
+                timeout: 4000
+            });
+            modal.classList.add("hidden");
+            document.removeEventListener("click", SaveButton);
+        });
+
+        let CloseButton = document.getElementById("close");
+        CloseButton.addEventListener("click", () => {
+            modal.classList.add("hidden");
+            document.removeEventListener("click", CloseButton);
+        });
+    }
+)
 
 /* ==================== 手動注入 Cookies (菜單) ==================== */
 const CookieInjection = GM_registerMenuCommand(
@@ -223,7 +289,7 @@ const CookieInjection = GM_registerMenuCommand(
             alert("未檢測到可注入的 Cookies !!\n請從選單中進行設置");
         }
     }
-);/* ==================== 手動注入 Cookies (菜單) ==================== */
+);
 
 /* ==================== 刪除所有 Cookies (菜單) ==================== */
 const CookieDelete = GM_registerMenuCommand(
@@ -242,25 +308,28 @@ function deleteCookies(cookies) {
         let cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
         document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
-}/* ==================== 刪除所有 Cookies (菜單) ==================== */
-/* ---------------------------------------------------------------- */
+}
+
 /* ==================== 程式入口點 ==================== */
 try {
     let cookies = GM_getValue("E/Ex_Cookies", []);
     AutomaticLoginCheck(JSON.parse(cookies), window.location.hostname);
 } catch (error) {
     //console.log(error);
-}/* ==================== 程式入口點 ==================== */
+}
 
 /* ==================== 登入檢測方法 ==================== */
 async function AutomaticLoginCheck(login_cookies , Domain) {
     // 需要的 cookie 值
-    const RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
+    let RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
+    if (Domain === "exhentai.org") {
+        RequiredCookies = ["igneous","ipb_member_id","ipb_pass_hash"];
+    }
     let cookies = GetCookies();
     let cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
-    if (!cookiesFound || RequiredCookies.length !== 2) {
+    if (!cookiesFound || !RequiredCookies.length >= 2) {
         let cookies = document.cookie.split("; ");
         deleteCookies(cookies);
         AddCookies(login_cookies);
@@ -268,10 +337,10 @@ async function AutomaticLoginCheck(login_cookies , Domain) {
         if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
             deleteCookies(cookies);
             AddCookies(login_cookies);
-            location.reload();
+            //location.reload();
         }
     }
-}/* ==================== 登入檢測方法 ==================== */
+}
 
 /* ==================== 添加 cookie ==================== */
 function AddCookies(LoginCookies) {
@@ -279,7 +348,7 @@ function AddCookies(LoginCookies) {
         let cookie = LoginCookies[i];
         document.cookie = cookie.name + "=" + cookie.value;
     }
-}/* ==================== 添加 cookie ==================== */
+}
 
 /* ==================== 取得 Cookies ==================== */
 function GetCookies() {
@@ -291,4 +360,4 @@ function GetCookies() {
         cookies[cookieName] = cookieValue;
     }
     return cookies;
-}/* ==================== 取得 Cookies ==================== */
+}
