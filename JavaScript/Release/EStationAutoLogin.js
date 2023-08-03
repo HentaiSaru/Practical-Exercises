@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         (E/Ex-Hentai) AutoLogin
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentiSaru
 // @description  自動檢測 E 站的登入狀態 , 沒有登入 就將設置的 cookies 自動添加進去 , 進行快速登入
 // @namespace    https://greasyfork.org/users/989635
@@ -21,6 +21,19 @@
 
 /* ==================== 初始化設置 ==================== */
 var modal, Domain;
+
+(function() {
+    try {
+        let cookies = GM_getValue("E/Ex_Cookies", []), sessiontime = new Date(GM_getValue("SessionTime", [])), time = new Date(), conversion;
+        if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 6 * 60 * 1000)}
+        conversion = (time - sessiontime) / (1000 * 60);
+        console.log(conversion);
+        if (conversion > 5) {
+            GM_setValue("SessionTime", time.getTime());
+            AutomaticLoginCheck(JSON.parse(cookies), window.location.hostname);
+        }
+    } catch (error) {console.log(error)}
+})();
 
 GM_addStyle(`
     .show-modal-background {
@@ -282,8 +295,9 @@ const CookieInjection = GM_registerMenuCommand(
             let login_cookies = GM_getValue("E/Ex_Cookies", []);
             let cookies = GetCookies();
             login_cookies = JSON.parse(login_cookies);
-            deleteCookies(cookies);
+            DeleteCookies(cookies);
             AddCookies(login_cookies);
+            GM_setValue("SessionTime", new Date().getTime());
             location.reload();
         } catch (error) {
             alert("未檢測到可注入的 Cookies !!\n請從選單中進行設置");
@@ -296,27 +310,10 @@ const CookieDelete = GM_registerMenuCommand(
     "🗑️ 刪除所有 Cookies",
     function() {
         let cookies = document.cookie.split("; ");
-        deleteCookies(cookies);
+        DeleteCookies(cookies);
         location.reload();
     }
 );
-
-function deleteCookies(cookies) {
-    for (let i = 0; i < cookies.length; i++) {
-        let cookie = cookies[i];
-        let eqPos = cookie.indexOf("=");
-        let cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
-        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
-    }
-}
-
-/* ==================== 程式入口點 ==================== */
-try {
-    let cookies = GM_getValue("E/Ex_Cookies", []);
-    AutomaticLoginCheck(JSON.parse(cookies), window.location.hostname);
-} catch (error) {
-    //console.log(error);
-}
 
 /* ==================== 登入檢測方法 ==================== */
 async function AutomaticLoginCheck(login_cookies , Domain) {
@@ -329,16 +326,15 @@ async function AutomaticLoginCheck(login_cookies , Domain) {
     let cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
-    if (!cookiesFound || !RequiredCookies.length >= 2) {
-        let cookies = document.cookie.split("; ");
-        deleteCookies(cookies);
+    if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery") || !cookiesFound) {
+        DeleteCookies(cookies);
         AddCookies(login_cookies);
         location.reload();
-        if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
-            deleteCookies(cookies);
-            AddCookies(login_cookies);
-            //location.reload();
-        }
+    } else if (!cookiesFound || !RequiredCookies.length >= 2) {
+        let cookies = document.cookie.split("; ");
+        DeleteCookies(cookies);
+        AddCookies(login_cookies);
+        location.reload();
     }
 }
 
@@ -347,6 +343,16 @@ function AddCookies(LoginCookies) {
     for (let i = 0; i < LoginCookies.length; i++) {
         let cookie = LoginCookies[i];
         document.cookie = cookie.name + "=" + cookie.value;
+    }
+}
+
+/* ==================== 刪除 cookie ==================== */
+function DeleteCookies(cookies) {
+    const cookieNames = Object.keys(cookies);
+    for (let i = 0; i < cookieNames.length; i++) {
+        let cookieName = cookieNames[i]; // ex 要指定域名才刪的乾淨
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.exhentai.org";
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
 }
 
