@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentiSaru
 // @description:        一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -35,34 +35,34 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
-const regex = /^https:\/\/[^/]+/;
+const regex = /^https:\/\/[^/]+/, language = display_language(navigator.language);
 var CompressMode = GM_getValue("壓縮下載", []), parser = new DOMParser(), url = window.location.href.match(regex), dict = {}, ModeDisplay, Pages=0;
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
     if (pattern.test(window.location.href)) {setTimeout(ButtonCreation, 300)}
-    GM_registerMenuCommand("🔁 切換下載模式", function() {DownloadModeSwitch()}, "C")
-    GM_registerMenuCommand("📑 獲取所有帖子 Json 數據", function() {
+    GM_registerMenuCommand(language[0], function() {DownloadModeSwitch()}, "C")
+    GM_registerMenuCommand(language[1], function() {
         const section = document.querySelector("section");
         if (section) {
             GetPageData(section);
         }
     }, "J")
-    GM_registerMenuCommand("📃 開啟當前頁面所有帖子", function() {OpenData()}, "O")
+    GM_registerMenuCommand(language[2], function() {OpenData()}, "O")
 })();
 
 async function DownloadModeSwitch() {
     if (GM_getValue("壓縮下載", [])){
         GM_setValue("壓縮下載", false);
         GM_notification({
-            title: "模式切換",
-            text: "單圖下載模式",
+            title: language[3],
+            text: language[6],
             timeout: 2500
         });
     } else {
         GM_setValue("壓縮下載", true);
         GM_notification({
-            title: "模式切換",
-            text: "壓縮下載模式",
+            title: language[3],
+            text: language[4],
             timeout: 2500
         });
     }
@@ -97,16 +97,16 @@ async function ButtonCreation() {
             class: "Download_Button",
         });
         if (CompressMode) {
-            ModeDisplay = "壓縮下載";
+            ModeDisplay = language[5];
         } else {
-            ModeDisplay = "單圖下載";
+            ModeDisplay = language[7];
         }
         download_button.textContent = ModeDisplay;
         download_button.addEventListener("click", function() {
             DownloadTrigger(download_button);
         });
     } catch {
-        download_button.textContent = "無法下載";
+        download_button.textContent = language[9];
         download_button.disabled = true;
     }
 }
@@ -124,7 +124,8 @@ async function DownloadTrigger(button) {
         let title = document.querySelector("h1.post__title").textContent.trim();
         let user = document.querySelector("a.post__user-name").textContent.trim();
         if (imgdata && title && user) {
-            button.textContent = "開始下載";
+            button.textContent = language[8];
+            button.disabled = true;
             if (CompressMode) {
                 ZipDownload(`[${user}] ${title}`, imgdata, button);
             } else {
@@ -152,7 +153,7 @@ async function ZipDownload(Folder, ImgData, Button) {
                     if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                         mantissa = progress.toString().padStart(3, '0');
                         zip.file(`${File}/${name}_${mantissa}.png`, response.response);
-                        Button.textContent = `下載進度 [${progress}/${Total}]`;
+                        Button.textContent = `${language[10]} [${progress}/${Total}]`;
                         progress++;
                     } else {
                         i--;
@@ -174,7 +175,7 @@ async function ZipDownload(Folder, ImgData, Button) {
     if (pool.length > 0) {await Promise.all(pool)}
     Compression();
     function Compression() {
-        Button.textContent = "壓縮封裝中[請稍後]";
+        Button.textContent = language[11];
         zip.generateAsync({
             type: "blob",
             compression: "DEFLATE",
@@ -182,12 +183,14 @@ async function ZipDownload(Folder, ImgData, Button) {
                 level: 5 // 壓縮級別，範圍從 0（無壓縮）到 9（最大壓縮）
             }
         }).then(zip => {
-            Button.textContent = "下載完成";
+            Button.textContent = language[13];
             saveAs(zip, `${Folder}.zip`);
             setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+            Button.disabled = false;
         }).catch( result => {
-            Button.textContent = "壓縮封裝失敗";
+            Button.textContent = language[12];
             setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
+            Button.disabled = false;
         });
     }
 }
@@ -203,7 +206,7 @@ async function ImageDownload(Folder, ImgData, Button) {
             name: `${name}_${(progress+i).toString().padStart(3, '0')}.png`,
             ontimeout: 5000,
             onload: () => {
-                Button.textContent = `下載進度 [${progress}/${Total}]`;
+                Button.textContent = `${language[10]} [${progress}/${Total}]`;
                 progress++;
             },
             onerror: () => {
@@ -211,8 +214,9 @@ async function ImageDownload(Folder, ImgData, Button) {
             }
         });
     }
-    Button.textContent = "下載完成";
+    Button.textContent = language[13];
     setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+    Button.disabled = false;
 }
 
 async function GetPageData(section) {
@@ -229,8 +233,8 @@ async function GetPageData(section) {
         if (NextPage) {
             Pages++;
             GM_notification({
-                title: "數據處理中",
-                text: `當前處理頁數 : ${Pages}`,
+                title: language[14],
+                text: `${language[15]} : ${Pages}`,
                 image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
                 timeout: 800
             });
@@ -256,13 +260,13 @@ async function GetPageData(section) {
             json.click();
             json.remove();
             GM_notification({
-                title: "數據處理完成",
-                text: "Json 數據下載",
+                title: language[16],
+                text: language[17],
                 image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
                 timeout: 2000
             });
         } catch {
-            alert("錯誤的請求頁面");
+            alert(language[18]);
         }
     }
 }
@@ -277,6 +281,100 @@ function OpenData() {
             }, 300);
         });
     } catch {
-        alert("這裡沒帖子給你開");
+        alert(language[19]);
     }
+}
+
+function display_language(language) {
+    let display = {
+        "zh-TW": [
+            "🔁 切換下載模式",
+            "📑 獲取所有帖子 Json 數據",
+            "📃 開啟當前頁面所有帖子",
+            "模式切換",
+            "壓縮下載模式",
+            "壓縮下載",
+            "單圖下載模式",
+            "單圖下載",
+            "開始下載",
+            "無法下載",
+            "下載進度",
+            "壓縮封裝中[請稍後]",
+            "壓縮封裝失敗",
+            "下載完成",
+            "數據處理中",
+            "當前處理頁數",
+            "數據處理完成",
+            "Json 數據下載",
+            "錯誤的請求頁面",
+            "錯誤的開啟頁面",
+        ],
+        "zh-CN": [
+            "🔁 切换下载模式",
+            "📑 获取所有帖子 Json 数据",
+            "📃 打开当前页面所有帖子",
+            "模式切换",
+            "压缩下载模式",
+            "压缩下载",
+            "单图下载模式",
+            "单图下载",
+            "开始下载",
+            "无法下载",
+            "下载进度",
+            "压缩封装中[请稍后]",
+            "压缩封装失败",
+            "下载完成",
+            "数据处理中",
+            "当前处理页数",
+            "数据处理完成",
+            "Json 数据下载",
+            "错误的请求页面",
+            "错误的打开页面"
+        ],
+        "ja": [
+          '🔁 ダウンロードモードの切り替え',
+          '📑 すべての投稿のJsonデータを取得する',
+          '📃 現在のページのすべての投稿を開く',
+          'モード切り替え',
+          '圧縮ダウンロードモード',
+          '圧縮ダウンロード',
+          'シングル画像ダウンロードモード',
+          'シングル画像ダウンロード',
+          'ダウンロードを開始する',
+          'ダウンロードできません',
+          'ダウンロードの進行状況',
+          '圧縮パッケージング中[しばらくお待ちください]',
+          '圧縮パッケージングに失敗しました',
+          'ダウンロードが完了しました',
+          'データ処理中',
+          '現在の処理ページ数',
+          'データ処理が完了しました',
+          'Jsonデータのダウンロード',
+          '間違ったリクエストページ',
+          '間違ったページを開く'
+        ],
+        "en": [
+           '🔁 Switch download mode',
+           '📑 Get all post Json data',
+           '📃 Open all posts on the current page',
+           'Mode switch',
+           'Compressed download mode',
+           'Compressed download',
+           'Single image download mode',
+           'Single image download',
+           'Start downloading',
+           'Unable to download',
+           'Download progress',
+           'Compressing packaging [please wait]',
+           'Compression packaging failed',
+           'Download completed',
+           'Data processing',
+           'Current processing page number',
+           'Data processing completed',
+           'Json data download',
+           'Wrong request page',
+           'Wrong page to open'
+        ]
+    };    
+    return display[language] || display["en"];
 }
