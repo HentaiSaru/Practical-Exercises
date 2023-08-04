@@ -195,13 +195,14 @@ async function ZipDownload(Folder, ImgData, Button) {
     if (pool.length > 0) {await Promise.all(pool)}
     Compression();
     function Compression() {
-        Button.textContent = language[11];
         zip.generateAsync({
             type: "blob",
             compression: "DEFLATE",
             compressionOptions: {
                 level: 5 // 壓縮級別，範圍從 0（無壓縮）到 9（最大壓縮）
             }
+        }, (progress) => {
+            Button.textContent = `${language[11]}: ${progress.percent.toFixed(1)} %`;
         }).then(zip => {
             Button.textContent = language[13];
             saveAs(zip, `${Folder}.zip`);
@@ -211,7 +212,7 @@ async function ZipDownload(Folder, ImgData, Button) {
             Button.textContent = language[12];
             setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
             Button.disabled = false;
-        });
+        });        
     }
 }
 
@@ -321,7 +322,7 @@ function display_language(language) {
             "開始下載",
             "無法下載",
             "下載進度",
-            "壓縮封裝中[請稍後]",
+            "封裝進度",
             "壓縮封裝失敗",
             "下載完成",
             "數據處理中",
@@ -329,7 +330,7 @@ function display_language(language) {
             "數據處理完成",
             "Json 數據下載",
             "錯誤的請求頁面",
-            "錯誤的開啟頁面",
+            "錯誤的開啟頁面"
         ],
         "zh-CN": [
             "🔁 切换下载模式",
@@ -343,7 +344,7 @@ function display_language(language) {
             "开始下载",
             "无法下载",
             "下载进度",
-            "压缩封装中[请稍后]",
+            "封装进度",
             "压缩封装失败",
             "下载完成",
             "数据处理中",
@@ -354,48 +355,48 @@ function display_language(language) {
             "错误的打开页面"
         ],
         "ja": [
-          '🔁 ダウンロードモードの切り替え',
-          '📑 すべての投稿のJsonデータを取得する',
-          '📃 現在のページのすべての投稿を開く',
-          'モード切り替え',
-          '圧縮ダウンロードモード',
-          '圧縮ダウンロード',
-          'シングル画像ダウンロードモード',
-          'シングル画像ダウンロード',
-          'ダウンロードを開始する',
-          'ダウンロードできません',
-          'ダウンロードの進行状況',
-          '圧縮パッケージング中[しばらくお待ちください]',
-          '圧縮パッケージングに失敗しました',
-          'ダウンロードが完了しました',
-          'データ処理中',
-          '現在の処理ページ数',
-          'データ処理が完了しました',
-          'Jsonデータのダウンロード',
-          '間違ったリクエストページ',
-          '間違ったページを開く'
+            '🔁 ダウンロードモードの切り替え',
+            '📑 すべての投稿のJsonデータを取得する',
+            '📃 現在のページのすべての投稿を開く',
+            'モード切り替え',
+            '圧縮ダウンロードモード',
+            '圧縮ダウンロード',
+            'シングル画像ダウンロードモード',
+            'シングル画像ダウンロード',
+            'ダウンロードを開始する',
+            'ダウンロードできません',
+            'ダウンロードの進行状況',
+            'パッケージング中',
+            '圧縮パッケージングに失敗しました',
+            'ダウンロードが完了しました',
+            'データ処理中',
+            '現在の処理ページ数',
+            'データ処理が完了しました',
+            'Jsonデータのダウンロード',
+            '間違ったリクエストページ',
+            '間違ったページを開く'
         ],
         "en": [
-           '🔁 Switch download mode',
-           '📑 Get all post Json data',
-           '📃 Open all posts on the current page',
-           'Mode switch',
-           'Compressed download mode',
-           'Compressed download',
-           'Single image download mode',
-           'Single image download',
-           'Start downloading',
-           'Unable to download',
-           'Download progress',
-           'Compressing packaging [please wait]',
-           'Compression packaging failed',
-           'Download completed',
-           'Data processing',
-           'Current processing page number',
-           'Data processing completed',
-           'Json data download',
-           'Wrong request page',
-           'Wrong page to open'
+            '🔁 Switch download mode',
+            '📑 Get all post Json data',
+            '📃 Open all posts on the current page',
+            'Mode switch',
+            'Compressed download mode',
+            'Compressed download',
+            'Single image download mode',
+            'Single image download',
+            'Start downloading',
+            'Unable to download',
+            'Download progress',
+            'Packaging',
+            'Compression packaging failed',
+            'Download completed',
+            'Data processing',
+            'Current processing page number',
+            'Data processing completed',
+            'Json data download',
+            'Wrong request page',
+            'Wrong page to open'
         ]
     };
     return display[language] || display["en"];
