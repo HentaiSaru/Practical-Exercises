@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.11
+// @version      0.0.12
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -195,6 +195,13 @@ const ManualSetting = GM_registerMenuCommand(
         modal.classList.remove('hidden');
         const textarea = document.createElement("textarea");
 
+        // 退出按鈕
+        let CloseButton = document.getElementById("set_modal_close");
+        CloseButton.addEventListener("click", () => {
+            modal.classList.add("hidden");
+            document.removeEventListener("click", CloseButton);
+        });
+
         // 捕獲表單提交事件
         document.getElementById("set_cookies").addEventListener("submit", function(event) {
         event.preventDefault(); // 阻止默認的表單提交行為
@@ -218,6 +225,7 @@ const ManualSetting = GM_registerMenuCommand(
                 // 將 textarea 添加到指定的 div 元素中
                 const formDiv = document.querySelector("#set_cookies div");
                 formDiv.appendChild(textarea);
+
                 GM_notification({
                     title: "保存通知",
                     text: "[確認輸入正確]按下退出選單保存",
@@ -225,13 +233,6 @@ const ManualSetting = GM_registerMenuCommand(
                     timeout: 4000
                 });
             }
-        });
-
-        // 退出按鈕
-        let CloseButton = document.getElementById("set_modal_close");
-        CloseButton.addEventListener("click", () => {
-            modal.classList.add("hidden");
-            document.removeEventListener("click", CloseButton);
         });
     }
 )
@@ -266,6 +267,12 @@ const ViewSaveCookie = GM_registerMenuCommand(
         document.body.appendChild(modal);
         modal.classList.remove('hidden');
 
+        let CloseButton = document.getElementById("close");
+        CloseButton.addEventListener("click", () => {
+            modal.classList.add("hidden");
+            document.removeEventListener("click", CloseButton);
+        });
+
         const textarea = document.createElement("textarea");
         const login_cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
         textarea.value = JSON.stringify(login_cookies , null, 4);
@@ -287,12 +294,6 @@ const ViewSaveCookie = GM_registerMenuCommand(
             });
             modal.classList.add("hidden");
             document.removeEventListener("click", SaveButton);
-        });
-
-        let CloseButton = document.getElementById("close");
-        CloseButton.addEventListener("click", () => {
-            modal.classList.add("hidden");
-            document.removeEventListener("click", CloseButton);
         });
     }
 )
