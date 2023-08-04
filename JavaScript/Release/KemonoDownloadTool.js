@@ -4,9 +4,9 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentiSaru
-// @description:        一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
+// @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-CN   一键下载图片 (压缩下载/单图下载) , 页面数据创建 json 下载 , 一键开启当前所有帖子
 // @description:ja      画像をワンクリックでダウンロード（圧縮ダウンロード/単一画像ダウンロード）、ページデータを作成してjsonでダウンロード、現在のすべての投稿をワンクリックで開く
@@ -35,11 +35,19 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
-const regex = /^https:\/\/[^/]+/, language = display_language(navigator.language);
+const regex = /^https:\/\/[^/]+/, pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
 var CompressMode = GM_getValue("壓縮下載", []), parser = new DOMParser(), url = window.location.href.match(regex), dict = {}, ModeDisplay, Pages=0;
+let observer = new MutationObserver((mutationsList, observer) => {
+        for (const mutation of mutationsList) {
+            if (mutation.type === "childList") {
+                if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
+            }
+        }
+});
 (function() {
-    const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/;
-    if (pattern.test(window.location.href)) {setTimeout(ButtonCreation, 300)}
+    if (pattern.test(window.location.href)) {
+        observer.observe(document.body, {childList: true, subtree: true});
+    }
     GM_registerMenuCommand(language[0], function() {DownloadModeSwitch()}, "C")
     GM_registerMenuCommand(language[1], function() {
         const section = document.querySelector("section");
@@ -88,6 +96,10 @@ async function ButtonCreation() {
             background-color: hsl(0, 0%, 45%);
             font-family: Arial, sans-serif;
         }
+        .Download_Button:disabled {
+            color: hsl(0, 0%, 95%);
+            background-color: hsl(0, 0%, 45%);
+        }
     `);
     let download_button;
     try {
@@ -95,6 +107,7 @@ async function ButtonCreation() {
         const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
         download_button = GM_addElement(spanElement, "button", {
             class: "Download_Button",
+            id: "DBExist"
         });
         if (CompressMode) {
             ModeDisplay = language[5];
@@ -116,6 +129,11 @@ function IllegalFilter(Name) {
 }
 function Conversion(Name) {
     return Name.replace(/[\[\]]/g, '');
+}
+function GetExtension(link) {
+    const match = link.match(/\.([^.]+)$/);
+    if (match) {return match[1].toLowerCase()}
+    return "png";
 }
 
 async function DownloadTrigger(button) {
@@ -142,17 +160,19 @@ async function ZipDownload(Folder, ImgData, Button) {
     File = Conversion(Folder),
     Total = Data.length,
     name = IllegalFilter(Folder.split(" ")[1]);
-    let pool = [], poolSize = 5, progress = 1, mantissa;
+    let pool = [], poolSize = 5, progress = 1, mantissa, link, extension;
     function createPromise(i) {
+        link = Data[i].href.split("?f=")[0];
+        extension = GetExtension(link);
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: "GET",
-                url: Data[i].href.split("?f=")[0],
+                url: link,
                 responseType: "blob",
                 onload: response => {
                     if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                         mantissa = progress.toString().padStart(3, '0');
-                        zip.file(`${File}/${name}_${mantissa}.png`, response.response);
+                        zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
                         Button.textContent = `${language[10]} [${progress}/${Total}]`;
                         progress++;
                     } else {
@@ -187,7 +207,7 @@ async function ZipDownload(Folder, ImgData, Button) {
             saveAs(zip, `${Folder}.zip`);
             setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
             Button.disabled = false;
-        }).catch( result => {
+        }).catch(result => {
             Button.textContent = language[12];
             setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
             Button.disabled = false;
@@ -199,12 +219,14 @@ async function ImageDownload(Folder, ImgData, Button) {
     const name = IllegalFilter(Folder.split(" ")[1]),
     Data = Object.values(ImgData),
     Total = Data.length;
-    let progress = 1;
+    let progress = 1, link, extension;
     for (let i = 0; i < Total; i++) {
+        link = Data[i].href.split("?f=")[0];
+        extension = GetExtension(link);
         GM_download({
-            url: Data[i].href.split("?f=")[0],
-            name: `${name}_${(progress+i).toString().padStart(3, '0')}.png`,
-            ontimeout: 5000,
+            url: link,
+            name: `${name}_${(progress+i).toString().padStart(3, '0')}.${extension}`,
+            ontimeout: 10000,
             onload: () => {
                 Button.textContent = `${language[10]} [${progress}/${Total}]`;
                 progress++;
@@ -375,6 +397,6 @@ function display_language(language) {
            'Wrong request page',
            'Wrong page to open'
         ]
-    };    
+    };
     return display[language] || display["en"];
 }
