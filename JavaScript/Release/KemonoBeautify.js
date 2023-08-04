@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.14
+// @version      0.0.15
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁 
@@ -35,28 +35,34 @@ pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
 UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
 PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
 DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
-limit=6;
+limit=10;
 
 (function() {
-    let interval = setInterval(function() {
-        const list = document.querySelector("div.global-sidebar");
-        const box = document.querySelector("div.content-wrapper.shifted");
-        const comments = document.querySelector("h2.site-section__subheading"); // 評論區標題
-        const announce = document.querySelector("body > div.content-wrapper.shifted > a"); // 公告條
-        if (box && list || comments || announce) {
+    let interval, tryerror = 0, dellay = 300;
+    async function Main() {
+        const [list, box, comments, announce] = [ // comments(評論區標題), announce(公告條)
+            "div.global-sidebar", "div.content-wrapper.shifted", "h2.site-section__subheading", "body > div.content-wrapper.shifted > a"
+        ].map(selector => document.querySelector(selector));
+        if ((box && list && comments) || (box && list)) {
             Beautify(box, list, announce); // 側邊欄收縮
-            if (pattern.test(Url)) {Additional(comments)} // (帖子內) Ajex 快捷換頁
+            if (pattern.test(Url)) {Additional(comments)}// (帖子內) Ajex 快捷換頁
             clearInterval(interval);
+        } else {
+            tryerror++;
+            if (tryerror > 10) {clearInterval(interval)}
         }
-    }, 300);
-    if (pattern.test(Url)) {
-        setTimeout(OriginalImage, 500); // 自動大圖
     }
-    setTimeout(AdHiding, 500); // 隱藏廣告
-    if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
-        setTimeout(AjexPostToggle, 500); // Ajex 換頁
-        setTimeout(NewTabOpens, 500); // 自動新分頁
-    }
+    interval = setInterval(() => {Main()}, dellay);
+    setTimeout(function() {
+        AdHiding(); // 隱藏廣告
+        if (pattern.test(Url)) {
+            OriginalImage(); // 自動大圖
+        }
+        if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
+            AjexPostToggle(); // Ajex 換頁
+            NewTabOpens(); // 自動新分頁
+        }
+    }, dellay);
 })();
 
 /* 美化介面 */
@@ -110,7 +116,7 @@ async function AdHiding() {
     }, 500);
 }
 
-/* 載入原始圖像 (測試死圖是否發生) */
+/* 載入原始圖像 */
 async function OriginalImage() {
     try {
         let link, img;
@@ -153,7 +159,6 @@ async function Reload(location, old_img, retry) {
     ReTry();
     async function ReTry() {
         setTimeout(function() {
-            console.log(`圖片載入失敗 : debug [${retry}]\t\n`);
             if (retry <= limit) {
                 New_img = document.createElement("img");
                 New_img.setAttribute("data-src", location.href);
