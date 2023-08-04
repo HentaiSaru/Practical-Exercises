@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.11
+// @version      0.0.12
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -14,7 +14,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
- 
+
 (function() {
     var enabledstate;
     if (GM_getValue("Beautify", [])) {
@@ -36,7 +36,7 @@ async function main() {
                 clearInterval(interval);
             }
         }
-    }, 500);
+    }, 700);
 }
 
 /* 首頁恢復監聽 */
@@ -52,7 +52,7 @@ async function HomeRecovery(Nav, CB, CX) {
             main();// 重新執行美化監聽
             clearInterval(interval);
         }
-    }, 500);
+    }, 700);
 }
 
 /* 查找元素方法 */
@@ -67,15 +67,18 @@ function FindPlayPage() {
         const Channel_Button = document.querySelector("button[data-a-target='side-nav-arrow']");
         // 取得頻道元素
         const Channel_Xpath = document.evaluate('//*[@id="root"]/div/div[2]/div/div[1]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
-        if (Nav && Chat_button && Channel_Button && Channel_Xpath) {
-            AutoClickC(Chat_button, Channel_Button);
-            if (document.querySelector(".simplebar-track.vertical").style.visibility !== "visible") {Channel_Button.click()}
+        const Collapsed_State = document.querySelector(".simplebar-track.vertical");
+        if (Nav && Chat_button && Channel_Button && Channel_Xpath && Collapsed_State) {
+            // 判斷兩次總該打開了吧
+            if (Collapsed_State.style.visibility !== "visible") {Channel_Button.click()}
+            if (Collapsed_State.style.visibility === "hidden") {Channel_Button.click()}
             Beautify(Nav, Channel_Xpath);
+            AutoClickC(Chat_button, Channel_Button);
             // 首頁復原監聽
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
             clearInterval(interval);
         }
-    }, 250);
+    }, 400);
     try {
         const Notlogged = document.getElementById("twilight-sticky-footer-root");
         Notlogged.style.display = "none";
