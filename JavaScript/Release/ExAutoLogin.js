@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -30,6 +30,7 @@
 // ==/UserScript==
 
 /* ==================== 初始化設置 ==================== */
+const language = display_language(navigator.language)
 var modal, Domain;
 
 (function() {
@@ -105,7 +106,7 @@ GM_addStyle(`
 
 /* 自動獲取 Cookies */
 const GetCookiesAutomatically = GM_registerMenuCommand(
-    "📜 自動獲取 Cookies [請先登入]",
+    language[0],
     function() {
         let cookies = GetCookies() , cookie_list = [];
         for (var cookieName in cookies) {
@@ -128,11 +129,11 @@ function Cookies_Show(cookie_list) {
     modal = document.createElement('div');
     modal.innerHTML = `
         <div class="show-modal-content">
-        <h1 style="text-align:center;">確認選擇的 Cookies</h1>
+        <h1 style="text-align:center;">${language[5]}</h1>
             <pre><b>${cookie_list}</b></pre>
             <div style="text-align: right;">
-                <button class="show-button" id="save_cookie">確認保存</button>
-                <button class="show-button" id="modal_close">取消退出</button>
+                <button class="show-button" id="save_cookie">${language[6]}</button>
+                <button class="show-button" id="modal_close">${language[7]}</button>
             </div>
         </div>
     `
@@ -148,7 +149,7 @@ function Cookies_Show(cookie_list) {
     let SaveButton = document.getElementById('save_cookie');
     SaveButton.addEventListener('click', () => {
         GM_setValue("E/Ex_Cookies", cookie_list);
-        alert("保存成功!");
+        alert(language[9]);
         modal.classList.add('hidden');
         document.removeEventListener('click', SaveButton);
     });
@@ -156,7 +157,7 @@ function Cookies_Show(cookie_list) {
 
 /* 手動輸入 Cookies */
 const ManualSetting = GM_registerMenuCommand(
-    "📝 手動輸入 Cookies",
+    language[1],
     function() {
         if (modal) {
             modal.remove();
@@ -173,19 +174,19 @@ const ManualSetting = GM_registerMenuCommand(
         modal = document.createElement('div');
         modal.innerHTML = `
             <div class="set-modal-content">
-            <h1>設置 Cookies</h1>
+            <h1>${language[14]}</h1>
                 <form id="set_cookies">
                     <div style="margin:10px">
-                        [igneous] : <input class="set-list" type="text" name="igneous" placeholder="要登入 Ex 才需要填寫"><br>
-                        [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="必填項目" required><br>
-                        [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="必填項目" required><hr>
-                        <h2>下方選填 也可不修改</h2>
+                        [igneous] : <input class="set-list" type="text" name="igneous" placeholder="${language[15]}"><br>
+                        [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="${language[16]}" required><br>
+                        [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language[16]}" required><hr>
+                        <h2>${language[17]}</h2>
                         [sl] : <input class="set-list" type="text" name="sl" value="dm_2"><br>
                         [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
                         [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
                     </div>
-                    <button type="submit" class="show-button" id="set_save_cookie">確認保存</button>
-                    <button class="show-button" id="set_modal_close">退出選單</button>
+                    <button type="submit" class="show-button" id="set_save_cookie">${language[6]}</button>
+                    <button class="show-button" id="set_modal_close">${language[8]}</button>
                 </form>
             </div>
         `
@@ -227,8 +228,8 @@ const ManualSetting = GM_registerMenuCommand(
                 formDiv.appendChild(textarea);
 
                 GM_notification({
-                    title: "保存通知",
-                    text: "[確認輸入正確]按下退出選單保存",
+                    title: language[10],
+                    text: language[18],
                     image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                     timeout: 4000
                 });
@@ -239,7 +240,7 @@ const ManualSetting = GM_registerMenuCommand(
 
 /* 查看保存的 Cookies */
 const ViewSaveCookie = GM_registerMenuCommand(
-    "🔍 查看保存的 Cookies",
+    language[2],
     function() {
         if (modal) {
             modal.remove();
@@ -256,10 +257,10 @@ const ViewSaveCookie = GM_registerMenuCommand(
         modal = document.createElement('div');
         modal.innerHTML = `
             <div class="set-modal-content">
-            <h1>當前設置 Cookies</h1>
+            <h1>${language[19]}</h1>
                 <div id="view_cookies" style="margin:10px"></div>
-                <button class="show-button" id="save_changes">更改保存</button>
-                <button class="show-button" id="close">退出選單</button>
+                <button class="show-button" id="save_changes">${language[11]}</button>
+                <button class="show-button" id="close">${language[8]}</button>
             </div>
         `
 
@@ -287,8 +288,8 @@ const ViewSaveCookie = GM_registerMenuCommand(
         SaveButton.addEventListener("click", () => {
             GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
             GM_notification({
-                title: "變更通知",
-                text: "以保存變更",
+                title: language[15],
+                text: language[13],
                 image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                 timeout: 4000
             });
@@ -300,7 +301,7 @@ const ViewSaveCookie = GM_registerMenuCommand(
 
 /* 手動注入 Cookies 登入 */
 const CookieInjection = GM_registerMenuCommand(
-    "🔃 手動注入 Cookies",
+    language[3],
     function() {
         try {
             let login_cookies = GM_getValue("E/Ex_Cookies", []);
@@ -311,14 +312,14 @@ const CookieInjection = GM_registerMenuCommand(
             GM_setValue("SessionTime", new Date().getTime());
             location.reload();
         } catch (error) {
-            alert("未檢測到可注入的 Cookies !!\n請從選單中進行設置");
+            alert(language[20]);
         }
     }
 );
 
 /* 刪除所有 Cookies */
 const CookieDelete = GM_registerMenuCommand(
-    "🗑️ 刪除所有 Cookies",
+    language[4],
     function() {
         DeleteCookies(GetCookies());
         location.reload();
@@ -377,4 +378,126 @@ function GetCookies() {
         cookies[cookieName] = cookieValue;
     }
     return cookies;
+}
+
+/* 語言顯示 */
+function display_language(language) {
+    let display = {
+        "zh-TW": [
+            "📜 自動獲取 Cookies [請先登入]",
+            "📝 手動輸入 Cookies",
+            "🔍 查看保存的 Cookies",
+            "🔃 手動注入 Cookies",
+            "🗑️ 刪除所有 Cookies",
+            "確認選擇的 Cookies",
+            "確認保存",
+            "取消退出",
+            "退出選單",
+            "保存成功!",
+            "保存通知",
+            "更改保存",
+            "變更通知",
+            "已保存變更",
+            "設置 Cookies",
+            "要登入 Ex 才需要填寫",
+            "必填項目",
+            "下方選填 也可不修改",
+            "[確認輸入正確]按下退出選單保存",
+            "當前設置 Cookies",
+            "未檢測到可注入的 Cookies !!\n請從選單中進行設置"
+        ],
+        "zh-CN": [
+            "📜 自动获取 Cookies [请先登录]",
+            "📝 手动输入 Cookies",
+            "🔍 查看保存的 Cookies",
+            "🔃 手动注入 Cookies",
+            "🗑️ 删除所有 Cookies",
+            "确认选择的 Cookies",
+            "确认保存",
+            "取消退出",
+            "退出菜单",
+            "保存成功!",
+            "保存通知",
+            "更改保存",
+            "变更通知",
+            "已保存变更",
+            "设置 Cookies",
+            "要登录 Ex 才需要填写",
+            "必填项目", 
+            "下方选填 也可不修改", 
+            "[确认输入正确]按下退出菜单保存", 
+            "当前设置 Cookies", 
+            "未检测到可注入的 Cookies !!\n请从菜单中进行设置"
+        ],
+        "ja": [
+            '📜自動的にクッキーを取得する[ログインしてください]',
+            '📝手動でクッキーを入力する',
+            '🔍保存されたクッキーを見る',
+            '🔃手動でクッキーを注入する',
+            '🗑️すべてのクッキーを削除する',
+            '選択したクッキーを確認する',
+            '保存を確認する',
+            'キャンセルして終了する',
+            'メニューを終了する',
+            '保存に成功しました!',
+            '保存通知',
+            '変更の保存',
+            '変更通知',
+            '変更が保存されました',
+            'クッキーの設定',
+            'Exにログインする必要があります',
+            '必須項目',
+            '下記は任意で、変更しなくても構いません',
+            '[正しく入力されていることを確認してください]メニューを終了して保存します',
+            '現在のクッキーの設定',
+            '注入可能なクッキーが検出されませんでした!!\nメニューから設定してください'
+        ],
+        "en": [
+            '📜 Automatically retrieve cookies [Please log in first]',
+            '📝 Manually enter cookies',
+            '🔍 View saved cookies',
+            '🔃 Manually inject cookies',
+            '🗑️ Delete all cookies',
+            'Confirm selected cookies',
+            'Confirm save',
+            'Cancel and exit',
+            'Exit menu',
+            'Saved successfully!',
+            'Save notification', 
+            'Change save', 
+            'Change notification', 
+            'Changes saved', 
+            'Set cookies', 
+            'Need to log in to Ex', 
+            'Required fields', 
+            'Optional below, can also not be modified', 
+            '[Make sure the input is correct] Press to exit the menu and save', 
+            'Current cookie settings', 
+            'No injectable cookies detected !!\nPlease set from the menu'
+        ],
+        "ko": [
+            '📜 자동으로 쿠키 가져오기 [먼저 로그인하세요]',
+            '📝 수동으로 쿠키 입력',
+            '🔍 저장된 쿠키보기',
+            '🔃 수동으로 쿠키 주입',
+            '🗑️ 모든 쿠키 삭제',
+            '선택한 쿠키 확인',
+            '저장 확인',
+            '취소하고 종료',
+            '메뉴 종료',
+            '저장 성공!',
+            '저장 알림',
+            '변경 저장',
+            '변경 알림',
+            '변경 사항이 저장되었습니다',
+            '쿠키 설정',
+            'Ex에 로그인해야합니다',
+            '필수 항목',
+            '아래는 선택적으로 수정하지 않아도됩니다',
+            '[입력이 올바른지 확인하세요] 메뉴를 종료하고 저장하려면 누르세요',
+            '현재 쿠키 설정',
+            '주입 가능한 쿠키가 감지되지 않았습니다 !!\n메뉴에서 설정하세요'
+        ]
+    };
+    return display[language] || display["en"];
 }
