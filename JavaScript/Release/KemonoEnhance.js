@@ -28,7 +28,9 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 
+// @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
+// @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(),
