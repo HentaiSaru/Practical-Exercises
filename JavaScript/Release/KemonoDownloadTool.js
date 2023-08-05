@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -64,14 +64,14 @@ async function DownloadModeSwitch() {
         GM_notification({
             title: language[3],
             text: language[6],
-            timeout: 2500
+            timeout: 1500
         });
     } else {
         GM_setValue("壓縮下載", true);
         GM_notification({
             title: language[3],
             text: language[4],
-            timeout: 2500
+            timeout: 1500
         });
     }
     location.reload();
@@ -99,6 +99,7 @@ async function ButtonCreation() {
         .Download_Button:disabled {
             color: hsl(0, 0%, 95%);
             background-color: hsl(0, 0%, 45%);
+            cursor: default;
         }
     `);
     let download_button;
@@ -179,6 +180,10 @@ async function ZipDownload(Folder, ImgData, Button) {
                         i--;
                     }
                     resolve();
+                },
+                onerror: error => {
+                    console.log(error);
+                    i--;
                 }
             });
 
@@ -204,8 +209,8 @@ async function ZipDownload(Folder, ImgData, Button) {
         }, (progress) => {
             Button.textContent = `${language[11]}: ${progress.percent.toFixed(1)} %`;
         }).then(zip => {
-            Button.textContent = language[13];
             saveAs(zip, `${Folder}.zip`);
+            Button.textContent = language[13];
             setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
             Button.disabled = false;
         }).catch(result => {
