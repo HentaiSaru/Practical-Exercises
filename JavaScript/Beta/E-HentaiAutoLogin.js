@@ -101,60 +101,55 @@ function CustomCookies() {
 }/* ==================== 自訂 Cookies ==================== */
 
 /* ==================== 檢查 cookie 狀態 ==================== */
-function CheckCookies() {
-    var cookies = GetCookies();
-    var cookiesFound = RequiredCookies.every(function(cookieName) {
-        return cookies.hasOwnProperty(cookieName);
+async function AutomaticLoginCheck(login_cookies , Domain) {
+    // 需要的 cookie 值
+    let RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
+    if (Domain === "exhentai.org") {
+        RequiredCookies = ["igneous","ipb_member_id","ipb_pass_hash"];
+    }
+    let cookies = GetCookies();
+    let cookiesFound = RequiredCookies.every(function(cookieName) {
+        return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
-    // 如果未找到所有指定的 cookie，則進行相應操作
-    if (!cookiesFound) {
-        // 刪除當前頁面的所有 cookie
-        DeleteAllCookies();
-        // 添加指定的 cookie
-        AddCookies();
-        // 刷新頁面
+    if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery") || !cookiesFound) {
+        DeleteCookies(cookies);
+        AddCookies(login_cookies);
+        location.reload();
+    } else if (!cookiesFound || !RequiredCookies.length >= 2) {
+        let cookies = document.cookie.split("; ");
+        DeleteCookies(cookies);
+        AddCookies(login_cookies);
         location.reload();
     }
-
-    // 判斷 exhentai 的 cookie 值是否符合要求
-    if (domain === "exhentai.org" & cookies.igneous === "mystery") {
-        DeleteAllCookies();
-        AddCookies();
-        location.reload();
-    }
-
-    // 檢查後將 會話標籤 設置為 true , 重開瀏覽器重置會話
-    sessionStorage.setItem('UseCheck', true);
 }/* ==================== 檢查 cookie 狀態 ==================== */
 
 /* ==================== 獲取頁面 cookie ==================== */
 function GetCookies() {
-    var cookies = {};
-    var cookiePairs = document.cookie.split("; ");
-    for (var i = 0; i < cookiePairs.length; i++) {
-      var cookiePair = cookiePairs[i].split("=");
-      var cookieName = decodeURIComponent(cookiePair[0]);
-      var cookieValue = decodeURIComponent(cookiePair[1]);
-      cookies[cookieName] = cookieValue;
+    let cookies = {} , cookiePairs = document.cookie.split("; ");
+    for (let i = 0; i < cookiePairs.length; i++) {
+        let cookiePair = cookiePairs[i].split("=");
+        let cookieName = decodeURIComponent(cookiePair[0]);
+        let cookieValue = decodeURIComponent(cookiePair[1]);
+        cookies[cookieName] = cookieValue;
     }
     return cookies;
 }/* ==================== 獲取頁面 cookie ==================== */
 
 /* ==================== 添加 cookie ==================== */
-function AddCookies() {
-    for (var i = 0; i < LoginCookies.length; i++) {
-        var cookie = LoginCookies[i];
+function AddCookies(LoginCookies) {
+    for (let i = 0; i < LoginCookies.length; i++) {
+        let cookie = LoginCookies[i];
         document.cookie = cookie.name + "=" + cookie.value;
     }
 }/* ==================== 添加 cookie ==================== */
 
 /* ==================== 刪除 cookie ==================== */
-function DeleteAllCookies() {
-    var cookies = document.cookie.split("; ");
-    for (var i = 0; i < cookies.length; i++) {
-        var cookie = cookies[i];
-        var eqPos = cookie.indexOf("=");
-        var cookieName = eqPos > -1 ? cookie.slice(0, eqPos) : cookie;
+function DeleteCookies(cookies) {
+    const cookieNames = Object.keys(cookies);
+    for (let i = 0; i < cookieNames.length; i++) {
+        let cookieName = cookieNames[i]; // 為了避免例外狀況沒刪除乾淨
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.exhentai.org";
+        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.e-hentai.org";
         document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
     }
 }/* ==================== 刪除 cookie ==================== */
