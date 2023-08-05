@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -26,6 +26,9 @@
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getResourceText
+
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(),
@@ -35,7 +38,7 @@ pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
 UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
 PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
 DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
-limit=10;
+limit=45;
 
 (function() {
     let interval, tryerror = 0, dellay = 300;
@@ -125,7 +128,6 @@ async function OriginalImage() {
             img = document.createElement("img");
             img.setAttribute("data-src", link.href);
             img.src = link.href;
-            img.loading = "lazy";
             img.style = "width:100%;";
             img.onerror = function() {
                 Reload(link, this, 1);
@@ -137,20 +139,6 @@ async function OriginalImage() {
         })
     } catch (error) {
         console.log(error);
-    } finally {
-        const images = document.querySelectorAll('div.post__files div a img');
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-            if (entry.isIntersecting) {
-                const img = entry.target;
-                img.src = img.dataset.src;
-                observer.unobserve(img);
-                }
-            });
-        });
-        images.forEach(image => {
-            observer.observe(image);
-        });
     }
 }
 
@@ -163,7 +151,6 @@ async function Reload(location, old_img, retry) {
                 New_img = document.createElement("img");
                 New_img.setAttribute("data-src", location.href);
                 New_img.src = location.href;
-                New_img.loading = "lazy";
                 New_img.style = "width:100%;";
                 New_img.onerror = function() {ReTry()};
                 old_img.remove();
@@ -176,13 +163,20 @@ async function Reload(location, old_img, retry) {
 
 /* 額外添加功能 */
 async function Additional(comments) {
+    GM_addStyle(GM_getResourceText("font-awesome"));
     const prev = document.querySelector("a.post__nav-link.prev");
     const next = document.querySelector("a.post__nav-link.next");
-    const split = document.createElement("span");
-    split.style = "float: right;"
-    split.appendChild(next.cloneNode(true));
-    comments.appendChild(split);
-    // 監聽按鍵
+    const span = document.createElement("span");
+    const svg = document.createElement("svg");
+    span.style = "float: right";
+    span.appendChild(next.cloneNode(true));
+    svg.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;"><style>svg{fill:#e8a17d}</style><path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path></svg>'
+    comments.appendChild(span);
+    comments.appendChild(svg);
+    svg.addEventListener("click", () => { // 回到頁面頂部
+        document.querySelector("header").scrollIntoView();
+    })
+    // 監聽按鍵切換
     const main = document.querySelector("main");
     document.addEventListener("keydown", function(event) {
         try {
@@ -208,7 +202,7 @@ async function Initialization() {
         }
     }, 300);
     setTimeout(OriginalImage, 500);
-    document.querySelector("h1.post__title").scrollIntoView();
+    document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
 }
 
 async function AjexReplace(url , old_main) {
