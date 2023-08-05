@@ -48,7 +48,7 @@ async function ButtonCreation() {
             font-family: arial,helvetica,sans-serif;
         }
         .Download_Button:hover {
-            color: #b64148;
+            color: rgb(143, 71, 1);
             border: 2px dashed #B5A4A4;
             background-color: #EDEADA;
         }
