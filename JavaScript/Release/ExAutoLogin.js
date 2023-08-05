@@ -57,6 +57,7 @@ GM_addStyle(`
         top: 0;
         left: 50%;
         width: 50rem;
+        z-index: 9999;
         font-size: 3rem;
         border-radius: 3%;
         transform: translateX(-50%);
@@ -67,13 +68,13 @@ GM_addStyle(`
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 9999;
+        z-index: 9998;
         position: fixed;
         overflow: auto;
         background-color: rgba(0,0,0,0.3);
     }
     .show-modal-content {
-        width: 23%;
+        width: 24%;
         padding: 20px;
         overflow: auto;
         margin: 5% auto;
@@ -149,7 +150,7 @@ function Cookies_Show(cookie_list) {
     `
     $(document.body).append(modal);
     $(document).on('click', '#close, .show-modal-background', function(click) {
-        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close'){
+        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close') {
             $(document).off('click', '#close, .show-modal-background');
             $('.show-modal-background').remove();
         }
@@ -203,7 +204,8 @@ const ManualSetting = GM_registerMenuCommand(
         const textarea = $("<textarea>").attr({
             style: "margin-top:20px",
             rows: 20,
-            cols: 60
+            cols: 60,
+            readonly: true
         });
         $(document).on('click', '#close, .show-modal-background', function(click) {
             if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close') {
@@ -214,22 +216,20 @@ const ManualSetting = GM_registerMenuCommand(
         });
         $("#set_cookies").on("submit", function(event) {
             event.preventDefault(); // 阻止默認的表單提交行為
-            if ($(event.target).attr('id') === 'set_cookies') {
-                if ($(event.originalEvent.submitter).attr("id") === "save") {
-                    const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
-                        return { name: $(input).attr("name"), value: $(input).val() };
-                    });
-                    // 保存後 , 在獲取並轉換格式 , 並將其顯示
-                    GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
-                    const cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
-                    textarea.val(JSON.stringify(cookies, null, 4));
-                    // 將 textarea 添加到指定的 div 元素中
-                    $("#set_cookies div").append(textarea);
-                    $.jGrowl(language[18], {
-                        theme: "jGrowl",
-                        life: 3500
-                    });
-                }
+            if ($(event.originalEvent.submitter).attr("id") === "save") {
+                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                    return { name: $(input).attr("name"), value: $(input).val() };
+                });
+                // 保存後 , 在獲取並轉換格式 , 並將其顯示
+                GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
+                const cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
+                textarea.val(JSON.stringify(cookies, null, 4));
+                // 將 textarea 添加到指定的 div 元素中
+                $("#set_cookies div").append(textarea);
+                $.jGrowl(language[18], {
+                    theme: "jGrowl",
+                    life: 3500
+                });
             }
         });
     }
