@@ -112,9 +112,6 @@ GM_addStyle(`
         width: 70%;
         text-align: center;
     }
-    .hidden {
-        display: none;
-    }
 `);
 
 /* 自動獲取 Cookies */
@@ -144,16 +141,16 @@ function Cookies_Show(cookie_list) {
             <h1 style="text-align:center;">${language[5]}</h1>
                 <pre><b>${cookie_list}</b></pre>
                 <div style="text-align: right;">
-                    <button class="show-button" id="save_cookie">${language[6]}</button>
-                    <button class="show-button" id="modal_close">${language[7]}</button>
+                    <button class="show-button" id="save">${language[6]}</button>
+                    <button class="show-button" id="close">${language[7]}</button>
                 </div>
             </div>
         </div>
     `
     $(document.body).append(modal);
-    $(document).on('click', '#modal_close, .show-modal-background', function(click) {
-        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'modal_close'){
-            $(document).off('click', '#modal_close, .show-modal-background');
+    $(document).on('click', '#close, .show-modal-background', function(click) {
+        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close'){
+            $(document).off('click', '#close, .show-modal-background');
             $('.show-modal-background').remove();
         }
         click.stopPropagation();
@@ -162,13 +159,13 @@ function Cookies_Show(cookie_list) {
         ".jGrowl { background-color: #34353b; color: #fefefe;}",
         ".jGrowl { background-color: #fefefe; color: #5C0D11;}"
     );
-    $(document).on('click', '#save_cookie', function() {
+    $(document).on('click', '#save', function() {
         GM_setValue("E/Ex_Cookies", cookie_list);
         $.jGrowl(language[9], {
             theme: "jGrowl",
             life: 1500,
         });
-        $(document).off('click', '#save_cookie');
+        $(document).off('click', '#save');
         $('.show-modal-background').remove();
     });
 }
@@ -195,8 +192,8 @@ const ManualSetting = GM_registerMenuCommand(
                             [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
                             [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
                         </div>
-                        <button type="submit" class="show-button" id="set_save_cookie">${language[6]}</button>
-                        <button class="show-button" id="set_modal_close">${language[8]}</button>
+                        <button type="submit" class="show-button" id="save">${language[6]}</button>
+                        <button class="show-button" id="close">${language[8]}</button>
                     </form>
                 </div>
             </div>
@@ -208,9 +205,9 @@ const ManualSetting = GM_registerMenuCommand(
             rows: 20,
             cols: 60
         });
-        $(document).on('click', '#set_modal_close, .show-modal-background', function(click) {
-            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'set_modal_close') {
-                $(document).off('click', '#set_modal_close, .show-modal-background');
+        $(document).on('click', '#close, .show-modal-background', function(click) {
+            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close') {
+                $(document).off('click', '#close, .show-modal-background');
                 $('.show-modal-background').remove();
             }
             click.stopPropagation();
@@ -218,7 +215,7 @@ const ManualSetting = GM_registerMenuCommand(
         $("#set_cookies").on("submit", function(event) {
             event.preventDefault(); // 阻止默認的表單提交行為
             if ($(event.target).attr('id') === 'set_cookies') {
-                if ($(event.originalEvent.submitter).attr("id") === "set_save_cookie") {
+                if ($(event.originalEvent.submitter).attr("id") === "save") {
                     const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
                         return { name: $(input).attr("name"), value: $(input).val() };
                     });
@@ -251,7 +248,7 @@ const ViewSaveCookie = GM_registerMenuCommand(
                 <div class="set-modal-content">
                 <h1>${language[19]}</h1>
                     <div id="view_cookies" style="margin:10px"></div>
-                    <button class="show-button" id="save_changes">${language[11]}</button>
+                    <button class="show-button" id="save">${language[11]}</button>
                     <button class="show-button" id="close">${language[8]}</button>
                 </div>
             </div>
@@ -276,7 +273,7 @@ const ViewSaveCookie = GM_registerMenuCommand(
             click.stopPropagation();
         });
         // 監聽改變保存
-        $('#save_changes').on('click', function() {
+        $('#save').on('click', function() {
             GM_notification({
                 title: language[12],
                 text: language[13],
@@ -284,7 +281,7 @@ const ViewSaveCookie = GM_registerMenuCommand(
                 timeout: 4000
             });
             GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
-            $(document).off('click', '#save_changes');
+            $(document).off('click', '#save');
             $('.show-modal-background').remove();
         });
     }
