@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.14
+// @version      0.0.15
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -26,7 +26,13 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_notification
+// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
+
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-cookie/1.4.1/jquery.cookie.min.js
+// @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
 
 /* ==================== 初始化設置 ==================== */
@@ -45,8 +51,17 @@ var modal, Domain;
         }
     } catch (error) {console.log(error)}
 })();
-
 GM_addStyle(`
+    ${GM_getResourceText("jgrowl-css")}
+    .jGrowl {
+        top: 0;
+        left: 50%;
+        width: 50rem;
+        font-size: 3rem;
+        border-radius: 3%;
+        transform: translateX(-50%);
+        text-align: center;
+    }
     .show-modal-background {
         top: 0;
         left: 0;
@@ -61,12 +76,10 @@ GM_addStyle(`
         width: 23%;
         padding: 20px;
         overflow: auto;
-        color: #5C0D11;
         margin: 5% auto;
         text-align: left;
         border-radius: 10px;
         border-collapse: collapse;
-        background-color: #fefefe;
         border: 2px ridge #5C0D12;
     }
     .show-button {
@@ -115,48 +128,48 @@ const GetCookiesAutomatically = GM_registerMenuCommand(
                 cookie_list.push({"name" : cookieName,"value" : cookieValue})
             }
         }
-        cookies = JSON.stringify(cookie_list, null, 4);
-        Cookies_Show(cookies)
+        Cookies_Show(JSON.stringify(cookie_list, null, 4))
     }
 )
 
 /* 顯示自動獲取的 Cookies */
 function Cookies_Show(cookie_list) {
-    if (modal) {
-        modal.remove();
-        modal = null;
-    }
-    modal = document.createElement('div');
-    modal.innerHTML = `
-        <div class="show-modal-content">
-        <h1 style="text-align:center;">${language[5]}</h1>
-            <pre><b>${cookie_list}</b></pre>
-            <div style="text-align: right;">
-                <button class="show-button" id="save_cookie">${language[6]}</button>
-                <button class="show-button" id="modal_close">${language[7]}</button>
+    AdaptiveCSS(
+        ".show-modal-content { background-color: #fefefe;}",
+        ".show-modal-content { background-color: #34353b;}"
+    );
+    modal = `
+        <div class="show-modal-background">
+            <div class="show-modal-content">
+            <h1 style="text-align:center;">${language[5]}</h1>
+                <pre><b>${cookie_list}</b></pre>
+                <div style="text-align: right;">
+                    <button class="show-button" id="save_cookie">${language[6]}</button>
+                    <button class="show-button" id="modal_close">${language[7]}</button>
+                </div>
             </div>
         </div>
     `
-    modal.classList.add('show-modal-background');
-    document.body.appendChild(modal);
-    modal.classList.remove('hidden');
-
-    let CloseButton = document.getElementById("modal_close");
-    let Backplane = document.querySelector(".show-modal-background");
-    function closeModal() {
-        modal.classList.add('hidden');
-        Backplane.classList.add('hidden');
-        document.removeEventListener('click', closeModal);
-    }
-    CloseButton.addEventListener('click', closeModal);
-    Backplane.addEventListener('click', closeModal);
-
-    let SaveButton = document.getElementById('save_cookie');
-    SaveButton.addEventListener('click', () => {
+    $(document.body).append(modal);
+    $(document).on('click', '#modal_close, .show-modal-background', function(click) {
+        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'modal_close'){
+            $(document).off('click', '#modal_close, .show-modal-background');
+            $('.show-modal-background').remove();
+        }
+        click.stopPropagation();
+    });
+    AdaptiveCSS(
+        ".jGrowl { background-color: #34353b; color: #fefefe;}",
+        ".jGrowl { background-color: #fefefe; color: #5C0D11;}"
+    );
+    $(document).on('click', '#save_cookie', function() {
         GM_setValue("E/Ex_Cookies", cookie_list);
-        alert(language[9]);
-        modal.classList.add('hidden');
-        document.removeEventListener('click', SaveButton);
+        $.jGrowl(language[9], {
+            theme: "jGrowl",
+            life: 1500,
+        });
+        $(document).off('click', '#save_cookie');
+        $('.show-modal-background').remove();
     });
 }
 
@@ -164,83 +177,62 @@ function Cookies_Show(cookie_list) {
 const ManualSetting = GM_registerMenuCommand(
     language[1],
     function() {
-        if (modal) {
-            modal.remove();
-            modal = null;
-        }
-
-        Domain = window.location.hostname;
-        if (Domain === "e-hentai.org") {
-            GM_addStyle('.set-modal-content { background-color: #fefefe; }');
-        } else if (Domain === "exhentai.org") {
-            GM_addStyle('.set-modal-content { background-color: #34353b; }');
-        }
-
-        modal = document.createElement('div');
-        modal.innerHTML = `
-            <div class="set-modal-content">
-            <h1>${language[14]}</h1>
-                <form id="set_cookies">
-                    <div style="margin:10px">
-                        [igneous] : <input class="set-list" type="text" name="igneous" placeholder="${language[15]}"><br>
-                        [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="${language[16]}" required><br>
-                        [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language[16]}" required><hr>
-                        <h2>${language[17]}</h2>
-                        [sl] : <input class="set-list" type="text" name="sl" value="dm_2"><br>
-                        [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
-                        [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
-                    </div>
-                    <button type="submit" class="show-button" id="set_save_cookie">${language[6]}</button>
-                    <button class="show-button" id="set_modal_close">${language[8]}</button>
-                </form>
+        AdaptiveCSS(
+            ".set-modal-content { background-color: #fefefe;}",
+            ".set-modal-content { background-color: #34353b;}"
+        );
+        modal = `
+            <div class="show-modal-background">
+                <div class="set-modal-content">
+                <h1>${language[14]}</h1>
+                    <form id="set_cookies">
+                        <div id="input_cookies" style="margin:10px">
+                            [igneous] : <input class="set-list" type="text" name="igneous" placeholder="${language[15]}"><br>
+                            [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="${language[16]}" required><br>
+                            [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language[16]}" required><hr>
+                            <h2>${language[17]}</h2>
+                            [sl] : <input class="set-list" type="text" name="sl" value="dm_2"><br>
+                            [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
+                            [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
+                        </div>
+                        <button type="submit" class="show-button" id="set_save_cookie">${language[6]}</button>
+                        <button class="show-button" id="set_modal_close">${language[8]}</button>
+                    </form>
+                </div>
             </div>
         `
-
-        modal.classList.add('show-modal-background');
-        document.body.appendChild(modal);
-        modal.classList.remove('hidden');
-        const textarea = document.createElement("textarea");
-
-        let CloseButton = document.getElementById("set_modal_close");
-        let Backplane = document.querySelector(".show-modal-background");
-        function closeModal() {
-            modal.classList.add('hidden');
-            Backplane.classList.add('hidden');
-            document.removeEventListener('click', closeModal);
-        }
-        CloseButton.addEventListener('click', closeModal);
-        Backplane.addEventListener('click', closeModal);
-
-        // 捕獲表單提交事件
-        document.getElementById("set_cookies").addEventListener("submit", function(event) {
-        event.preventDefault(); // 阻止默認的表單提交行為
-            if (event.submitter.id === "set_save_cookie") {
-                // 獲取所有的輸入表單
-                const formElements = document.querySelectorAll("#set_cookies .set-list");
-                const cookie_list = Array.from(formElements).map(input => {
-                    return { name: input.name, value: input.value };
-                });
-
-                textarea.name = "confirm_cookies";
-                textarea.style = "margin-top:20px";
-                textarea.rows = 20;
-                textarea.cols = 60;
-
-                // 保存後 , 在獲取並轉換格式 , 並將其顯示
-                GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
-                let cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
-                textarea.value = JSON.stringify(cookies , null, 4);
-
-                // 將 textarea 添加到指定的 div 元素中
-                const formDiv = document.querySelector("#set_cookies div");
-                formDiv.appendChild(textarea);
-
-                GM_notification({
-                    title: language[10],
-                    text: language[18],
-                    image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
-                    timeout: 4000
-                });
+        $(document.body).append(modal);
+        // 創建文本元素
+        const textarea = $("<textarea>").attr({
+            style: "margin-top:20px",
+            rows: 20,
+            cols: 60
+        });
+        $(document).on('click', '#set_modal_close, .show-modal-background', function(click) {
+            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'set_modal_close') {
+                $(document).off('click', '#set_modal_close, .show-modal-background');
+                $('.show-modal-background').remove();
+            }
+            click.stopPropagation();
+        });
+        $("#set_cookies").on("submit", function(event) {
+            event.preventDefault(); // 阻止默認的表單提交行為
+            if ($(event.target).attr('id') === 'set_cookies') {
+                if ($(event.originalEvent.submitter).attr("id") === "set_save_cookie") {
+                    const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                        return { name: $(input).attr("name"), value: $(input).val() };
+                    });
+                    // 保存後 , 在獲取並轉換格式 , 並將其顯示
+                    GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
+                    const cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
+                    textarea.val(JSON.stringify(cookies, null, 4));
+                    // 將 textarea 添加到指定的 div 元素中
+                    $("#set_cookies div").append(textarea);
+                    $.jGrowl(language[18], {
+                        theme: "jGrowl",
+                        life: 3500
+                    });
+                }
             }
         });
     }
@@ -250,63 +242,50 @@ const ManualSetting = GM_registerMenuCommand(
 const ViewSaveCookie = GM_registerMenuCommand(
     language[2],
     function() {
-        if (modal) {
-            modal.remove();
-            modal = null;
-        }
-
-        Domain = window.location.hostname;
-        if (Domain === "e-hentai.org") {
-            GM_addStyle('.set-modal-content { background-color: #fefefe; }');
-        } else if (Domain === "exhentai.org") {
-            GM_addStyle('.set-modal-content { background-color: #34353b; }');
-        }
-
-        modal = document.createElement('div');
-        modal.innerHTML = `
-            <div class="set-modal-content">
-            <h1>${language[19]}</h1>
-                <div id="view_cookies" style="margin:10px"></div>
-                <button class="show-button" id="save_changes">${language[11]}</button>
-                <button class="show-button" id="close">${language[8]}</button>
+        AdaptiveCSS(
+            ".set-modal-content { background-color: #fefefe;}",
+            ".set-modal-content { background-color: #34353b;}"
+        );
+        modal = `
+            <div class="show-modal-background">
+                <div class="set-modal-content">
+                <h1>${language[19]}</h1>
+                    <div id="view_cookies" style="margin:10px"></div>
+                    <button class="show-button" id="save_changes">${language[11]}</button>
+                    <button class="show-button" id="close">${language[8]}</button>
+                </div>
             </div>
         `
-
-        modal.classList.add('show-modal-background');
-        document.body.appendChild(modal);
-        modal.classList.remove('hidden');
-
-        let CloseButton = document.getElementById("close");
-        let Backplane = document.querySelector(".show-modal-background");
-        function closeModal() {
-            modal.classList.add('hidden');
-            Backplane.classList.add('hidden');
-            document.removeEventListener('click', closeModal);
-        }
-        CloseButton.addEventListener('click', closeModal);
-        Backplane.addEventListener('click', closeModal);
-
-        const textarea = document.createElement("textarea");
+        $(document.body).append(modal);
+        // 展示
         const login_cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
-        textarea.value = JSON.stringify(login_cookies , null, 4);
-
-        textarea.id = "view_SC";
-        textarea.style = "margin-top:20px";
-        textarea.rows = 20;
-        textarea.cols = 60;
-        document.getElementById("view_cookies").appendChild(textarea);
-
-        let SaveButton = document.getElementById("save_changes");
-        SaveButton.addEventListener("click", () => {
-            GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
+        const textarea = $("<textarea>").attr({
+            rows: 20,
+            cols: 60,
+            id: "view_SC",
+            style: "margin-top:20px",
+        });
+        textarea.val(JSON.stringify(login_cookies , null, 4))
+        $("#view_cookies").append(textarea);
+        // 監聽關閉
+        $(document).on('click', '#close, .show-modal-background', function(click) {
+            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close'){
+                $(document).off('click', '#close, .show-modal-background');
+                $('.show-modal-background').remove();
+            }
+            click.stopPropagation();
+        });
+        // 監聽改變保存
+        $('#save_changes').on('click', function() {
             GM_notification({
-                title: language[15],
+                title: language[12],
                 text: language[13],
                 image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                 timeout: 4000
             });
-            modal.classList.add("hidden");
-            document.removeEventListener("click", SaveButton);
+            GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
+            $(document).off('click', '#save_changes');
+            $('.show-modal-background').remove();
         });
     }
 )
@@ -316,11 +295,8 @@ const CookieInjection = GM_registerMenuCommand(
     language[3],
     function() {
         try {
-            let login_cookies = GM_getValue("E/Ex_Cookies", []);
-            let cookies = GetCookies();
-            login_cookies = JSON.parse(login_cookies);
-            DeleteCookies(cookies);
-            AddCookies(login_cookies);
+            DeleteCookies(GetCookies());
+            AddCookies(JSON.parse(GM_getValue("E/Ex_Cookies", [])));
             GM_setValue("SessionTime", new Date().getTime());
             location.reload();
         } catch (error) {
@@ -339,56 +315,55 @@ const CookieDelete = GM_registerMenuCommand(
 );
 
 /* 登入檢測函數 */
-async function AutomaticLoginCheck(login_cookies , Domain) {
+async function AutomaticLoginCheck(login_cookies, Domain) {
     // 需要的 cookie 值
-    let RequiredCookies = ["ipb_member_id","ipb_pass_hash"];
-    if (Domain === "exhentai.org") {
-        RequiredCookies = ["igneous","ipb_member_id","ipb_pass_hash"];
-    }
-    let cookies = GetCookies();
+    let cookies = GetCookies(), RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
+    if (Domain === "exhentai.org") {RequiredCookies = ["igneous", "ipb_member_id", "ipb_pass_hash"]}
     let cookiesFound = RequiredCookies.every(function(cookieName) {
         return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
     });
-    if (Domain === "exhentai.org" && (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery") || !cookiesFound) {
+    if (!cookiesFound || (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
         DeleteCookies(cookies);
         AddCookies(login_cookies);
         location.reload();
-    } else if (!cookiesFound || !RequiredCookies.length >= 2) {
-        let cookies = document.cookie.split("; ");
-        DeleteCookies(cookies);
-        AddCookies(login_cookies);
-        location.reload();
+    }
+}
+
+/* 自適應 css */
+function AdaptiveCSS(e, ex) {
+    Domain = window.location.hostname;
+    if (Domain === "e-hentai.org") {
+        GM_addStyle(`${e}`);
+    } else if (Domain === "exhentai.org") {
+        GM_addStyle(`${ex}`);
     }
 }
 
 /* 添加 cookie */
 function AddCookies(LoginCookies) {
+    let cookie, date = new Date();
     for (let i = 0; i < LoginCookies.length; i++) {
-        let cookie = LoginCookies[i];
-        document.cookie = cookie.name + "=" + cookie.value;
+        cookie = LoginCookies[i]; // 添加一年後過期
+        $.cookie(cookie.name, cookie.value, { expires: date.setFullYear(date.getFullYear() + 1) });
     }
 }
 
 /* 刪除 cookie */
 function DeleteCookies(cookies) {
-    const cookieNames = Object.keys(cookies);
-    for (let i = 0; i < cookieNames.length; i++) {
-        let cookieName = cookieNames[i]; // 為了避免例外狀況沒刪除乾淨
-        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.exhentai.org";
-        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.e-hentai.org";
-        document.cookie = cookieName + "=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;";
+    const cookieName = Object.keys(cookies);
+    for (let i = 0; i < cookieName.length; i++) {// 為了避免例外狀況沒刪除乾淨
+        $.removeCookie(cookieName[i], { path: "/", domain: ".exhentai.org" });
+        $.removeCookie(cookieName[i], { path: "/", domain: ".e-hentai.org" });
+        $.removeCookie(cookieName[i], { path: "/" });
     }
 }
 
 /* 取得 Cookies */
 function GetCookies() {
-    let cookies = {} , cookiePairs = document.cookie.split("; ");
-    for (let i = 0; i < cookiePairs.length; i++) {
-        let cookiePair = cookiePairs[i].split("=");
-        let cookieName = decodeURIComponent(cookiePair[0]);
-        let cookieValue = decodeURIComponent(cookiePair[1]);
-        cookies[cookieName] = cookieValue;
-    }
+    let cookies = {};
+    $.each($.cookie(), function(key, value) {
+        cookies[key] = value;
+    });
     return cookies;
 }
 
