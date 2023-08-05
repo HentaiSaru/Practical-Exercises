@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -55,7 +55,7 @@ GM_addStyle(`
         z-index: 9999;
         position: fixed;
         overflow: auto;
-        background-color: rgba(0,0,0,0.5);
+        background-color: rgba(0,0,0,0.3);
     }
     .show-modal-content {
         width: 23%;
@@ -141,11 +141,16 @@ function Cookies_Show(cookie_list) {
     document.body.appendChild(modal);
     modal.classList.remove('hidden');
 
-    let CloseButton = document.getElementById('modal_close');
-    CloseButton.addEventListener('click', () => {
+    let CloseButton = document.getElementById("modal_close");
+    let Backplane = document.querySelector(".show-modal-background");
+    function closeModal() {
         modal.classList.add('hidden');
-        document.removeEventListener('click', CloseButton);
-    });
+        Backplane.classList.add('hidden');
+        document.removeEventListener('click', closeModal);
+    }
+    CloseButton.addEventListener('click', closeModal);
+    Backplane.addEventListener('click', closeModal);
+
     let SaveButton = document.getElementById('save_cookie');
     SaveButton.addEventListener('click', () => {
         GM_setValue("E/Ex_Cookies", cookie_list);
@@ -196,12 +201,15 @@ const ManualSetting = GM_registerMenuCommand(
         modal.classList.remove('hidden');
         const textarea = document.createElement("textarea");
 
-        // 退出按鈕
         let CloseButton = document.getElementById("set_modal_close");
-        CloseButton.addEventListener("click", () => {
-            modal.classList.add("hidden");
-            document.removeEventListener("click", CloseButton);
-        });
+        let Backplane = document.querySelector(".show-modal-background");
+        function closeModal() {
+            modal.classList.add('hidden');
+            Backplane.classList.add('hidden');
+            document.removeEventListener('click', closeModal);
+        }
+        CloseButton.addEventListener('click', closeModal);
+        Backplane.addEventListener('click', closeModal);
 
         // 捕獲表單提交事件
         document.getElementById("set_cookies").addEventListener("submit", function(event) {
@@ -269,10 +277,14 @@ const ViewSaveCookie = GM_registerMenuCommand(
         modal.classList.remove('hidden');
 
         let CloseButton = document.getElementById("close");
-        CloseButton.addEventListener("click", () => {
-            modal.classList.add("hidden");
-            document.removeEventListener("click", CloseButton);
-        });
+        let Backplane = document.querySelector(".show-modal-background");
+        function closeModal() {
+            modal.classList.add('hidden');
+            Backplane.classList.add('hidden');
+            document.removeEventListener('click', closeModal);
+        }
+        CloseButton.addEventListener('click', closeModal);
+        Backplane.addEventListener('click', closeModal);
 
         const textarea = document.createElement("textarea");
         const login_cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
@@ -423,10 +435,10 @@ function display_language(language) {
             "已保存变更",
             "设置 Cookies",
             "要登录 Ex 才需要填写",
-            "必填项目", 
-            "下方选填 也可不修改", 
-            "[确认输入正确]按下退出菜单保存", 
-            "当前设置 Cookies", 
+            "必填项目",
+            "下方选填 也可不修改",
+            "[确认输入正确]按下退出菜单保存",
+            "当前设置 Cookies",
             "未检测到可注入的 Cookies !!\n请从菜单中进行设置"
         ],
         "ja": [
@@ -463,16 +475,16 @@ function display_language(language) {
             'Cancel and exit',
             'Exit menu',
             'Saved successfully!',
-            'Save notification', 
-            'Change save', 
-            'Change notification', 
-            'Changes saved', 
-            'Set cookies', 
-            'Need to log in to Ex', 
-            'Required fields', 
-            'Optional below, can also not be modified', 
-            '[Make sure the input is correct] Press to exit the menu and save', 
-            'Current cookie settings', 
+            'Save notification',
+            'Change save',
+            'Change notification',
+            'Changes saved',
+            'Set cookies',
+            'Need to log in to Ex',
+            'Required fields',
+            'Optional below, can also not be modified',
+            '[Make sure the input is correct] Press to exit the menu and save',
+            'Current cookie settings',
             'No injectable cookies detected !!\nPlease set from the menu'
         ],
         "ko": [
