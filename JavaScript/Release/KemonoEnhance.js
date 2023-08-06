@@ -28,8 +28,6 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/video.js/8.5.1/video.min.js
-// @resource     video https://cdnjs.cloudflare.com/ajax/libs/video.js/8.5.1/video-js.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
@@ -111,18 +109,14 @@ async function VideoBeautify() {
     let stream, parents;
     parents = document.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li');
     if (parents.length > 0) {
-        GM_addStyle(GM_getResourceText("video"));
         function ReactBeautify({stream}) {
             return React.createElement("video", {
                 key: "video",
                 controls: true,
                 preload: "auto",
-                liveui: true,
-                enableDocumentPictureInPicture: true,
-                className: "video-js vjs-styles-dimensions",
                 style: { width: "80%", height: "80%" },
-                "data-setup": "{}"
             }, React.createElement("source", {
+                key: "source",
                 src: stream.src,
                 type: stream.type
             }));
@@ -292,7 +286,6 @@ async function Initialization() {
 function ReactRendering({content}) {
     return React.createElement("div", {dangerouslySetInnerHTML: { __html: content }});
 }
-/* Ajex 的快捷切換 */
 async function AjexReplace(url, old_main) {
   xhr.onreadystatechange = function () {
     if (xhr.readyState === 4 && xhr.status === 200) {
@@ -320,7 +313,6 @@ GM_addStyle(`
         transform: translate(-50%, -50%);
     }
 `);
-/* Ajex 的帖子切換 */
 async function AjexPostToggle() {
     let Old_data, New_data, item;
     async function Request(link) {
@@ -338,7 +330,7 @@ async function AjexPostToggle() {
                 Old_data = document.querySelector("section");
                 New_data = parser.parseFromString(response.responseText, "text/html");
                 New_data = New_data.querySelector("section");
-                ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);  
+                ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);
                 history.pushState(null, null, link);
                 AjexPostToggle();
                 NewTabOpens();
