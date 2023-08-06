@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.17
+// @version      0.0.18
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -28,6 +28,8 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 
+// @require      https://cdnjs.cloudflare.com/ajax/libs/video.js/8.5.1/video.min.js
+// @resource     video https://cdnjs.cloudflare.com/ajax/libs/video.js/8.5.1/video-js.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
@@ -58,10 +60,12 @@ limit=45;
         }
     }
     interval = setInterval(() => {Main()}, dellay);
-    setTimeout(function() {
+    setTimeout(() => {
         AdHiding(); // 隱藏廣告
         if (pattern.test(Url)) {
             OriginalImage(); // 自動大圖
+            LinkOriented(); // 連結轉換
+            VideoBeautify(); // 影片介面美化
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             AjexPostToggle(); // Ajex 換頁
@@ -69,6 +73,8 @@ limit=45;
         }
     }, dellay);
 })();
+
+/* ==================== */
 
 /* 美化介面 */
 async function Beautify(box, list, announce) {
@@ -101,24 +107,35 @@ async function Beautify(box, list, announce) {
     } catch {}
 }
 
-/* 簡易隱藏廣告 */
-async function AdHiding() {
-    document.querySelectorAll(".ad-container").forEach(function(element) {
-        try {element.style.display = "none"} catch {element.style.visibility = "hidden"}
-    })
-    let attempts = 0, interval = setInterval(function() {
-        if (attempts < 3) {
-            document.querySelectorAll(".root--ujvuu").forEach((element) => {
-                try {
-                    element.style.opacity = 0;
-                    element.style.visibility = "hidden";
-                } catch {
-                    element.style.visibility = "hidden";
-                }
-            });
-            attempts++;
-        } else {clearInterval(interval);}
-    }, 500);
+async function VideoBeautify() {
+    let stream, parents;
+    parents = document.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li');
+    if (parents.length > 0) {
+        GM_addStyle(GM_getResourceText("video"));
+        function ReactBeautify({stream}) {
+            return React.createElement("video", {
+                key: "video",
+                controls: true,
+                preload: "auto",
+                liveui: true,
+                enableDocumentPictureInPicture: true,
+                className: "video-js vjs-styles-dimensions",
+                style: { width: "80%", height: "80%" },
+                "data-setup": "{}"
+            }, React.createElement("source", {
+                src: stream.src,
+                type: stream.type
+            }));
+        }
+        parents.forEach(li => {
+            stream = li.querySelector("source");
+            if (stream) {
+                ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
+            } else {
+                console.log("Debug: Could not find source, please refresh");
+            }
+        })
+    }
 }
 
 /* 載入原始圖像 */
@@ -128,7 +145,6 @@ async function OriginalImage() {
         document.querySelectorAll("div.post__thumbnail").forEach(image => {
             image.classList.remove("post__thumbnail");
             link = image.querySelector("a");
-            link.classList.add("image-link");
             img = document.createElement("img");
             img.src = link.href;
             img.alt = "Click Reload";
@@ -138,6 +154,7 @@ async function OriginalImage() {
             img.onerror = function() {
                 Reload(link, this, 1)
             };
+            !link.classList.contains("image-link") ? link.classList.add("image-link") : null;
             link.querySelector("img").remove();
             link.appendChild(img);
         })
@@ -151,9 +168,9 @@ async function OriginalImage() {
                     const img = entry.target;
                     img.src = img.dataset.src;
                     observer.unobserve(img);
-                    }
-                });
+                }
             });
+        });
         images.forEach(image => {observer.observe(image)});
     }
 }
@@ -179,7 +196,36 @@ async function Reload(location, old_img, retry) {
     }
 }
 
-/* 額外添加功能 */
+/* ==================== */
+
+/* 簡易隱藏廣告 */
+async function AdHiding() {
+    document.querySelectorAll(".ad-container").forEach(function(element) {
+        try {element.style.display = "none"} catch {element.style.visibility = "hidden"}
+    })
+    let attempts = 0, interval = setInterval(function() {
+        if (attempts < 3) {
+            document.querySelectorAll(".root--ujvuu").forEach((element) => {
+                try {
+                    element.style.opacity = 0;
+                    element.style.visibility = "hidden";
+                } catch {
+                    element.style.visibility = "hidden";
+                }
+            });
+            attempts++;
+        } else {clearInterval(interval);}
+    }, 500);
+}
+
+/* 轉換下載連結參數 */
+async function LinkOriented() {
+    document.querySelectorAll("a.post__attachment-link").forEach(link => {
+        link.setAttribute("download", "");
+    })
+}
+
+/* 底部按鈕創建, 監聽快捷Ajex換頁 */
 async function Additional(comments) {
     GM_addStyle(GM_getResourceText("font-awesome"));
     const prev = document.querySelector("a.post__nav-link.prev");
@@ -215,6 +261,19 @@ async function Additional(comments) {
     });
 }
 
+/* 將瀏覽帖子頁面都變成開新分頁 */
+async function NewTabOpens() {
+    const card = document.querySelectorAll("div.card-list__items article a");
+    card.forEach(link => {
+        link.addEventListener("click", event => {
+            event.preventDefault();
+            GM_openInTab(link.href, { active: false, insert: true });
+        });
+    });
+}
+
+/* ==================== */
+
 /* Ajex 替換頁面的初始化 */
 async function Initialization() {
     let interval = setInterval(function() {
@@ -225,21 +284,27 @@ async function Initialization() {
         }
     }, 300);
     setTimeout(OriginalImage, 500);
+    setTimeout(VideoBeautify, 500);
     document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
 }
 
-async function AjexReplace(url , old_main) {
-    xhr.onreadystatechange = function () {
-        if (xhr.readyState === 4 && xhr.status === 200) {
-            let New_data = parser.parseFromString(xhr.responseText, "text/html");
-            let New_main = New_data.querySelector("main");
-            old_main.innerHTML = New_main.innerHTML;
-            history.pushState(null, null, url);
-            setTimeout(Initialization(), 500);
-        }
+/* React 渲染優化 */
+function ReactRendering({content}) {
+    return React.createElement("div", {dangerouslySetInnerHTML: { __html: content }});
+}
+/* Ajex 的快捷切換 */
+async function AjexReplace(url, old_main) {
+  xhr.onreadystatechange = function () {
+    if (xhr.readyState === 4 && xhr.status === 200) {
+        let New_data = parser.parseFromString(xhr.responseText, 'text/html');
+        let New_main = New_data.querySelector('main');
+        ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
+        history.pushState(null, null, url);
+        setTimeout(Initialization(), 500);
     }
-    xhr.open("GET", url, true);
-    xhr.send();
+  };
+  xhr.open('GET', url, true);
+  xhr.send();
 }
 
 GM_addStyle(`
@@ -255,6 +320,7 @@ GM_addStyle(`
         transform: translate(-50%, -50%);
     }
 `);
+/* Ajex 的帖子切換 */
 async function AjexPostToggle() {
     let Old_data, New_data, item;
     async function Request(link) {
@@ -272,7 +338,7 @@ async function AjexPostToggle() {
                 Old_data = document.querySelector("section");
                 New_data = parser.parseFromString(response.responseText, "text/html");
                 New_data = New_data.querySelector("section");
-                Old_data.innerHTML = New_data.innerHTML;
+                ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);  
                 history.pushState(null, null, link);
                 AjexPostToggle();
                 NewTabOpens();
@@ -290,12 +356,4 @@ async function AjexPostToggle() {
     } catch {}
 }
 
-async function NewTabOpens() {
-    const card = document.querySelectorAll("div.card-list__items article a");
-    card.forEach(link => {
-        link.addEventListener("click", event => {
-            event.preventDefault();
-            GM_openInTab(link.href, { active: false, insert: true });
-        });
-    });
-}
+/* ==================== */
