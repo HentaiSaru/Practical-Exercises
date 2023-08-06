@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -36,13 +36,19 @@
 // ==/UserScript==
 
 const regex = /^https:\/\/[^/]+/, pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
-var CompressMode = GM_getValue("壓縮下載", []), parser = new DOMParser(), url = window.location.href.match(regex), dict = {}, ModeDisplay, Pages=0;
+var CompressMode = GM_getValue("壓縮下載", []),
+parser = new DOMParser(),
+url = window.location.href.match(regex),
+dict = {},
+Pages=0,
+OriginalTitle = document.title,
+ModeDisplay;
 let observer = new MutationObserver((mutationsList, observer) => {
-        for (const mutation of mutationsList) {
-            if (mutation.type === "childList") {
-                if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
-            }
+    for (const mutation of mutationsList) {
+        if (mutation.type === "childList") {
+            if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
         }
+    }
 });
 (function() {
     if (pattern.test(window.location.href)) {
@@ -161,7 +167,7 @@ async function ZipDownload(Folder, ImgData, Button) {
     File = Conversion(Folder),
     Total = Data.length,
     name = IllegalFilter(Folder.split(" ")[1]);
-    let pool = [], poolSize = 5, progress = 1, mantissa, link, extension;
+    let pool = [], poolSize = 5, progress = 1, mantissa, link, extension, BackgroundWork;
     function createPromise(i) {
         link = Data[i].href.split("?f=")[0];
         extension = GetExtension(link);
@@ -174,6 +180,7 @@ async function ZipDownload(Folder, ImgData, Button) {
                     if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                         mantissa = progress.toString().padStart(3, '0');
                         zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
+                        document.title = `[${progress}/${Total}]`;
                         Button.textContent = `${language[10]} [${progress}/${Total}]`;
                         progress++;
                     } else {
@@ -199,25 +206,33 @@ async function ZipDownload(Folder, ImgData, Button) {
     }
     if (pool.length > 0) {await Promise.all(pool)}
     Compression();
-    function Compression() {
-        zip.generateAsync({
-            type: "blob",
-            compression: "DEFLATE",
-            compressionOptions: {
-                level: 5 // 壓縮級別，範圍從 0（無壓縮）到 9（最大壓縮）
-            }
-        }, (progress) => {
-            Button.textContent = `${language[11]}: ${progress.percent.toFixed(1)} %`;
-        }).then(zip => {
-            saveAs(zip, `${Folder}.zip`);
-            Button.textContent = language[13];
-            setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
-            Button.disabled = false;
-        }).catch(result => {
-            Button.textContent = language[12];
-            setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
-            Button.disabled = false;
-        });        
+    async function Compression() {
+        if (typeof(Worker) !== "undefined" && typeof(BackgroundWork) === "undefined") {
+            BackgroundWork = new Worker(BackgroundCreation());
+            BackgroundWork.postMessage([
+                await zip.generateAsync({ // 不await 無法序列化, 不太會 Worker
+                    type: "blob",
+                    compression: "DEFLATE",
+                    compressionOptions: {
+                        level: 5 // 壓縮級別，範圍從 0（無壓縮）到 9（最大壓縮）
+                    }
+                }, (progress) => {
+                    document.title = `${progress.percent.toFixed(1)} %`;
+                    Button.textContent = `${language[11]}: ${progress.percent.toFixed(1)} %`;
+                }).then(zip => {
+                    saveAs(zip, `${Folder}.zip`);
+                    Button.textContent = language[13];
+                    document.title = OriginalTitle;
+                    setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+                    Button.disabled = false;
+                }).catch(result => {
+                    Button.textContent = language[12];
+                    document.title = OriginalTitle;
+                    setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
+                    Button.disabled = false;
+                })
+            ]);
+        }
     }
 }
 
@@ -234,6 +249,7 @@ async function ImageDownload(Folder, ImgData, Button) {
             name: `${name}_${(progress+i).toString().padStart(3, '0')}.${extension}`,
             ontimeout: 10000,
             onload: () => {
+                document.title = `[${progress}/${Total}]`;
                 Button.textContent = `${language[10]} [${progress}/${Total}]`;
                 progress++;
             },
@@ -299,7 +315,7 @@ async function GetPageData(section) {
     }
 }
 
-function OpenData() {
+async function OpenData() {
     try {
         let content = document.querySelector('.card-list__items').querySelectorAll('article.post-card');
         content.forEach(function(content) {
@@ -405,4 +421,9 @@ function display_language(language) {
         ]
     };
     return display[language] || display["en"];
+}
+
+function BackgroundCreation() {
+    let blob = new Blob([""], {type: "application/javascript"});
+    return URL.createObjectURL(blob);
 }
