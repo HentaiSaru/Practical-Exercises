@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.18
+// @version      0.0.19
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -36,14 +36,14 @@
 var xhr = new XMLHttpRequest(),
 Url = window.location.href,
 parser = new DOMParser(),
-pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
-PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
-DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
 limit=45;
 
 (function() {
     let interval, tryerror = 0, dellay = 300;
+    const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
+    UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
+    PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
+    DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/;
     async function Main() {
         const [list, box, comments, announce] = [ // comments(評論區標題), announce(公告條)
             "div.global-sidebar", "div.content-wrapper.shifted", "h2.site-section__subheading", "body > div.content-wrapper.shifted > a"
@@ -63,7 +63,7 @@ limit=45;
         if (pattern.test(Url)) {
             OriginalImage(); // 自動大圖
             LinkOriented(); // 連結轉換
-            VideoBeautify(); // 影片介面美化
+            VideoBeautify(); // 影片美化
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             AjexPostToggle(); // Ajex 換頁
@@ -88,7 +88,7 @@ async function Beautify(box, list, announce) {
             transform: translateX(0rem);
         }
         .main_box {
-            transition: 0.8s;
+            transition: 0.7s;
         }
     `);
     try {
@@ -134,38 +134,29 @@ async function VideoBeautify() {
 
 /* 載入原始圖像 */
 async function OriginalImage() {
-    try {
-        let link, img;
-        document.querySelectorAll("div.post__thumbnail").forEach(image => {
-            image.classList.remove("post__thumbnail");
-            link = image.querySelector("a");
-            img = document.createElement("img");
-            img.src = link.href;
-            img.alt = "Click Reload";
-            img.loading = "auto";
-            img.setAttribute("data-src", link.href);
-            img.setAttribute("style", "max-width: 100%;");
-            img.onerror = function() {
-                Reload(link, this, 1)
-            };
-            !link.classList.contains("image-link") ? link.classList.add("image-link") : null;
-            link.querySelector("img").remove();
-            link.appendChild(img);
-        })
-    } catch (error) {
-        console.log(error);
-    } finally {
-        const images = document.querySelectorAll("div.post__files div a img");
-        const observer = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const img = entry.target;
-                    img.src = img.dataset.src;
-                    observer.unobserve(img);
-                }
-            });
-        });
-        images.forEach(image => {observer.observe(image)});
+    let thumbnail, link, img;
+    thumbnail = document.querySelectorAll("div.post__thumbnail");
+    if (thumbnail.length > 0) {
+        try {
+            thumbnail.forEach(image => {
+                image.classList.remove("post__thumbnail");
+                link = image.querySelector("a");
+                img = document.createElement("img");
+                img.src = link.href;
+                img.alt = "Click Reload";
+                img.loading = "auto";
+                img.setAttribute("data-src", link.href);
+                img.setAttribute("style", "max-width: 100%;");
+                img.onerror = function() {
+                    Reload(link, this, 1)
+                };
+                !link.classList.contains("image-link") ? link.classList.add("image-link") : null;
+                link.querySelector("img").remove();
+                link.appendChild(img);
+            })
+        } catch (error) {
+            console.log(error);
+        }
     }
 }
 
@@ -328,8 +319,7 @@ async function AjexPostToggle() {
             nocache: false,
             onload: response => {
                 Old_data = document.querySelector("section");
-                New_data = parser.parseFromString(response.responseText, "text/html");
-                New_data = New_data.querySelector("section");
+                New_data = parser.parseFromString(response.responseText, "text/html").querySelector("section");
                 ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);
                 history.pushState(null, null, link);
                 AjexPostToggle();
