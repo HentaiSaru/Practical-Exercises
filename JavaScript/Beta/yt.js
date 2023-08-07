@@ -1,26 +1,51 @@
-/*width: 1429px;
-height: 754px;
-left: 0px;
-top: -754px;*/
+// ==UserScript==
+// @name         YT test
+// @version      0.0.1
+// @author       HentaiSaru
+// @description  測試項目
+// @icon         
 
-let Video = document.querySelector("video");
-Video.style.left = "0rem";
-Video.style.top = "0rem";
-Video.style.width = "1920px";
-Video.style.height = "1080px";
+// @run-at       document-end
+// @match        *://www.youtube.com/*
 
-// 預設模式這個地方不會有東西 (劇院模式會放到這邊來)
-//<div id="player-container-inner" class="style-scope ytd-watch-flexy"></div>
+// @license      MIT
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addStyle
+// @grant        GM_registerMenuCommand
 
-// 預設模式的內容再這邊
-//<div id="player-wide-container" class="style-scope ytd-watch-flexy"></div>
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// ==/UserScript==
 
-// 監聽網頁上的點選事件
-document.addEventListener("click", function(event) {
-    // 確認點選的是連結
-    if (event.target.tagName === "A") {
-      event.preventDefault(); // 阻斷原本的跳轉
-      const url = event.target.href; // 獲取連結的網址
-      GM_openInTab(url, { active: true, insert: true }); // 在新分頁中開啟連結
+GM_registerMenuCommand("開啟模態測試", function() {ChatModal()});
+
+GM_addStyle(`
+    .modal-background {
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        z-index: 9999;
+        position: fixed;
+        overflow: auto;
+        background-color: rgba(0,0,0,0.3);
     }
-  });
+`)
+// ytd-live-chat-frame iframe
+async function ChatModal() {
+    let interval, chat, modal;
+    interval = setInterval(function() {
+        chat = $("#secondary #secondary-inner #chat-container");
+        if (chat) {
+            modal = `
+                <div id="backmodal" class="modal-background"></div>
+            `
+            $(document.body).append(modal);
+            $("#backmodal").append(chat.contentWindow.document.body);
+            $("#backmodal").on("click", function() {
+                $("#backmodal").remove();
+            })
+            clearInterval(interval);
+        }
+    }, 500);
+}
