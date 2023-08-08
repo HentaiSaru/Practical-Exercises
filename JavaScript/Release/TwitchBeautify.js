@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Twitch Beautify
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -21,6 +21,7 @@
         enabledstate = "🛠️ 以啟用美化✅";
         main();
         if (window.location.href === "https://www.twitch.tv/") {PlayerAborted(true)}
+        setTimeout(DeleteFooter, 500);
     } else {
         enabledstate = "🛠️ 以禁用美化❌";
     }
@@ -79,10 +80,6 @@ function FindPlayPage() {
             clearInterval(interval);
         }
     }, 400);
-    try {
-        const Notlogged = document.getElementById("twilight-sticky-footer-root");
-        Notlogged.style.display = "none";
-    } catch {}
 }
 
 /* 美化 */
@@ -141,6 +138,11 @@ async function PlayerAborted(control) {
             }
         }
     }, 1000);
+}
+
+/* 刪除頁腳 */
+async function DeleteFooter() {
+    try {document.getElementById("twilight-sticky-footer-root").style.display = "none"} catch {}
 }
 
 /* 懶人自動點擊 */
