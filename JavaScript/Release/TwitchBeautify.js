@@ -20,6 +20,7 @@
     if (GM_getValue("Beautify", [])) {
         enabledstate = "🛠️ 以啟用美化✅";
         main();
+        if (window.location.href === "https://www.twitch.tv/") {PlayerAborted(true)}
     } else {
         enabledstate = "🛠️ 以禁用美化❌";
     }
@@ -28,8 +29,8 @@
 
 /* 使用美化監聽 */
 async function main() {
-    let interval, pattern = /^https:\/\/www\.twitch\.tv\/.+/;
-    interval = setInterval(function() {
+    let pattern = /^https:\/\/www\.twitch\.tv\/.+/;
+    let interval = setInterval(function() {
         if (pattern.test(window.location.href)) {
             if (document.querySelector("video")) {
                 FindPlayPage();
@@ -41,8 +42,7 @@ async function main() {
 
 /* 首頁恢復監聽 */
 async function HomeRecovery(Nav, CB, CX) {
-    let interval
-    interval = setInterval(function() {
+    let interval = setInterval(function() {
         if (window.location.href === "https://www.twitch.tv/") {
             Nav.classList.remove("Nav_Effect");
             CX.singleNodeValue.classList.remove("Channel_Expand_Effect");
@@ -55,10 +55,9 @@ async function HomeRecovery(Nav, CB, CX) {
     }, 700);
 }
 
-/* 查找元素方法 */
+/* 查找video頁面元素方法 */
 function FindPlayPage() {
-    let interval;
-    interval = setInterval(function() {
+    let interval = setInterval(function() {
         // 取得導覽列
         const Nav = document.querySelector("nav.InjectLayout-sc-1i43xsx-0.ghHeNF");
         // 取得聊天室 button
@@ -75,6 +74,7 @@ function FindPlayPage() {
             Beautify(Nav, Channel_Xpath);
             AutoClickC(Chat_button, Channel_Button);
             // 首頁復原監聽
+            PlayerAborted(false);
             HomeRecovery(Nav, Channel_Button, Channel_Xpath);
             clearInterval(interval);
         }
@@ -109,6 +109,38 @@ async function Beautify(Nav, CX) {
     `);
     Nav.classList.add("Nav_Effect");
     CX.singleNodeValue.classList.add("Channel_Expand_Effect");
+}
+
+/* 影片暫停和靜音 */
+async function PlayerAborted(control) {
+    let timeout=0, interval = setInterval(function() {
+        const player = document.querySelector("video");
+        if (player) {
+            if(control) {
+                player.muted = true;
+                if (!player.paused) {
+                    player.pause();
+                    clearInterval(interval);
+                } else {
+                    timeout++;
+                    if (timeout > 10) {
+                        clearInterval(interval);
+                    }
+                }
+            } else {
+                player.play();
+                if (player.muted) {
+                    player.muted = false;
+                    clearInterval(interval);
+                } else {
+                    timeout++;
+                    if (timeout > 10) {
+                        clearInterval(interval);
+                    }
+                }
+            }
+        }
+    }, 1000);
 }
 
 /* 懶人自動點擊 */
