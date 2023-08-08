@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.19
+// @version      0.0.20
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -36,7 +36,8 @@
 var xhr = new XMLHttpRequest(),
 Url = window.location.href,
 parser = new DOMParser(),
-limit=45;
+buffer = document.createDocumentFragment(),
+limit=5;
 
 (function() {
     let interval, tryerror = 0, dellay = 300;
@@ -134,25 +135,26 @@ async function VideoBeautify() {
 
 /* 載入原始圖像 */
 async function OriginalImage() {
-    let thumbnail, link, img;
+    let thumbnail, href, link, img;
     thumbnail = document.querySelectorAll("div.post__thumbnail");
     if (thumbnail.length > 0) {
         try {
             thumbnail.forEach(image => {
                 image.classList.remove("post__thumbnail");
                 link = image.querySelector("a");
+                href = link.href;
                 img = document.createElement("img");
-                img.src = link.href;
+                img.src = href;
                 img.alt = "Click Reload";
                 img.loading = "auto";
-                img.setAttribute("data-src", link.href);
+                img.setAttribute("data-src", href);
                 img.setAttribute("style", "max-width: 100%;");
                 img.onerror = function() {
-                    Reload(link, this, 1)
+                    Reload(link, this, 1);
                 };
                 !link.classList.contains("image-link") ? link.classList.add("image-link") : null;
                 link.querySelector("img").remove();
-                link.appendChild(img);
+                link.appendChild(buffer.appendChild(img));
             })
         } catch (error) {
             console.log(error);
@@ -161,20 +163,20 @@ async function OriginalImage() {
 }
 
 async function Reload(location, old_img, retry) {
-    let New_img;
+    let New_img, href=location.href;
     ReTry();
     async function ReTry() {
         setTimeout(() => {
             if (retry <= limit) {
                 New_img = document.createElement("img");
-                New_img.src = location.href;
+                New_img.src = href;
                 New_img.alt = "Click Reload";
                 New_img.loading = "auto";
-                New_img.setAttribute("data-src", location.href);
+                New_img.setAttribute("data-src", href);
                 New_img.setAttribute("style", "max-width: 100%;");
                 New_img.onerror = function() {ReTry()};
                 old_img.remove();
-                location.appendChild(New_img);
+                location.appendChild(buffer.appendChild(New_img));
                 retry++;
             }
         }, 1500);
