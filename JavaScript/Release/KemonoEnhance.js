@@ -173,7 +173,7 @@ async function Reload(location, old_img, retry) {
                 New_img.alt = "Click Reload";
                 New_img.loading = "auto";
                 New_img.setAttribute("data-src", href);
-                New_img.setAttribute("style", "max-width: 100%;");
+                New_img.setAttribute("style", "max-width: 100%; display: block; margin: 0 auto;");
                 New_img.onerror = function() {ReTry()};
                 old_img.remove();
                 location.appendChild(buffer.appendChild(New_img));
