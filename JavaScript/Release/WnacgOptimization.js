@@ -30,7 +30,7 @@
 function ReactRender({link, src}) {
     return React.createElement("img", {
         className: "photo",
-        style: { display: "block", margin: "0 auto", maxWidth: "60%" },
+        style: { display: "block", margin: "0px auto", width: "100%", maxWidth: "60%" },
         src: src,
         alt: link
     });
@@ -56,7 +56,7 @@ async function ImageGeneration(box) {
                     setTimeout(()=>{
                         NextPage(link, box);
                         total_pages--;
-                    }, 800)
+                    }, 750)
                 })
         }
     }
@@ -65,6 +65,7 @@ async function ImageGeneration(box) {
 async function TailDeletion() {
     // box.replaceChildren(); 刪除子節點方法
     document.getElementById("bodywrap").remove();
+    document.querySelector("div.tocaowrap").setAttribute("style", "width: 100%; max-width: 60%;");
     document.querySelector(".newpagewrap").remove();
     document.querySelector(".footer.wrap").remove();
 }
