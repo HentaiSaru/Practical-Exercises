@@ -17,14 +17,14 @@
 // ==/UserScript==
 
 (function() {
-    document.body.style.cssText = "overflow-x: visible !important; background: #000000;";
     let photo_box, interval = setInterval(() => {
         photo_box = document.getElementById("photo_body");
         if (photo_box) {
+            document.body.style.cssText = "overflow-x: visible !important; background: #000000;";
             ImageGeneration(photo_box);
             clearInterval(interval);
         }
-    }, 500);
+    }, 300);
 })();
 
 function ReactRender({link, src}) {
@@ -40,10 +40,10 @@ async function ImageGeneration(box) {
     let link, img, dom, parser = new DOMParser();
     link = box.querySelector("a").href;
     img = box.querySelector("img").src;
-    TailDeletion();
     ReactDOM.render(React.createElement(ReactRender, { link:link, src: img }), box);
     document.querySelector("p.result").scrollIntoView(); // 回到最上方
     NextPage(link, box);
+    TailDeletion();
     async function NextPage(link, box) {
         if (total_pages > 1) {
             fetch(link)
@@ -56,7 +56,7 @@ async function ImageGeneration(box) {
                     setTimeout(()=>{
                         NextPage(link, box);
                         total_pages--;
-                    }, 750)
+                    }, 700)
                 })
         }
     }
@@ -64,8 +64,10 @@ async function ImageGeneration(box) {
 
 async function TailDeletion() {
     // box.replaceChildren(); 刪除子節點方法
-    document.getElementById("bodywrap").remove();
-    document.querySelector("div.tocaowrap").setAttribute("style", "width: 100%; max-width: 60%;");
-    document.querySelector(".newpagewrap").remove();
-    document.querySelector(".footer.wrap").remove();
+    try {
+        document.getElementById("bodywrap").remove();
+        document.querySelector("div.tocaowrap").setAttribute("style", "width: 100%; max-width: 60%;");
+        document.querySelector(".newpagewrap").remove();
+        document.querySelector(".footer.wrap").remove();
+    } catch {}
 }
