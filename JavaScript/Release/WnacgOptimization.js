@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name            wnacg 漫畫一頁化
-// @version         0.0.1
+// @version         0.0.2
 // @author          HentiSaru
 // @description     只設置匹配 https://www.wnacg.com/  漫畫自動載入所有頁面至同一頁, 純黑背景色, 圖像最大寬度縮小
 
@@ -27,12 +27,21 @@
     }, 300);
 })();
 
+var observer = new IntersectionObserver(function(observed) {
+    observed.forEach(function(entry) {
+        if (entry.isIntersecting) { // 變換URL將看過的圖片, 確實加入歷史紀錄
+            history.pushState(null, null, entry.target.alt);
+        }
+    });
+});
+
 function ReactRender({link, src}) {
     return React.createElement("img", {
         className: "photo",
         style: { display: "block", margin: "0px auto", width: "100%", maxWidth: "60%" },
         src: src,
-        alt: link
+        alt: link,
+        ref: function(img) {if (img) {observer.observe(img)}}
     });
 }
 async function ImageGeneration(box) {
