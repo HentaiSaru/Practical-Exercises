@@ -45,7 +45,8 @@ function ReactRender({link, src}) {
     });
 }
 async function ImageGeneration(box) {
-    var total_pages = document.querySelectorAll("select option").length - 1;
+    // 總頁數 = 總共頁數 - 當前頁數
+    var total_pages = document.querySelectorAll("select option").length - parseInt(document.querySelector("span.newpagelabel b").textContent, 10);
     let link, img, dom, parser = new DOMParser();
     link = box.querySelector("a").href;
     img = box.querySelector("img").src;
