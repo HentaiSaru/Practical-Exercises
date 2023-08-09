@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.20
+// @version      0.0.21
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -37,7 +37,7 @@ var xhr = new XMLHttpRequest(),
 Url = window.location.href,
 parser = new DOMParser(),
 buffer = document.createDocumentFragment(),
-limit=5;
+limit=10;
 
 (function() {
     let interval, tryerror = 0, dellay = 300;
@@ -133,53 +133,80 @@ async function VideoBeautify() {
     }
 }
 
-/* 載入原始圖像 */
+/* 載入原圖 */
 async function OriginalImage() {
-    let thumbnail, href, link, img;
+    let thumbnail, href, delay = 300;
     thumbnail = document.querySelectorAll("div.post__thumbnail");
     if (thumbnail.length > 0) {
+        function ImgRendering({href}) {
+            return React.createElement("div", {}, 
+                React.createElement("img", {
+                    key: "img",
+                    src: href.href,
+                    alt: "Click Reload",
+                    style: { maxWidth: "100%", display: "block", margin: "0 auto" },
+                    onLoad: function() {
+                        href.removeAttribute("href");
+                        href.removeAttribute("download");
+                    },
+                    onError: function() {
+                        Reload(href, 1);
+                    },
+                })
+            )
+        }
         try {
-            thumbnail.forEach(image => {
-                image.classList.remove("post__thumbnail");
-                link = image.querySelector("a");
-                href = link.href;
-                img = document.createElement("img");
-                img.src = href;
-                img.alt = "Click Reload";
-                img.loading = "auto";
-                img.setAttribute("data-src", href);
-                img.setAttribute("style", "max-width: 100%; display: block; margin: 0 auto;");
-                img.onerror = function() {
-                    Reload(link, this, 1);
-                };
-                !link.classList.contains("image-link") ? link.classList.add("image-link") : null;
-                link.querySelector("img").remove();
-                link.appendChild(buffer.appendChild(img));
+            thumbnail.forEach((object, index) => {
+                setTimeout(() => {
+                    object.classList.remove("post__thumbnail");
+                    href = object.querySelector("a");
+                    !href.classList.contains("image-link") ? href.classList.add("image-link") : null;
+                    ReactDOM.render(React.createElement(ImgRendering, { href: href }), href);
+                    if (index > 1) {delay = 850}
+                }, delay);
             })
         } catch (error) {
             console.log(error);
         }
     }
 }
-
-async function Reload(location, old_img, retry) {
-    let New_img, href=location.href;
-    ReTry();
-    async function ReTry() {
+async function Reload(location, retry) {
+    if (retry <= limit) {
         setTimeout(() => {
-            if (retry <= limit) {
-                New_img = document.createElement("img");
-                New_img.src = href;
-                New_img.alt = "Click Reload";
-                New_img.loading = "auto";
-                New_img.setAttribute("data-src", href);
-                New_img.setAttribute("style", "max-width: 100%; display: block; margin: 0 auto;");
-                New_img.onerror = function() {ReTry()};
-                old_img.remove();
-                location.appendChild(buffer.appendChild(New_img));
-                retry++;
+            let object = document.querySelector(`a[download="${location.download}"]`), img = document.createElement("img");
+            img.src = object.href;
+            img.alt = "Click Reload";
+            img.setAttribute("style", "max-width: 100%; display: block; margin: 0 auto;");
+            img.onload = function() {
+                object.removeAttribute("href");
+                object.removeAttribute("download");
             }
-        }, 1500);
+            img.onerror = function() {Reload(object, retry)};
+            object.querySelector("img").remove();
+            object.appendChild(buffer.appendChild(img));
+            retry++;
+        }, 1450);
+    }
+}
+
+/* ==================== */
+
+/* 監聽器的添加與刪除 */
+var ListenerRecord = new Map(), listen;
+
+async function addlistener(element, type, listener) {
+    element.addEventListener(type, listener);
+    if (!ListenerRecord.has(element)) {
+        ListenerRecord.set(element, new Map());
+    }
+    ListenerRecord.get(element).set(type, listener);
+}
+
+async function removlistener(element, type) {
+    if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
+        listen = ListenerRecord.get(element).get(type);
+        element.removeEventListener(type, listen);
+        ListenerRecord.get(element).delete(type);
     }
 }
 
@@ -230,33 +257,64 @@ async function Additional(comments) {
     buffer.appendChild(svg);
     buffer.appendChild(span);
     comments.appendChild(buffer);
-    svg.addEventListener("click", () => { // 回到頁面頂部
+    addlistener(svg, "click", () => {
         document.querySelector("header").scrollIntoView();
     })
+
     // 監聽按鍵切換
     const main = document.querySelector("main");
-    document.addEventListener("keydown", function(event) {
+    addlistener(document, "keydown", event => {
         try {
             if (event.key === "4") {
                 event.preventDefault();
+                removlistener(svg, "click");
+                removlistener(document, "keydown");
                 AjexReplace(prev.href, main);
             } else if (event.key === "6") {
                 event.preventDefault();
+                removlistener(svg, "click");
+                removlistener(document, "keydown");
                 AjexReplace(next.href, main);
             }
         } catch {}
-        //跳轉 window.location.href = prev.href;
-    });
+    })
 }
+
+GM_addStyle(`
+    .gif-overlay {
+        position: absolute;
+        opacity: 0.4;
+        top: 50%;
+        left: 50%;
+        width: 70%;
+        height: 70%;
+        z-index: 9999;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .diluted-information {
+        opacity: 0.4;
+    }
+`);
 
 /* 將瀏覽帖子頁面都變成開新分頁 */
 async function NewTabOpens() {
     const card = document.querySelectorAll("div.card-list__items article a");
     card.forEach(link => {
-        link.addEventListener("click", event => {
+        link.querySelector("header").classList.add("diluted-information");
+        link.querySelector("footer").classList.add("diluted-information");
+        addlistener(link, "click", event => {
             event.preventDefault();
             GM_openInTab(link.href, { active: false, insert: true });
-        });
+        })
+        addlistener(link, "mouseenter", () => {
+            link.querySelector("header").classList.remove("diluted-information");
+            link.querySelector("footer").classList.remove("diluted-information");
+        })
+        addlistener(link, "mouseleave", () => {
+            link.querySelector("header").classList.add("diluted-information");
+            link.querySelector("footer").classList.add("diluted-information");
+        })
     });
 }
 
@@ -294,21 +352,9 @@ async function AjexReplace(url, old_main) {
   xhr.send();
 }
 
-GM_addStyle(`
-    .gif-overlay {
-        position: absolute;
-        opacity: 0.4;
-        top: 50%;
-        left: 50%;
-        width: 70%;
-        height: 70%;
-        z-index: 9999;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-    }
-`);
+/* 帖子切換 */
 async function AjexPostToggle() {
-    let Old_data, New_data, item;
+    let Old_data, New_data, item, card = document.querySelectorAll("div.card-list__items article a");
     async function Request(link) {
         item = document.querySelector("div.card-list__items");
         item.style.position = "relative";
@@ -332,11 +378,20 @@ async function AjexPostToggle() {
         });
     }
     try {
-        document.querySelectorAll("menu a").forEach(a => {
-            a.addEventListener("click", (event) => {
+        const menu = document.querySelectorAll("menu a");
+        menu.forEach(ma => {
+            addlistener(ma, "click", (event) => {
                 event.preventDefault();
-                Request(a.href);
-            });
+                card.forEach(link => {
+                    removlistener(link, "click");
+                    removlistener(link, "mouseenter");
+                    removlistener(link, "mouseleave");
+                })
+                menu.forEach(ma => {
+                    removlistener(ma, "click");
+                })
+                Request(ma.href);
+            })
         });
     } catch {}
 }
