@@ -36,7 +36,7 @@ var observer = new IntersectionObserver(function(observed) {
             history.pushState(null, null, entry.target.alt);
         }
     });
-});
+}, {threshold: 0.5});
 
 function ReactRender({link, src}) {
     return React.createElement("img", {
@@ -78,7 +78,8 @@ async function ImageGeneration(box, current, total) {
 async function AdReplace() {
     const breadHTML = { __html: document.querySelector(".png.bread").innerHTML };
     ReactDOM.render(
-        React.createElement("div", { dangerouslySetInnerHTML: breadHTML }),
+        React.createElement("div", { dangerouslySetInnerHTML: breadHTML}
+        ),
         document.getElementById("bread")
     );
 }
