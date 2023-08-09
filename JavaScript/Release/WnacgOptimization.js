@@ -17,14 +17,17 @@
 // ==/UserScript==
 
 (function() {
-    let photo_box, interval = setInterval(() => {
+    let photo_box, current, total, interval = setInterval(() => {
         photo_box = document.getElementById("photo_body");
-        if (photo_box) {
+        current = document.querySelector("span.newpagelabel b");
+        total = document.querySelectorAll("select option");
+        if (photo_box && current && total.length > 0) {
             document.body.style.cssText = "overflow-x: visible !important; background: #000000;";
-            ImageGeneration(photo_box);
+            ImageGeneration(photo_box, current, total);
+            AdReplace();
             clearInterval(interval);
         }
-    }, 300);
+    }, 500);
 })();
 
 var observer = new IntersectionObserver(function(observed) {
@@ -44,9 +47,9 @@ function ReactRender({link, src}) {
         ref: function(img) {if (img) {observer.observe(img)}}
     });
 }
-async function ImageGeneration(box) {
+async function ImageGeneration(box, current, total) {
     // 總頁數 = 總共頁數 - 當前頁數
-    var total_pages = document.querySelectorAll("select option").length - parseInt(document.querySelector("span.newpagelabel b").textContent, 10);
+    var total_pages = total.length - parseInt(current.textContent, 10);
     let link, img, dom, parser = new DOMParser();
     link = box.querySelector("a").href;
     img = box.querySelector("img").src;
@@ -70,6 +73,14 @@ async function ImageGeneration(box) {
                 })
         }
     }
+}
+
+async function AdReplace() {
+    const breadHTML = { __html: document.querySelector(".png.bread").innerHTML };
+    ReactDOM.render(
+        React.createElement("div", { dangerouslySetInnerHTML: breadHTML }),
+        document.getElementById("bread")
+    );
 }
 
 async function TailDeletion() {
