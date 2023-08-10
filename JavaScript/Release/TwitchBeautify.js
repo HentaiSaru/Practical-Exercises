@@ -5,7 +5,7 @@
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentaiSaru
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
@@ -28,14 +28,15 @@
 // ==/UserScript==
 
 (function() {
+    const language = display_language(navigator.language)
     var enabledstate;
     if (GM_getValue("Beautify", [])) {
-        enabledstate = "🛠️ 以啟用美化✅";
+        enabledstate = language[1];
         main();
         if (window.location.href === "https://www.twitch.tv/") {PlayerAborted(true)}
         setTimeout(DeleteFooter, 500);
     } else {
-        enabledstate = "🛠️ 以禁用美化❌";
+        enabledstate = language[0];
     }
     const enabled = GM_registerMenuCommand(enabledstate, function() {Use()});
 })();
@@ -200,4 +201,30 @@ function Use() {
         GM_setValue("Beautify", true);
     }
     location.reload();
+}
+
+function display_language(language) {
+    let display = {
+        "zh-TW": [
+            "🛠️ 以禁用美化❌",
+            "🛠️ 以啟用美化✅"
+        ],
+        "zh-CN": [
+            "🛠️ 已禁用美化❌",
+            "🛠️ 已启用美化✅"
+        ],
+        "ja": [
+            "🛠️ 美化を無効にしました❌",
+            "🛠️ 美化を有効にしました✅"
+        ],
+        "en": [
+            "🛠️ Beautification disabled❌",
+            "🛠️ Beautification enabled✅"
+        ],
+        "ko": [
+            "🛠️ 미화 비활성화❌",
+            "🛠️ 미화 활성화✅"
+        ]
+    };
+    return display[language] || display["en"];
 }
