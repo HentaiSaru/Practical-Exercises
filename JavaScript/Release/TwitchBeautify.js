@@ -1,10 +1,20 @@
 // ==UserScript==
 // @name         Twitch Beautify
+// @name:zh-TW   Twitch Beautify
+// @name:zh-CN   Twitch Beautify
+// @name:ja      Twitch Beautify
+// @name:en      Twitch Beautify
+// @name:en      Twitch Beautify
 // @version      0.0.13
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
-// @description  美化 Twitch 觀看畫面 , 懶人自動點擊 , 在觀看介面啟用 , 回到大廳就會恢復
+// @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
+// @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
+// @description:zh-CN   美化 Twitch 观看画面 , 懒人自动点击 , 主页自动暂停静音自动播放视频
+// @description:ja      Twitchの視聴画面を美化し、怠け者の自動クリック、ホームページの自動一時停止、ミュート、自動再生ビデオ
+// @description:ko      Twitch 시청 화면을 미화하고, 게으른 사람들을 위한 자동 클릭, 홈페이지 자동 일시 정지, 음소거, 자동 재생 비디오
+// @description:en      Beautify the Twitch viewing screen, automatic clicks for lazy people, automatic pause and mute on the homepage, and automatic playback of videos.
 
 // @run-at       document-end
 // @match        *://*.twitch.tv/*
