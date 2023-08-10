@@ -233,7 +233,7 @@ async function ZipDownload(Button, Folder, ImgData) {
         promises.push(Request(i));
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-    await Promise.all(promises);    
+    await Promise.all(promises);
     Compression();
     async function Compression() {
         if (typeof(Worker) !== "undefined" && typeof(BackgroundWork) === "undefined") {
