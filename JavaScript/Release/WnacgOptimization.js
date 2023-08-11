@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name            wnacg 漫畫一頁化
+// @name            wnacg 觀看優化
 // @version         0.0.3
 // @author          HentiSaru
 // @description     只設置匹配 https://www.wnacg.com/  漫畫自動載入所有頁面至同一頁, 純黑背景色, 圖像最大寬度縮小
