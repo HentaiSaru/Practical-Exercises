@@ -119,7 +119,7 @@ async function HeavyTypography() {
 /* 熱鍵開啟菜單 */
 async function HotKey() {
     document.addEventListener("keydown", function(event) {
-        if (event.shiftKey) {
+        if (event.shiftKey && $('.modal-background').length < 1) {
             event.preventDefault();
             SettingInterface();
         }
