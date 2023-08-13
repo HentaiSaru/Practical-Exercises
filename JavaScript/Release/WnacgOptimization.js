@@ -1,10 +1,21 @@
 // ==UserScript==
-// @name            wnacg 觀看優化
+// @name            wnacg 優化
+// @name:zh-TW      wnacg 優化
+// @name:zh-CN      wnacg 优化
+// @name:ja         wnacg 最適化
+// @name:en         wnacg Optimization
 // @version         0.0.5
 // @author          HentiSaru
-// @description     只設置匹配 https://www.wnacg.com/  漫畫自動載入所有頁面至同一頁, 純黑背景色, 圖像最大寬度縮小
+// @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
+// @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
+// @description:zh-CN   漫画观看页面自定义, 图像大小, 背景颜色, 自动翻页, 观看模式
+// @description:ja      漫画観覧ページのカスタマイズ、画像サイズ、背景色、自動ページ送り、観覧モード
+// @description:en      Customizing the manga viewing page, image size, background color, automatic page turning, viewing mode
 
 // @match           *://*.wnacg.com/photos-view-id-*.html
+// @match           *://*.wnacg01.ru/photos-view-id-*.html
+// @match           *://*.wnacg02.ru/photos-view-id-*.html
+// @match           *://*.wnacg03.ru/photos-view-id-*.html
 // @icon            https://www.wnacg.com/favicon.ico
 
 // @license         MIT
