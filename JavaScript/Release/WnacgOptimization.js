@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.5
+// @version         0.0.6
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -31,7 +31,7 @@
 // @require         https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
-var modal, set_value, DisplayMode = GM_getValue("DisplayMode", null);
+var modal, set_value, DisplayMode = GM_getValue("DisplayMode", null), language = display_language(navigator.language);
 function GetSettings() {
     let Settings = GM_getValue("Settings", null);
     if (Settings === null) {
@@ -199,7 +199,7 @@ async function SettingInterface() {
         <div class="modal-background">
             <div class="modal-interface">
                 <div style="display: flex; justify-content: space-between;">
-                    <h1 style="margin-bottom: 1rem; font-size: 1.3rem;">圖像設置</h1>
+                    <h1 style="margin-bottom: 1rem; font-size: 1.3rem;">${language[0]}</h1>
                     <div class="DMS">
                         <input type="checkbox" class="DMS-checkbox" id="DMS" ${DisplayMode}>
                         <label class="DMS-label" for="DMS">
@@ -209,33 +209,33 @@ async function SettingInterface() {
                     </div>
                 </div>
                 <p>
-                    <Cins>上下間距</Cins><input type="range" id="ULS" class="slider" min="0" max="100" value="${array[1].key}" step="1">
+                    <Cins>${language[1]}</Cins><input type="range" id="ULS" class="slider" min="0" max="100" value="${array[1].key}" step="1">
                     <span class="Cshow">${array[1].value}</span>
                 </p>
                 <br>
                 <p>
-                    <Cins>基本寬度</Cins><input type="range" id="BW" class="slider" min="9" max="100" value="${array[2].key}" step="1">
+                    <Cins>${language[2]}</Cins><input type="range" id="BW" class="slider" min="9" max="100" value="${array[2].key}" step="1">
                     <span class="Cshow">${array[2].value}</span>
                 </p>
                 <br>
                 <p>
-                    <Cins>最大寬度</Cins><input type="range" id="MW" class="slider" min="9" max="100" value="${array[3].key}" step="1">
+                    <Cins>${language[3]}</Cins><input type="range" id="MW" class="slider" min="9" max="100" value="${array[3].key}" step="1">
                     <span class="Cshow">${array[3].value}</span>
                 </p>
                 <br>
                 <p>
-                    <Cins>基本高度</Cins><input type="range" id="BH" class="slider" min="9" max="100" value="${array[4].key}" step="1">
+                    <Cins>${language[4]}</Cins><input type="range" id="BH" class="slider" min="9" max="100" value="${array[4].key}" step="1">
                     <span class="Cshow">${array[4].value}</span>
                 </p>
                 <br>
                 <p>
-                    <Cins>最大高度</Cins><input type="range" id="MH" class="slider" min="9" max="100" value="${array[5].key}" step="1">
+                    <Cins>${language[5]}</Cins><input type="range" id="MH" class="slider" min="9" max="100" value="${array[5].key}" step="1">
                     <span class="Cshow">${array[5].value}</span>
                 </p>
                 <br>
                 <p>
-                    <Cins>背景顏色</Cins><input type="color" id="BC" class="color" value="${array[0].key}">
-                    <span style="margin-right: 17.9rem;"></span><button id="save_set" class="button-sty">保存設置</button>
+                    <Cins>${language[6]}</Cins><input type="color" id="BC" class="color" value="${array[0].key}">
+                    <span style="margin-right: 17.9rem;"></span><button id="save_set" class="button-sty">${language[7]}</button>
                 </p>
             </div>
         </div>
@@ -298,6 +298,19 @@ async function SettingInterface() {
         GM_setValue("Settings", array);
         $('.modal-background').remove();
     });
+}
+
+/* 變更樣式 (這是個爛方式) */
+const styleRules = {
+    ULS: value => `.ImageOptimization {margin: ${value} auto;}`,
+    BW: value => `.ImageOptimization {width: ${value}}`,
+    BH: value => `.ImageOptimization {height: ${value}}`,
+    MW: value => `.ImageOptimization {max-width: ${value}}`,
+    MH: value => `.ImageOptimization {max-height: ${value}}`,
+    BC: value => `.CustomBody {background: ${value}}`
+};
+async function StyleChange(id, value) {
+    GM_addStyle(styleRules[id](value));
 }
 
 /* css 樣式導入 */
@@ -416,13 +429,13 @@ async function ImportStyle() {
             box-sizing: border-box;
         }
         .DMS-inner:before {
-            content: "滾動閱讀";
+            content: "${language[8]}";
             padding-left: 1.7rem;
             background-color: #3d8fe7;
             color: #FFFFFF;
         }
         .DMS-inner:after {
-            content: "翻頁閱讀";
+            content: "${language[9]}";
             padding-right: 1.5rem;
             background-color: #FFFFFF;
             color: #3d8fe7;
@@ -450,15 +463,20 @@ async function ImportStyle() {
     `);
 }
 
-/* 變更樣式 (這是個爛方式) */
-const styleRules = {
-    ULS: value => `.ImageOptimization {margin: ${value} auto;}`,
-    BW: value => `.ImageOptimization {width: ${value}}`,
-    BH: value => `.ImageOptimization {height: ${value}}`,
-    MW: value => `.ImageOptimization {max-width: ${value}}`,
-    MH: value => `.ImageOptimization {max-height: ${value}}`,
-    BC: value => `.CustomBody {background: ${value}}`
-};
-async function StyleChange(id, value) {
-    GM_addStyle(styleRules[id](value));
+function display_language(language) {
+    let display = {
+        "zh-TW": [
+            "圖像設置", "上下間距", "基本寬度", "最大寬度", "基本高度", "最大高度", "背景顏色", "保存設置", "滾動閱讀", "翻頁閱讀"
+        ],
+        "zh-CN": [
+            "图像设置", "上下间距", "基本宽度", "最大宽度", "基本高度", "最大高度", "背景颜色", "保存设置", "滚动阅读", "翻页阅读"
+        ],
+        "ja": [
+            "画像設定", "上下の余白", "基本幅", "最大幅", "基本高さ", "最大高さ", "背景色", "設定の保存", "スクロール読み取り", "ページ読み取り" 
+        ],
+        "en": [
+            "Image settings", "Margin", "Base width", "Maximum width", "Base height", "Maximum height", "Background color", "Save settings", "Scroll reading", "Page reading"
+        ]
+    };
+    return display[language] || display["en"];
 }
