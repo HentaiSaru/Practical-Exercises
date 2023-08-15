@@ -5,9 +5,9 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentiSaru
-// @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載 
+// @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-CN   在 E 和 Ex 的漫画页面, 创建下载按钮, 可使用[压缩下载/单图下载], 自动获取图片下载
 // @description:ja      EとExの漫画ページで、ダウンロードボタンを作成し、[圧縮ダウンロード/単一画像ダウンロード]を使用して、自動的に画像をダウンロードします。
@@ -177,7 +177,7 @@ async function HomeDataProcessing(button) {
         }
     }
 
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     ImageLinkProcessing(button, title, homebox);
 }
 
@@ -187,33 +187,38 @@ async function ImageLinkProcessing(button, title, link) {
     async function GetLink(index, data) {
         try {
             imgbox.set(index, data.src);
+            button.textContent = `${language[6]}: [${index + 1}/${pages}]`;
         } catch {
             try {
                 imgbox.set(index, data.href);
+                button.textContent = `${language[6]}: [${index + 1}/${pages}]`;
             } catch {}
         }
     }
 
     async function FetchRequest(index, url) {
-        const response = await fetch(url);
-        const html = await response.text();
-        button.textContent = `${language[6]}: [${index}/${pages}]`;
-        GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
+        try {
+            const response = await fetch(url);
+            const html = await response.text();
+            GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
+        } catch (error) {
+            FetchRequest(index, url);
+        }
     }
 
     const promises = [];
-    link.forEach(async (url, i) => {
-        promises.push(FetchRequest(i, url));
-        await new Promise(resolve => setTimeout(resolve, 150));
+    link.forEach(async (url, index) => {
+        promises.push(FetchRequest(index, url));
+        await new Promise(resolve => setTimeout(resolve, 300));
     });
 
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     DownloadTrigger(button, title, imgbox);
 }
 
 /* 下載觸發器 */
 async function DownloadTrigger(button, title, link) {
-    if (CompressMode) {ZipDownload(button, title, link)} 
+    if (CompressMode) {ZipDownload(button, title, link)}
     else {ImageDownload(button, title, link)}
 }
 
@@ -241,10 +246,12 @@ async function ZipDownload(Button, Folder, ImgData) {
                             resolve();
                         } else {
                             retry++;
-                            if (retry < 10) {
-                                Request(index);
-                            }
+                            if (retry < 10) {Request(index)}
                         }
+                    },
+                    onerror: error => {
+                        console.log(error);
+                        resolve();
                     }
                 });
             } else {
@@ -257,9 +264,9 @@ async function ZipDownload(Button, Folder, ImgData) {
     }
     for (let i = 0; i < Total; i++) {
         promises.push(Request(i));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 150));
     }
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     Compression();
     async function Compression() {
         if (typeof(Worker) !== "undefined" && typeof(BackgroundWork) === "undefined") {
@@ -332,7 +339,7 @@ async function ImageDownload(Button, Folder, ImgData) {
     for (let i = 0; i < Total; i++) {
         promises.push(Request(i));
     }
-    await Promise.all(promises);
+    await Promise.allSettled(promises);
     Button.textContent = language[11];
     setTimeout(() => {
         Button.textContent = ModeDisplay;
@@ -423,7 +430,7 @@ function display_language(language) {
             "Compressed packaging",
             "Compression complete",
             "Compression failed",
-            "Download complete" 
+            "Download complete"
         ],
         "ko": [
             "🔁 다운로드 모드 전환",
