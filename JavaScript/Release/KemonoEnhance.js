@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.21
+// @version      0.0.22
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -162,7 +162,7 @@ async function OriginalImage() {
                     href = object.querySelector("a");
                     !href.classList.contains("image-link") ? href.classList.add("image-link") : null;
                     ReactDOM.render(React.createElement(ImgRendering, { href: href }), href);
-                    if (index > 1) {delay = 850}
+                    if (index > 1) {delay = 800}
                 }, delay);
             })
         } catch (error) {
@@ -195,11 +195,13 @@ async function Reload(location, retry) {
 var ListenerRecord = new Map(), listen;
 
 async function addlistener(element, type, listener) {
-    element.addEventListener(type, listener);
-    if (!ListenerRecord.has(element)) {
-        ListenerRecord.set(element, new Map());
+    if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
+        element.addEventListener(type, listener);
+        if (!ListenerRecord.has(element)) {
+            ListenerRecord.set(element, new Map());
+        }
+        ListenerRecord.get(element).set(type, listener);
     }
-    ListenerRecord.get(element).set(type, listener);
 }
 
 async function removlistener(element, type) {
@@ -218,7 +220,7 @@ async function AdHiding() {
         try {element.style.display = "none"} catch {element.style.visibility = "hidden"}
     })
     let attempts = 0, interval = setInterval(function() {
-        if (attempts < 3) {
+        if (attempts < 5) {
             document.querySelectorAll(".root--ujvuu").forEach((element) => {
                 try {
                     element.style.opacity = 0;
@@ -228,8 +230,8 @@ async function AdHiding() {
                 }
             });
             attempts++;
-        } else {clearInterval(interval);}
-    }, 500);
+        } else {clearInterval(interval)}
+    }, 700);
 }
 
 /* 轉換下載連結參數 */
@@ -267,12 +269,10 @@ async function Additional(comments) {
         try {
             if (event.key === "4") {
                 event.preventDefault();
-                removlistener(svg, "click");
                 removlistener(document, "keydown");
                 AjexReplace(prev.href, main);
             } else if (event.key === "6") {
                 event.preventDefault();
-                removlistener(svg, "click");
                 removlistener(document, "keydown");
                 AjexReplace(next.href, main);
             }
@@ -297,7 +297,7 @@ GM_addStyle(`
     }
 `);
 
-/* 將瀏覽帖子頁面都變成開新分頁 */
+/* 將瀏覽帖子頁面都變成開新分頁, 帖子說明文字淡化, 和滑鼠懸浮恢復 */
 async function NewTabOpens() {
     const card = document.querySelectorAll("div.card-list__items article a");
     card.forEach(link => {
@@ -339,22 +339,22 @@ function ReactRendering({content}) {
     return React.createElement("div", {dangerouslySetInnerHTML: { __html: content }});
 }
 async function AjexReplace(url, old_main) {
-  xhr.onreadystatechange = function () {
-    if (xhr.readyState === 4 && xhr.status === 200) {
-        let New_data = parser.parseFromString(xhr.responseText, 'text/html');
-        let New_main = New_data.querySelector('main');
-        ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
-        history.pushState(null, null, url);
-        setTimeout(Initialization(), 500);
-    }
-  };
-  xhr.open('GET', url, true);
-  xhr.send();
+    xhr.onreadystatechange = function () {
+        if (xhr.readyState === 4 && xhr.status === 200) {
+            let New_data = parser.parseFromString(xhr.responseText, 'text/html');
+            let New_main = New_data.querySelector("main");
+            ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
+            history.pushState(null, null, url);
+            setTimeout(Initialization(), 500);
+        }
+    };
+    xhr.open("GET", url, true);
+    xhr.send();
 }
 
 /* 帖子切換 */
 async function AjexPostToggle() {
-    let Old_data, New_data, item, card = document.querySelectorAll("div.card-list__items article a");
+    let Old_data, New_data, item;
     async function Request(link) {
         item = document.querySelector("div.card-list__items");
         item.style.position = "relative";
@@ -382,14 +382,6 @@ async function AjexPostToggle() {
         menu.forEach(ma => {
             addlistener(ma, "click", (event) => {
                 event.preventDefault();
-                card.forEach(link => {
-                    removlistener(link, "click");
-                    removlistener(link, "mouseenter");
-                    removlistener(link, "mouseleave");
-                })
-                menu.forEach(ma => {
-                    removlistener(ma, "click");
-                })
                 Request(ma.href);
             })
         });
