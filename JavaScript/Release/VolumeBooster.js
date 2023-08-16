@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.24
+// @version      0.0.25
 // @author       HentaiSaru
 // @license      MIT
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -85,35 +85,48 @@ async function MenuHotkey() {
 
 /* 音量增量 */
 function booster(video, increase) {
-    const audioContext = new (window.AudioContext || window.webkitAudioContext);
+    const AudioContext = new (window.AudioContext || window.webkitAudioContext);
     // 音頻來源
-    const source = audioContext.createMediaElementSource(video);
+    const SourceNode = AudioContext.createMediaElementSource(video);
     // 增益節點
-    const gainNode = audioContext.createGain();
+    const GainNode = AudioContext.createGain();
     // 動態壓縮節點
-    const compressorNode = audioContext.createDynamicsCompressor();
+    const CompressorNode = AudioContext.createDynamicsCompressor();
+    // 低音慮波器
+    const LowFilterNode = AudioContext.createBiquadFilter();
+    const HighFilterNode = AudioContext.createBiquadFilter();
 
     // 將預設音量調整至 100% (有可能被其他腳本調整)
     video.volume = 1;
     // 設置增量
-    gainNode.gain.value = increase * increase;
+    GainNode.gain.value = increase * increase;
 
     // 設置動態壓縮器的參數(通用性測試!!)
-    compressorNode.ratio.value = 9; // 壓縮率
-    compressorNode.knee.value = 6; // 壓縮過度反應時間(越小越快)
-    compressorNode.threshold.value = -9; // 壓縮閾值
-    compressorNode.attack.value = 0.003; // 開始壓縮的速度
-    compressorNode.release.value = 0.6; // 釋放壓縮的速度
+    CompressorNode.ratio.value = 6; // 壓縮率
+    CompressorNode.knee.value = 0.5; // 壓縮過度反應時間(越小越快)
+    CompressorNode.threshold.value = -14; // 壓縮閾值
+    CompressorNode.attack.value = 0.020; // 開始壓縮的速度
+    CompressorNode.release.value = 0.40; // 釋放壓縮的速度
+
+    LowFilterNode.frequency.value = 250;
+    LowFilterNode.type = "lowshelf";
+    LowFilterNode.gain.value = 2.2;
+
+    HighFilterNode.frequency.value = 10000;
+    HighFilterNode.type = "highshelf";
+    HighFilterNode.gain.value = 1.8;
 
     // 進行節點連結
-    source.connect(gainNode);
-    gainNode.connect(compressorNode);
-    compressorNode.connect(audioContext.destination);
+    SourceNode.connect(GainNode);
+    GainNode.connect(LowFilterNode);
+    LowFilterNode.connect(HighFilterNode);
+    GainNode.connect(CompressorNode);
+    CompressorNode.connect(AudioContext.destination);
     video.setAttribute("data-audio-context", true);
     return {
         // 設置音量
         setVolume: function(increase) {
-            gainNode.gain.value = increase * increase;
+            GainNode.gain.value = increase * increase;
             Increase = increase;
         }
     }
