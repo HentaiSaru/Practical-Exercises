@@ -24,7 +24,6 @@
 // @run-at          document-start
 // @grant           GM_setValue
 // @grant           GM_getValue
-// @grant           GM_addStyle
 
 // @require         https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
