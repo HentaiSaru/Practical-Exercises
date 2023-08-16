@@ -7,91 +7,9 @@
     <title>Document</title>
 </head>
 <style>
-    .show-modal-background {
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9999;
-        position: fixed;
-        overflow: auto;
-        background-color: rgba(0, 0, 0, 0.5);
-    }
-
-    .show-modal-content {
-        width: 23%;
-        padding: 20px;
-        overflow: auto;
-        color: #5C0D11;
-        margin: 5% auto;
-        text-align: left;
-        border-radius: 10px;
-        border-collapse: collapse;
-        background-color: #fefefe;
-        border: 2px ridge #5C0D12;
-    }
-
-    .show-button {
-        top: 0;
-        margin: 3% 2%;
-        color: #5C0D12;
-        font-size: 14px;
-        font-weight: bold;
-        border-radius: 3px;
-        background-color: #EDEADA;
-        border: 2px solid #B5A4A4;
-    }
-
-    .show-button:hover,
-    .show-button:focus {
-        color: #FF8033;
-        cursor: pointer;
-        text-decoration: none;
-    }
-
-    .set-modal-content {
-        width: 720px;
-        padding: 5px;
-        overflow: auto;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px ridge #5C0D12;
-        border-collapse: collapse;
-        margin: 2% auto 8px auto;
-    }
-
-    .set-list {
-        height: 25px;
-        width: 70%;
-        text-align: center;
-    }
-
-    .hidden {
-        display: none;
-    }
 </style>
 
 <body>
-
-    <div class="set-modal-content">
-        <h1>設置 Cookies</h1>
-        <form id="set_cookies">
-            <div style="margin:10px; color: rgba(59, 62, 68, 0.7);">
-                { igneous } ： <input class="set-list" type="text" name="igneous" placeholder="要登入 Ex 才需要填寫"><br>
-                { ipb_member_id } ： <input class="set-list" type="text" name="ipb_member_id" placeholder="必填項目" required><br>
-                { ipb_pass_hash } ： <input class="set-list" type="text" name="ipb_pass_hash" placeholder="必填項目" required><br>
-                <hr>
-                <h2>下方選填 也可不修改</h2>
-                { sl } ： <input class="set-list" type="text" name="sl" value="dm_2"><br>
-                { sk } ： <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
-                { yay } ： <input class="set-list" type="text" name="yay" value="louder"><br>
-            </div>
-            <button type="submit" class="show-button" id="set_save_cookie">確認保存</button>
-            <button class="show-button" id="set_modal_close">退出選單</button>
-            <hr>
-        </form>
-    </div>
-
 
 </body>
 
