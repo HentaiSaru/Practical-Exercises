@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentiSaru
 // @description         設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
 // @description:zh-TW   設置 E/Ex - Cookies 本地備份保存 , 自動擷取設置 , 手動選單設置 , 自動檢測登入狀態自動登入 , 手動選單登入
@@ -35,312 +35,233 @@
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
 
-/* ==================== 初始化設置 ==================== */
-const language = display_language(navigator.language)
-var modal, Domain;
+const language = display_language(navigator.language);
+var gc, modal, cookie, Notification, domain = window.location.hostname;
 
 (function() {
-    try {
-        let cookies = GM_getValue("E/Ex_Cookies", []), domain = window.location.hostname,
-        sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)), time = new Date(), conversion;
-        if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 6 * 60 * 1000)}
-        conversion = (time - sessiontime) / (1000 * 60);
-        if (conversion > 5) {
-            GM_setValue(`${domain}_SessionTime`, time.getTime());
-            AutomaticLoginCheck(JSON.parse(cookies), domain);
-        }
-    } catch (error) {console.log(error)}
+    GM_registerMenuCommand(language[0], function(){GetCookiesAutomatically()});
+    GM_registerMenuCommand(language[1], function(){ManualSetting()});
+    GM_registerMenuCommand(language[2], function(){ViewSaveCookie()});
+    GM_registerMenuCommand(language[3], function(){CookieInjection()});
+    GM_registerMenuCommand(language[4], function(){CookieDelete()});
+    let sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)), time = new Date(), conversion;
+    // 沒有時間戳時的預設
+    if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 6 * 60 * 1000)}
+    cookie = GM_getValue("E/Ex_Cookies", null);
+    conversion = (time - sessiontime) / (1000 * 60);
+    ImportStyle();
+    if (conversion > 10) {
+        GM_setValue(`${domain}_SessionTime`, time.getTime());
+        CookieCheck(JSON.parse(cookie));
+    }
 })();
-GM_addStyle(`
-    ${GM_getResourceText("jgrowl-css")}
-    .jGrowl {
-        top: 0;
-        left: 50%;
-        width: 50rem;
-        z-index: 9999;
-        font-size: 3rem;
-        border-radius: 3%;
-        transform: translateX(-50%);
-        text-align: center;
+
+/* 登入檢測 */
+async function CookieCheck(cookies) {
+    // 需要的 cookie 值
+    let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
+    if (domain === "exhentai.org") {RequiredCookies = ["igneous", "ipb_member_id", "ipb_pass_hash"]}
+    cookie = GetCookies();
+    let cookiesFound = RequiredCookies.every(function(cookieName) {
+        return cookie.hasOwnProperty(cookieName) && cookie[cookieName] !== undefined;
+    });
+    if (!cookiesFound || (!cookie.hasOwnProperty("igneous") || cookie.igneous === "mystery")) {
+        DeleteCookies(cookie);
+        AddCookies(cookies);
+        location.reload();
     }
-    .show-modal-background {
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
-        z-index: 9998;
-        position: fixed;
-        overflow: auto;
-        background-color: rgba(0,0,0,0.3);
+}
+
+/* Style 添加 */
+async function addstyle(rule) {
+    let new_style = document.getElementById("New-Add-Style");
+    if (!new_style) {
+        new_style = document.createElement("style");
+        new_style.id = "New-Add-Style";
+        document.head.appendChild(new_style);
     }
-    .show-modal-content {
-        width: 24%;
-        padding: 20px;
-        overflow: auto;
-        margin: 5% auto;
-        text-align: left;
-        border-radius: 10px;
-        border-collapse: collapse;
-        border: 2px ridge #5C0D12;
-    }
-    .show-button {
-        top: 0;
-        margin: 3% 2%;
-        color: #5C0D12;
-        font-size: 14px;
-        font-weight: bold;
-        border-radius: 3px;
-        background-color: #EDEADA;
-        border: 2px solid #B5A4A4;
-    }
-    .show-button:hover, .show-button:focus {
-        color: #FF8033;
-        cursor: pointer;
-        text-decoration: none;
-    }
-    .set-modal-content  {
-        width: 720px;
-        padding: 5px;
-        overflow: auto;
-        border-radius: 10px;
-        text-align: center;
-        border: 2px ridge #5C0D12;
-        border-collapse: collapse;
-        margin: 2% auto 8px auto;
-    }
-    .set-list {
-        height: 25px;
-        width: 70%;
-        text-align: center;
-    }
-`);
+    new_style.appendChild(document.createTextNode(rule));
+}
+
+/* 通知展示 */
+async function Growl(message, theme, life) {
+    $.jGrowl(message, {
+        theme: theme,
+        life: life
+    });
+}
 
 /* 自動獲取 Cookies */
-const GetCookiesAutomatically = GM_registerMenuCommand(
-    language[0],
-    function() {
-        let cookies = GetCookies() , cookie_list = [];
-        for (var cookieName in cookies) {
-            if (cookies.hasOwnProperty(cookieName)) {
-                var cookieValue = cookies[cookieName];
-                cookie_list.push({"name" : cookieName,"value" : cookieValue})
-            }
+async function GetCookiesAutomatically() {
+    let cookie_box = [], cookieName;
+    gc = GetCookies();
+    for (cookieName in gc) {
+        if (gc.hasOwnProperty(cookieName)) {
+            cookie_box.push({"name" : cookieName, "value" : gc[cookieName]});
         }
-        Cookies_Show(JSON.stringify(cookie_list, null, 4))
     }
-)
+    Cookie_Show(JSON.stringify(cookie_box, null, 4));
+}
 
-/* 顯示自動獲取的 Cookies */
-function Cookies_Show(cookie_list) {
-    AdaptiveCSS(
-        ".show-modal-content { background-color: #fefefe;}",
-        ".show-modal-content { background-color: #34353b;}"
-    );
+/* 展示自動獲取 Cookies */
+async function Cookie_Show(cookies){
     modal = `
-        <div class="show-modal-background">
-            <div class="show-modal-content">
-            <h1 style="text-align:center;">${language[5]}</h1>
-                <pre><b>${cookie_list}</b></pre>
+        <div class="modal-background">
+            <div class="show-modal">
+            <h1 style="text-align: center;">${language[5]}</h1>
+                <pre><b>${cookies}</b></pre>
                 <div style="text-align: right;">
-                    <button class="show-button" id="save">${language[6]}</button>
-                    <button class="show-button" id="close">${language[7]}</button>
+                    <button class="modal-button" id="save">${language[6]}</button>
+                    <button class="modal-button" id="close">${language[7]}</button>
                 </div>
             </div>
         </div>
     `
     $(document.body).append(modal);
-    $(document).on('click', '#close, .show-modal-background', function(click) {
-        if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close') {
+    $(document).on('click', '#close, .modal-background', function(click) {
+        if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close') {
             $(document).off('click', '#close, .show-modal-background');
-            $('.show-modal-background').remove();
+            $('.modal-background').remove();
         }
         click.stopPropagation();
     });
-    AdaptiveCSS(
-        ".jGrowl { background-color: #34353b; color: #fefefe;}",
-        ".jGrowl { background-color: #fefefe; color: #5C0D11;}"
-    );
     $(document).on('click', '#save', function() {
-        GM_setValue("E/Ex_Cookies", cookie_list);
-        $.jGrowl(language[9], {
-            theme: "jGrowl",
-            life: 1500,
-        });
+        GM_setValue("E/Ex_Cookies", cookies);
+        Growl(language[9], "jGrowl", 1500);
         $(document).off('click', '#save');
-        $('.show-modal-background').remove();
+        $('.modal-background').remove();
     });
 }
 
-/* 手動輸入 Cookies */
-const ManualSetting = GM_registerMenuCommand(
-    language[1],
-    function() {
-        AdaptiveCSS(
-            ".set-modal-content { background-color: #fefefe;}",
-            ".set-modal-content { background-color: #34353b;}"
-        );
-        modal = `
-            <div class="show-modal-background">
-                <div class="set-modal-content">
-                <h1>${language[14]}</h1>
-                    <form id="set_cookies">
-                        <div id="input_cookies" style="margin:10px">
-                            [igneous] : <input class="set-list" type="text" name="igneous" placeholder="${language[15]}"><br>
-                            [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="${language[16]}" required><br>
-                            [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language[16]}" required><hr>
-                            <h2>${language[17]}</h2>
-                            [sl] : <input class="set-list" type="text" name="sl" value="dm_2"><br>
-                            [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
-                            [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
-                        </div>
-                        <button type="submit" class="show-button" id="save">${language[6]}</button>
-                        <button class="show-button" id="close">${language[8]}</button>
-                    </form>
-                </div>
+/* 手動設置 Cookies */
+async function ManualSetting() {
+    modal = `
+        <div class="modal-background">
+            <div class="set-modal">
+            <h1>${language[14]}</h1>
+                <form id="set_cookies">
+                    <div id="input_cookies" style="margin: 0.6rem">
+                        [igneous] : <input class="set-list" type="text" name="igneous" placeholder="${language[15]}"><br>
+                        [ipb_member_id] : <input class="set-list" type="text" name="ipb_member_id" placeholder="${language[16]}" required><br>
+                        [ipb_pass_hash] : <input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language[16]}" required><hr>
+                        <h2>${language[17]}</h2>
+                        [sl] : <input class="set-list" type="text" name="sl" value="dm_2"><br>
+                        [sk] : <input class="set-list" type="text" name="sk" value="gy8wgij076agx1ax6is9htzrj40i"><br>
+                        [yay] : <input class="set-list" type="text" name="yay" value="louder"><br>
+                    </div>
+                    <button type="submit" class="modal-button" id="save">${language[6]}</button>
+                    <button class="modal-button" id="close">${language[8]}</button>
+                </form>
             </div>
-        `
-        $(document.body).append(modal);
-        // 創建文本元素
-        const textarea = $("<textarea>").attr({
-            style: "margin-top:20px",
-            rows: 20,
-            cols: 60,
-            readonly: true
-        });
-        $(document).on('click', '#close, .show-modal-background', function(click) {
-            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close') {
-                $(document).off('click', '#close, .show-modal-background');
-                $('.show-modal-background').remove();
-            }
-            click.stopPropagation();
-        });
-        $("#set_cookies").on("submit", function(event) {
-            event.preventDefault(); // 阻止默認的表單提交行為
-            if ($(event.originalEvent.submitter).attr("id") === "save") {
-                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
-                    return { name: $(input).attr("name"), value: $(input).val() };
-                });
-                // 保存後 , 在獲取並轉換格式 , 並將其顯示
-                GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
-                const cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
-                textarea.val(JSON.stringify(cookies, null, 4));
-                // 將 textarea 添加到指定的 div 元素中
-                $("#set_cookies div").append(textarea);
-                $.jGrowl(language[18], {
-                    theme: "jGrowl",
-                    life: 3500
-                });
-            }
-        });
-    }
-)
+        </div>
+    `
+    $(document.body).append(modal);
+    const textarea = $("<textarea>").attr({
+        style: "margin-top: 1.25rem",
+        rows: 20,
+        cols: 60,
+        readonly: true
+    });
+    $(document).on('click', '#close, .modal-background', function(click) {
+        if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close') {
+            $(document).off('click', '#close, .modal-background');
+            $('.modal-background').remove();
+        }
+        click.stopPropagation();
+    });
+    $("#set_cookies").on("submit", function(event) {
+        event.preventDefault(); // 阻止默認的表單提交行為
+        if ($(event.originalEvent.submitter).attr("id") === "save") {
+            const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                return { name: $(input).attr("name"), value: $(input).val() };
+            });
+            // 保存後 , 在獲取並轉換格式 , 並將其顯示
+            GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
+            cookie = JSON.parse(GM_getValue("E/Ex_Cookies", null));
+            textarea.val(JSON.stringify(cookie, null, 4));
+            // 將 textarea 添加到指定的 div 元素中
+            $("#set_cookies div").append(textarea);
+            Growl(language[18], "jGrowl", 3500);
+        }
+    });
+}
 
 /* 查看保存的 Cookies */
-const ViewSaveCookie = GM_registerMenuCommand(
-    language[2],
-    function() {
-        AdaptiveCSS(
-            ".set-modal-content { background-color: #fefefe;}",
-            ".set-modal-content { background-color: #34353b;}"
-        );
-        modal = `
-            <div class="show-modal-background">
-                <div class="set-modal-content">
-                <h1>${language[19]}</h1>
-                    <div id="view_cookies" style="margin:10px"></div>
-                    <button class="show-button" id="save">${language[11]}</button>
-                    <button class="show-button" id="close">${language[8]}</button>
-                </div>
+async function ViewSaveCookie() {
+    modal = `
+        <div class="modal-background">
+            <div class="set-modal">
+            <h1>${language[19]}</h1>
+                <div id="view_cookies" style="margin: 0.6rem"></div>
+                <button class="modal-button" id="save">${language[11]}</button>
+                <button class="modal-button" id="close">${language[8]}</button>
             </div>
-        `
-        $(document.body).append(modal);
-        // 展示
-        const login_cookies = JSON.parse(GM_getValue("E/Ex_Cookies", []));
-        const textarea = $("<textarea>").attr({
-            rows: 20,
-            cols: 60,
-            id: "view_SC",
-            style: "margin-top:20px",
+        </div>
+    `
+    $(document.body).append(modal);
+    cookie = JSON.parse(GM_getValue("E/Ex_Cookies", null));
+    const textarea = $("<textarea>").attr({
+        rows: 20,
+        cols: 60,
+        id: "view_SC",
+        style: "margin-top: 1.25rem",
+    });
+    textarea.val(JSON.stringify(cookie , null, 4));
+    $("#view_cookies").append(textarea);
+    // 監聽關閉
+    $(document).on('click', '#close, .modal-background', function(click) {
+        if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close'){
+            $(document).off('click', '#close, .modal-background');
+            $('.modal-background').remove();
+        }
+        click.stopPropagation();
+    });
+    // 監聽改變保存
+    $('#save').on('click', function() {
+        GM_notification({
+            title: language[12],
+            text: language[13],
+            image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
+            timeout: 4000
         });
-        textarea.val(JSON.stringify(login_cookies , null, 4))
-        $("#view_cookies").append(textarea);
-        // 監聽關閉
-        $(document).on('click', '#close, .show-modal-background', function(click) {
-            if ($(click.target).hasClass('show-modal-background') || $(click.target).attr('id') === 'close'){
-                $(document).off('click', '#close, .show-modal-background');
-                $('.show-modal-background').remove();
-            }
-            click.stopPropagation();
-        });
-        // 監聽改變保存
-        $('#save').on('click', function() {
-            GM_notification({
-                title: language[12],
-                text: language[13],
-                image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
-                timeout: 4000
-            });
-            GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
-            $(document).off('click', '#save');
-            $('.show-modal-background').remove();
-        });
-    }
-)
+        GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
+        $(document).off('click', '#save');
+        $('.modal-background').remove();
+    });
+}
 
 /* 手動注入 Cookies 登入 */
-const CookieInjection = GM_registerMenuCommand(
-    language[3],
-    function() {
-        try {
-            DeleteCookies(GetCookies());
-            AddCookies(JSON.parse(GM_getValue("E/Ex_Cookies", [])));
-            GM_setValue("SessionTime", new Date().getTime());
-            location.reload();
-        } catch (error) {
-            alert(language[20]);
-        }
-    }
-);
-
-/* 刪除所有 Cookies */
-const CookieDelete = GM_registerMenuCommand(
-    language[4],
-    function() {
+async function CookieInjection() {
+    try {
         DeleteCookies(GetCookies());
+        AddCookies(JSON.parse(GM_getValue("E/Ex_Cookies", null)));
+        GM_setValue(`${domain}_SessionTime`, new Date().getTime());
         location.reload();
-    }
-);
-
-/* 登入檢測函數 */
-async function AutomaticLoginCheck(login_cookies, Domain) {
-    // 需要的 cookie 值
-    let cookies = GetCookies(), RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
-    if (Domain === "exhentai.org") {RequiredCookies = ["igneous", "ipb_member_id", "ipb_pass_hash"]}
-    let cookiesFound = RequiredCookies.every(function(cookieName) {
-        return cookies.hasOwnProperty(cookieName) && cookies[cookieName] !== undefined;
-    });
-    if (!cookiesFound || (!cookies.hasOwnProperty("igneous") || cookies.igneous === "mystery")) {
-        DeleteCookies(cookies);
-        AddCookies(login_cookies);
-        location.reload();
+    } catch (error) {
+        alert(language[20]);
     }
 }
 
-/* 自適應 css */
-function AdaptiveCSS(e, ex) {
-    Domain = window.location.hostname;
-    if (Domain === "e-hentai.org") {
-        GM_addStyle(`${e}`);
-    } else if (Domain === "exhentai.org") {
-        GM_addStyle(`${ex}`);
-    }
+/* 刪除所有 Cookies */
+async function CookieDelete() {
+    DeleteCookies(GetCookies());
+    location.reload();
+}
+
+/* 取得 Cookies */
+function GetCookies() {
+    const cookie = {};
+    $.each($.cookie(), function(key, value) {
+        cookie[key] = value;
+    });
+    return cookie;
 }
 
 /* 添加 cookie */
 function AddCookies(LoginCookies) {
     let cookie, date = new Date();
     for (let i = 0; i < LoginCookies.length; i++) {
-        cookie = LoginCookies[i]; // 添加一年後過期
+        cookie = LoginCookies[i];
         $.cookie(cookie.name, cookie.value, { expires: date.setFullYear(date.getFullYear() + 1) });
     }
 }
@@ -355,13 +276,82 @@ function DeleteCookies(cookies) {
     }
 }
 
-/* 取得 Cookies */
-function GetCookies() {
-    let cookies = {};
-    $.each($.cookie(), function(key, value) {
-        cookies[key] = value;
-    });
-    return cookies;
+/* 導入 Style */
+async function ImportStyle() {
+    let show_style, jGrowl_style;
+    GM_addStyle(GM_getResourceText("jgrowl-css"));
+    if (domain === "e-hentai.org") {
+        show_style = "background-color: #fefefe;"
+        jGrowl_style = "background-color: #5C0D11; color: #fefefe;"
+    } else if (domain === "exhentai.org") {
+        show_style = "background-color: #34353b;"
+        jGrowl_style = "background-color: #fefefe; color: #5C0D11;"
+    }
+    addstyle(`
+        .jGrowl {
+            ${jGrowl_style}
+            top: 0;
+            left: 50%;
+            width: 50rem;
+            z-index: 9999;
+            font-size: 3rem;
+            border-radius: 2px;
+            text-align: center;
+            transform: translateX(-50%);
+        }
+        .modal-background {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 9998;
+            position: fixed;
+            overflow: auto;
+            background-color: rgba(0,0,0,0.4);
+        }
+        .show-modal {
+            ${show_style}
+            width: 25%;
+            padding: 3rem;
+            overflow: auto;
+            margin: 1rem auto;
+            text-align: left;
+            border-radius: 10px;
+            border-collapse: collapse;
+            border: 2px ridge #5C0D12;
+        }
+        .modal-button {
+            top: 0;
+            margin: 3% 2%;
+            color: #5C0D12;
+            font-size: 14px;
+            font-weight: bold;
+            border-radius: 3px;
+            background-color: #EDEADA;
+            border: 2px solid #B5A4A4;
+        }
+        .modal-button:hover, .modal-button:focus {
+            color: #FF8033;
+            cursor: pointer;
+            text-decoration: none;
+        }
+        .set-modal {
+            ${show_style}
+            width: 45rem;
+            padding: 0.3rem;
+            overflow: auto;
+            border-radius: 10px;
+            text-align: center;
+            border: 2px ridge #5C0D12;
+            border-collapse: collapse;
+            margin: 2% auto 8px auto;
+        }
+        .set-list {
+            height: 25px;
+            width: 70%;
+            text-align: center;
+        }
+    `)
 }
 
 /* 語言顯示 */
