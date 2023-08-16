@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.6
+// @version         0.0.7
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -31,7 +31,7 @@
 // @require         https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
-var modal, set_value, DisplayMode = GM_getValue("DisplayMode", null), language = display_language(navigator.language);
+var modal, style_rule, set, DisplayMode = GM_getValue("DisplayMode", null), language = display_language(navigator.language);
 function GetSettings() {
     let Settings = GM_getValue("Settings", null);
     if (Settings === null) {
@@ -187,6 +187,17 @@ function Analyze(value) {
         return [value, "color"];
     }
 }
+
+/* 變更樣式 */
+const styleRules = {
+    ULS: value => style_rule[0].style.margin = `${value} auto`,
+    BW: value => style_rule[0].style.width = `${value}`,
+    BH: value => style_rule[0].style.height = `${value}`,
+    MW: value => style_rule[0].style.maxWidth = `${value}`,
+    MH: value => style_rule[0].style.maxHeight = `${value}`,
+    BC: value => style_rule[1].style.background = `${value}`
+};
+
 /* 設定介面 */
 async function SettingInterface() {
     let array = [], save = {}, showElement, id, value;
@@ -244,13 +255,13 @@ async function SettingInterface() {
     $("#BC").on("input", event => {
         value = $(event.target).val();
         id = event.target.id;
-        StyleChange(id, value);
+        styleRules[id](value);
     });
     $("#ULS").on("input", event => {
         showElement = $(event.target).next(".Cshow");
         value = $(event.target).val();
         id = event.target.id;
-        StyleChange(id, `${value}rem`);
+        styleRules[id](`${value}rem`);
         showElement.text(`${value}rem`);
     });
     $("#BW, #MW").on("input", event => {
@@ -259,10 +270,10 @@ async function SettingInterface() {
         id = event.target.id;
 
         if (value === "9") {
-            StyleChange(id, "auto");
+            styleRules[id]("auto");
             showElement.text("auto");
         } else {
-            StyleChange(id, `${value}%`);
+            styleRules[id](`${value}%`);
             showElement.text(`${value}%`);
         }
     });
@@ -272,10 +283,10 @@ async function SettingInterface() {
         id = event.target.id;
 
         if (value === "9") {
-            StyleChange(id, "auto");
+            styleRules[id]("auto");
             showElement.text("auto");
         } else {
-            StyleChange(id, `${value}rem`);
+            styleRules[id](`${value}rem`);
             showElement.text(`${value}rem`);
         }
     });
@@ -298,25 +309,28 @@ async function SettingInterface() {
         GM_setValue("Settings", array);
         $('.modal-background').remove();
     });
+    $(document).on("keydown", function(event) {
+        if (event.key === "Escape") {
+            $('.modal-background').remove();
+        }
+    });
 }
 
-/* 變更樣式 (這是個爛方式) */
-const styleRules = {
-    ULS: value => `.ImageOptimization {margin: ${value} auto;}`,
-    BW: value => `.ImageOptimization {width: ${value}}`,
-    BH: value => `.ImageOptimization {height: ${value}}`,
-    MW: value => `.ImageOptimization {max-width: ${value}}`,
-    MH: value => `.ImageOptimization {max-height: ${value}}`,
-    BC: value => `.CustomBody {background: ${value}}`
-};
-async function StyleChange(id, value) {
-    GM_addStyle(styleRules[id](value));
+/* 添加樣式 */
+async function addstyle(rule) {
+    let new_style = document.getElementById("New-Add-Style");
+    if (!new_style) {
+        new_style = document.createElement("style");
+        new_style.id = "New-Add-Style";
+        document.head.appendChild(new_style);
+    }
+    new_style.appendChild(document.createTextNode(rule));
 }
 
 /* css 樣式導入 */
 async function ImportStyle() {
     set = GetSettings();
-    GM_addStyle(`
+    addstyle(`
         .ImageOptimization {
             display: block;
             margin: ${set.ULS} auto;
@@ -461,6 +475,8 @@ async function ImportStyle() {
             right: 0px;
         }
     `);
+    // 指定添加位置
+    style_rule = document.getElementById("New-Add-Style").sheet.cssRules;
 }
 
 function display_language(language) {
