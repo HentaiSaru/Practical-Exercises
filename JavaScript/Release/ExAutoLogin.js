@@ -21,7 +21,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
+// @run-at       document-start
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -46,13 +46,13 @@ var gc, modal, cookie, Notification, domain = window.location.hostname;
     GM_registerMenuCommand(language[4], function(){CookieDelete()});
     let sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)), time = new Date(), conversion;
     // 沒有時間戳時的預設
-    if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 6 * 60 * 1000)}
+    if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 11 * 60 * 1000)}
     cookie = GM_getValue("E/Ex_Cookies", null);
     conversion = (time - sessiontime) / (1000 * 60);
     ImportStyle();
     if (conversion > 10) {
-        GM_setValue(`${domain}_SessionTime`, time.getTime());
         CookieCheck(JSON.parse(cookie));
+        GM_setValue(`${domain}_SessionTime`, time.getTime());
     }
 })();
 
