@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.22
+// @version      0.0.23
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -34,31 +34,29 @@
 // ==/UserScript==
 
 var xhr = new XMLHttpRequest(),
-Url = window.location.href,
-parser = new DOMParser(),
-buffer = document.createDocumentFragment(),
-limit=10;
-
-(function() {
+    Url = window.location.href,
+    parser = new DOMParser(),
+    buffer = document.createDocumentFragment();
+(function () {
     let interval, tryerror = 0, dellay = 300;
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-    UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
-    PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
-    DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/;
+        UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
+        PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
+        DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/;
     async function Main() {
         const [list, box, comments, announce] = [ // comments(評論區標題), announce(公告條)
             "div.global-sidebar", "div.content-wrapper.shifted", "h2.site-section__subheading", "body > div.content-wrapper.shifted > a"
         ].map(selector => document.querySelector(selector));
         if ((box && list && comments) || (box && list)) {
             Beautify(box, list, announce); // 側邊欄收縮
-            if (pattern.test(Url)) {Additional(comments)}// (帖子內) Ajex 快捷換頁
+            if (pattern.test(Url)) { Additional(comments) }// (帖子內) Ajex 快捷換頁
             clearInterval(interval);
         } else {
             tryerror++;
-            if (tryerror > 10) {clearInterval(interval)}
+            if (tryerror > 10) { clearInterval(interval) }
         }
     }
-    interval = setInterval(() => {Main()}, dellay);
+    interval = setInterval(() => { Main() }, dellay);
     setTimeout(() => {
         AdHiding(); // 隱藏廣告
         if (pattern.test(Url)) {
@@ -97,20 +95,20 @@ async function Beautify(box, list, announce) {
         box.classList.add("main_box");
         box.style.marginLeft = "0rem";
         list.classList.add("list_column");
-        list.addEventListener('mouseenter', function() {
+        list.addEventListener('mouseenter', function () {
             box.style.marginLeft = "10rem";
         });
-        list.addEventListener('mouseleave', function() {
+        list.addEventListener('mouseleave', function () {
             box.style.marginLeft = "0rem";
         });
-    } catch {}
+    } catch { }
 }
 
 async function VideoBeautify() {
     let stream, parents;
     parents = document.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li');
     if (parents.length > 0) {
-        function ReactBeautify({stream}) {
+        function ReactBeautify({ stream }) {
             return React.createElement("video", {
                 key: "video",
                 controls: true,
@@ -135,57 +133,61 @@ async function VideoBeautify() {
 
 /* 載入原圖 */
 async function OriginalImage() {
-    let thumbnail, href, delay = 300;
+    GM_addStyle(`
+        .img-style {
+            max-width: 100%;
+            display: block;
+            margin: 0 auto;
+        }
+    `);
+    let thumbnail, href, img;
     thumbnail = document.querySelectorAll("div.post__thumbnail");
     if (thumbnail.length > 0) {
-        function ImgRendering({href}) {
-            return React.createElement("div", {}, 
-                React.createElement("img", {
-                    key: "img",
-                    src: href.href,
-                    alt: "Click Reload",
-                    style: { maxWidth: "100%", display: "block", margin: "0 auto" },
-                    onLoad: function() {
-                        href.removeAttribute("href");
-                        href.removeAttribute("download");
-                    },
-                    onError: function() {
-                        Reload(href, 1);
-                    },
-                })
+        function ImgRendering({ ID, href }) {
+            return React.createElement("a", {
+                id: ID,
+                className: "image-link"
+            }, React.createElement("img", {
+                key: "img",
+                src: href.href,
+                className: "img-style",
+                onError: function () {
+                    Reload(ID, 15);
+                }
+            })
             )
         }
-        try {
-            thumbnail.forEach((object, index) => {
-                setTimeout(() => {
-                    object.classList.remove("post__thumbnail");
-                    href = object.querySelector("a");
-                    !href.classList.contains("image-link") ? href.classList.add("image-link") : null;
-                    ReactDOM.render(React.createElement(ImgRendering, { href: href }), href);
-                    if (index > 1) {delay = 800}
-                }, delay);
-            })
-        } catch (error) {
-            console.log(error);
-        }
+        thumbnail.forEach(async (object, index) => {
+            object.classList.remove("post__thumbnail");
+            href = object.querySelector("a");
+            await ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+            await new Promise(resolve => setTimeout(resolve, 800));
+        })
+        document.querySelectorAll("a.image-link").forEach(link => {
+            const handleClick = () => {
+                img = link.querySelector("img");
+                if (!img.complete) {
+                    img.src = img.src;
+                } else {
+                    link.removeEventListener("click", handleClick);
+                }
+            }
+            link.addEventListener("click", handleClick);
+        });
     }
 }
-async function Reload(location, retry) {
-    if (retry <= limit) {
+async function Reload(ID, retry) {
+    if (retry > 0) {
         setTimeout(() => {
-            let object = document.querySelector(`a[download="${location.download}"]`), img = document.createElement("img");
-            img.src = object.href;
+            let object = document.getElementById(ID), old = object.querySelector("img"), img = document.createElement("img");
+            img.src = old.src;
             img.alt = "Click Reload";
-            img.setAttribute("style", "max-width: 100%; display: block; margin: 0 auto;");
-            img.onload = function() {
-                object.removeAttribute("href");
-                object.removeAttribute("download");
-            }
-            img.onerror = function() {Reload(object, retry)};
-            object.querySelector("img").remove();
+            img.className = "img-style";
+            img.onerror = function () { Reload(ID, retry) };
+            old.remove();
             object.appendChild(buffer.appendChild(img));
-            retry++;
-        }, 1450);
+            retry - 1;
+        }, 1800);
     }
 }
 
@@ -216,10 +218,10 @@ async function removlistener(element, type) {
 
 /* 簡易隱藏廣告 */
 async function AdHiding() {
-    document.querySelectorAll(".ad-container").forEach(function(element) {
-        try {element.style.display = "none"} catch {element.style.visibility = "hidden"}
+    document.querySelectorAll(".ad-container").forEach(function (element) {
+        try { element.style.display = "none" } catch { element.style.visibility = "hidden" }
     })
-    let attempts = 0, interval = setInterval(function() {
+    let attempts = 0, interval = setInterval(function () {
         if (attempts < 5) {
             document.querySelectorAll(".root--ujvuu").forEach((element) => {
                 try {
@@ -230,7 +232,7 @@ async function AdHiding() {
                 }
             });
             attempts++;
-        } else {clearInterval(interval)}
+        } else { clearInterval(interval) }
     }, 700);
 }
 
@@ -276,7 +278,7 @@ async function Additional(comments) {
                 removlistener(document, "keydown");
                 AjexReplace(next.href, main);
             }
-        } catch {}
+        } catch { }
     })
 }
 
@@ -322,7 +324,7 @@ async function NewTabOpens() {
 
 /* Ajex 替換頁面的初始化 */
 async function Initialization() {
-    let interval = setInterval(function() {
+    let interval = setInterval(function () {
         const comments = document.querySelector("h2.site-section__subheading");
         if (comments) {
             Additional(comments);
@@ -335,8 +337,8 @@ async function Initialization() {
 }
 
 /* React 渲染優化 */
-function ReactRendering({content}) {
-    return React.createElement("div", {dangerouslySetInnerHTML: { __html: content }});
+function ReactRendering({ content }) {
+    return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
 }
 async function AjexReplace(url, old_main) {
     xhr.onreadystatechange = function () {
@@ -387,5 +389,3 @@ async function AjexPostToggle() {
         });
     } catch {}
 }
-
-/* ==================== */
