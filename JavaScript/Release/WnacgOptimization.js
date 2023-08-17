@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.7
+// @version         0.0.8
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -81,15 +81,13 @@ async function ImageGeneration(box, current, total) {
         if (total_pages > 1) {
             fetch(link)
                 .then(response => response.text())
-                .then(html => {
+                .then(async html => {
                     dom = parser.parseFromString(html, "text/html").getElementById("photo_body");
                     NLink = dom.querySelector("a").href;
                     img = dom.querySelector("img").src;
                     ReactDOM.render(React.createElement(Auto_ReactRender, { OLink: link, src: img }), box.appendChild(document.createElement("div")));
-                    setTimeout(() => {
-                        Auto_NextPage(NLink);
-                        total_pages--;
-                    }, 600)
+                    total_pages--;
+                    await Auto_NextPage(NLink);
                 })
         }
     }/* ----- 自動滾動翻頁 ----- */
@@ -192,7 +190,7 @@ const styleRules = {
     ULS: value => style_rule[0].style.margin = `${value} auto`,
     BW: value => style_rule[0].style.width = `${value}`,
     BH: value => style_rule[0].style.height = `${value}`,
-    MW: value => style_rule[0].style.maxWidth = `${value}`,
+    MW: value => {style_rule[0].style.maxWidth = `${value}`; style_rule[2].style.maxWidth = `${value}`},
     MH: value => style_rule[0].style.maxHeight = `${value}`,
     BC: value => style_rule[1].style.background = `${value}`
 };
@@ -344,6 +342,7 @@ async function ImportStyle() {
         }
         .TailStyle {
             width: auto;
+            padding: 0.2rem;
             max-width: ${set.MW};
         }
         .modal-background {
