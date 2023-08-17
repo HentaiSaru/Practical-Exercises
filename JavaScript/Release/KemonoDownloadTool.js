@@ -143,16 +143,21 @@ function GetExtension(link) {
     return "png";
 }
 
-async function DownloadTrigger(button) {
+function DownloadTrigger(button) {
+    let data = new Map(), link;
     let interval = setInterval(function() {
-        let imgdata = document.querySelectorAll("a.fileThumb.image-link");
+        let imgdata = document.querySelectorAll("div.post__files a");
         let title = document.querySelector("h1.post__title").textContent.trim();
         let user = document.querySelector("a.post__user-name").textContent.trim();
         if (imgdata && title && user) {
+            imgdata.forEach((files, index) => {
+                link = files.href || files.querySelector("img").src;
+                data.set(index, link.split("?f=")[0]);
+            });
             if (CompressMode) {
-                ZipDownload(`[${user}] ${title}`, imgdata, button);
+                ZipDownload(`[${user}] ${title}`, data, button);
             } else {
-                ImageDownload(`[${user}] ${title}`, imgdata, button)
+                ImageDownload(`[${user}] ${title}`, data, button)
             }
             button.textContent = language[8];
             button.disabled = true;
@@ -163,46 +168,51 @@ async function DownloadTrigger(button) {
 
 async function ZipDownload(Folder, ImgData, Button) {
     const zip = new JSZip(),
-    Data = Object.values(ImgData),
     File = Conversion(Folder),
-    Total = Data.length,
+    Total = ImgData.size,
     name = IllegalFilter(Folder.split(" ")[1]);
-    let pool = [], poolSize = 10, progress = 1, mantissa, link, extension, BackgroundWork, retry=0;
-    function createPromise(i) {
-        link = Data[i].href;
-        if (link === "") {link = Data[i].querySelector("img").src}
+    let pool = [], poolSize = 5, progress = 1, mantissa, link, extension, BackgroundWork;
+    function Request(index, retry) {
+        link = ImgData.get(index);
         extension = GetExtension(link);
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
                 method: "GET",
                 url: link,
                 responseType: "blob",
+                headers : {"user-agent": navigator.userAgent},
                 onload: response => {
                     if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                        mantissa = progress.toString().padStart(3, '0');
+                        mantissa = (index + 1).toString().padStart(3, '0');
                         zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
                         document.title = `[${progress}/${Total}]`;
                         Button.textContent = `${language[10]} [${progress}/${Total}]`;
                         progress++;
                         resolve();
                     } else {
-                        retry++;
-                        if (retry < 10) {
-                            createPromise(i);
-                        } else {resolve()}
-                        console.log(retry);
+                        if (retry > 0) {
+                            Request(index, retry-1);
+                            console.log(`[${retry}] : ${link}`);
+                        } else {
+                            console.log(`[error] : ${link}`);
+                            resolve();
+                        }
                     }
                 },
                 onerror: error => {
-                    console.log(error);
-                    resolve();
+                    if (retry > 0) {
+                        Request(index, retry-1);
+                        console.log(`[${retry}] : ${link}`);
+                    } else {
+                        console.log(`[error] : ${link}`);
+                        resolve();
+                    }
                 }
             });
-
         });
     }
     for (let i = 0; i < Total; i++) {
-        let promise = createPromise(i);
+        let promise = Request(i, 10);
         pool.push(promise);
         if (pool.length >= poolSize) {
             await Promise.allSettled(pool);
@@ -242,18 +252,14 @@ async function ZipDownload(Folder, ImgData, Button) {
 }
 
 async function ImageDownload(Folder, ImgData, Button) {
-    const name = IllegalFilter(Folder.split(" ")[1]),
-    Data = Object.values(ImgData),
-    Total = Data.length;
+    const name = IllegalFilter(Folder.split(" ")[1]), Total = ImgData.size;
     let progress = 1, link, extension;
     for (let i = 0; i < Total; i++) {
-        link = Data[i].href;
-        if (link === "") {link = Data[i].querySelector("img").src}
+        link = ImgData.get(i);
         extension = GetExtension(link);
         GM_download({
             url: link,
             name: `${name}_${(progress+i).toString().padStart(3, '0')}.${extension}`,
-            ontimeout: 10000,
             onload: () => {
                 document.title = `[${progress}/${Total}]`;
                 Button.textContent = `${language[10]} [${progress}/${Total}]`;
@@ -266,6 +272,7 @@ async function ImageDownload(Folder, ImgData, Button) {
     }
     Button.textContent = language[13];
     setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
+    document.title = OriginalTitle;
     Button.disabled = false;
 }
 
