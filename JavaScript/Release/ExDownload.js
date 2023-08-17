@@ -215,8 +215,8 @@ async function DownloadTrigger(button, title, link) {
 /* 壓縮下載 */
 async function ZipDownload(Button, Folder, ImgData) {
     const zip = new JSZip(), Total = ImgData.size, promises = [];
-    let progress = 1, link, mantissa, extension, BackgroundWork, retry=0;
-    async function Request(index) {
+    let progress = 1, link, mantissa, extension, BackgroundWork;
+    async function Request(index, retry) {
         link = ImgData.get(index);
         extension = GetExtension(link);
         return new Promise((resolve) => {
@@ -235,14 +235,23 @@ async function ZipDownload(Button, Folder, ImgData) {
                             progress++;
                             resolve();
                         } else {
-                            retry++;
-                            if (retry < 10) {
-                                Request(index)
-                            } else {resolve()}
+                            if (retry > 0) {
+                                Request(index, retry-1);
+                                console.log(`[${retry}] : ${link}`);
+                            } else {
+                                console.log(`[error] : ${link}`);
+                                resolve();
+                            }
                         }
                     },
                     onerror: error => {
-                        resolve();
+                        if (retry > 0) {
+                            Request(index, retry-1);
+                            console.log(`[${retry}] : ${link}`);
+                        } else {
+                            console.log(`[error] : ${link}`);
+                            resolve();
+                        }
                     }
                 });
             } else {
@@ -254,7 +263,7 @@ async function ZipDownload(Button, Folder, ImgData) {
         });
     }
     for (let i = 0; i < Total; i++) {
-        promises.push(Request(i));
+        promises.push(Request(i, 10));
         count++;
         if (count === 20) {
             count = 0;
@@ -300,8 +309,8 @@ async function ZipDownload(Button, Folder, ImgData) {
 /* 單圖下載 */
 async function ImageDownload(Button, Folder, ImgData) {
     const Total = ImgData.size, promises = [];
-    let progress = 1, link, extension, retry=0;
-    async function Request(index) {
+    let progress = 1, link, extension;
+    async function Request(index, retry) {
         link = ImgData.get(index);
         extension = GetExtension(link);
         return new Promise((resolve) => {
@@ -317,10 +326,13 @@ async function ImageDownload(Button, Folder, ImgData) {
                         resolve();
                     },
                     onerror: () => {
-                        retry++;
-                        if (retry < 10) {
-                            Request(index);
-                        } else {resolve()}
+                        if (retry > 0) {
+                            Request(index, retry-1);
+                            console.log(`[${retry}] : ${link}`);
+                        } else {
+                            console.log(`[error] : ${link}`);
+                            resolve();
+                        }
                     }
                 });
             } else {
@@ -333,6 +345,7 @@ async function ImageDownload(Button, Folder, ImgData) {
     }
     for (let i = 0; i < Total; i++) {
         promises.push(Request(i));
+        await new Promise(resolve => setTimeout(resolve, 200));
     }
     await Promise.allSettled(promises);
     Button.textContent = language[11];
