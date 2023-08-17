@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -149,13 +149,13 @@ async function DownloadTrigger(button) {
         let title = document.querySelector("h1.post__title").textContent.trim();
         let user = document.querySelector("a.post__user-name").textContent.trim();
         if (imgdata && title && user) {
-            button.textContent = language[8];
-            button.disabled = true;
             if (CompressMode) {
                 ZipDownload(`[${user}] ${title}`, imgdata, button);
             } else {
                 ImageDownload(`[${user}] ${title}`, imgdata, button)
             }
+            button.textContent = language[8];
+            button.disabled = true;
             clearInterval(interval);
         }
     }, 500);
@@ -167,9 +167,10 @@ async function ZipDownload(Folder, ImgData, Button) {
     File = Conversion(Folder),
     Total = Data.length,
     name = IllegalFilter(Folder.split(" ")[1]);
-    let pool = [], poolSize = 5, progress = 1, mantissa, link, extension, BackgroundWork;
+    let pool = [], poolSize = 10, progress = 1, mantissa, link, extension, BackgroundWork, retry=0;
     function createPromise(i) {
-        link = Data[i].href.split("?f=")[0];
+        link = Data[i].href;
+        if (link === "") {link = Data[i].querySelector("img").src}
         extension = GetExtension(link);
         return new Promise((resolve) => {
             GM_xmlhttpRequest({
@@ -183,14 +184,18 @@ async function ZipDownload(Folder, ImgData, Button) {
                         document.title = `[${progress}/${Total}]`;
                         Button.textContent = `${language[10]} [${progress}/${Total}]`;
                         progress++;
+                        resolve();
                     } else {
-                        i--;
+                        retry++;
+                        if (retry < 10) {
+                            createPromise(i);
+                        } else {resolve()}
+                        console.log(retry);
                     }
-                    resolve();
                 },
                 onerror: error => {
                     console.log(error);
-                    i--;
+                    resolve();
                 }
             });
 
@@ -200,11 +205,11 @@ async function ZipDownload(Folder, ImgData, Button) {
         let promise = createPromise(i);
         pool.push(promise);
         if (pool.length >= poolSize) {
-            await Promise.all(pool);
+            await Promise.allSettled(pool);
             pool = [];
         }
     }
-    if (pool.length > 0) {await Promise.all(pool)}
+    if (pool.length > 0) {await Promise.allSettled(pool)}
     Compression();
     async function Compression() {
         if (typeof(Worker) !== "undefined" && typeof(BackgroundWork) === "undefined") {
@@ -242,7 +247,8 @@ async function ImageDownload(Folder, ImgData, Button) {
     Total = Data.length;
     let progress = 1, link, extension;
     for (let i = 0; i < Total; i++) {
-        link = Data[i].href.split("?f=")[0];
+        link = Data[i].href;
+        if (link === "") {link = Data[i].querySelector("img").src}
         extension = GetExtension(link);
         GM_download({
             url: link,
