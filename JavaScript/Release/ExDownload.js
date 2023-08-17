@@ -164,11 +164,7 @@ async function HomeDataProcessing(button) {
     for (let i = 1; i < pages; i++) {
         promises.push(FetchRequest(`${url}?p=${i}`));
         button.textContent = `${language[5]}: [${i+1}/${pages}]`;
-        count++;
-        if (count === 10) {
-            count = 0;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 150));
     }
 
     await Promise.allSettled(promises);
@@ -203,11 +199,7 @@ async function ImageLinkProcessing(button, title, link) {
     const promises = [];
     for (let index = 0; index < pages; index++) {
         promises.push(FetchRequest(index, link[index]));
-        count++;
-        if (count === 100) {
-            count = 0;
-            await new Promise(resolve => setTimeout(resolve, 1000));
-        }
+        await new Promise(resolve => setTimeout(resolve, 50));
     }
 
     await Promise.allSettled(promises);
@@ -244,11 +236,12 @@ async function ZipDownload(Button, Folder, ImgData) {
                             resolve();
                         } else {
                             retry++;
-                            if (retry < 10) {Request(index)}
+                            if (retry < 10) {
+                                Request(index)
+                            } else {resolve()}
                         }
                     },
                     onerror: error => {
-                        console.log(error);
                         resolve();
                     }
                 });
@@ -265,7 +258,7 @@ async function ZipDownload(Button, Folder, ImgData) {
         count++;
         if (count === 20) {
             count = 0;
-            await new Promise(resolve => setTimeout(resolve, 500));
+            await new Promise(resolve => setTimeout(resolve, 1000));
         }
     }
     await Promise.allSettled(promises);
