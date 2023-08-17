@@ -161,7 +161,6 @@ async function OriginalImage() {
             object.classList.remove("post__thumbnail");
             href = object.querySelector("a");
             await ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-            await new Promise(resolve => setTimeout(resolve, 800));
         })
         document.querySelectorAll("a.image-link").forEach(link => {
             const handleClick = () => {
