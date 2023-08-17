@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -146,13 +146,7 @@ async function HomeDataProcessing(button) {
         if (title === "") {title = language[4]}
     }
     title = IllegalFilter(title);
-
-    const calculate = pages / 20; // 計算總共頁數
-    if (pages % 20 > 0) {
-        pages = Math.floor(calculate + 1);
-    } else {
-        pages = Math.floor(calculate);
-    }
+    pages = Math.ceil(pages / 20);
 
     async function GetLink(data) { // 獲取頁面所有連結
         data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
@@ -171,7 +165,7 @@ async function HomeDataProcessing(button) {
         promises.push(FetchRequest(`${url}?p=${i}`));
         button.textContent = `${language[5]}: [${i+1}/${pages}]`;
         count++;
-        if (count === 5) {
+        if (count === 10) {
             count = 0;
             await new Promise(resolve => setTimeout(resolve, 1000));
         }
@@ -202,15 +196,19 @@ async function ImageLinkProcessing(button, title, link) {
             const html = await response.text();
             GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
         } catch (error) {
-            FetchRequest(index, url);
+            await FetchRequest(index, url);
         }
     }
 
     const promises = [];
-    link.forEach(async (url, index) => {
-        promises.push(FetchRequest(index, url));
-        await new Promise(resolve => setTimeout(resolve, 300));
-    });
+    for (let index = 0; index < pages; index++) {
+        promises.push(FetchRequest(index, link[index]));
+        count++;
+        if (count === 100) {
+            count = 0;
+            await new Promise(resolve => setTimeout(resolve, 1000));
+        }
+    }
 
     await Promise.allSettled(promises);
     DownloadTrigger(button, title, imgbox);
@@ -264,7 +262,11 @@ async function ZipDownload(Button, Folder, ImgData) {
     }
     for (let i = 0; i < Total; i++) {
         promises.push(Request(i));
-        await new Promise(resolve => setTimeout(resolve, 150));
+        count++;
+        if (count === 20) {
+            count = 0;
+            await new Promise(resolve => setTimeout(resolve, 500));
+        }
     }
     await Promise.allSettled(promises);
     Compression();
