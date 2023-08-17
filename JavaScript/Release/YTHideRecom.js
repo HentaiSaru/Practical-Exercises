@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -79,61 +79,78 @@
                     }, 100);
                 });
             }
-            document.addEventListener("keydown", function(event) {
-                if (event.shiftKey) {
-                    event.preventDefault();
-                    let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-                    elements.forEach(function(element) {
-                        HideJudgment(element);
-                    });
-                } else if (event.ctrlKey && event.key === "z") {
-                    event.preventDefault();
-                    let UserMenu = document.getElementById("end");
-                    let Message = document.getElementById("below");
-                    let RecommViewing = document.getElementById("secondary");
-                    let RecommViewing2 = document.getElementById("related");
-                    set = GM_getValue("Minimalist", null);
-                    if (set && set != null) {
-                        UserMenu.style.display = "block";
-                        Message.style.display = "block";
-                        RecommViewing.style.display = "block";
-                        RecommViewing2.style.display = "block";
-                        GM_setValue("Minimalist", false);
-                    } else {
-                        UserMenu.style.display = "none";
-                        Message.style.display = "none";
-                        RecommViewing.style.display = "none";
-                        RecommViewing2.style.display = "none";
-                        GM_setValue("Minimalist", true);
+            setTimeout(()=>{
+                const [
+                    end,
+                    below,
+                    secondary,
+                    related,
+                    inner,
+                    chat,
+                    comments,
+                    menu,
+                    actions
+                ] = [
+                    "end",
+                    "below",
+                    "secondary",
+                    "related",
+                    "secondary-inner",
+                    "chat-container",
+                    "comments",
+                    "menu-container",
+                    "actions"
+                ].map(selector => document.getElementById(selector));
+                document.addEventListener("keydown", function(event) {
+                    if (event.shiftKey) {
+                        event.preventDefault();
+                        let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
+                        elements.forEach(function(element) {
+                            HideJudgment(element);
+                        });
+                    } else if (event.ctrlKey && event.key === "z") {
+                        event.preventDefault();
+                        set = GM_getValue("Minimalist", null);
+                        if (set && set != null) {
+                            end.style.display = "block";
+                            below.style.display = "block";
+                            secondary.style.display = "block";
+                            related.style.display = "block";
+                            GM_setValue("Minimalist", false);
+                        } else {
+                            end.style.display = "none";
+                            below.style.display = "none";
+                            secondary.style.display = "none";
+                            related.style.display = "none";
+                            GM_setValue("Minimalist", true);
+                        }
+                    } else if (event.altKey && event.key === "1") {
+                        event.preventDefault();
+                        let child = inner.childElementCount;
+                        if (child > 1) {// 子元素數量
+                            HideJudgment(chat, "Trigger_1");
+                            HideJudgment(secondary, "Trigger_1");
+                            HideJudgment(related, "Trigger_1");
+                            transform = false;
+                        } else {
+                            HideJudgment(chat, "Trigger_1");
+                            HideJudgment(related, "Trigger_1");
+                            transform = true;
+                        }
+                    } else if (event.altKey && event.key === "2") {
+                        event.preventDefault();
+                        HideJudgment(comments, "Trigger_2");
+                    } else if (event.altKey && event.key === "3") {
+                        event.preventDefault();
+                        HideJudgment(menu, "Trigger_3");
+                        HideJudgment(actions, "");
+                    } else if (event.altKey && event.key === "4") {
+                        event.preventDefault();
+                        let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                        HideJudgment(playlist, "Trigger_4");
                     }
-                } else if (event.altKey && event.key === "1") {
-                    event.preventDefault();
-                    let child = document.getElementById("secondary-inner").childElementCount;
-                    if (child > 1) {// 子元素數量
-                        let element1 = document.getElementById("secondary");
-                        HideJudgment(element1, "Trigger_1");
-                        let element2 = document.getElementById("related");
-                        HideJudgment(element2, "Trigger_1");
-                        transform = false;
-                    } else {
-                        let element2 = document.getElementById("related");
-                        HideJudgment(element2, "Trigger_1");
-                        transform = true;
-                    }
-                } else if (event.altKey && event.key === "2") {
-                    event.preventDefault();
-                    let element = document.getElementById("comments");
-                    HideJudgment(element, "Trigger_2");
-                } else if (event.altKey && event.key === "3") {
-                    event.preventDefault();
-                    let element = document.getElementById("menu-container");
-                    HideJudgment(element, "Trigger_3");
-                } else if (event.altKey && event.key === "4") {
-                    event.preventDefault();
-                    let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                    HideJudgment(element, "Trigger_4");
-                }
-            });
+                });
+            }, 1500);
             // 判斷在播放頁面運行
             let VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/;
             // 判斷在播放清單運行
@@ -143,15 +160,13 @@
                 set = GM_getValue("Minimalist", null);
                 if (set && set !== null) {
                     let interval;
-                    interval = setInterval(function() {
-                        let UserMenu = document.getElementById("end");
-                        let Message = document.getElementById("below");
-                        let RecommViewing = document.getElementById("secondary");
-                        let RecommViewing2 = document.getElementById("related");
-                        if (UserMenu && Message && RecommViewing && RecommViewing2) {
-                            Promise.all([SetTrigger(UserMenu), SetTrigger(Message), SetTrigger(RecommViewing), SetTrigger(RecommViewing2)]).then(results => {
+                    interval = setInterval(() => {
+                        const [end, below, secondary, related] = ["end", "below", "secondary", "related"].map(selector => document.getElementById(selector));
+                        if (end && below && secondary && related) {
+                            Promise.all([SetTrigger(end), SetTrigger(below), SetTrigger(secondary), SetTrigger(related)]).then(results => {
                                 if (results[0] && results[1] && results[2] && results[3]) {
                                     clearInterval(interval);
+                                    return;
                                 }
                             });
                         }
@@ -160,11 +175,10 @@
                 set = GM_getValue("Trigger_1", null);
                 if (set && set !== null){
                     let interval;
-                    interval = setInterval(function() {
-                        let element = document.getElementById("secondary");
-                        let element2 = document.getElementById("related");
-                        if (element && element2) {
-                            Promise.all([SetTrigger(element), SetTrigger(element2)]).then(results => {
+                    interval = setInterval(() => {
+                        const [chat, secondary, related] = ["chat-container", "secondary", "related"].map(selector => document.getElementById(selector));
+                        if (chat && secondary && related) {
+                            Promise.all([SetTrigger(chat), SetTrigger(secondary), SetTrigger(related)]).then(results => {
                                 if (results[0] && results[1]) {
                                     clearInterval(interval);
                                 }
@@ -175,10 +189,10 @@
                 set = GM_getValue("Trigger_2", null);
                 if (set && set !== null){
                     let interval;
-                    interval = setInterval(function() {
-                        let element = document.getElementById("comments");
-                        if (element) {
-                            SetTrigger(element).then(result => {
+                    interval = setInterval(() => {
+                        let comments = document.getElementById("comments");
+                        if (comments) {
+                            SetTrigger(comments).then(() => {
                                 clearInterval(interval);
                             });
                         }
@@ -187,11 +201,13 @@
                 set = GM_getValue("Trigger_3", null);
                 if (set && set !== null){
                     let interval;
-                    interval = setInterval(function() {
-                        let element = document.getElementById("menu-container");
-                        if (element) {
-                            SetTrigger(element).then(result => {
-                                clearInterval(interval);
+                    interval = setInterval(() => {
+                        const [menu, actions] = ["menu-container", "actions"].map(selector => document.getElementById(selector));
+                        if (menu && actions) {
+                            Promise.all([SetTrigger(menu), SetTrigger(actions)]).then(results => {
+                                if (results[0] && results[1]) {
+                                    clearInterval(interval);
+                                }
                             });
                         }
                     }, Lookup_Delay);
@@ -201,9 +217,9 @@
                 if (set && set !== null){
                     let interval;
                     interval = setInterval(function() {
-                        let element = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                        if (element) {
-                            SetTrigger(element).then(result => {
+                        let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                        if (playlist) {
+                            SetTrigger(playlist).then(() => {
                                 clearInterval(interval);
                             });
                         }
