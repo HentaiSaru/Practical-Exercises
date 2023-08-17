@@ -2,28 +2,32 @@
 // @name         Video Volume Booster
 // @version      0.0.25
 // @author       HentaiSaru
-// @license      MIT
-// @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
 // @description  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 *://*/* , 目前只match特定網域
 
-// @run-at       document-start
 // @match        *://*.twitch.tv/*
 // @match        *://*.youtube.com/*
 // @match        *://*.bilibili.com/*
-
 // @exclude      *://video.eyny.com/*
+// @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
 
+// @license      MIT
+// @namespace    https://greasyfork.org/users/989635
+
+// @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
 
-var Booster, modal, enabledDomains = GM_getValue("啟用網域", []), domain = window.location.hostname, Increase = 1.0;
+var Booster, modal,
+buffer = document.createDocumentFragment(),
+enabledDomains = GM_getValue("啟用網域", []),
+domain = window.location.hostname, Increase = 1.0;
 (function() {
     FindVideo();
     MenuHotkey();
-    MonitorAjax();// 暴力解法(多少影響效能 , 個人沒感覺)
+    MonitorAjax();
     GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
     GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
     GM_registerMenuCommand("📜 菜單熱鍵", function() {
@@ -57,9 +61,7 @@ async function FindVideo() {
         if (videoElement) {
             if (enabledDomains.includes(domain)) { // 沒開啟自動增幅的網頁也可以嘗試使用
                 let inc = GM_getValue(domain, []);
-                if (inc.length !== 0) {
-                    Increase = inc;
-                }
+                if (inc.length !== 0) {Increase = inc}
             }
             try {
                 Booster = booster(videoElement, Increase);
@@ -74,27 +76,14 @@ async function FindVideo() {
     }, 300);
 }
 
-/* 註冊快捷鍵(開啟菜單) */
-async function MenuHotkey() {
-    document.addEventListener("keydown", function(event) {
-        if (event.altKey && event.key === "b") {
-            IncrementalSetting();
-        }
-    });
-}
-
 /* 音量增量 */
 function booster(video, increase) {
     const AudioContext = new (window.AudioContext || window.webkitAudioContext);
-    // 音頻來源
-    const SourceNode = AudioContext.createMediaElementSource(video);
-    // 增益節點
-    const GainNode = AudioContext.createGain();
-    // 動態壓縮節點
-    const CompressorNode = AudioContext.createDynamicsCompressor();
-    // 低音慮波器
-    const LowFilterNode = AudioContext.createBiquadFilter();
-    const HighFilterNode = AudioContext.createBiquadFilter();
+    const SourceNode = AudioContext.createMediaElementSource(video); // 音頻來源
+    const GainNode = AudioContext.createGain(); // 增益節點
+    const LowFilterNode = AudioContext.createBiquadFilter(); // 低音慮波器
+    const HighFilterNode = AudioContext.createBiquadFilter(); // 高音濾波器
+    const CompressorNode = AudioContext.createDynamicsCompressor(); // 動態壓縮節點
 
     // 將預設音量調整至 100% (有可能被其他腳本調整)
     video.volume = 1;
@@ -103,15 +92,17 @@ function booster(video, increase) {
 
     // 設置動態壓縮器的參數(通用性測試!!)
     CompressorNode.ratio.value = 6; // 壓縮率
-    CompressorNode.knee.value = 0.5; // 壓縮過度反應時間(越小越快)
+    CompressorNode.knee.value = 0.5; // 壓縮過渡反應時間(越小越快)
     CompressorNode.threshold.value = -14; // 壓縮閾值
     CompressorNode.attack.value = 0.020; // 開始壓縮的速度
     CompressorNode.release.value = 0.40; // 釋放壓縮的速度
 
+    // 低音慮波增強
     LowFilterNode.frequency.value = 250;
     LowFilterNode.type = "lowshelf";
     LowFilterNode.gain.value = 2.2;
 
+    // 高音慮波增強
     HighFilterNode.frequency.value = 10000;
     HighFilterNode.type = "highshelf";
     HighFilterNode.gain.value = 1.8;
@@ -122,6 +113,7 @@ function booster(video, increase) {
     LowFilterNode.connect(HighFilterNode);
     GainNode.connect(CompressorNode);
     CompressorNode.connect(AudioContext.destination);
+    // 節點創建標記
     video.setAttribute("data-audio-context", true);
     return {
         // 設置音量
@@ -132,8 +124,15 @@ function booster(video, increase) {
     }
 }
 
+/* 註冊快捷鍵(開啟菜單) */
+async function MenuHotkey() {
+    document.addEventListener("keydown", function(event) {
+        if (event.altKey && event.key === "b") {IncrementalSetting()}
+    });
+}
+
 /* 使用自動增幅 */
-function Useboost(enabledDomains, domain) {
+async function Useboost(enabledDomains, domain) {
     if (enabledDomains.includes(domain)) {
         // 從已啟用列表中移除當前網域
         enabledDomains = enabledDomains.filter(function(value) {
@@ -150,20 +149,20 @@ function Useboost(enabledDomains, domain) {
 }
 
 GM_addStyle(`
-    .YT-modal-background {
+    .modal-background {
         top: 0;
         left: 0;
         width: 100%;
         height: 100%;
-        z-index: 9999;
         display: flex;
-        position: fixed;
+        z-index: 9999;
         overflow: auto;
-        justify-content: center;
+        position: fixed;
         align-items: center;
+        justify-content: center;
         background-color: rgba(0, 0, 0, 0.1);
     }
-    .YT-modal-button {
+    .modal-button {
         top: 0;
         margin: 3% 2%;
         color: #d877ff;
@@ -173,13 +172,13 @@ GM_addStyle(`
         background-color: #ffebfa;
         border: 1px solid rgb(124, 183, 252);
     }
-    .YT-modal-button:hover,
-    .YT-modal-button:focus {
+    .modal-button:hover,
+    .modal-button:focus {
         color: #fc0e85;
         cursor: pointer;
         text-decoration: none;
     }
-    .YT-modal-content {
+    .modal-content {
         width: 400px;
         padding: 5px;
         overflow: auto;
@@ -199,21 +198,13 @@ GM_addStyle(`
     .slider {
         width: 350px;
     }
-    .hidden {
-        display: none;
-    }
 `);
 
 /* 設定模態 */
-function IncrementalSetting() {
-    if (modal) {
-        modal.remove();
-        modal = null;
-    }
-
-    modal = document.createElement('div');
+async function IncrementalSetting() {
+    modal = document.createElement("div");
     modal.innerHTML = `
-        <div class="YT-modal-content">
+        <div class="modal-content">
             <h2 style="color: #3754f8;">音量增量</h2>
             <div style="margin:1rem auto 1rem auto;">
                 <div class="multiplier">
@@ -222,19 +213,18 @@ function IncrementalSetting() {
                 <input type="range" class="slider" min="0" max="10.0" value="${Increase}" step="0.1"><br>
             </div>
             <div style="text-align: right;">
-                <button class="YT-modal-button" id="save">保存設置</button>
-                <button class="YT-modal-button" id="close">退出選單</button>
+                <button class="modal-button" id="save">保存設置</button>
+                <button class="modal-button" id="close">退出選單</button>
             </div>
         </div>
     `
-    modal.classList.add('YT-modal-background');
+    modal.classList.add("modal-background");
     document.body.appendChild(modal);
-    modal.classList.remove('hidden');
+    let currentValueElement = document.getElementById("currentValue");
 
     // 監聽設定拉條
     modal.addEventListener("input", function(event) {
         if (event.target.classList.contains("slider")) {
-            let currentValueElement = document.getElementById("currentValue");
             let currentValue = event.target.value;
             currentValueElement.textContent = currentValue;
             Booster.setVolume(currentValue);
@@ -247,7 +237,7 @@ function IncrementalSetting() {
         if (enabledDomains.includes(domain)) {
             let rangeValue = parseFloat(modal.querySelector(".slider").value);
             GM_setValue(domain, rangeValue);
-            modal.classList.add("hidden");
+            modal.remove();
         } else {
             alert("需啟用自動增幅才可保存");
         }
@@ -256,6 +246,6 @@ function IncrementalSetting() {
     // 監聽關閉按鈕點擊
     let CloseButton = modal.querySelector("#close");
     CloseButton.addEventListener("click", () => {
-        modal.classList.add("hidden");
+        modal.remove();
     });
 }
