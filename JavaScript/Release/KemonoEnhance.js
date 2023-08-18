@@ -28,6 +28,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.slim.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
@@ -101,7 +102,7 @@ async function Beautify(box, list, announce) {
         list.addEventListener('mouseleave', function () {
             box.style.marginLeft = "0rem";
         });
-    } catch { }
+    } catch {}
 }
 
 async function VideoBeautify() {
@@ -131,9 +132,26 @@ async function VideoBeautify() {
     }
 }
 
+/* 樣式添加 */
+async function addstyle(rule) {
+    let new_style = document.getElementById("New-Add-Style");
+    if (!new_style) {
+        new_style = document.createElement("style");
+        new_style.id = "New-Add-Style";
+        document.head.appendChild(new_style);
+    }
+    new_style.appendChild(document.createTextNode(rule));
+}
+/**
+ * % px rem vh vw
+ * max-width
+ * height
+ * width
+ */
+
 /* 載入原圖 */
 async function OriginalImage() {
-    GM_addStyle(`
+    addstyle(`
         .img-style {
             max-width: 100%;
             display: block;
@@ -188,6 +206,9 @@ async function Reload(ID, retry) {
             retry - 1;
         }, 1800);
     }
+}
+async function PictureStyleMenu() {
+
 }
 
 /* ==================== */
