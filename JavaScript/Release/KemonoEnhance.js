@@ -6,11 +6,11 @@
 // @name:en      Kemono Usage Enhancement
 // @version      0.0.24
 // @author       HentiSaru
-// @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
-// @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
-// @description:zh-CN  侧边栏收缩美化界面 , 自动加载大图 , 简易隐藏广告 , 翻页优化 , 自动开新分页
-// @description:ja     サイドバーの収縮によるインターフェースの美化、大画像の自動読み込み、広告の簡易非表示、ページめくりの最適化、新しいページの自動開封
-// @description:en     Sidebar contraction beautifies interface, automatically loads large images, easily hides ads, optimizes paging, and automatically opens new tabs.
+// @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
+// @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
+// @description:zh-CN  侧边栏收缩美化界面 , 自动加载原图 , 简易隐藏广告 , 浏览翻页优化 , 自动开新分页 , 影片区块优化 , 底部添加下一页与回到顶部按钮 , 快捷翻页
+// @description:ja     サイドバーを縮小してインターフェースを美しくし、オリジナル画像を自動的に読み込み、広告を簡単に非表示にし、ページの閲覧とページめくりを最適化し、新しいページを自動的に開き、ビデオセクションを最適化し、下部に「次のページ」と「トップに戻る」ボタンを追加し、クイックページめくりができます。
+// @description:en     Collapse the sidebar to beautify the interface, automatically load original images, easily hide ads, optimize page browsing and flipping, automatically open new pages, optimize the video section, add next page and back to top buttons at the bottom, and quickly flip pages.
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
