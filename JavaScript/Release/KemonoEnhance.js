@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.23
+// @version      0.0.24
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載大圖 , 簡易隱藏廣告 , 翻頁優化 , 自動開新分頁
@@ -22,11 +22,14 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-start
+// @grant        GM_setValue
+// @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
+// @grant        GM_registerMenuCommand
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.slim.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
@@ -34,10 +37,12 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
-var xhr = new XMLHttpRequest(),
+var menu, set, img_rule,
+    xhr = new XMLHttpRequest(),
     Url = window.location.href,
     parser = new DOMParser(),
-    buffer = document.createDocumentFragment();
+    buffer = document.createDocumentFragment(),
+    language = display_language(GM_getValue("language", null));
 (function () {
     let interval, tryerror = 0, dellay = 300;
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
@@ -64,6 +69,7 @@ var xhr = new XMLHttpRequest(),
             OriginalImage(); // 自動大圖
             LinkOriented(); // 連結轉換
             VideoBeautify(); // 影片美化
+            GM_registerMenuCommand(language[0], function () {Menu()});
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             AjexPostToggle(); // Ajex 換頁
@@ -71,6 +77,27 @@ var xhr = new XMLHttpRequest(),
         }
     }, dellay);
 })();
+
+/* 樣式添加 */
+async function addstyle(rule) {
+    let new_style = document.getElementById("New-Add-Style");
+    if (!new_style) {
+        new_style = document.createElement("style");
+        new_style.id = "New-Add-Style";
+        document.head.appendChild(new_style);
+    }
+    new_style.appendChild(document.createTextNode(rule));
+}
+
+async function addscript(rule) {
+    let new_script = document.getElementById("New-Add-script");
+    if (!new_script) {
+        new_script = document.createElement("script");
+        new_script.id = "New-Add-script";
+        document.head.appendChild(new_script);
+    }
+    new_script.appendChild(document.createTextNode(rule));
+}
 
 /* ==================== */
 
@@ -105,6 +132,7 @@ async function Beautify(box, list, announce) {
     } catch {}
 }
 
+/* 影片美化 */
 async function VideoBeautify() {
     let stream, parents;
     parents = document.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li');
@@ -132,32 +160,25 @@ async function VideoBeautify() {
     }
 }
 
-/* 樣式添加 */
-async function addstyle(rule) {
-    let new_style = document.getElementById("New-Add-Style");
-    if (!new_style) {
-        new_style = document.createElement("style");
-        new_style.id = "New-Add-Style";
-        document.head.appendChild(new_style);
-    }
-    new_style.appendChild(document.createTextNode(rule));
+/* 導入設定 */
+function ImgSettings() {
+    let Settings = GM_getValue("ImgSet", null) || [{ "img_w": "auto", "img_h": "auto", "img_gap": "0px", "img_mw": "100%" }];
+    return Settings[0];
 }
-/**
- * % px rem vh vw
- * max-width
- * height
- * width
- */
 
 /* 載入原圖 */
 async function OriginalImage() {
+    set = ImgSettings();
     addstyle(`
         .img-style {
-            max-width: 100%;
             display: block;
-            margin: 0 auto;
+            width: ${set.img_w};
+            height: ${set.img_h};
+            margin: ${set.img_gap} auto;
+            max-width: ${set.img_mw};
         }
     `);
+    MenuDependent();
     let thumbnail, href, img;
     thumbnail = document.querySelectorAll("div.post__thumbnail");
     if (thumbnail.length > 0) {
@@ -206,9 +227,6 @@ async function Reload(ID, retry) {
             retry - 1;
         }, 1800);
     }
-}
-async function PictureStyleMenu() {
-
 }
 
 /* ==================== */
@@ -286,6 +304,7 @@ async function Additional(comments) {
     })
 
     // 監聽按鍵切換
+    /* 暫時停用
     const main = document.querySelector("main");
     addlistener(document, "keydown", event => {
         try {
@@ -298,8 +317,8 @@ async function Additional(comments) {
                 removlistener(document, "keydown");
                 AjexReplace(next.href, main);
             }
-        } catch { }
-    })
+        } catch {}
+    })*/
 }
 
 GM_addStyle(`
@@ -407,5 +426,423 @@ async function AjexPostToggle() {
                 Request(ma.href);
             })
         });
-    } catch {}
+    } catch { }
+}
+
+/* 及時設置 */
+const styleRules = {
+    img_h: value => img_rule[0].style.height = `${value}`,
+    img_w: value => img_rule[0].style.width = `${value}`,
+    img_mw: value => img_rule[0].style.maxWidth = `${value}`,
+    img_gap: value => img_rule[0].style.margin = `${value} auto`
+};
+/* 創建菜單 */
+async function Menu() {
+    img_rule = document.getElementById("New-Add-Style").sheet.cssRules;
+    set = ImgSettings();
+    let parent, child, img_input, img_select, analyze;
+    const img_data = [set.img_w, set.img_h, set.img_gap, set.img_mw];
+    menu = `
+        <div class="modal-background">
+            <div class="modal-interface">
+                <table class="modal-box">
+                    <tr>
+                        <td class="menu">
+                            <h2 class="menu-text">${language[1]}</h2>
+                            <button class="menu-options" id="image-settings">${language[2]}</button>
+                            <button class="menu-options" disabled>null</button>
+                        </td>
+                        <td>
+                            <table>
+                                <tr>
+                                    <td class="content" id="set-content">
+                                        <div id="image-settings-show" style="transition: opacity 0.8s; opacity: 0;">
+                                            <div>
+                                                <h2 class="narrative">${language[3]}：</h2>
+                                                <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)">
+                                                    <select class="Image-input-settings" style="margin-left: 1rem;">
+                                                        <option value="px" selected>px</option>
+                                                        <option value="%">%</option>
+                                                        <option value="rem">rem</option>
+                                                        <option value="vh">vh</option>
+                                                        <option value="vw">vw</option>
+                                                        <option value="auto">auto</option>
+                                                    </select></p>
+                                            </div>
+                                            <div>
+                                                <h2 class="narrative">${language[4]}：</h2>
+                                                <p><input type="number" id="img_w" class="Image-input-settings"
+                                                        oninput="value = check(value)">
+                                                    <select class="Image-input-settings" style="margin-left: 1rem;">
+                                                        <option value="px" selected>px</option>
+                                                        <option value="%">%</option>
+                                                        <option value="rem">rem</option>
+                                                        <option value="vh">vh</option>
+                                                        <option value="vw">vw</option>
+                                                        <option value="auto">auto</option>
+                                                    </select></p>
+                                            </div>
+                                            <div>
+                                                <h2 class="narrative">${language[5]}：</h2>
+                                                <p><input type="number" id="img_mw" class="Image-input-settings"
+                                                        oninput="value = check(value)">
+                                                    <select class="Image-input-settings" style="margin-left: 1rem;">
+                                                        <option value="px" selected>px</option>
+                                                        <option value="%">%</option>
+                                                        <option value="rem">rem</option>
+                                                        <option value="vh">vh</option>
+                                                        <option value="vw">vw</option>
+                                                        <option value="auto">auto</option>
+                                                    </select></p>
+                                            </div>
+                                            <div>
+                                                <h2 class="narrative">${language[6]}：</h2><p>
+                                                    <input type="number" id="img_gap" class="Image-input-settings"
+                                                        oninput="value = check(value)">
+                                                    <select class="Image-input-settings" style="margin-left: 1rem;">
+                                                        <option value="px" selected>px</option>
+                                                        <option value="%">%</option>
+                                                        <option value="rem">rem</option>
+                                                        <option value="vh">vh</option>
+                                                        <option value="vw">vw</option>
+                                                        <option value="auto">auto</option>
+                                                    </select></p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td class="button-area">
+                                        <select id="language">
+                                            <option value="" disabled selected>${language[7]}</option>
+                                            <option value="en">${language[8]}</option>
+                                            <option value="zh-TW">${language[9]}</option>
+                                            <option value="zh-CN">${language[10]}</option>
+                                            <option value="ja">${language[11]}</option>
+                                        </select>
+                                        <button id="readsettings" class="button-options">${language[12]}</button>
+                                        <span class="button-space"></span>
+                                        <button id="closure" class="button-options">${language[13]}</button>
+                                        <span class="button-space"></span>
+                                        <button id="application" class="button-options">${language[14]}</button>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+                </table>
+            </div>
+        </div>
+    `
+    $(document.body).append(menu);
+    // 菜單選擇
+    $("#image-settings").on("click", function () {
+        $("#image-settings-show").css("opacity", 1);
+    })
+    // 語言選擇
+    $("#language").val(GM_getValue("language", null) || "")
+    $("#language").on("input change",  function (event) {
+        event.stopPropagation();
+        const value = $(this).val();
+        language = display_language(value);
+        GM_setValue("language", value);
+        $("#language").off("input change");
+        $(".modal-background").remove();
+        Menu();
+    });
+    // 語言設置
+    $(".Image-input-settings").on("input change", function (event) {
+        event.stopPropagation();
+        const target = $(this), value = target.val(), id = target.attr("id");
+        parent = target.closest("div");
+        if (isNaN(value)) {
+            child = parent.find("input");
+            if (value === "auto") {
+                child.prop("disabled", true);
+                styleRules[child.attr("id")](value);
+            } else {
+                child.prop("disabled", false);
+                styleRules[child.attr("id")](`${child.val()}${value}`);
+            }
+        } else {
+            child = parent.find("select");
+            styleRules[id](`${value}${child.val()}`);
+        }
+    });
+    // 讀取保存
+    $("#readsettings").on("click", function () {
+        const img_set = $("#image-settings-show").find("p");
+        img_data.forEach((read, index) => {
+            img_input = img_set.eq(index).find("input");
+            img_select = img_set.eq(index).find("select");
+
+            if (read === "auto") {
+                img_input.prop("disabled", true);
+                img_select.val(read);
+            } else {
+                analyze = read.match(/^(\d+)(\D+)$/);
+                img_input.val(analyze[1]);
+                img_select.val(analyze[2]);
+            }
+        })
+    });
+    // 應用保存
+    let array = [], save = {};
+    $("#application").on("click", function () {
+        $("#application").off("click");
+        const img_set = $("#image-settings-show").find("p");
+        img_data.forEach((read, index) => {
+            img_input = img_set.eq(index).find("input");
+            img_select = img_set.eq(index).find("select");
+            if (img_input.val() === "") {
+                save[img_input.attr("id")] = read;
+            } else {
+                save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
+            }
+        })
+        array = [save];
+        GM_setValue("ImgSet", array);
+        $(".modal-background").remove();
+    });
+    // 關閉菜單
+    $("#closure").on("click", function () {
+        $(".modal-background").remove();
+    });
+}
+
+/* 菜單依賴項目 */
+async function MenuDependent() {
+    addscript(`
+        function check(value) {
+            if (value.toString().length > 4 || value > 1000) {
+                value = 1000;
+            } else if (value < 0) {
+                value = 0;
+            }
+            return value || 0;
+        }
+    `);
+    addstyle(`
+        .modal-background {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 9999;
+            overflow: auto;
+            position: fixed;
+            pointer-events: none;
+            background-color: rgba(0, 0, 0, 0.1);
+        }
+        /* 模態介面 */
+        .modal-interface {
+            margin: 0;
+            top: 2vh;
+            right: 3vw;
+            display: flex;
+            overflow: auto;
+            position: fixed;
+            border-radius: 5px;
+            background-color: #2C2E3E;
+            border: 3px solid #EE2B47;
+            pointer-events: auto;
+        }
+        /* 模態內容盒 */
+        .modal-box {
+            padding: 0.5rem;
+            height: 50vh;
+            width: 32vw;
+        }
+        /* 菜單框架 */
+        .menu {
+            width: 5.5vw;
+            text-align: center;
+            vertical-align: top;
+            border-radius: 2px;
+            border: 2px solid #F6F6F6;
+        }
+        /* 菜單文字標題 */
+        .menu-text {
+            color: #EE2B47;
+            cursor: default;
+            padding: 0.2rem;
+            margin: 0.3rem;
+            margin-bottom: 1.5rem;
+            white-space: nowrap;
+            border-radius: 10px;
+            border: 4px solid #f05d73;
+            background-color: #1f202c;
+        }
+        /* 菜單選項按鈕 */
+        .menu-options {
+            cursor: pointer;
+            font-size: 1.4rem;
+            color: #F6F6F6;
+            font-weight: bold;
+            border-radius: 5px;
+            margin-bottom: 1.2rem;
+            border: 5px inset #EE2B47;
+            background-color: #6e7292;
+            transition: color 0.8s, background-color 0.8s;
+        }
+        .menu-options:hover {
+            color: #EE2B47;
+            background-color: #F6F6F6;
+        }
+        .menu-options:disabled {
+            color: #6e7292;
+            cursor: default;
+            background-color: #c5c5c5;
+            border: 5px inset #faa5b2;
+        }
+        /* 設置內容框架 */
+        .content {
+            height: 48vh;
+            width: 28vw;
+            padding: 0px 1rem;
+            border-radius: 2px;
+            vertical-align: top;
+            border-top: 2px solid #F6F6F6;
+            border-right: 2px solid #F6F6F6;
+        }
+        .narrative {
+            color: #EE2B47;
+        }
+        .Image-input-settings {
+            width: 8rem;
+            color: #F6F6F6;
+            text-align: center;
+            font-size: 1.5rem;
+            border-radius: 15px;
+            border: 3px inset #EE2B47;
+            background-color: #202127;
+        }
+        .Image-input-settings:disabled {
+            border: 3px inset #faa5b2;
+            background-color: #5a5a5a;
+        }
+        /* 底部按鈕框架 */
+        .button-area {
+            display: flex;
+            padding: 0.3rem;
+            border-left: none;
+            border-radius: 2px;
+            border: 2px solid #F6F6F6;
+            justify-content: space-between;
+        }
+        .button-area select {
+            color: #F6F6F6;
+            margin-right: 1.5rem;
+            border: 3px inset #EE2B47;
+            background-color: #6e7292;
+        }
+        /* 底部選項 */
+        .button-options {
+            color: #F6F6F6;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: bold;
+            border-radius: 10px;
+            white-space: nowrap;
+            background-color: #6e7292;
+            border: 3px inset #EE2B47;
+            transition: color 0.5s, background-color 0.5s;
+        }
+        .button-options:hover {
+            color: #EE2B47;
+            background-color: #F6F6F6;
+        }
+        .button-space {
+            margin: 0 0.6rem;
+        }
+        /* 整體框線 */
+        table,
+        td {
+            border-spacing: 0px;
+            margin: 0px;
+            padding: 0px;
+        }
+        p {
+            display: flex;
+            flex-wrap: nowrap;
+        }
+        option {
+            color: #F6F6F6;
+        }
+    `);
+}
+
+function display_language(language) {
+    let display = {
+        "zh-TW": [
+            "📝 設置選單",
+            "設置菜單",
+            "圖像設置",
+            "圖片高度",
+            "圖片寬度",
+            "圖片最大寬度",
+            "圖片間隔高度",
+            "語言",
+            "英文",
+            "繁體",
+            "簡體",
+            "日文",
+            "讀取設定",
+            "關閉離開",
+            "保存應用",
+        ],
+        "zh-CN": [
+            "📝 设置菜单",
+            "设置菜单",
+            "图像设置",
+            "图片高度",
+            "图片宽度",
+            "图片最大宽度",
+            "图片间隔高度",
+            "语言",
+            "英文",
+            "繁体",
+            "简体",
+            "日文",
+            "读取设置",
+            "关闭退出",
+            "保存应用",
+        ],
+        "ja": [
+            "📝 設定メニュー",
+            "設定メニュー",
+            "画像設定",
+            "画像の高さ",
+            "画像の幅",
+            "画像の最大幅",
+            "画像の間隔の高さ",
+            "言語",
+            "英語",
+            "繁体字",
+            "簡体字",
+            "日本語",
+            "設定を読み込む",
+            "閉じる終了",
+            "アプリを保存する",
+        ],
+        "en": [
+            "📝 Settings Menu",
+            "Settings Menu",
+            "Image Settings",
+            "Image Height",
+            "Image Width",
+            "Image Max Width",
+            "Image Spacing Height",
+            "Language",
+            "English",
+            "Traditional",
+            "Simplified",
+            "Japanese",
+            "Load Settings",
+            "Close Exit",
+            "Save Application",
+        ],
+    };
+    return display[language] || display["en"];
 }
