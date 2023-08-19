@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.1/jscolor.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js"></script>
+    <script>
+        jscolor.presets.default = {
+            mode: "HSV",
+            format: "rgba",
+            width: 250,
+            height: 150,
+            padding: 15,
+            crossSize: 7,
+            zIndex: 10000,
+            borderWidth: 2,
+            pointerThickness: 2,
+            pointerBorderWidth: 0,
+            pointerColor: "#E60965",
+            borderColor: "#F94892",
+            controlBorderWidth: 1,
+            controlBorderColor: "#FAFAFA",
+            buttonColor: "#E60965",
+            backgroundColor: "#FFA1C9",
+            onInput: function(color = this.toRGBAString()) {
+                $("protection").css("background-color", color);
+            },
+            palette: "#FAFAFA #000000 #FF0000 #FFA600 #FFFF00 #00FF00 #00FFFF #0000FF #9300FF #FF00FF",
+        }
+    </script>
+    <style>
+        protection {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 6666;
+            overflow: auto;
+            position: fixed;
+            pointer-events: none;
+        }
+        .modal-background {
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            z-index: 9999;
+            overflow: auto;
+            position: fixed;
+        }
+        .modal-interface {
+            position: fixed;
+            top: 50px;
+            left: 50px;
+            width: 300px;
+            height: 200px;
+            z-index: 101;
+        }
+        .interface-header {
+            cursor: move;
+            padding: 10px;
+            background-color: rgb(255, 161, 201);
+        }
+        .interface-body {
+            padding: 10px;
+            background-color: #da5d5d;
+        }
+        .color-picker {
+            color: #fffefe;
+            cursor: pointer;
+            width: 14rem;
+            font-size: 1.3rem;
+            font-weight: bold;
+            border-radius: 5px;
+            background-color: #FFA1C9;
+            border: 3px solid #f05d73;
+        }
+    </style>
+</head>
+<body>
+    <protection></protection>
+
+    <div id="modal-background" class="modal-background">
+        <div class="modal-interface">
+            <div id="interface-header" class="interface-header"></div>
+            <div id="interface-body" class="interface-body">
+                <input type="text" id="select_color" class="jscolor color-picker" value="rgba(255, 161, 201, 1)" data-jscolor="{preset:'default'}">
+            </div>
+        </div>
+    </div>
+    
+    <script>
+        // 當頁面加載完成後
+        $(function() {
+            // 顯示模態背景和模態介面
+            $("#modal-background").show();
+        
+            // 使用 jQuery UI 的 draggable 方法使模態介面可拖動
+            $(".modal-interface").draggable({
+                handle: "#interface-header" // 指定拖動手柄
+            });
+        });
+    </script>
+
+</body>
+</html>
