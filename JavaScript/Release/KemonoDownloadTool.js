@@ -43,16 +43,12 @@ dict = {},
 Pages=0,
 OriginalTitle = document.title,
 ModeDisplay;
-let observer = new MutationObserver((mutationsList, observer) => {
-    for (const mutation of mutationsList) {
-        if (mutation.type === "childList") {
-            if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
-        }
-    }
-});
 (function() {
+    const observer = new MutationObserver(() => {
+        if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
+    });
     if (pattern.test(window.location.href)) {
-        observer.observe(document.body, {childList: true, subtree: true});
+        observer.observe(document.head, {childList: true, subtree: true});
     }
     GM_registerMenuCommand(language[0], function() {DownloadModeSwitch()}, "C")
     GM_registerMenuCommand(language[1], function() {
