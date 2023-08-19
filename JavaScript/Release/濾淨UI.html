@@ -59,11 +59,11 @@
             left: 50px;
             width: 300px;
             height: 200px;
-            z-index: 101;
+            border-radius: 10px;
         }
         .interface-header {
-            cursor: move;
             padding: 10px;
+            cursor: pointer;
             background-color: rgb(255, 161, 201);
         }
         .interface-body {
@@ -90,6 +90,7 @@
             <div id="interface-header" class="interface-header"></div>
             <div id="interface-body" class="interface-body">
                 <input type="text" id="select_color" class="jscolor color-picker" value="rgba(255, 161, 201, 1)" data-jscolor="{preset:'default'}">
+                <div style="color: #585858;"></div>
             </div>
         </div>
     </div>
@@ -103,6 +104,14 @@
             // 使用 jQuery UI 的 draggable 方法使模態介面可拖動
             $(".modal-interface").draggable({
                 handle: "#interface-header" // 指定拖動手柄
+            });
+            $("#interface-header").on("mousedown", () => {
+                $(".modal-interface").css("border", "3px solid #585858");
+                $("#interface-header").css("cursor", "move");
+            })
+            $("#interface-header").on("mouseup", () => {
+                $(".modal-interface").css("border", "none");
+                $("#interface-header").css("cursor", "pointer");
             });
         });
     </script>
