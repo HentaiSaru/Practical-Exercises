@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.8
+// @version         0.0.9
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -56,7 +56,7 @@ function GetSettings() {
 
 async function ImageGeneration(box, current, total) {
     // 總頁數 = 總共頁數 - 當前頁數
-    var total_pages = total.length - parseInt(current.textContent, 10), RecordBox = new Map(), RecorNumber = 0;
+    var total_pages = total.length - +current.textContent, RecordBox = new Map(), RecorNumber = 0;
     let NLink, img, dom, parser = new DOMParser();
     /* ----- 自動滾動翻頁 ----- */
     var observer = new IntersectionObserver(function (observed) {
@@ -75,7 +75,7 @@ async function ImageGeneration(box, current, total) {
         });
     }
     async function Auto_NextPage(link) {
-        if (total_pages > 1) {
+        if (total_pages > 0) {
             fetch(link)
                 .then(response => response.text())
                 .then(async html => {
