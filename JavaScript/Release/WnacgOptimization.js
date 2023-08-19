@@ -32,10 +32,7 @@
 
 var modal, style_rule, set, DisplayMode = GM_getValue("DisplayMode", null), language = display_language(navigator.language);
 function GetSettings() {
-    let Settings = GM_getValue("Settings", null);
-    if (Settings === null) {
-        Settings = [{ "BC": "#000000", "ULS": "0rem", "BW": "100%", "MW": "60%", "BH": "auto", "MH": "auto" }];
-    }
+    let Settings = GM_getValue("Settings", null) || [{ "BC": "#000000", "ULS": "0rem", "BW": "100%", "MW": "60%", "BH": "auto", "MH": "auto" }];
     return Settings[0];
 }
 
