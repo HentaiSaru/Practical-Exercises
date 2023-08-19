@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.24
+// @version      0.0.25
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -89,6 +89,7 @@ async function addstyle(rule) {
     new_style.appendChild(document.createTextNode(rule));
 }
 
+/* 腳本添加 */
 async function addscript(rule) {
     let new_script = document.getElementById("New-Add-script");
     if (!new_script) {
@@ -97,6 +98,17 @@ async function addscript(rule) {
         document.head.appendChild(new_script);
     }
     new_script.appendChild(document.createTextNode(rule));
+}
+
+/* 導入設定 */
+function GetSettings(record) {
+    let Settings;
+    switch (record) {
+        case "ImgSet":
+            Settings = GM_getValue(record, null) || [{ "img_h": "auto", "img_w": "auto", "img_mw": "100%", "img_gap": "0px" }];
+            break;
+    }
+    return Settings[0];
 }
 
 /* ==================== */
@@ -160,15 +172,9 @@ async function VideoBeautify() {
     }
 }
 
-/* 導入設定 */
-function ImgSettings() {
-    let Settings = GM_getValue("ImgSet", null) || [{ "img_w": "auto", "img_h": "auto", "img_gap": "0px", "img_mw": "100%" }];
-    return Settings[0];
-}
-
 /* 載入原圖 */
 async function OriginalImage() {
-    set = ImgSettings();
+    set = GetSettings("ImgSet");
     addstyle(`
         .img-style {
             display: block;
@@ -439,9 +445,9 @@ const styleRules = {
 /* 創建菜單 */
 async function Menu() {
     img_rule = document.getElementById("New-Add-Style").sheet.cssRules;
-    set = ImgSettings();
+    set = GetSettings("ImgSet");
     let parent, child, img_input, img_select, analyze;
-    const img_data = [set.img_w, set.img_h, set.img_gap, set.img_mw];
+    const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
     menu = `
         <div class="modal-background">
             <div class="modal-interface">
@@ -456,7 +462,7 @@ async function Menu() {
                             <table>
                                 <tr>
                                     <td class="content" id="set-content">
-                                        <div id="image-settings-show" style="transition: opacity 0.8s; opacity: 0;">
+                                        <div id="image-settings-show" class="form-hidden">
                                             <div>
                                                 <h2 class="narrative">${language[3]}：</h2>
                                                 <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)">
@@ -537,7 +543,11 @@ async function Menu() {
     $(document.body).append(menu);
     // 菜單選擇
     $("#image-settings").on("click", function () {
-        $("#image-settings-show").css("opacity", 1);
+        $("#image-settings-show").css({
+            "height": "auto",
+            "width": "auto",
+            "opacity": 1
+        });
     })
     // 語言選擇
     $("#language").val(GM_getValue("language", null) || "")
@@ -594,7 +604,9 @@ async function Menu() {
         img_data.forEach((read, index) => {
             img_input = img_set.eq(index).find("input");
             img_select = img_set.eq(index).find("select");
-            if (img_input.val() === "") {
+            if (img_select.val() === "auto") {
+                save[img_input.attr("id")] = "auto";
+            } else if (img_input.val() === "") {
                 save[img_input.attr("id")] = read;
             } else {
                 save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
@@ -651,12 +663,14 @@ async function MenuDependent() {
         /* 模態內容盒 */
         .modal-box {
             padding: 0.5rem;
+            overflow: auto;
             height: 50vh;
             width: 32vw;
         }
         /* 菜單框架 */
         .menu {
             width: 5.5vw;
+            overflow: auto;
             text-align: center;
             vertical-align: top;
             border-radius: 2px;
@@ -700,6 +714,7 @@ async function MenuDependent() {
         .content {
             height: 48vh;
             width: 28vw;
+            overflow: auto;
             padding: 0px 1rem;
             border-radius: 2px;
             vertical-align: top;
@@ -756,12 +771,20 @@ async function MenuDependent() {
         .button-space {
             margin: 0 0.6rem;
         }
+        .form-hidden {
+            opacity: 0;
+            height: 0;
+            width: 0;
+            overflow: hidden;
+            transition: opacity 0.8s, height 0.8s, width 0.8s;
+        }
         /* 整體框線 */
         table,
         td {
-            border-spacing: 0px;
             margin: 0px;
             padding: 0px;
+            overflow: auto;
+            border-spacing: 0px;
         }
         p {
             display: flex;
