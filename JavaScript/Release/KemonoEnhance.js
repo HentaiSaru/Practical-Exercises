@@ -658,7 +658,6 @@ async function MenuDependent() {
             border-radius: 5px;
             background-color: #2C2E3E;
             border: 3px solid #EE2B47;
-            pointer-events: auto;
         }
         /* 模態內容盒 */
         .modal-box {
