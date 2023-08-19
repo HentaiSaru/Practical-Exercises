@@ -22,3 +22,7 @@ var number = +"50"
 console.log(number + 50);
 number = parseInt("50");
 console.log(number);
+
+function HexToRgba(hex, opacity=1) {
+    return `rgba(${+("0x"+hex.slice(1, 3))}, ${+("0x"+hex.slice(3, 5))}, ${+("0x"+hex.slice(5, 7))}, ${opacity})`;
+}
