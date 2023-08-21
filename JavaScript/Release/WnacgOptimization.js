@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.9
+// @version         0.0.10
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -44,13 +44,12 @@ function GetSettings() {
         current = document.querySelector("span.newpagelabel b");
         total = document.querySelectorAll("select option");
         if (photo_box && current && total.length > 0) {
-            document.body.classList.add("CustomBody");
             photo_box.classList.remove("photo_body");
             ImageGeneration(photo_box, current, total);
             AdReplace();
             clearInterval(interval);
         }
-    }, 500);
+    }, 300);
     HotKey();
 })();
 
@@ -157,7 +156,6 @@ async function HeavyTypography() {
         $("#bodywrap").remove();
         $(".newpagewrap").remove();
         $(".footer.wrap").remove();
-        $("div.tocaowrap").addClass("TailStyle");
     } catch { }
 }
 
@@ -333,14 +331,46 @@ async function ImportStyle() {
             max-width: ${set.MW};
             max-height: ${set.MH};
         }
-        .CustomBody {
+        body {
             overflow-x: visible !important;
-            background: ${set.BC};
+            background-color: ${set.BC};
         }
-        .TailStyle {
-            width: auto;
-            padding: 0.2rem;
+        .tocaowrap {
+            width: 100%;
+            margin: 0 auto;
+            padding: 0.1rem;
             max-width: ${set.MW};
+        }
+        .btntuzao {
+            margin: 0 5px;
+            background-color: #5F5F5F;
+        }
+        a, em {
+            color: #fff;
+        }
+        #header {
+            background: #5F5F5F;
+            border-bottom: 1px solid #dfe1e1;
+            transform: translateY(-1.6rem);
+            opacity: 0;
+            transition: 0.8s;
+        }
+        #header:hover {
+            opacity: 1;
+            transform: translateY(0rem);
+        }
+        .nav li a {
+            float: left;
+            line-height: 40px;
+            height: 40px;
+            width: 85px;
+            font-size: 14px;
+            color: #fff;
+            text-decoration: none;
+            text-align: center;
+            font-weight: bold;
+            text-align: center;
+            background: #5F5F5F;
         }
         .modal-background {
             top: 0;
