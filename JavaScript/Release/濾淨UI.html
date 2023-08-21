@@ -52,6 +52,7 @@
             z-index: 9999;
             overflow: auto;
             position: fixed;
+            pointer-events: none;
         }
         .modal-interface {
             position: fixed;
@@ -60,6 +61,7 @@
             width: 300px;
             height: 200px;
             border-radius: 10px;
+            pointer-events: auto;
         }
         .interface-header {
             padding: 10px;
@@ -80,12 +82,15 @@
             background-color: #FFA1C9;
             border: 3px solid #f05d73;
         }
+        ul {
+            list-style: none;
+        }
     </style>
 </head>
 <body>
     <protection></protection>
 
-    <div id="modal-background" class="modal-background">
+    <!--<div id="modal-background" class="modal-background">
         <div class="modal-interface">
             <div id="interface-header" class="interface-header"></div>
             <div id="interface-body" class="interface-body">
@@ -93,12 +98,26 @@
                 <div style="color: #585858;"></div>
             </div>
         </div>
+    </div>-->
+
+    <div class="tabs">
+        <ul>
+            <li><a href="#tab-1"><button>選項卡 1</button></a></li>
+            <li><a href="#tab-2">選項卡 2</a></li>
+        </ul>
+        <div id="tab-1">
+            <p>這是選項卡 1 的內容。</p>
+        </div>
+        <div id="tab-2">
+            <p>這是選項卡 2 的內容。</p>
+        </div>
     </div>
     
     <script>
         // 當頁面加載完成後
         $(function() {
             // 顯示模態背景和模態介面
+            $(".tabs").tabs();
             $("#modal-background").show();
         
             // 使用 jQuery UI 的 draggable 方法使模態介面可拖動
