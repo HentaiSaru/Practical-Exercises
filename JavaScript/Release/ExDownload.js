@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -157,14 +157,14 @@ async function HomeDataProcessing(button) {
     async function FetchRequest(url) { // 數據請求
         const response = await fetch(url);
         const html = await response.text();
-        GetLink(parser.parseFromString(html, "text/html"));
+        await GetLink(parser.parseFromString(html, "text/html"));
     }
 
     const promises = [FetchRequest(url)];
     for (let i = 1; i < pages; i++) {
         promises.push(FetchRequest(`${url}?p=${i}`));
         button.textContent = `${language[5]}: [${i+1}/${pages}]`;
-        await new Promise(resolve => setTimeout(resolve, 150));
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
 
     await Promise.allSettled(promises);
@@ -190,7 +190,7 @@ async function ImageLinkProcessing(button, title, link) {
         try {
             const response = await fetch(url);
             const html = await response.text();
-            GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
+            await GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
         } catch (error) {
             await FetchRequest(index, url);
         }
@@ -199,7 +199,7 @@ async function ImageLinkProcessing(button, title, link) {
     const promises = [];
     for (let index = 0; index < pages; index++) {
         promises.push(FetchRequest(index, link[index]));
-        await new Promise(resolve => setTimeout(resolve, 50));
+        await new Promise(resolve => setTimeout(resolve, 30));
     }
 
     await Promise.allSettled(promises);
@@ -219,7 +219,7 @@ async function ZipDownload(Button, Folder, ImgData) {
     async function Request(index, retry) {
         link = ImgData.get(index);
         extension = GetExtension(link);
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (link !== undefined) {
                 GM_xmlhttpRequest({
                     method: "GET",
@@ -236,21 +236,24 @@ async function ZipDownload(Button, Folder, ImgData) {
                             resolve();
                         } else {
                             if (retry > 0) {
+                                console.log(`Request Retry : [${retry}]`);
                                 Request(index, retry-1);
-                                console.log(`[${retry}] : ${link}`);
-                            } else {
-                                console.log(`[error] : ${link}`);
                                 resolve();
+                            } else {
+                                reject(new Error("Request error"));
                             }
                         }
                     },
                     onerror: error => {
                         if (retry > 0) {
+                            console.log(`Request Retry : [${retry}]`);
                             Request(index, retry-1);
-                            console.log(`[${retry}] : ${link}`);
-                        } else {
-                            console.log(`[error] : ${link}`);
                             resolve();
+                        } else {
+                            console.groupCollapsed("Request Error");
+                            console.log(`[Request Error] : ${link}`);
+                            console.groupEnd();
+                            reject(error);
                         }
                     }
                 });
@@ -265,9 +268,9 @@ async function ZipDownload(Button, Folder, ImgData) {
     for (let i = 0; i < Total; i++) {
         promises.push(Request(i, 10));
         count++;
-        if (count === 20) {
+        if (count === 5) {
             count = 0;
-            await new Promise(resolve => setTimeout(resolve, 1000));
+            await new Promise(resolve => setTimeout(resolve, 500));
         }
     }
     await Promise.allSettled(promises);
@@ -313,7 +316,7 @@ async function ImageDownload(Button, Folder, ImgData) {
     async function Request(index, retry) {
         link = ImgData.get(index);
         extension = GetExtension(link);
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             if (link !== undefined) {
                 GM_download({
                     url: link,
@@ -327,11 +330,11 @@ async function ImageDownload(Button, Folder, ImgData) {
                     },
                     onerror: () => {
                         if (retry > 0) {
+                            console.log(`Request Retry : [${retry}]`);
                             Request(index, retry-1);
-                            console.log(`[${retry}] : ${link}`);
-                        } else {
-                            console.log(`[error] : ${link}`);
                             resolve();
+                        } else {
+                            reject(new Error("Request error"));
                         }
                     }
                 });
