@@ -50,29 +50,29 @@ ModeDisplay;
     if (pattern.test(window.location.href)) {
         observer.observe(document.head, {childList: true, subtree: true});
     }
-    GM_registerMenuCommand(language[0], function() {DownloadModeSwitch()}, "C")
-    GM_registerMenuCommand(language[1], function() {
+    GM_registerMenuCommand(language.RM_01, function() {DownloadModeSwitch()}, "C")
+    GM_registerMenuCommand(language.RM_02, function() {
         const section = document.querySelector("section");
         if (section) {
             GetPageData(section);
         }
     }, "J")
-    GM_registerMenuCommand(language[2], function() {OpenData()}, "O")
+    GM_registerMenuCommand(language.RM_03, function() {OpenData()}, "O")
 })();
 
 async function DownloadModeSwitch() {
     if (GM_getValue("壓縮下載", [])){
         GM_setValue("壓縮下載", false);
         GM_notification({
-            title: language[3],
-            text: language[6],
+            title: language.NF_01,
+            text: language.DM_02,
             timeout: 1500
         });
     } else {
         GM_setValue("壓縮下載", true);
         GM_notification({
-            title: language[3],
-            text: language[4],
+            title: language.NF_01,
+            text: language.DM_01,
             timeout: 1500
         });
     }
@@ -113,16 +113,16 @@ async function ButtonCreation() {
             id: "DBExist"
         });
         if (CompressMode) {
-            ModeDisplay = language[5];
+            ModeDisplay = language.DS_01;
         } else {
-            ModeDisplay = language[7];
+            ModeDisplay = language.DS_02;
         }
         download_button.textContent = ModeDisplay;
         download_button.addEventListener("click", function() {
             DownloadTrigger(download_button);
         });
     } catch {
-        download_button.textContent = language[9];
+        download_button.textContent = language.DS_04;
         download_button.disabled = true;
     }
 }
@@ -155,7 +155,7 @@ function DownloadTrigger(button) {
             } else {
                 ImageDownload(`[${user}] ${title}`, data, button)
             }
-            button.textContent = language[8];
+            button.textContent = language.DS_03;
             button.disabled = true;
             clearInterval(interval);
         }
@@ -182,7 +182,7 @@ async function ZipDownload(Folder, ImgData, Button) {
                         mantissa = (index + 1).toString().padStart(3, '0');
                         zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
                         document.title = `[${progress}/${Total}]`;
-                        Button.textContent = `${language[10]} [${progress}/${Total}]`;
+                        Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                         progress++;
                         resolve();
                     } else {
@@ -219,7 +219,7 @@ async function ZipDownload(Folder, ImgData, Button) {
     Compression();
     async function Compression() {
         if (typeof(Worker) !== "undefined" && typeof(BackgroundWork) === "undefined") {
-            BackgroundWork = new Worker(BackgroundCreation());
+            BackgroundWork = new Worker(BackWorkerCreation());
             BackgroundWork.postMessage([
                 await zip.generateAsync({ // 不await 無法序列化, 不太會 Worker
                     type: "blob",
@@ -229,15 +229,15 @@ async function ZipDownload(Folder, ImgData, Button) {
                     }
                 }, (progress) => {
                     document.title = `${progress.percent.toFixed(1)} %`;
-                    Button.textContent = `${language[11]}: ${progress.percent.toFixed(1)} %`;
+                    Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
                 }).then(zip => {
                     saveAs(zip, `${Folder}.zip`);
-                    Button.textContent = language[13];
+                    Button.textContent = language.DS_08;
                     document.title = OriginalTitle;
                     setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
                     Button.disabled = false;
                 }).catch(result => {
-                    Button.textContent = language[12];
+                    Button.textContent = language.DS_07;
                     document.title = OriginalTitle;
                     setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
                     Button.disabled = false;
@@ -258,7 +258,7 @@ async function ImageDownload(Folder, ImgData, Button) {
             name: `${name}_${(progress+i).toString().padStart(3, '0')}.${extension}`,
             onload: () => {
                 document.title = `[${progress}/${Total}]`;
-                Button.textContent = `${language[10]} [${progress}/${Total}]`;
+                Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                 progress++;
             },
             onerror: () => {
@@ -266,7 +266,7 @@ async function ImageDownload(Folder, ImgData, Button) {
             }
         });
     }
-    Button.textContent = language[13];
+    Button.textContent = language.DS_08;
     setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
     document.title = OriginalTitle;
     Button.disabled = false;
@@ -286,8 +286,8 @@ async function GetPageData(section) {
         if (NextPage) {
             Pages++;
             GM_notification({
-                title: language[14],
-                text: `${language[15]} : ${Pages}`,
+                title: language.NF_02,
+                text: `${language.NF_03} : ${Pages}`,
                 image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
                 timeout: 800
             });
@@ -313,13 +313,13 @@ async function GetPageData(section) {
             json.click();
             json.remove();
             GM_notification({
-                title: language[16],
-                text: language[17],
+                title: language.NF_04,
+                text: language.NF_05,
                 image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
                 timeout: 2000
             });
         } catch {
-            alert(language[18]);
+            alert(language.NF_06);
         }
     }
 }
@@ -334,105 +334,105 @@ async function OpenData() {
             }, 300);
         });
     } catch {
-        alert(language[19]);
+        alert(language.NF_07);
     }
 }
 
 function display_language(language) {
     let display = {
-        "zh-TW": [
-            "🔁 切換下載模式",
-            "📑 獲取所有帖子 Json 數據",
-            "📃 開啟當前頁面所有帖子",
-            "模式切換",
-            "壓縮下載模式",
-            "壓縮下載",
-            "單圖下載模式",
-            "單圖下載",
-            "開始下載",
-            "無法下載",
-            "下載進度",
-            "封裝進度",
-            "壓縮封裝失敗",
-            "下載完成",
-            "數據處理中",
-            "當前處理頁數",
-            "數據處理完成",
-            "Json 數據下載",
-            "錯誤的請求頁面",
-            "錯誤的開啟頁面"
-        ],
-        "zh-CN": [
-            "🔁 切换下载模式",
-            "📑 获取所有帖子 Json 数据",
-            "📃 打开当前页面所有帖子",
-            "模式切换",
-            "压缩下载模式",
-            "压缩下载",
-            "单图下载模式",
-            "单图下载",
-            "开始下载",
-            "无法下载",
-            "下载进度",
-            "封装进度",
-            "压缩封装失败",
-            "下载完成",
-            "数据处理中",
-            "当前处理页数",
-            "数据处理完成",
-            "Json 数据下载",
-            "错误的请求页面",
-            "错误的打开页面"
-        ],
-        "ja": [
-            '🔁 ダウンロードモードの切り替え',
-            '📑 すべての投稿のJsonデータを取得する',
-            '📃 現在のページのすべての投稿を開く',
-            'モード切り替え',
-            '圧縮ダウンロードモード',
-            '圧縮ダウンロード',
-            'シングル画像ダウンロードモード',
-            'シングル画像ダウンロード',
-            'ダウンロードを開始する',
-            'ダウンロードできません',
-            'ダウンロードの進行状況',
-            'パッケージング中',
-            '圧縮パッケージングに失敗しました',
-            'ダウンロードが完了しました',
-            'データ処理中',
-            '現在の処理ページ数',
-            'データ処理が完了しました',
-            'Jsonデータのダウンロード',
-            '間違ったリクエストページ',
-            '間違ったページを開く'
-        ],
-        "en": [
-            '🔁 Switch download mode',
-            '📑 Get all post Json data',
-            '📃 Open all posts on the current page',
-            'Mode switch',
-            'Compressed download mode',
-            'Compressed download',
-            'Single image download mode',
-            'Single image download',
-            'Start downloading',
-            'Unable to download',
-            'Download progress',
-            'Packaging',
-            'Compression packaging failed',
-            'Download completed',
-            'Data processing',
-            'Current processing page number',
-            'Data processing completed',
-            'Json data download',
-            'Wrong request page',
-            'Wrong page to open'
-        ]
+        "zh-TW": [{
+            "RM_01" : "🔁 切換下載模式",
+            "RM_02" : "📑 獲取所有帖子 Json 數據",
+            "RM_03" : "📃 開啟當前頁面所有帖子",
+            "DM_01" : "壓縮下載模式",
+            "DM_02" : "單圖下載模式",
+            "DS_01" : "壓縮下載",
+            "DS_02" : "單圖下載",
+            "DS_03" : "開始下載",
+            "DS_04" : "無法下載",
+            "DS_05" : "下載進度",
+            "DS_06" : "封裝進度",
+            "DS_07" : "壓縮封裝失敗",
+            "DS_08" : "下載完成",
+            "NF_01" : "模式切換",
+            "NF_02" : "數據處理中",
+            "NF_03" : "當前處理頁數",
+            "NF_04" : "數據處理完成",
+            "NF_05" : "Json 數據下載",
+            "NF_06" : "錯誤的請求頁面",
+            "NF_07" : "錯誤的開啟頁面"
+        }],
+        "zh-CN": [{
+            "RM_01" : "🔁 切换下载模式",
+            "RM_02" : "📑 获取所有帖子 Json 数据",
+            "RM_03" : "📃 打开当前页面所有帖子",
+            "DM_01" : "压缩下载模式",
+            "DM_02" : "单图下载模式",
+            "DS_01" : "压缩下载",
+            "DS_02" : "单图下载",
+            "DS_03" : "开始下载",
+            "DS_04" : "无法下载",
+            "DS_05" : "下载进度",
+            "DS_06" : "封装进度",
+            "DS_07" : "压缩封装失败",
+            "DS_08" : "下载完成",
+            "NF_01" : "模式切换",
+            "NF_02" : "数据处理中",
+            "NF_03" : "当前处理页数",
+            "NF_04" : "数据处理完成",
+            "NF_05" : "Json 数据下载",
+            "NF_06" : "错误的请求页面",
+            "NF_07" : "错误的打开页面"
+        }],
+        "ja": [{
+            "RM_01" : '🔁 ダウンロードモードの切り替え',
+            "RM_02" : '📑 すべての投稿のJsonデータを取得する',
+            "RM_03" : '📃 現在のページのすべての投稿を開く',
+            "DM_01" : '圧縮ダウンロードモード',
+            "DM_02" : 'シングル画像ダウンロードモード',
+            "DS_01" : '圧縮ダウンロード',
+            "DS_02" : 'シングル画像ダウンロード',
+            "DS_03" : 'ダウンロードを開始する',
+            "DS_04" : 'ダウンロードできません',
+            "DS_05" : 'ダウンロードの進行状況',
+            "DS_06" : 'パッケージング中',
+            "DS_07" : '圧縮パッケージングに失敗しました',
+            "DS_08" : 'ダウンロードが完了しました',
+            "NF_01" : 'モード切り替え',
+            "NF_02" : 'データ処理中',
+            "NF_03" : '現在の処理ページ数',
+            "NF_04" : 'データ処理が完了しました',
+            "NF_05" : 'Jsonデータのダウンロード',
+            "NF_06" : '間違ったリクエストページ',
+            "NF_07" : '間違ったページを開く'
+        }],
+        "en": [{
+            "RM_01" : '🔁 Switch download mode',
+            "RM_02" : '📑 Get all post Json data',
+            "RM_03" : '📃 Open all posts on the current page',
+            "DM_01" : 'Compressed download mode',
+            "DM_02" : 'Single image download mode',
+            "DS_01" : 'Compressed download',
+            "DS_02" : 'Single image download',
+            "DS_03" : 'Start downloading',
+            "DS_04" : 'Unable to download',
+            "DS_05" : 'Download progress',
+            "DS_06" : 'Packaging',
+            "DS_07" : 'Compression packaging failed',
+            "DS_08" : 'Download completed',
+            "NF_01" : 'Mode switch',
+            "NF_02" : 'Data processing',
+            "NF_03" : 'Current processing page number',
+            "NF_04" : 'Data processing completed',
+            "NF_05" : 'Json data download',
+            "NF_06" : 'Wrong request page',
+            "NF_07" : 'Wrong page to open'
+        }]
     };
-    return display[language] || display["en"];
+    return display[language][0] || display["en"][0];
 }
 
-function BackgroundCreation() {
+function BackWorkerCreation() {
     let blob = new Blob([""], {type: "application/javascript"});
     return URL.createObjectURL(blob);
 }
