@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.25
+// @version      0.0.26
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -31,54 +31,75 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.slim.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
-var menu, set, img_rule,
+var menu, img_rule,
     xhr = new XMLHttpRequest(),
     Url = window.location.href,
     parser = new DOMParser(),
     buffer = document.createDocumentFragment(),
     language = display_language(GM_getValue("language", null));
 (function () {
-    let interval, tryerror = 0, dellay = 300;
+    let interval, tryerror = 0;
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
         UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
         PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
         DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/;
     async function Main() {
-        const [list, box, comments, announce] = [ // comments(評論區標題), announce(公告條)
-            "div.global-sidebar", "div.content-wrapper.shifted", "h2.site-section__subheading", "body > div.content-wrapper.shifted > a"
+        const [list, box, announce] = [ // announce(公告條)
+            "div.global-sidebar", "div.content-wrapper.shifted", "body > div.content-wrapper.shifted > a"
         ].map(selector => document.querySelector(selector));
-        if ((box && list && comments) || (box && list)) {
-            Beautify(box, list, announce); // 側邊欄收縮
-            if (pattern.test(Url)) { Additional(comments) }// (帖子內) Ajex 快捷換頁
+        document.querySelector("div.global-sidebar")
+        if (list && box) {
+            Beautify(list, box, announce); // 側邊欄收縮, 刪除公告條
             clearInterval(interval);
         } else {
             tryerror++;
-            if (tryerror > 10) { clearInterval(interval) }
+            if (tryerror > 100) { clearInterval(interval) }
         }
     }
-    interval = setInterval(() => { Main() }, dellay);
+    interval = setInterval(() => {Main()}, 300);
+    // 附加選項
     setTimeout(() => {
         AdHiding(); // 隱藏廣告
         if (pattern.test(Url)) {
             OriginalImage(); // 自動大圖
             LinkOriented(); // 連結轉換
             VideoBeautify(); // 影片美化
-            GM_registerMenuCommand(language[0], function () {Menu()});
+            Additional(); // 下方創建按鈕, Ajex 快捷換頁
+            GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             AjexPostToggle(); // Ajex 換頁
             NewTabOpens(); // 自動新分頁
         }
-    }, dellay);
+    }, 500); // 功能常沒觸發, 延遲就調高 預設 500ms = 0.5s
 })();
 
 /* 樣式添加 */
+GM_addStyle(`
+    ${GM_getResourceText("font-awesome")}
+    .gif-overlay {
+        position: absolute;
+        opacity: 0.4;
+        top: 50%;
+        left: 50%;
+        width: 70%;
+        height: 70%;
+        z-index: 9999;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+    }
+    .diluted-information {
+        opacity: 0.4;
+    }
+`);
+/* 自訂樣式添加 */
 async function addstyle(rule) {
     let new_style = document.getElementById("New-Add-Style");
     if (!new_style) {
@@ -104,8 +125,19 @@ async function addscript(rule) {
 function GetSettings(record) {
     let Settings;
     switch (record) {
+        case "MenuSet":
+            Settings = GM_getValue(record, null) || [{
+                "MT": "2vh",
+                "ML": "65vw",
+            }];
+            break;
         case "ImgSet":
-            Settings = GM_getValue(record, null) || [{ "img_h": "auto", "img_w": "auto", "img_mw": "100%", "img_gap": "0px" }];
+            Settings = GM_getValue(record, null) || [{
+                "img_h": "auto",
+                "img_w": "auto",
+                "img_mw": "100%",
+                "img_gap": "0px",
+            }];
             break;
     }
     return Settings[0];
@@ -114,34 +146,36 @@ function GetSettings(record) {
 /* ==================== */
 
 /* 美化介面 */
-async function Beautify(box, list, announce) {
+async function Beautify(list, box, announce) {
     GM_addStyle(`
-        .list_column {
+        .global-sidebar {
             opacity: 0;
-            width: 10rem !important;
-            transform: translateX(-9rem);
+            height: 100%;
+            width: 10rem;
+            display: flex;
+            position: fixed;
+            padding: 0.5em 0;
             transition: 0.8s;
+            background: #282a2e;
+            flex-direction: column;
+            transform: translateX(-9rem);
         }
-        .list_column:hover {
+        .global-sidebar:hover {
             opacity: 1;
             transform: translateX(0rem);
         }
-        .main_box {
+        .content-wrapper.shifted {
             transition: 0.7s;
+            margin-left: 0rem;
         }
     `);
-    try {
-        announce.remove();
-        box.classList.add("main_box");
+    announce.remove();
+    list.addEventListener('mouseenter', function () {
+        box.style.marginLeft = "10rem";
+    });
+    list.addEventListener('mouseleave', function () {
         box.style.marginLeft = "0rem";
-        list.classList.add("list_column");
-        list.addEventListener('mouseenter', function () {
-            box.style.marginLeft = "10rem";
-        });
-        list.addEventListener('mouseleave', function () {
-            box.style.marginLeft = "0rem";
-        });
-    } catch {}
+    });
 }
 
 /* 影片美化 */
@@ -174,7 +208,7 @@ async function VideoBeautify() {
 
 /* 載入原圖 */
 async function OriginalImage() {
-    set = GetSettings("ImgSet");
+    const set = GetSettings("ImgSet");
     addstyle(`
         .img-style {
             display: block;
@@ -262,22 +296,9 @@ async function removlistener(element, type) {
 
 /* 簡易隱藏廣告 */
 async function AdHiding() {
-    document.querySelectorAll(".ad-container").forEach(function (element) {
-        try { element.style.display = "none" } catch { element.style.visibility = "hidden" }
-    })
-    let attempts = 0, interval = setInterval(function () {
-        if (attempts < 5) {
-            document.querySelectorAll(".root--ujvuu").forEach((element) => {
-                try {
-                    element.style.opacity = 0;
-                    element.style.visibility = "hidden";
-                } catch {
-                    element.style.visibility = "hidden";
-                }
-            });
-            attempts++;
-        } else { clearInterval(interval) }
-    }, 700);
+    GM_addStyle(`
+        .ad-container, .root--ujvuu {display: none}
+    `);
 }
 
 /* 轉換下載連結參數 */
@@ -288,61 +309,46 @@ async function LinkOriented() {
 }
 
 /* 底部按鈕創建, 監聽快捷Ajex換頁 */
-async function Additional(comments) {
-    GM_addStyle(GM_getResourceText("font-awesome"));
-    const prev = document.querySelector("a.post__nav-link.prev");
-    const next = document.querySelector("a.post__nav-link.next");
-    const span = document.createElement("span");
-    const svg = document.createElement("svg");
-    span.style = "float: right";
-    span.appendChild(next.cloneNode(true));
-    svg.innerHTML = `
-        <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-            <style>svg{fill:#e8a17d}</style>
-            <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
-        </svg>
-    `
-    buffer.appendChild(svg);
-    buffer.appendChild(span);
-    comments.appendChild(buffer);
-    addlistener(svg, "click", () => {
-        document.querySelector("header").scrollIntoView();
-    })
-
-    // 監聽按鍵切換
-    /* 暫時停用
-    const main = document.querySelector("main");
-    addlistener(document, "keydown", event => {
-        try {
-            if (event.key === "4") {
-                event.preventDefault();
-                removlistener(document, "keydown");
-                AjexReplace(prev.href, main);
-            } else if (event.key === "6") {
-                event.preventDefault();
-                removlistener(document, "keydown");
-                AjexReplace(next.href, main);
-            }
-        } catch {}
-    })*/
+async function Additional() {
+    const interval = setInterval(() => {
+        const comments = document.querySelector("h2.site-section__subheading");
+        const prev = document.querySelector("a.post__nav-link.prev");
+        const next = document.querySelector("a.post__nav-link.next");
+        if (comments && prev && next) {
+            clearInterval(interval);
+            const span = document.createElement("span");
+            const svg = document.createElement("svg");
+            span.style = "float: right";
+            span.appendChild(next.cloneNode(true));
+            svg.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
+                    <style>svg{fill:#e8a17d}</style>
+                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
+                </svg>
+            `
+            buffer.appendChild(svg);
+            buffer.appendChild(span);
+            comments.appendChild(buffer);
+            addlistener(svg, "click", () => {
+                document.querySelector("header").scrollIntoView();
+            })
+            // 監聽按鍵切換
+            /* 暫時停用
+            const main = document.querySelector("main");
+            addlistener(document, "keydown", event => {
+                if (event.key === "4") {
+                    event.preventDefault();
+                    removlistener(document, "keydown");
+                    AjexReplace(prev.href, main);
+                } else if (event.key === "6") {
+                    event.preventDefault();
+                    removlistener(document, "keydown");
+                    AjexReplace(next.href, main);
+                }
+            })*/
+        }
+    }, 300);
 }
-
-GM_addStyle(`
-    .gif-overlay {
-        position: absolute;
-        opacity: 0.4;
-        top: 50%;
-        left: 50%;
-        width: 70%;
-        height: 70%;
-        z-index: 9999;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-    }
-    .diluted-information {
-        opacity: 0.4;
-    }
-`);
 
 /* 將瀏覽帖子頁面都變成開新分頁, 帖子說明文字淡化, 和滑鼠懸浮恢復 */
 async function NewTabOpens() {
@@ -369,13 +375,7 @@ async function NewTabOpens() {
 
 /* Ajex 替換頁面的初始化 */
 async function Initialization() {
-    let interval = setInterval(function () {
-        const comments = document.querySelector("h2.site-section__subheading");
-        if (comments) {
-            Additional(comments);
-            clearInterval(interval);
-        }
-    }, 300);
+    Additional();
     setTimeout(OriginalImage, 500);
     setTimeout(VideoBeautify, 500);
     document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
@@ -420,7 +420,6 @@ async function AjexPostToggle() {
                 history.pushState(null, null, link);
                 AjexPostToggle();
                 NewTabOpens();
-                AdHiding();
             }
         });
     }
@@ -432,10 +431,10 @@ async function AjexPostToggle() {
                 Request(ma.href);
             })
         });
-    } catch { }
+    } catch {}
 }
 
-/* 及時設置 */
+/* 及時設置響應 */
 const styleRules = {
     img_h: value => img_rule[0].style.height = `${value}`,
     img_w: value => img_rule[0].style.width = `${value}`,
@@ -454,9 +453,19 @@ async function Menu() {
                 <table class="modal-box">
                     <tr>
                         <td class="menu">
-                            <h2 class="menu-text">${language[1]}</h2>
-                            <button class="menu-options" id="image-settings">${language[2]}</button>
-                            <button class="menu-options" disabled>null</button>
+                            <h2 class="menu-text">${language.MT_01}</h2>
+                            <ul>
+                                <li>
+                                    <a class="toggle-menu" href="#image-settings-show">
+                                        <button class="menu-options" id="image-settings">${language.MO_01}</button>
+                                    </a>
+                                <li>
+                                <li>
+                                    <a class="toggle-menu" href="#">
+                                        <button class="menu-options" disabled>null</button>
+                                    </a>
+                                <li>
+                            </ul>
                         </td>
                         <td>
                             <table>
@@ -464,7 +473,7 @@ async function Menu() {
                                     <td class="content" id="set-content">
                                         <div id="image-settings-show" class="form-hidden">
                                             <div>
-                                                <h2 class="narrative">${language[3]}：</h2>
+                                                <h2 class="narrative">${language.MIS_01}：</h2>
                                                 <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)">
                                                     <select class="Image-input-settings" style="margin-left: 1rem;">
                                                         <option value="px" selected>px</option>
@@ -476,7 +485,7 @@ async function Menu() {
                                                     </select></p>
                                             </div>
                                             <div>
-                                                <h2 class="narrative">${language[4]}：</h2>
+                                                <h2 class="narrative">${language.MIS_02}：</h2>
                                                 <p><input type="number" id="img_w" class="Image-input-settings"
                                                         oninput="value = check(value)">
                                                     <select class="Image-input-settings" style="margin-left: 1rem;">
@@ -489,7 +498,7 @@ async function Menu() {
                                                     </select></p>
                                             </div>
                                             <div>
-                                                <h2 class="narrative">${language[5]}：</h2>
+                                                <h2 class="narrative">${language.MIS_03}：</h2>
                                                 <p><input type="number" id="img_mw" class="Image-input-settings"
                                                         oninput="value = check(value)">
                                                     <select class="Image-input-settings" style="margin-left: 1rem;">
@@ -502,7 +511,7 @@ async function Menu() {
                                                     </select></p>
                                             </div>
                                             <div>
-                                                <h2 class="narrative">${language[6]}：</h2><p>
+                                                <h2 class="narrative">${language.MIS_04}：</h2><p>
                                                     <input type="number" id="img_gap" class="Image-input-settings"
                                                         oninput="value = check(value)">
                                                     <select class="Image-input-settings" style="margin-left: 1rem;">
@@ -520,17 +529,17 @@ async function Menu() {
                                 <tr>
                                     <td class="button-area">
                                         <select id="language">
-                                            <option value="" disabled selected>${language[7]}</option>
-                                            <option value="en">${language[8]}</option>
-                                            <option value="zh-TW">${language[9]}</option>
-                                            <option value="zh-CN">${language[10]}</option>
-                                            <option value="ja">${language[11]}</option>
+                                            <option value="" disabled selected>${language.ML_01}</option>
+                                            <option value="en">${language.ML_02}</option>
+                                            <option value="zh-TW">${language.ML_03}</option>
+                                            <option value="zh-CN">${language.ML_04}</option>
+                                            <option value="ja">${language.ML_05}</option>
                                         </select>
-                                        <button id="readsettings" class="button-options">${language[12]}</button>
+                                        <button id="readsettings" class="button-options">${language.MB_01}</button>
                                         <span class="button-space"></span>
-                                        <button id="closure" class="button-options">${language[13]}</button>
+                                        <button id="closure" class="button-options">${language.MB_02}</button>
                                         <span class="button-space"></span>
-                                        <button id="application" class="button-options">${language[14]}</button>
+                                        <button id="application" class="button-options">${language.MB_03}</button>
                                     </td>
                                 </tr>
                             </table>
@@ -541,6 +550,8 @@ async function Menu() {
         </div>
     `
     $(document.body).append(menu);
+    $(".modal-interface").draggable();
+    $(".modal-interface").tabs();
     // 菜單選擇
     $("#image-settings").on("click", function () {
         $("#image-settings-show").css({
@@ -597,7 +608,7 @@ async function Menu() {
         })
     });
     // 應用保存
-    let array = [], save = {};
+    let save = {};
     $("#application").on("click", function () {
         $("#application").off("click");
         const img_set = $("#image-settings-show").find("p");
@@ -613,7 +624,14 @@ async function Menu() {
             }
         })
         array = [save];
-        GM_setValue("ImgSet", array);
+        GM_setValue("ImgSet", [save]);
+
+        // 菜單資訊
+        save = {};
+        const menu_location = $(".modal-interface");
+        save["MT"] = menu_location.css("top");
+        save["ML"] = menu_location.css("left");
+        GM_setValue("MenuSet", [save])
         $(".modal-background").remove();
     });
     // 關閉菜單
@@ -634,6 +652,7 @@ async function MenuDependent() {
             return value || 0;
         }
     `);
+    const set = GetSettings("MenuSet");
     addstyle(`
         .modal-background {
             top: 0;
@@ -649,20 +668,20 @@ async function MenuDependent() {
         }
         /* 模態介面 */
         .modal-interface {
+            top: ${set.MT};
+            left: ${set.ML};
             margin: 0;
-            top: 2vh;
-            right: 3vw;
             display: flex;
             overflow: auto;
             position: fixed;
             border-radius: 5px;
+            pointer-events: auto;
             background-color: #2C2E3E;
             border: 3px solid #EE2B47;
         }
         /* 模態內容盒 */
         .modal-box {
             padding: 0.5rem;
-            overflow: auto;
             height: 50vh;
             width: 32vw;
         }
@@ -777,6 +796,12 @@ async function MenuDependent() {
             overflow: hidden;
             transition: opacity 0.8s, height 0.8s, width 0.8s;
         }
+        .toggle-menu {
+            height: 0;
+            width: 0;
+            padding: 0;
+            margin: 0;
+        }
         /* 整體框線 */
         table,
         td {
@@ -792,79 +817,84 @@ async function MenuDependent() {
         option {
             color: #F6F6F6;
         }
+        ul {
+            list-style: none;
+            padding: 0px;
+            margin: 0px;
+        }
     `);
 }
 
 function display_language(language) {
     let display = {
-        "zh-TW": [
-            "📝 設置選單",
-            "設置菜單",
-            "圖像設置",
-            "圖片高度",
-            "圖片寬度",
-            "圖片最大寬度",
-            "圖片間隔高度",
-            "語言",
-            "英文",
-            "繁體",
-            "簡體",
-            "日文",
-            "讀取設定",
-            "關閉離開",
-            "保存應用",
-        ],
-        "zh-CN": [
-            "📝 设置菜单",
-            "设置菜单",
-            "图像设置",
-            "图片高度",
-            "图片宽度",
-            "图片最大宽度",
-            "图片间隔高度",
-            "语言",
-            "英文",
-            "繁体",
-            "简体",
-            "日文",
-            "读取设置",
-            "关闭退出",
-            "保存应用",
-        ],
-        "ja": [
-            "📝 設定メニュー",
-            "設定メニュー",
-            "画像設定",
-            "画像の高さ",
-            "画像の幅",
-            "画像の最大幅",
-            "画像の間隔の高さ",
-            "言語",
-            "英語",
-            "繁体字",
-            "簡体字",
-            "日本語",
-            "設定を読み込む",
-            "閉じる終了",
-            "アプリを保存する",
-        ],
-        "en": [
-            "📝 Settings Menu",
-            "Settings Menu",
-            "Image Settings",
-            "Image Height",
-            "Image Width",
-            "Image Max Width",
-            "Image Spacing Height",
-            "Language",
-            "English",
-            "Traditional",
-            "Simplified",
-            "Japanese",
-            "Load Settings",
-            "Close Exit",
-            "Save Application",
-        ],
+        "zh-TW": [{
+            "RM_01" : "📝 設置選單",
+            "MT_01" : "設置菜單",
+            "MO_01" : "圖像設置",
+            "MB_01" : "讀取設定",
+            "MB_02" : "關閉離開",
+            "MB_03" : "保存應用",
+            "ML_01" : "語言",
+            "ML_02" : "英文",
+            "ML_03" : "繁體",
+            "ML_04" : "簡體",
+            "ML_05" : "日文",
+            "MIS_01" : "圖片高度",
+            "MIS_02" : "圖片寬度",
+            "MIS_03" : "圖片最大寬度",
+            "MIS_04" : "圖片間隔高度"
+        }],
+        "zh-CN": [{
+            "RM_01" : "📝 设置菜单",
+            "MT_01" : "设置菜单",
+            "MO_01" : "图像设置",
+            "MB_01" : "读取设置",
+            "MB_02" : "关闭退出",
+            "MB_03" : "保存应用",
+            "ML_01" : "语言",
+            "ML_02" : "英文",
+            "ML_03" : "繁体",
+            "ML_04" : "简体",
+            "ML_05" : "日文",
+            "MIS_01" : "图片高度",
+            "MIS_02" : "图片宽度",
+            "MIS_03" : "图片最大宽度",
+            "MIS_04" : "图片间隔高度"
+        }],
+        "ja": [{
+            "RM_01" : "📝 設定メニュー",
+            "MT_01" : "設定メニュー",
+            "MO_01" : "画像設定",
+            "MB_01" : "設定の読み込み",
+            "MB_02" : "閉じて終了する",
+            "MB_03" : "保存して適用する",
+            "ML_01" : "言語",
+            "ML_02" : "英語",
+            "ML_03" : "繁体字",
+            "ML_04" : "簡体字",
+            "ML_05" : "日本語",
+            "MIS_01" : "画像の高さ",
+            "MIS_02" : "画像の幅",
+            "MIS_03" : "画像の最大幅",
+            "MIS_04": "画像の間隔の高さ"
+        }],
+        "en": [{
+            "RM_01" : "📝 Settings Menu",
+            "MT_01" : "Settings Menu",
+            "MO_01" : "Image Settings",
+            "MB_01" : "Load Settings",
+            "MB_02" : "Close and Exit",
+            "MB_03" : "Save and Apply",
+            "ML_01" : "Language",
+            "ML_02" : "English",
+            "ML_03" : "Traditional Chinese",
+            "ML_04" : "Simplified Chinese",
+            "ML_05" : "Japanese",
+            "MIS_01" :"Image Height",
+            "MIS_02" : "Image Width",
+            "MIS_03" : "Maximum Image Width",
+            "MIS_04" : "Image Spacing Height"
+        }],
     };
-    return display[language] || display["en"];
+    return display[language][0] || display["en"][0];
 }
