@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.10
+// @version         0.0.11
 // @author          HentiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -25,14 +25,24 @@
 // @grant           GM_setValue
 // @grant           GM_getValue
 
-// @require         https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.slim.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// @require         https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require         https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // ==/UserScript==
 
 var modal, style_rule, set, DisplayMode = GM_getValue("DisplayMode", null), language = display_language(navigator.language);
 function GetSettings() {
-    let Settings = GM_getValue("Settings", null) || [{ "BC": "#000000", "ULS": "0rem", "BW": "100%", "MW": "60%", "BH": "auto", "MH": "auto" }];
+    let Settings = GM_getValue("Settings", null) || [{
+        "BC": "#000",
+        "ULS": "0rem",
+        "BW": "100%",
+        "MW": "60%",
+        "BH": "auto",
+        "MH": "auto",
+        "MT": "auto",
+        "ML": "auto"
+    }];
     return Settings[0];
 }
 
@@ -81,7 +91,7 @@ async function ImageGeneration(box, current, total) {
                     dom = parser.parseFromString(html, "text/html").getElementById("photo_body");
                     NLink = dom.querySelector("a").href;
                     img = dom.querySelector("img").src;
-                    ReactDOM.render(React.createElement(Auto_ReactRender, { OLink: link, src: img }), box.appendChild(document.createElement("div")));
+                    await ReactDOM.render(React.createElement(Auto_ReactRender, { OLink: link, src: img }), box.appendChild(document.createElement("div")));
                     total_pages--;
                     await Auto_NextPage(NLink);
                 })
@@ -183,11 +193,13 @@ function Analyze(value) {
 /* 變更樣式 */
 const styleRules = {
     ULS: value => style_rule[0].style.margin = `${value} auto`,
-    BW: value => style_rule[0].style.width = `${value}`,
-    BH: value => style_rule[0].style.height = `${value}`,
-    MW: value => {style_rule[0].style.maxWidth = `${value}`; style_rule[2].style.maxWidth = `${value}`},
-    MH: value => style_rule[0].style.maxHeight = `${value}`,
-    BC: value => style_rule[1].style.background = `${value}`
+    BW: value => style_rule[0].style.width = value,
+    BH: value => style_rule[0].style.height = value,
+    MW: value => {style_rule[0].style.maxWidth = value; style_rule[2].style.maxWidth = value},
+    MH: value => style_rule[0].style.maxHeight = value,
+    BC: value => style_rule[1].style.background = value,
+    MT: value => style_rule[9].style.top = value,
+    ML: value => style_rule[9].style.left = value
 };
 
 /* 設定介面 */
@@ -244,6 +256,7 @@ async function SettingInterface() {
         </div>
     `
     $(document.body).append(modal);
+    $(".modal-interface").draggable();
     $("#BC").on("input", event => {
         value = $(event.target).val();
         id = event.target.id;
@@ -294,11 +307,16 @@ async function SettingInterface() {
                 if (value === "9") { save[id] = "auto" } else { save[id] = `${value}rem` }
             } else { save[id] = value }
         });
-        // 保存數據進行轉換
-        array = [save]
+        const menu_location = $(".modal-interface");
+        const top = menu_location.css("top");
+        const left = menu_location.css("left");
+        save["MT"] = top;
+        save["ML"] = left;
         // 判斷顯示狀態
         if ($("#DMS").prop("checked")) {GM_setValue("DisplayMode", "checked")} else {GM_setValue("DisplayMode", "")}
-        GM_setValue("Settings", array);
+        GM_setValue("Settings", [save]);
+        styleRules["MT"](top);
+        styleRules["ML"](left);
         $('.modal-background').remove();
     });
     $(document).on("keydown", function(event) {
@@ -382,9 +400,10 @@ async function ImportStyle() {
             position: fixed;
             overflow: auto;
             pointer-events: none;
-            background-color: rgba(0, 0, 0, 0.1);
         }
         .modal-interface {
+            top: ${set.MT};
+            left: ${set.ML};
             margin: auto;
             color: #3d8fe7;
             padding: 1% 2%;
