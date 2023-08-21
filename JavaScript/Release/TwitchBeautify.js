@@ -57,7 +57,7 @@ async function HomeRecovery(Nav, CB, CX) {
         if (window.location.href === "https://www.twitch.tv/") {
             observer.disconnect();
             Nav.classList.remove("Nav_Effect");
-            CX.singleNodeValue.classList.remove("Channel_Expand_Effect");
+            CX.classList.remove("Channel_Expand_Effect");
             CB.classList.remove("button_Effect");
             // 嘗試重新展開(非強制)
             if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {CB.click()}
@@ -77,7 +77,7 @@ function FindPlayPage() {
         // 取得頻道列 button
         const Channel_Button = document.querySelector("button[data-a-target='side-nav-arrow']");
         // 取得頻道元素
-        const Channel_Xpath = document.evaluate('//*[@id="root"]/div/div[2]/div/div[1]', document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null);
+        const Channel_Xpath = document.querySelector(".side-nav").parentNode;
         const Collapsed_State = document.querySelector(".simplebar-track.vertical");
         if (Nav && Chat_button && Channel_Button && Channel_Xpath && Collapsed_State) {
             // 判斷兩次總該打開了吧
@@ -99,7 +99,7 @@ async function Beautify(Nav, CX) {
         .Nav_Effect {
             opacity: 0;
             height: 1rem !important;
-            transition: opacity 0.3s , height 0.8s;
+            transition: opacity 0.5s , height 0.8s;
         }
         .Nav_Effect:hover {
             opacity: 1;
@@ -108,7 +108,7 @@ async function Beautify(Nav, CX) {
         .Channel_Expand_Effect {
             opacity: 0;
             width: 1rem;
-            transition: opacity 0.3s , width 0.6s;
+            transition: opacity 0.4s , width 0.7s;
         }
         .Channel_Expand_Effect:hover {
             opacity: 1;
@@ -116,7 +116,7 @@ async function Beautify(Nav, CX) {
         }
     `);
     Nav.classList.add("Nav_Effect");
-    CX.singleNodeValue.classList.add("Channel_Expand_Effect");
+    CX.classList.add("Channel_Expand_Effect");
 }
 
 /* 影片暫停和靜音 */
