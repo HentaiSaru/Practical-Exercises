@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.26
+// @version      0.0.27
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -44,7 +44,7 @@ var menu, img_rule,
     parser = new DOMParser(),
     buffer = document.createDocumentFragment(),
     language = display_language(GM_getValue("language", null));
-(function () {
+(function () { /* ==================== 功能啟用 ====================  */
     let interval, tryerror = 0;
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
         UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
@@ -76,52 +76,58 @@ var menu, img_rule,
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             AjexPostToggle(); // Ajex 換頁
+            PostCardFade(); // 帖子文字卡淡化
             NewTabOpens(); // 自動新分頁
         }
     }, 500); // 功能常沒觸發, 延遲就調高 預設 500ms = 0.5s
 })();
 
-/* 樣式添加 */
-GM_addStyle(`
-    ${GM_getResourceText("font-awesome")}
-    .gif-overlay {
-        position: absolute;
-        opacity: 0.4;
-        top: 50%;
-        left: 50%;
-        width: 70%;
-        height: 70%;
-        z-index: 9999;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-    }
-    .diluted-information {
-        opacity: 0.4;
-    }
-`);
-/* 自訂樣式添加 */
-async function addstyle(rule) {
-    let new_style = document.getElementById("New-Add-Style");
+/* ==================== API ====================  */
+
+/* 樣式添加 API */
+async function addstyle(Rule, ID="New-Add-Style") {
+    let new_style = document.getElementById(ID);
     if (!new_style) {
         new_style = document.createElement("style");
-        new_style.id = "New-Add-Style";
+        new_style.id = ID;
         document.head.appendChild(new_style);
     }
-    new_style.appendChild(document.createTextNode(rule));
+    new_style.appendChild(document.createTextNode(Rule));
 }
 
-/* 腳本添加 */
-async function addscript(rule) {
-    let new_script = document.getElementById("New-Add-script");
+/* 腳本添加 API */
+async function addscript(Rule, ID="New-Add-script") {
+    let new_script = document.getElementById(ID);
     if (!new_script) {
         new_script = document.createElement("script");
-        new_script.id = "New-Add-script";
+        new_script.id = ID;
         document.head.appendChild(new_script);
     }
-    new_script.appendChild(document.createTextNode(rule));
+    new_script.appendChild(document.createTextNode(Rule));
 }
 
-/* 導入設定 */
+let ListenerRecord = new Map(), listen;
+/* 添加監聽API */
+async function addlistener(element, type, listener) {
+    if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
+        element.addEventListener(type, listener);
+        if (!ListenerRecord.has(element)) {
+            ListenerRecord.set(element, new Map());
+        }
+        ListenerRecord.get(element).set(type, listener);
+    }
+}
+
+/* 刪除監聽API */
+async function removlistener(element, type) {
+    if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
+        listen = ListenerRecord.get(element).get(type);
+        element.removeEventListener(type, listen);
+        ListenerRecord.get(element).delete(type);
+    }
+}
+
+/* 導入設定 API */
 function GetSettings(record) {
     let Settings;
     switch (record) {
@@ -143,11 +149,36 @@ function GetSettings(record) {
     return Settings[0];
 }
 
-/* ==================== */
+/* React 區域渲染API */
+function ReactRendering({ content }) {
+    return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
+}
+
+/* ==================== 功能邏輯 ====================  */
+
+/* 樣式添加 */
+GM_addStyle(GM_getResourceText("font-awesome"));
+addstyle(`
+    .gif-overlay {
+        position: absolute;
+        opacity: 0.6;
+        top: 50%;
+        left: 50%;
+        width: 80%;
+        height: 80%;
+        z-index: 9999;
+        border-radius: 50%;
+        transform: translate(-50%, -50%);
+        background-size: contain;
+        background-position: center;
+        background-repeat: no-repeat;
+        background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+    }
+`, "Effects");
 
 /* 美化介面 */
 async function Beautify(list, box, announce) {
-    GM_addStyle(`
+    addstyle(`
         .global-sidebar {
             opacity: 0;
             height: 100%;
@@ -168,7 +199,7 @@ async function Beautify(list, box, announce) {
             transition: 0.7s;
             margin-left: 0rem;
         }
-    `);
+    `, "Effects");
     announce.remove();
     list.addEventListener('mouseenter', function () {
         box.style.marginLeft = "10rem";
@@ -254,6 +285,7 @@ async function OriginalImage() {
         });
     }
 }
+/* 載入原圖 (死圖重試) */
 async function Reload(ID, retry) {
     if (retry > 0) {
         setTimeout(() => {
@@ -268,31 +300,6 @@ async function Reload(ID, retry) {
         }, 1800);
     }
 }
-
-/* ==================== */
-
-/* 監聽器的添加與刪除 */
-var ListenerRecord = new Map(), listen;
-
-async function addlistener(element, type, listener) {
-    if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-        element.addEventListener(type, listener);
-        if (!ListenerRecord.has(element)) {
-            ListenerRecord.set(element, new Map());
-        }
-        ListenerRecord.get(element).set(type, listener);
-    }
-}
-
-async function removlistener(element, type) {
-    if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
-        listen = ListenerRecord.get(element).get(type);
-        element.removeEventListener(type, listen);
-        ListenerRecord.get(element).delete(type);
-    }
-}
-
-/* ==================== */
 
 /* 簡易隱藏廣告 */
 async function AdHiding() {
@@ -350,41 +357,40 @@ async function Additional() {
     }, 300);
 }
 
-/* 將瀏覽帖子頁面都變成開新分頁, 帖子說明文字淡化, 和滑鼠懸浮恢復 */
+/* 帖子說明文字淡化 */
+async function PostCardFade() {
+    addstyle(`
+        .post-card__header, .post-card__footer {
+            opacity: 0.4;
+            transition: opacity 0.3s;
+            background: rgba(0,0,0,0.5);
+        }
+        a:hover .post-card__header,
+        a:hover .post-card__footer {
+            opacity: 1;
+        }
+    `, "Effects");
+}
+
+/* 將瀏覽帖子頁面都變成開新分頁 */
 async function NewTabOpens() {
     const card = document.querySelectorAll("div.card-list__items article a");
     card.forEach(link => {
-        link.querySelector("header").classList.add("diluted-information");
-        link.querySelector("footer").classList.add("diluted-information");
         addlistener(link, "click", event => {
             event.preventDefault();
             GM_openInTab(link.href, { active: false, insert: true });
         })
-        addlistener(link, "mouseenter", () => {
-            link.querySelector("header").classList.remove("diluted-information");
-            link.querySelector("footer").classList.remove("diluted-information");
-        })
-        addlistener(link, "mouseleave", () => {
-            link.querySelector("header").classList.add("diluted-information");
-            link.querySelector("footer").classList.add("diluted-information");
-        })
     });
 }
 
-/* ==================== */
-
-/* Ajex 替換頁面的初始化 */
+/* 替換頁面的初始化 */
 async function Initialization() {
     Additional();
     setTimeout(OriginalImage, 500);
     setTimeout(VideoBeautify, 500);
     document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
 }
-
-/* React 渲染優化 */
-function ReactRendering({ content }) {
-    return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
-}
+/* 快捷切換頁面 */
 async function AjexReplace(url, old_main) {
     xhr.onreadystatechange = function () {
         if (xhr.readyState === 4 && xhr.status === 200) {
@@ -399,16 +405,13 @@ async function AjexReplace(url, old_main) {
     xhr.send();
 }
 
-/* 帖子切換 */
+/* 帖子快速切換 */
 async function AjexPostToggle() {
     let Old_data, New_data, item;
     async function Request(link) {
         item = document.querySelector("div.card-list__items");
         item.style.position = "relative";
-        GM_addElement(item, "img", {
-            src: "https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif",
-            class: "gif-overlay"
-        });
+        GM_addElement(item, "img", {class: "gif-overlay"});
         GM_xmlhttpRequest({
             method: "GET",
             url: link,
@@ -434,12 +437,16 @@ async function AjexPostToggle() {
     } catch {}
 }
 
+/* ==================== 菜單 UI / 文本顯示 - 依賴項目 ====================  */
+
 /* 及時設置響應 */
 const styleRules = {
-    img_h: value => img_rule[0].style.height = `${value}`,
-    img_w: value => img_rule[0].style.width = `${value}`,
-    img_mw: value => img_rule[0].style.maxWidth = `${value}`,
-    img_gap: value => img_rule[0].style.margin = `${value} auto`
+    img_h: value => img_rule[0].style.height = value,
+    img_w: value => img_rule[0].style.width = value,
+    img_mw: value => img_rule[0].style.maxWidth = value,
+    img_gap: value => img_rule[0].style.margin = `${value} auto`,
+    MT: value => img_rule[2].style.top = value,
+    ML: value => img_rule[2].style.left = value
 };
 /* 創建菜單 */
 async function Menu() {
@@ -629,9 +636,13 @@ async function Menu() {
         // 菜單資訊
         save = {};
         const menu_location = $(".modal-interface");
-        save["MT"] = menu_location.css("top");
-        save["ML"] = menu_location.css("left");
+        const top = menu_location.css("top");
+        const left = menu_location.css("left");
+        save["MT"] = top;
+        save["ML"] = left;
         GM_setValue("MenuSet", [save])
+        styleRules["MT"](top);
+        styleRules["ML"](left);
         $(".modal-background").remove();
     });
     // 關閉菜單
@@ -664,7 +675,6 @@ async function MenuDependent() {
             overflow: auto;
             position: fixed;
             pointer-events: none;
-            background-color: rgba(0, 0, 0, 0.1);
         }
         /* 模態介面 */
         .modal-interface {
