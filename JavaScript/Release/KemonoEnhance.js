@@ -71,7 +71,7 @@ var menu, img_rule,
             OriginalImage(); // 自動大圖
             LinkOriented(); // 連結轉換
             VideoBeautify(); // 影片美化
-            Additional(); // 下方創建按鈕, Ajex 快捷換頁
+            Additional(); // 下方創建按鈕, Ajex 換頁
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
@@ -291,13 +291,13 @@ async function Reload(ID, retry) {
         setTimeout(() => {
             let object = document.getElementById(ID), old = object.querySelector("img"), img = document.createElement("img");
             img.src = old.src;
-            img.alt = "Click Reload";
+            img.alt = "Reload";
             img.className = "img-style";
             img.onerror = function () { Reload(ID, retry) };
             old.remove();
             object.appendChild(buffer.appendChild(img));
             retry - 1;
-        }, 1800);
+        }, 1500);
     }
 }
 
@@ -342,10 +342,11 @@ async function Additional() {
         const comments = document.querySelector("h2.site-section__subheading");
         const prev = document.querySelector("a.post__nav-link.prev");
         const next = document.querySelector("a.post__nav-link.next");
-        if (comments && prev && next) {
+        if (comments) {
             clearInterval(interval);
             const span = document.createElement("span");
             const svg = document.createElement("svg");
+            span.id = "next_box";
             span.style = "float: right";
             span.appendChild(next.cloneNode(true));
             svg.innerHTML = `
@@ -360,6 +361,11 @@ async function Additional() {
             addlistener(svg, "click", () => {
                 document.querySelector("header").scrollIntoView();
             })
+            const main = document.querySelector("main");
+            addlistener(document.querySelector("#next_box a"), "click", event => {
+                event.preventDefault();
+                AjexReplace(next.href, main);
+            });
             // 監聽按鍵切換
             /* 暫時停用
             const main = document.querySelector("main");
@@ -407,6 +413,9 @@ async function NewTabOpens() {
 /* 替換頁面的初始化 */
 async function Initialization() {
     Additional();
+    if (document.querySelectorAll(".post__content img").length > 2) {
+        document.querySelector(".post__content").remove();
+    }
     setTimeout(OriginalImage, 500);
     setTimeout(VideoBeautify, 500);
     document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
