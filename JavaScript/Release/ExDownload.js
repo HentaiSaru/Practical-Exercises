@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -30,11 +30,11 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.9.1/jszip.min.js
+// @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
-var count = 0,
+var count = 0, debug = false,
 ModeDisplay,
 parser = new DOMParser(),
 OriginalTitle = document.title,
@@ -136,7 +136,7 @@ function GetExtension(link) {
 /* 主頁數據處理 */
 async function HomeDataProcessing(button) {
     let title,
-    homebox = [],
+    homepage = new Map(),
     pages = GetTotal(document.querySelector("div#gdd").querySelectorAll("td.gdt2"));
     try {
         title = document.getElementById("gj").textContent.trim();
@@ -148,26 +148,39 @@ async function HomeDataProcessing(button) {
     title = IllegalFilter(title);
     pages = Math.ceil(pages / 20);
 
-    async function GetLink(data) { // 獲取頁面所有連結
+    async function GetLink(index, data) { // 獲取頁面所有連結
+        const homebox = [];
         data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
-            homebox.push(link.href);
+            homebox.push(link.href)
         });
+        homepage.set(index, homebox); // 確保索引順序
     }
 
-    async function FetchRequest(url) { // 數據請求
+    async function FetchRequest(index, url) { // 數據請求
         const response = await fetch(url);
         const html = await response.text();
-        await GetLink(parser.parseFromString(html, "text/html"));
+        await GetLink(index, parser.parseFromString(html, "text/html"));
     }
 
-    const promises = [FetchRequest(url)];
+    const promises = [FetchRequest(0, url)];
     for (let i = 1; i < pages; i++) {
-        promises.push(FetchRequest(`${url}?p=${i}`));
+        promises.push(FetchRequest(i, `${url}?p=${i}`));
         button.textContent = `${language[5]}: [${i+1}/${pages}]`;
         await new Promise(resolve => setTimeout(resolve, 100));
     }
-
     await Promise.allSettled(promises);
+
+    const homebox = [];
+    for (let i = 0; i < homepage.size; i++) {
+        homebox.push(...homepage.get(i));
+    }
+
+    if (debug) {
+        console.groupCollapsed("Home Page Data");
+        console.log(`[Title] : ${title}`);
+        console.log(homebox);
+        console.groupEnd();
+    }
     ImageLinkProcessing(button, title, homebox);
 }
 
@@ -203,6 +216,11 @@ async function ImageLinkProcessing(button, title, link) {
     }
 
     await Promise.allSettled(promises);
+    if (debug) {
+        console.groupCollapsed("Img Link Data");
+        console.log(imgbox);
+        console.groupEnd();
+    }
     DownloadTrigger(button, title, imgbox);
 }
 
@@ -236,7 +254,7 @@ async function ZipDownload(Button, Folder, ImgData) {
                             resolve();
                         } else {
                             if (retry > 0) {
-                                console.log(`Request Retry : [${retry}]`);
+                                if (debug) {console.log(`Request Retry : [${retry}]`)}
                                 Request(index, retry-1);
                                 resolve();
                             } else {
@@ -246,7 +264,7 @@ async function ZipDownload(Button, Folder, ImgData) {
                     },
                     onerror: error => {
                         if (retry > 0) {
-                            console.log(`Request Retry : [${retry}]`);
+                            if (debug) {console.log(`Request Retry : [${retry}]`)}
                             Request(index, retry-1);
                             resolve();
                         } else {
@@ -330,7 +348,7 @@ async function ImageDownload(Button, Folder, ImgData) {
                     },
                     onerror: () => {
                         if (retry > 0) {
-                            console.log(`Request Retry : [${retry}]`);
+                            if (debug) {console.log(`Request Retry : [${retry}]`)}
                             Request(index, retry-1);
                             resolve();
                         } else {
