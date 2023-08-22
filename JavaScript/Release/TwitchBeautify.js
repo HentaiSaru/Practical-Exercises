@@ -59,8 +59,6 @@ async function HomeRecovery(Nav, CB, CX) {
             Nav.classList.remove("Nav_Effect");
             CX.classList.remove("Channel_Expand_Effect");
             CB.classList.remove("button_Effect");
-            // 嘗試重新展開(非強制)
-            if (document.querySelector(".simplebar-track.vertical").style.visibility === "hidden") {CB.click()}
             main();// 重新執行美化監聽
         }
     });
