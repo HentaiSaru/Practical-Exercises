@@ -4,7 +4,7 @@
 // @name:zh-CN   Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentaiSaru
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
@@ -23,7 +23,12 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
+
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
+// @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
 
 (function() {
@@ -46,6 +51,8 @@ async function main() {
         if (pattern.test(window.location.href) && document.querySelector("video")) {
             observer.disconnect();
             FindPlayPage();
+            // $("div[data-a-player-state='']").css("z-index", "9999");
+            fun($("div[data-a-player-state='']"), false);
         }
     });
     observer.observe(document.head, {childList: true, subtree: true});
@@ -56,9 +63,10 @@ async function HomeRecovery(Nav, CB, CX) {
     const observer = new MutationObserver(() => {
         if (window.location.href === "https://www.twitch.tv/") {
             observer.disconnect();
-            Nav.classList.remove("Nav_Effect");
-            CX.classList.remove("Channel_Expand_Effect");
-            CB.classList.remove("button_Effect");
+            Nav.removeClass("Nav_Effect");
+            CX.removeClass("Channel_Expand_Effect");
+            CB.removeClass("button_Effect");
+            fun($("div[data-a-player-state='mini']"));
             main();// 重新執行美化監聽
         }
     });
@@ -69,18 +77,19 @@ async function HomeRecovery(Nav, CB, CX) {
 function FindPlayPage() {
     let interval = setInterval(function() {
         // 取得導覽列
-        const Nav = document.querySelector("nav.InjectLayout-sc-1i43xsx-0.ghHeNF");
+        const Nav = $("nav.InjectLayout-sc-1i43xsx-0.ghHeNF");
         // 取得聊天室 button
-        const Chat_button = document.querySelector("button[data-a-target='right-column__toggle-collapse-btn']");
+        const Chat_button = $("button[data-a-target='right-column__toggle-collapse-btn']");
         // 取得頻道列 button
-        const Channel_Button = document.querySelector("button[data-a-target='side-nav-arrow']");
+        const Channel_Button = $("button[data-a-target='side-nav-arrow']");
         // 取得頻道元素
-        const Channel_Xpath = document.querySelector(".side-nav").parentNode;
-        const Collapsed_State = document.querySelector(".simplebar-track.vertical");
-        if (Nav && Chat_button && Channel_Button && Channel_Xpath && Collapsed_State) {
+        const Channel_Xpath = $(".side-nav").parent();
+        const Collapsed_State = $(".simplebar-track.vertical");
+        if (Nav.length > 0 && Chat_button.length > 0 && Channel_Button.length > 0 && Channel_Xpath.length > 0 && Collapsed_State.length > 0) {
             // 判斷兩次總該打開了吧
-            if (Collapsed_State.style.visibility !== "visible") {Channel_Button.click()}
-            if (Collapsed_State.style.visibility === "hidden") {Channel_Button.click()}
+            if (Collapsed_State.css("visibility") !== "visible") {Channel_Button.click()}
+            if (Collapsed_State.css("visibility") === "hidden") {Channel_Button.click()}
+            AdProcessing();
             Beautify(Nav, Channel_Xpath); // 介面美化
             AutoClickC(Chat_button, Channel_Button); // 懶人自動點擊
             PlayerAborted(false); // 恢復聲音
@@ -113,8 +122,8 @@ async function Beautify(Nav, CX) {
             width: 24rem;
         }
     `);
-    Nav.classList.add("Nav_Effect");
-    CX.classList.add("Channel_Expand_Effect");
+    Nav.addClass("Nav_Effect");
+    CX.addClass("Channel_Expand_Effect");
 }
 
 /* 影片暫停和靜音 */
@@ -149,18 +158,18 @@ async function PlayerAborted(control) {
     }, 1000);
 }
 
-/* 恢復觀看 */
+/* 自動恢復觀看 */
 async function ResumeWatching() {
     let recover;
     const observer = new MutationObserver(() => {
-        try {recover = document.querySelector("div[data-a-target='player-overlay-content-gate']").querySelector("button")} catch {}
-        if (recover) {
+        try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
+        if (recover.length > 0) {
             recover.click();
         } else if (window.location.href === "https://www.twitch.tv/") {
             observer.disconnect();
         }
     });
-    observer.observe(document.querySelector("div.InjectLayout-sc-1i43xsx-0.persistent-player"), {childList: true, subtree: true});
+    observer.observe($("div[data-a-player-state='']")[0], {childList: true, subtree: true});
 }
 
 /* 懶人自動點擊 */
@@ -175,32 +184,104 @@ async function AutoClickC(Chat_button, Channel_Button) {
         }
     `);
     let timer, timer2;
-    Chat_button.classList.add("button_Effect");
-    Chat_button.addEventListener('mouseenter', function() {
+    Chat_button.addClass("button_Effect");
+    Channel_Button.addClass("button_Effect");
+
+    Chat_button.on('mouseenter', function() {
         timer = setTimeout(function() {
             Chat_button.click();
         }, 250);
     });
-    Chat_button.addEventListener('mouseleave', function() {
-        Chat_button.classList.add("button_Effect");
+    Chat_button.on('mouseleave', function() {
+        Chat_button.addClass("button_Effect");
         clearTimeout(timer);
     });
-    Channel_Button.classList.add("button_Effect");
-    Channel_Button.style.transform = "translateY(19px)";
-    Channel_Button.addEventListener('mouseenter', function() {
+
+    Channel_Button.css("transform", "translateY(19px)");
+    Channel_Button.on('mouseenter', function() {
         timer2 = setTimeout(function() {
             Channel_Button.click();
         }, 250);
     });
-    Channel_Button.addEventListener('mouseleave', function() {
-        Channel_Button.classList.add("button_Effect");
+    Channel_Button.on('mouseleave', function() {
+        Channel_Button.addClass("button_Effect");
         clearTimeout(timer2);
     });
 }
 
+GM_addStyle(GM_getResourceText("jui"));
+/* 拖動添加 */
+async function fun(element, state=true) {
+    if (element.length > 0) {
+        if (state) {
+            element.draggable();
+            element.resizable({
+                handles: "all",
+                minWidth: 50,
+                minHeight: 50,
+            });
+        } else {
+            element.draggable("destroy");
+            element.resizable("destroy");
+        }
+    }
+}
+
 /* 刪除頁腳 */
 async function DeleteFooter() {
-    try {document.getElementById("twilight-sticky-footer-root").style.display = "none"} catch {}
+    try {$("#twilight-sticky-footer-root").css("display", "none")} catch {}
+}
+
+/* 添加js */
+async function addscript(Rule, ID="New-Add-script") {
+    let new_script = document.getElementById(ID);
+    if (!new_script) {
+        new_script = document.createElement("script");
+        new_script.id = ID;
+        document.head.appendChild(new_script);
+    }
+    new_script.appendChild(document.createTextNode(Rule));
+}
+
+/* 隨便寫的隱藏廣告, 也不知道有沒有屁用 (測試) */
+async function AdProcessing() {
+    GM_addStyle(`
+        .stream-display-ad__wrapper,
+        .stream-display-ad__wrapper-hidden,
+        .stream-display-ad__frame_squeezeback,
+        .stream-display-ad__wrapper_squeezeback,
+        .stream-display-ad__container_squeezeback,
+        .stream-display-ad__transform-container_squeezeback {
+            height: 0px;
+            width: 0px;
+            z-index: 1;
+            display: none;
+        }
+    `);
+    addscript(`
+        const BlockDomains = [
+            "sentry.io",
+            "usher.ttvnw.net",
+            "static.twitchcdn.net",
+            "sb.scorecardresearch.com",
+            "global.poe.live-video.net",
+            "myemotes-backend.grab-colab.com",
+        ];
+        const ADobserver = new MutationObserver(() => {
+            let FetchRequest = window.fetch;
+            window.fetch = function(url, options) {
+                if (BlockDomains.includes(new URL(url).hostname)) {
+                    return;
+                } else if (window.location.href === "https://www.twitch.tv/") {
+                    ADobserver.disconnect();
+                }
+                return FetchRequest.apply(this, arguments);
+            };
+        });
+        ADobserver.observe(document, {childList: true, subtree: true});
+    `)
+    const ad = $(".stream-display-ad__wrapper");
+    if (ad.length > 0) {ad.remove()}
 }
 
 /* 使用設置開關 */
