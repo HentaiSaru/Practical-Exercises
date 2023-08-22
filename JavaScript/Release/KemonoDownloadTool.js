@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -31,7 +31,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jszip/3.9.1/jszip.min.js
+// @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
@@ -42,7 +42,8 @@ url = window.location.href.match(regex),
 dict = {},
 Pages=0,
 OriginalTitle = document.title,
-ModeDisplay;
+ModeDisplay,
+debug = false;
 (function() {
     const observer = new MutationObserver(() => {
         if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
@@ -150,6 +151,12 @@ function DownloadTrigger(button) {
                 link = files.href || files.querySelector("img").src;
                 data.set(index, link.split("?f=")[0]);
             });
+            if (debug) {
+                console.groupCollapsed("Get Data");
+                console.log(`[${user}] ${title}`);
+                console.log(data);
+                console.groupEnd();
+            }
             if (CompressMode) {
                 ZipDownload(`[${user}] ${title}`, data, button);
             } else {
@@ -171,7 +178,7 @@ async function ZipDownload(Folder, ImgData, Button) {
     function Request(index, retry) {
         link = ImgData.get(index);
         extension = GetExtension(link);
-        return new Promise((resolve) => {
+        return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: "GET",
                 url: link,
@@ -187,21 +194,27 @@ async function ZipDownload(Folder, ImgData, Button) {
                         resolve();
                     } else {
                         if (retry > 0) {
+                            if (debug) {console.log(`Request Retry : [${retry}]`)}
                             Request(index, retry-1);
-                            console.log(`[${retry}] : ${link}`);
-                        } else {
-                            console.log(`[error] : ${link}`);
                             resolve();
+                        } else {
+                            console.groupCollapsed("Request Error");
+                            console.log(`[Request Error] : ${link}`);
+                            console.groupEnd();
+                            reject(new Error("Request error"));
                         }
                     }
                 },
                 onerror: error => {
                     if (retry > 0) {
+                        if (debug) {console.log(`Request Retry : [${retry}]`)}
                         Request(index, retry-1);
-                        console.log(`[${retry}] : ${link}`);
-                    } else {
-                        console.log(`[error] : ${link}`);
                         resolve();
+                    } else {
+                        console.groupCollapsed("Request Error");
+                        console.log(`[Request Error] : ${link}`);
+                        console.groupEnd();
+                        reject(error);
                     }
                 }
             });
