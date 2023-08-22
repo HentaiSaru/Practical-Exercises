@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.27
+// @version      0.0.28
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -64,9 +64,9 @@ var menu, img_rule,
         }
     }
     interval = setInterval(() => {Main()}, 300);
-    // 附加選項
-    setTimeout(() => {
-        AdHiding(); // 隱藏廣告
+    // Ad_Simplify_Hide(); // 簡化版隱藏廣告
+    Ad_Full_Clear(); // 完整版隱藏廣告 [測試中]
+    setTimeout(() => { // 附加選項
         if (pattern.test(Url)) {
             OriginalImage(); // 自動大圖
             LinkOriented(); // 連結轉換
@@ -302,10 +302,31 @@ async function Reload(ID, retry) {
 }
 
 /* 簡易隱藏廣告 */
-async function AdHiding() {
+async function Ad_Simplify_Hide() {
     GM_addStyle(`
         .ad-container, .root--ujvuu {display: none}
     `);
+}
+
+/* 完整廣告攔截消除 */
+async function Ad_Full_Clear() {
+    Ad_Simplify_Hide();
+    addscript(`
+        const observer = new MutationObserver(() => {
+            try {
+                document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
+                document.querySelector(".root--ujvuu button").click();
+            } catch {}
+            let XMLRequest = XMLHttpRequest.prototype.open;
+            XMLHttpRequest.prototype.open = function(method, url) {
+                if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") { // 攔截
+                    return;
+                }
+                XMLRequest.apply(this, arguments);
+            };
+        });
+        observer.observe(document.body, {childList: true, subtree: true});
+    `, "ADB");
 }
 
 /* 轉換下載連結參數 */
