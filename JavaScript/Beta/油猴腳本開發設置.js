@@ -75,6 +75,16 @@
 
 // ==/UserScript==
 
+/* 腳本網站 API
+
+Web IndexedDB Helper (用於操作 IndexedDB 的 API)
+@require https://greasyfork.org/scripts/473362-web-indexeddb-helper/code/Web%20IndexedDB%20Helper.js?version=1237033
+
+Itsnotlupus' MiddleMan (攔截修改的 API)
+@require https://greasyfork.org/scripts/472943-itsnotlupus-middleman/code/Itsnotlupus'%20MiddleMan.js?version=1238417
+
+*/
+
 /* https://www.tampermonkey.net/documentation.php?ext=dhdg */
 
 /*  GM_addElement 使用文檔
