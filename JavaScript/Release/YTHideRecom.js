@@ -69,7 +69,7 @@
                     element.style.display = "none";
                     return new Promise(resolve => {
                         setTimeout(function() {
-                            if (element.style.display === "none") {resolve(true)} 
+                            if (element.style.display === "none") {resolve(true)}
                             else {resolve(false)}
                         }, Lookup_Delay);
                     });
