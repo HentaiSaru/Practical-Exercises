@@ -54,7 +54,6 @@ var menu, img_rule,
         const [list, box, announce] = [ // announce(公告條)
             "div.global-sidebar", "div.content-wrapper.shifted", "body > div.content-wrapper.shifted > a"
         ].map(selector => document.querySelector(selector));
-        document.querySelector("div.global-sidebar")
         if (list && box) {
             Beautify(list, box, announce); // 側邊欄收縮, 刪除公告條
             clearInterval(interval);
@@ -587,7 +586,7 @@ async function Menu() {
         </div>
     `
     $(document.body).append(menu);
-    $(".modal-interface").draggable();
+    $(".modal-interface").draggable({ cursor: "grabbing" });
     $(".modal-interface").tabs();
     // 菜單選擇
     $("#image-settings").on("click", function () {
