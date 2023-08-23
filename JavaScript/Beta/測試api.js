@@ -4,3 +4,4 @@ window.addEventListener('popstate', function(event) {
     // 例如，你可以根據狀態信息加載不同的內容或執行其他操作
     console.log('URL 地址變化:', window.location.href);
 });
+// { capture: true } { passive: true }

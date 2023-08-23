@@ -83,6 +83,8 @@ Web IndexedDB Helper (用於操作 IndexedDB 的 API)
 Itsnotlupus' MiddleMan (攔截修改的 API)
 @require https://greasyfork.org/scripts/472943-itsnotlupus-middleman/code/Itsnotlupus'%20MiddleMan.js?version=1238417
 
+脫放拉伸處理效果
+https://cdnjs.com/libraries/moveable
 */
 
 /* https://www.tampermonkey.net/documentation.php?ext=dhdg */
