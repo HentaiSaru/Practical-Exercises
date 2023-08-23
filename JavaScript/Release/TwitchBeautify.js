@@ -4,7 +4,7 @@
 // @name:zh-CN   Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.16
+// @version      0.0.17
 // @author       HentaiSaru
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
@@ -51,7 +51,6 @@ async function main() {
         if (pattern.test(window.location.href) && document.querySelector("video")) {
             observer.disconnect();
             FindPlayPage();
-            // $("div[data-a-player-state='']").css("z-index", "9999");
             fun($("div[data-a-player-state='']"), false);
         }
     });
@@ -76,32 +75,32 @@ async function HomeRecovery(Nav, CB, CX) {
 /* 查找video頁面元素方法 */
 function FindPlayPage() {
     let interval = setInterval(function() {
-        // 取得導覽列
-        const Nav = $("nav.InjectLayout-sc-1i43xsx-0.ghHeNF");
-        // 取得聊天室 button
-        const Chat_button = $("button[data-a-target='right-column__toggle-collapse-btn']");
-        // 取得頻道列 button
-        const Channel_Button = $("button[data-a-target='side-nav-arrow']");
-        // 取得頻道元素
-        const Channel_Xpath = $(".side-nav").parent();
-        const Collapsed_State = $(".simplebar-track.vertical");
-        if (Nav.length > 0 && Chat_button.length > 0 && Channel_Button.length > 0 && Channel_Xpath.length > 0 && Collapsed_State.length > 0) {
+        const [Channel, Collapsed_State, player, Nav, Channel_Button, Chat_button] = [
+            ".side-nav", // 頻道元素
+            ".simplebar-track.vertical", // 收合狀態
+            "div[data-a-player-state='']", // 影片區塊
+            "nav.InjectLayout-sc-1i43xsx-0.ghHeNF", // 導覽列
+            "button[data-a-target='side-nav-arrow']", // 頻道列 button
+            "button[data-a-target='right-column__toggle-collapse-btn']", // 聊天室 button
+        ].map(selector => $(selector));
+        const Channel_Parent = Channel.parent();
+        if (Nav[0] && player[0] && Chat_button[0] && Channel_Button[0] && Channel_Parent[0] && Collapsed_State[0]) {
+            clearInterval(interval);
             // 判斷兩次總該打開了吧
             if (Collapsed_State.css("visibility") !== "visible") {Channel_Button.click()}
             if (Collapsed_State.css("visibility") === "hidden") {Channel_Button.click()}
-            AdProcessing();
-            Beautify(Nav, Channel_Xpath); // 介面美化
+            // AdProcessing(); // 無用的阻擋測試
+            Beautify(Nav, player, Channel_Parent); // 介面美化
             AutoClickC(Chat_button, Channel_Button); // 懶人自動點擊
             PlayerAborted(false); // 恢復聲音
             ResumeWatching(); // 監聽恢復觀看
-            HomeRecovery(Nav, Channel_Button, Channel_Xpath); // 首頁復原監聽
-            clearInterval(interval);
+            HomeRecovery(Nav, Channel_Button, Channel_Parent); // 首頁復原監聽
         }
-    }, 400);
+    }, 350);
 }
 
 /* 美化 */
-async function Beautify(Nav, CX) {
+async function Beautify(Nav, play, CX) {
     GM_addStyle(`
         .Nav_Effect {
             opacity: 0;
@@ -122,20 +121,21 @@ async function Beautify(Nav, CX) {
             width: 24rem;
         }
     `);
+    play.css("z-index", "9999");
     Nav.addClass("Nav_Effect");
     CX.addClass("Channel_Expand_Effect");
 }
 
 /* 影片暫停和靜音 */
 async function PlayerAborted(control) {
-    let timeout=0, interval = setInterval(function() {
+    let timeout=0, interval = setInterval(() => {
         const player = document.querySelector("video");
         if (player) {
             if(control) {
                 player.muted = true;
                 if (!player.paused) {
-                    player.pause();
                     clearInterval(interval);
+                    player.pause();
                 } else {
                     timeout++;
                     if (timeout > 10) {
@@ -145,8 +145,8 @@ async function PlayerAborted(control) {
             } else {
                 player.play();
                 if (player.muted) {
-                    player.muted = false;
                     clearInterval(interval);
+                    player.muted = false;
                 } else {
                     timeout++;
                     if (timeout > 10) {
@@ -155,7 +155,7 @@ async function PlayerAborted(control) {
                 }
             }
         }
-    }, 1000);
+    }, 800);
 }
 
 /* 自動恢復觀看 */
@@ -209,16 +209,32 @@ async function AutoClickC(Chat_button, Channel_Button) {
     });
 }
 
-GM_addStyle(GM_getResourceText("jui"));
+GM_addStyle(`
+    ${GM_getResourceText("jui")}
+    .drag-border {
+        border: 2px solid white;
+        border-radius: 10px;
+    }
+`);
+
 /* 拖動添加 */
 async function fun(element, state=true) {
     if (element.length > 0) {
         if (state) {
-            element.draggable();
+            element.draggable({ 
+                cursor: "grabbing",
+                start: function(event, ui) {
+                    $(this).find("div.ScAspectRatio-sc-18km980-1").addClass("drag-border");
+                },
+                stop: function(event, ui) {
+                    $(this).find("div.ScAspectRatio-sc-18km980-1").removeClass("drag-border");
+                }
+            });
             element.resizable({
                 handles: "all",
                 minWidth: 50,
                 minHeight: 50,
+                aspectRatio: 16 / 10
             });
         } else {
             element.draggable("destroy");
@@ -243,45 +259,29 @@ async function addscript(Rule, ID="New-Add-script") {
     new_script.appendChild(document.createTextNode(Rule));
 }
 
-/* 隨便寫的隱藏廣告, 也不知道有沒有屁用 (測試) */
+/* 隨便寫的隱藏廣告, 沒有屁用 (測試) */
 async function AdProcessing() {
-    GM_addStyle(`
-        .stream-display-ad__wrapper,
-        .stream-display-ad__wrapper-hidden,
-        .stream-display-ad__frame_squeezeback,
-        .stream-display-ad__wrapper_squeezeback,
-        .stream-display-ad__container_squeezeback,
-        .stream-display-ad__transform-container_squeezeback {
-            height: 0px;
-            width: 0px;
-            z-index: 1;
-            display: none;
-        }
-    `);
     addscript(`
-        const BlockDomains = [
-            "sentry.io",
-            "usher.ttvnw.net",
-            "static.twitchcdn.net",
-            "sb.scorecardresearch.com",
-            "global.poe.live-video.net",
-            "myemotes-backend.grab-colab.com",
-        ];
-        const ADobserver = new MutationObserver(() => {
-            let FetchRequest = window.fetch;
+        let FetchRequest;
+        const BlockDomains = new Map([
+            ["sentry.io", false],
+            ["usher.ttvnw.net", false],
+            ["edge.ads.twitch.tv", false],
+            ["static.twitchcdn.net", false],
+            ["sb.scorecardresearch.com", false],
+            ["global.poe.live-video.net", false],
+            ["myemotes-backend.grab-colab.com", false],
+        ]);
+        const interval = setInterval(() => {
+            FetchRequest = window.fetch;
             window.fetch = function(url, options) {
-                if (BlockDomains.includes(new URL(url).hostname)) {
+                if (BlockDomains.has(new URL(url).hostname)) {
                     return;
-                } else if (window.location.href === "https://www.twitch.tv/") {
-                    ADobserver.disconnect();
                 }
                 return FetchRequest.apply(this, arguments);
             };
-        });
-        ADobserver.observe(document, {childList: true, subtree: true});
+        }, 10);
     `)
-    const ad = $(".stream-display-ad__wrapper");
-    if (ad.length > 0) {ad.remove()}
 }
 
 /* 使用設置開關 */
