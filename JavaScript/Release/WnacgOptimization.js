@@ -256,7 +256,11 @@ async function SettingInterface() {
         </div>
     `
     $(document.body).append(modal);
-    $(".modal-interface").draggable();
+    $(".modal-interface").draggable({ 
+        scroll: true,
+        opacity: 0.8,
+        cursor: "grabbing",
+    });
     $("#BC").on("input", event => {
         value = $(event.target).val();
         id = event.target.id;
