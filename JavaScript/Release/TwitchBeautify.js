@@ -4,7 +4,7 @@
 // @name:zh-CN   Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.17
+// @version      0.0.18
 // @author       HentaiSaru
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
@@ -36,8 +36,11 @@
     var enabledstate;
     if (GM_getValue("Beautify", [])) {
         enabledstate = language[1];
+        // 有時候會導致後續回首頁直播被暫停, 到底什麼奇怪的Bug
+        if (window.location.href === "https://www.twitch.tv/") {
+            PlayerAborted(true)
+        }
         main();
-        if (window.location.href === "https://www.twitch.tv/") {PlayerAborted(true)}
         setTimeout(DeleteFooter, 500);
     } else {
         enabledstate = language[0];
@@ -89,7 +92,7 @@ function FindPlayPage() {
             // 判斷兩次總該打開了吧
             if (Collapsed_State.css("visibility") !== "visible") {Channel_Button.click()}
             if (Collapsed_State.css("visibility") === "hidden") {Channel_Button.click()}
-            // AdProcessing(); // 無用的阻擋測試
+            if (!$("#ADB")[0]) {AdProcessing()} // 刪除測試
             Beautify(Nav, player, Channel_Parent); // 介面美化
             AutoClickC(Chat_button, Channel_Button); // 懶人自動點擊
             PlayerAborted(false); // 恢復聲音
@@ -144,18 +147,19 @@ async function PlayerAborted(control) {
                 }
             } else {
                 player.play();
+                player.muted = false;
                 if (player.muted) {
                     clearInterval(interval);
                     player.muted = false;
                 } else {
                     timeout++;
-                    if (timeout > 10) {
+                    if (timeout > 30) {
                         clearInterval(interval);
                     }
                 }
             }
         }
-    }, 800);
+    }, 500);
 }
 
 /* 自動恢復觀看 */
@@ -163,10 +167,10 @@ async function ResumeWatching() {
     let recover;
     const observer = new MutationObserver(() => {
         try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
-        if (recover.length > 0) {
-            recover.click();
-        } else if (window.location.href === "https://www.twitch.tv/") {
+        if (window.location.href === "https://www.twitch.tv/") {
             observer.disconnect();
+        } else if (recover.length > 0) {
+            recover.click();
         }
     });
     observer.observe($("div[data-a-player-state='']")[0], {childList: true, subtree: true});
@@ -237,8 +241,10 @@ async function fun(element, state=true) {
                 aspectRatio: 16 / 10
             });
         } else {
-            element.draggable("destroy");
-            element.resizable("destroy");
+            if (element.data("ui-draggable")) {
+                element.draggable("destroy");
+                element.resizable("destroy");
+            }
         }
     }
 }
@@ -259,29 +265,14 @@ async function addscript(Rule, ID="New-Add-script") {
     new_script.appendChild(document.createTextNode(Rule));
 }
 
-/* 隨便寫的隱藏廣告, 沒有屁用 (測試) */
+/* 隨便寫的隱藏廣告, (測試) */
 async function AdProcessing() {
     addscript(`
-        let FetchRequest;
-        const BlockDomains = new Map([
-            ["sentry.io", false],
-            ["usher.ttvnw.net", false],
-            ["edge.ads.twitch.tv", false],
-            ["static.twitchcdn.net", false],
-            ["sb.scorecardresearch.com", false],
-            ["global.poe.live-video.net", false],
-            ["myemotes-backend.grab-colab.com", false],
-        ]);
         const interval = setInterval(() => {
-            FetchRequest = window.fetch;
-            window.fetch = function(url, options) {
-                if (BlockDomains.has(new URL(url).hostname)) {
-                    return;
-                }
-                return FetchRequest.apply(this, arguments);
-            };
-        }, 10);
-    `)
+            document.querySelectorAll("iframe").forEach(iframe => {iframe.remove()});
+        }, 1500)
+    `, "ADB")
+    $("iframe").each(function() {$(this).remove()});
 }
 
 /* 使用設置開關 */
