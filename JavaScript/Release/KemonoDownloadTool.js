@@ -43,12 +43,10 @@
     ModeDisplay,
     dict = {},
     Pages=0;
-    
-    /* @===== 自訂功能 =====@ */
 
     let debug = false;
     
-    /* @===== 監聽按鈕創建 (入口點) =====@ */
+    /* ==================== 監聽按鈕創建 (入口點) ====================  */
     
     const observer = new MutationObserver(() => {
         if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
@@ -57,7 +55,7 @@
         observer.observe(document.head, {childList: true, subtree: true});
     }
 
-    /* @===== 選項菜單 =====@ */
+    /* ==================== 選項菜單 ====================  */
 
     GM_registerMenuCommand(language.RM_01, function() {DownloadModeSwitch()}, "C");
     GM_registerMenuCommand(language.RM_02, function() {
@@ -68,7 +66,7 @@
     }, "J");
     GM_registerMenuCommand(language.RM_03, function() {OpenData()}, "O");
 
-    /* @===== 數據處理 =====@ */
+    /* ==================== 數據處理 ====================  */
 
     function IllegalFilter(Name) {
         return Name.replace(/[\/\?<>\\:\*\|":]/g, '');
@@ -83,7 +81,7 @@
         } catch {return "png"}
     }
     
-    /* @===== 下載處理 =====@ */
+    /* ==================== 下載處理 ====================  */
 
     /* 按鈕創建 */
     async function ButtonCreation() {
@@ -297,7 +295,7 @@
         location.reload();
     }
 
-    /* @===== 數據處理 =====@ */
+    /* ==================== 數據處理 ====================  */
     
     /* 獲取主頁元素, 以Json輸出 */
     async function GetPageData(section) {
