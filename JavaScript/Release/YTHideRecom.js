@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.17
+// @version      0.0.18
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -41,30 +41,25 @@
 
 (function() {
     const pattern = /^https:\/\/www\.youtube\.com\/.+$/;
+    var currentUrl;
     const observer = new MutationObserver(() => {
-        var currentUrl = window.location.href;
+        currentUrl = window.location.href;
         if (pattern.test(currentUrl) && !document.body.hasAttribute("data-hide")) {
             document.body.setAttribute("data-hide", true);
             let transform = false, set; RunMaim();
             async function RunMaim() {
-                const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
-                Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
-                language = display_language(navigator.language),
-                Lookup_Delay = 300;
                 GM_addStyle(`
                     .ytp-ce-element{opacity: 0.1!important;}
                     .ytp-ce-element:hover{opacity: 1!important;}
                 `);
+                const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
+                Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
+                language = display_language(navigator.language),
+                Lookup_Delay = 300;
+                /* 菜單 */
                 GM_registerMenuCommand(language[0], function() {alert(language[1])});
-                async function HideJudgment(element, gm="") {
-                    if (element.style.display === "none" || transform) {
-                        element.style.display = "block";
-                        if (gm !== "") {GM_setValue(gm, false)}
-                    } else {
-                        element.style.display = "none";
-                        if (gm !== "") {GM_setValue(gm, true)}
-                    }
-                }
+
+                /* 設置觸發 */
                 async function SetTrigger(element) {
                     element.style.display = "none";
                     return new Promise(resolve => {
@@ -74,78 +69,7 @@
                         }, Lookup_Delay);
                     });
                 }
-                setTimeout(()=>{
-                    const [
-                        end,
-                        below,
-                        secondary,
-                        related,
-                        inner,
-                        chat,
-                        comments,
-                        menu,
-                        actions
-                    ] = [
-                        "end",
-                        "below",
-                        "secondary",
-                        "related",
-                        "secondary-inner",
-                        "chat-container",
-                        "comments",
-                        "menu-container",
-                        "actions"
-                    ].map(selector => document.getElementById(selector));
-                    document.addEventListener("keydown", function(event) {
-                        if (event.shiftKey) {
-                            event.preventDefault();
-                            let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
-                            elements.forEach(function(element) {
-                                HideJudgment(element);
-                            });
-                        } else if (event.ctrlKey && event.key === "z") {
-                            event.preventDefault();
-                            set = GM_getValue("Minimalist", null);
-                            if (set && set != null) {
-                                end.style.display = "block";
-                                below.style.display = "block";
-                                secondary.style.display = "block";
-                                related.style.display = "block";
-                                GM_setValue("Minimalist", false);
-                            } else {
-                                end.style.display = "none";
-                                below.style.display = "none";
-                                secondary.style.display = "none";
-                                related.style.display = "none";
-                                GM_setValue("Minimalist", true);
-                            }
-                        } else if (event.altKey && event.key === "1") {
-                            event.preventDefault();
-                            let child = inner.childElementCount;
-                            if (child > 1) {// 子元素數量
-                                HideJudgment(chat, "Trigger_1");
-                                HideJudgment(secondary);
-                                HideJudgment(related);
-                                transform = false;
-                            } else {
-                                HideJudgment(chat, "Trigger_1");
-                                HideJudgment(related);
-                                transform = true;
-                            }
-                        } else if (event.altKey && event.key === "2") {
-                            event.preventDefault();
-                            HideJudgment(comments, "Trigger_2");
-                        } else if (event.altKey && event.key === "3") {
-                            event.preventDefault();
-                            HideJudgment(menu, "Trigger_3");
-                            HideJudgment(actions);
-                        } else if (event.altKey && event.key === "4") {
-                            event.preventDefault();
-                            let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                            HideJudgment(playlist, "Trigger_4");
-                        }
-                    });
-                }, 1500);
+                /* 獲取設置 */
                 if (VVP_Pattern.test(currentUrl)) {
                     set = GM_getValue("Minimalist", null);
                     if (set && set !== null) {
@@ -207,6 +131,79 @@
                         }, Lookup_Delay);
                     }
                 }
+
+                /* 設置判斷 */
+                async function HideJudgment(element, gm="") {
+                    if (element.style.display === "none" || transform) {
+                        element.style.display = "block";
+                        if (gm !== "") {GM_setValue(gm, false)}
+                    } else {
+                        element.style.display = "none";
+                        if (gm !== "") {GM_setValue(gm, true)}
+                    }
+                }
+                /* 設置快捷 */
+                const interval = setInterval(() => {
+                    const [
+                        end, below, secondary, related, inner,
+                        chat, comments, menu, actions
+                    ] = [
+                        "end", "below", "secondary", "related", "secondary-inner",
+                        "chat-container", "comments", "menu-container", "actions"
+                    ].map(selector => document.getElementById(selector));
+                    if (end && below && secondary && related) {
+                        clearInterval(interval);
+                        document.addEventListener("keydown", function(event) {
+                            if (event.shiftKey) {
+                                event.preventDefault();
+                                let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
+                                elements.forEach(function(element) {
+                                    HideJudgment(element);
+                                });
+                            } else if (event.ctrlKey && event.key === "z") {
+                                event.preventDefault();
+                                set = GM_getValue("Minimalist", null);
+                                if (set && set != null) {
+                                    end.style.display = "block";
+                                    below.style.display = "block";
+                                    secondary.style.display = "block";
+                                    related.style.display = "block";
+                                    GM_setValue("Minimalist", false);
+                                } else {
+                                    end.style.display = "none";
+                                    below.style.display = "none";
+                                    secondary.style.display = "none";
+                                    related.style.display = "none";
+                                    GM_setValue("Minimalist", true);
+                                }
+                            } else if (event.altKey && event.key === "1") {
+                                event.preventDefault();
+                                let child = inner.childElementCount;
+                                if (child > 1) {// 子元素數量
+                                    HideJudgment(chat, "Trigger_1");
+                                    HideJudgment(secondary);
+                                    HideJudgment(related);
+                                    transform = false;
+                                } else {
+                                    HideJudgment(chat, "Trigger_1");
+                                    HideJudgment(related);
+                                    transform = true;
+                                }
+                            } else if (event.altKey && event.key === "2") {
+                                event.preventDefault();
+                                HideJudgment(comments, "Trigger_2");
+                            } else if (event.altKey && event.key === "3") {
+                                event.preventDefault();
+                                HideJudgment(menu, "Trigger_3");
+                                HideJudgment(actions);
+                            } else if (event.altKey && event.key === "4") {
+                                event.preventDefault();
+                                let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
+                                HideJudgment(playlist, "Trigger_4");
+                            }
+                        });
+                    }
+                }, 500);
             }
         }
     });
