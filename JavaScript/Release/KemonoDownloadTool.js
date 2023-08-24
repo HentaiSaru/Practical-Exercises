@@ -37,13 +37,13 @@
 
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
-    var CompressMode = GM_getValue("壓縮下載", []),
+    var CompressMode = GM_getValue("Compression", []),
     OriginalTitle = document.title,
     parser = new DOMParser(),
     ModeDisplay,
     dict = {},
     Pages=0;
-
+    
     /* @===== 自訂功能 =====@ */
 
     let debug = false;
@@ -279,15 +279,15 @@
 
     /* 下載模式切換 */
     async function DownloadModeSwitch() {
-        if (GM_getValue("壓縮下載", [])){
-            GM_setValue("壓縮下載", false);
+        if (GM_getValue("Compression", [])){
+            GM_setValue("Compression", false);
             GM_notification({
                 title: language.NF_01,
                 text: language.DM_02,
                 timeout: 1500
             });
         } else {
-            GM_setValue("壓縮下載", true);
+            GM_setValue("Compression", true);
             GM_notification({
                 title: language.NF_01,
                 text: language.DM_01,
