@@ -63,10 +63,8 @@
                 async function SetTrigger(element) {
                     element.style.display = "none";
                     return new Promise(resolve => {
-                        setTimeout(function() {
-                            if (element.style.display === "none") {resolve(true)}
-                            else {resolve(false)}
-                        }, Lookup_Delay);
+                        if (element.style.display === "none") {resolve(true)}
+                        else {resolve(false)}
                     });
                 }
                 /* 獲取設置 */
@@ -92,7 +90,7 @@
                             const [chat, secondary, related] = ["chat-container", "secondary", "related"].map(selector => document.getElementById(selector));
                             if (chat && secondary && related) {
                                 Promise.all([SetTrigger(chat), SetTrigger(secondary), SetTrigger(related)]).then(results => {
-                                    if (results[0] && results[1]) {clearInterval(interval)}
+                                    if (results[0] && results[1] && results[2]) {clearInterval(interval)}
                                 });
                             }
                         }, Lookup_Delay);
@@ -151,7 +149,7 @@
                         "end", "below", "secondary", "related", "secondary-inner",
                         "chat-container", "comments", "menu-container", "actions"
                     ].map(selector => document.getElementById(selector));
-                    if (end && below && secondary && related) {
+                    if (end && below && secondary && related && inner && chat) {
                         clearInterval(interval);
                         document.addEventListener("keydown", function(event) {
                             if (event.shiftKey) {
