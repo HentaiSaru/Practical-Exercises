@@ -139,7 +139,10 @@
             let imgdata = document.querySelectorAll("div.post__files a");
             let title = document.querySelector("h1.post__title").textContent.trim();
             let user = document.querySelector("a.post__user-name").textContent.trim();
-            if (imgdata && title && user) {
+            if (imgdata.length > 0 && title && user) {
+                clearInterval(interval);
+                button.textContent = language.DS_03;
+                button.disabled = true;
                 imgdata.forEach((files, index) => {
                     link = files.href || files.querySelector("img").src;
                     data.set(index, link.split("?f=")[0]);
@@ -155,11 +158,8 @@
                 } else {
                     ImageDownload(`[${user}] ${title}`, data, button)
                 }
-                button.textContent = language.DS_03;
-                button.disabled = true;
-                clearInterval(interval);
             }
-        }, 500);
+        }, 300);
     }
     
     /* 壓縮下載 */
