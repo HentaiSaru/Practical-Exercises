@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -38,16 +38,13 @@
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
     var CompressMode = GM_getValue("Compression", []),
-    parser = new DOMParser(),
-    ModeDisplay,
-    dict = {},
-    Pages=0;
+    parser = new DOMParser(), ModeDisplay, JsonDict, Pages;
 
     let PoolSize = 5, // 併發請求數 (下載線程)
     DeBug = false, // 顯示請求資訊, 與錯誤資訊
-    CompleteClose = false, // 完成後自動關閉 (測試)
-    ExperimentalDownload = false, // 實驗下載功能 (壓縮下載)
-    ExperimentalDownloadDelay = 100; // 實驗下載請求延遲 (ms)
+    CompleteClose = false, // 完成後自動關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
+    ExperimentalDownload = false, // 實驗下載功能 [壓縮下載 / json 下載]
+    ExperimentalDownloadDelay = 150; // 實驗下載請求延遲 (ms)
 
     /* ==================== 監聽按鈕創建 (入口點) ====================  */
 
@@ -64,6 +61,8 @@
     GM_registerMenuCommand(language.RM_02, function() {
         const section = document.querySelector("section");
         if (section) {
+            JsonDict = {};
+            Pages = 0;
             GetPageData(section);
         }
     }, "J");
@@ -420,7 +419,7 @@
                     Button.disabled = false;
                     Button.textContent = ModeDisplay;
                     if (CompleteClose) {window.close()}
-                }, 3000);     
+                }, 3000);
             }
         }, 1000);
     }
@@ -446,58 +445,115 @@
     }
 
     /* ==================== 數據處理 ====================  */
+    var progress, OriginalTitle = document.title; // 進度顯示
 
-    /* 獲取主頁元素, 以Json輸出 */
+    /* 獲取主頁元素 */
     async function GetPageData(section) {
+        let title, link, promises = [];
         const menu = section.querySelector("a.pagination-button-after-current");
         const item = section.querySelectorAll(".card-list__items article");
-        let title, link;
-        item.forEach(card => {
-            title = card.querySelector(".post-card__header").textContent.trim()
-            link = card.querySelector("a").href
-            dict[`${link}`] = title;
-        })
-        try { // 當沒有下一頁連結就會發生例外
-            let NextPage = menu.href;
-            if (NextPage) {
-                Pages++;
-                GM_notification({
-                    title: language.NF_02,
-                    text: `${language.NF_03} : ${Pages}`,
-                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
-                    timeout: 800
-                });
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: NextPage,
-                    nocache: false,
-                    ontimeout: 8000,
-                    onload: response => {
-                        const DOM = parser.parseFromString(response.responseText, "text/html");
-                        GetPageData(DOM.querySelector("section"));
-                    }
-                });
-            }
-        } catch {
-            try {
-                // 進行簡單排序
-                Object.keys(dict).sort();
-                const author = document.querySelector('span[itemprop="name"]').textContent;
-                const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(dict, null, 4));
-                json.download = `${author}.json`;
-                json.click();
-                json.remove();
-                GM_notification({
-                    title: language.NF_04,
-                    text: language.NF_05,
-                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
-                    timeout: 2000
-                });
-            } catch {
-                alert(language.NF_06);
+        
+        Pages++;
+        progress = 0;
+        GM_notification({
+            title: language.NF_02,
+            text: `${language.NF_03} : ${Pages}`,
+            image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+            timeout: 800
+        });
+
+        // 遍歷數據
+        for (const card of item) {
+            title = card.querySelector(".post-card__header").textContent.trim();
+            link = card.querySelector("a").href;
+    
+            if (ExperimentalDownload) {
+                promises.push(DataClassification(title, link, Pages));
+                await new Promise(resolve => setTimeout(resolve, ExperimentalDownloadDelay));
+            } else {
+                JsonDict[`${link}`] = title;
             }
         }
+        // 等待所有請求完成
+        await Promise.allSettled(promises);
+
+        try { // 請求下一頁
+            await GetNextPage(menu.href);
+        } catch {ToJson()}
+    }
+
+    /* 獲取下一頁數據 */
+    async function GetNextPage(NextPage) {
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: NextPage,
+            nocache: false,
+            ontimeout: 8000,
+            onload: response => {
+                const DOM = parser.parseFromString(response.responseText, "text/html");
+                GetPageData(DOM.querySelector("section"));
+            }
+        });
+    }
+
+    /* 數據分類Json */
+    async function DataClassification(title, url, page) {
+        const link_box = {};
+        return new Promise((resolve, reject) => {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: url,
+                nocache: false,
+                onload: response => {
+                    const DOM = parser.parseFromString(response.responseText, "text/html");
+                
+                    const original_link = url;
+                    const pictures_number = DOM.querySelectorAll("div.post__thumbnail").length;
+                    const video_number = DOM.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li').length;
+                    DOM.querySelectorAll("a.post__attachment-link").forEach(link => {
+                        const analyze =  decodeURIComponent(link.href).split("?f=");
+                        const download_link = analyze[0];
+                        const download_name = analyze[1];
+                        link_box[download_name] = download_link;
+                    })
+
+                    let Category_box = {
+                        [language.CD_01]: original_link,
+                        [language.CD_02]: pictures_number,
+                        [language.CD_03]: video_number,
+                        [language.CD_04]: link_box || {}
+                    }
+                    
+                    JsonDict[title] = Category_box;
+                    if (DeBug) {console.log(JsonDict)}
+                    document.title = `（${page} - ${++progress}）`;
+                    resolve();
+                },
+                onerror: error => {
+                    reject(error);
+                }
+            })
+        });
+    }
+
+    /* 輸出Json */
+    async function ToJson() {
+        try {
+            Object.keys(JsonDict).sort(); // 進行簡單排序
+            const author = document.querySelector('span[itemprop="name"]').textContent;
+            const json = document.createElement("a");
+            json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JsonDict, null, 4));
+            json.download = `${author}.json`;
+            json.click();
+            json.remove();
+            GM_notification({
+                title: language.NF_04,
+                text: language.NF_05,
+                image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                timeout: 2000
+            });
+            document.title = OriginalTitle;
+        } catch {alert(language.NF_06)}
     }
 
     /* 一鍵開啟當前所有帖子 */
@@ -538,6 +594,10 @@
                 "DS_07" : "壓縮封裝失敗",
                 "DS_08" : "下載完成",
                 "DS_09" : "請求進度",
+                "CD_01" : "原始連結",
+                "CD_02" : "圖片數量",
+                "CD_03" : "影片數量",
+                "CD_04" : "下載連結",
                 "NF_01" : "模式切換",
                 "NF_02" : "數據處理中",
                 "NF_03" : "當前處理頁數",
@@ -561,6 +621,10 @@
                 "DS_07" : "压缩封装失败",
                 "DS_08" : "下载完成",
                 "DS_09" : "请求进度",
+                "CD_01" : "原始链接",
+                "CD_02" : "图片数量",
+                "CD_03" : "视频数量",
+                "CD_04" : "下载链接",
                 "NF_01" : "模式切换",
                 "NF_02" : "数据处理中",
                 "NF_03" : "当前处理页数",
@@ -584,6 +648,10 @@
                 "DS_07" : "圧縮パッケージングに失敗しました",
                 "DS_08" : "ダウンロードが完了しました",
                 "DS_09" : "リクエストの進捗",
+                "CD_01" : "元のリンク",
+                "CD_02" : "画像の数",
+                "CD_03" : "ビデオの数",
+                "CD_04" : "ダウンロードリンク",
                 "NF_01" : "モード切り替え",
                 "NF_02" : "データ処理中",
                 "NF_03" : "現在の処理ページ数",
@@ -607,6 +675,10 @@
                 "DS_07" : "Compression packaging failed",
                 "DS_08" : "Download completed",
                 "DS_09" : "Request progress",
+                "CD_01" : "Original link",
+                "CD_02" : "Number of images",
+                "CD_03" : "Number of videos",
+                "CD_04" : "Download link",
                 "NF_01" : "Mode switch",
                 "NF_02" : "Data processing",
                 "NF_03" : "Current processing page number",
