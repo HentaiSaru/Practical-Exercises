@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -38,16 +38,19 @@
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
     var CompressMode = GM_getValue("Compression", []),
-    OriginalTitle = document.title,
     parser = new DOMParser(),
     ModeDisplay,
     dict = {},
     Pages=0;
 
-    let debug = false;
-    
+    let PoolSize = 5, // 併發請求數 (下載線程)
+    DeBug = false, // 顯示請求資訊, 與錯誤資訊
+    CompleteClose = false, // 完成後自動關閉 (測試)
+    ExperimentalDownload = false, // 實驗下載功能 (壓縮下載)
+    ExperimentalDownloadDelay = 100; // 實驗下載請求延遲 (ms)
+
     /* ==================== 監聽按鈕創建 (入口點) ====================  */
-    
+
     const observer = new MutationObserver(() => {
         if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
     });
@@ -80,7 +83,7 @@
             return match[1].toLowerCase() || "png";
         } catch {return "png"}
     }
-    
+
     /* ==================== 下載處理 ====================  */
 
     /* 按鈕創建 */
@@ -131,11 +134,11 @@
             download_button.disabled = true;
         }
     }
-    
+
     /* 下載觸發 */
     function DownloadTrigger(button) {
         let data = new Map(), link;
-        let interval = setInterval(function() {
+        let interval = setInterval(() => {
             let imgdata = document.querySelectorAll("div.post__files a");
             let title = document.querySelector("h1.post__title").textContent.trim();
             let user = document.querySelector("a.post__user-name").textContent.trim();
@@ -147,7 +150,7 @@
                     link = files.href || files.querySelector("img").src;
                     data.set(index, link.split("?f=")[0]);
                 });
-                if (debug) {
+                if (DeBug) {
                     console.groupCollapsed("Get Data");
                     console.log(`[${user}] ${title}`);
                     console.log(data);
@@ -161,69 +164,197 @@
             }
         }, 300);
     }
-    
+
     /* 壓縮下載 */
     async function ZipDownload(Folder, ImgData, Button) {
         const zip = new JSZip(),
         File = Conversion(Folder),
         Total = ImgData.size,
+        OriginalTitle = document.title,
         name = IllegalFilter(Folder.split(" ")[1]);
-        let pool = [], poolSize = 5, progress = 1, mantissa, link, extension;
-        function Request(index, retry) {
-            link = ImgData.get(index);
-            extension = GetExtension(link);
-            return new Promise((resolve, reject) => {
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: link,
-                    responseType: "blob",
-                    headers : {"user-agent": navigator.userAgent},
-                    onload: response => {
-                        if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                            mantissa = (index + 1).toString().padStart(3, '0');
-                            zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
-                            document.title = `[${progress}/${Total}]`;
-                            Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
-                            progress++;
-                            resolve();
+        let pool = [], progress = 1, task = 0, mantissa, link, extension;
+
+        if (ExperimentalDownload) { /* ============= 實驗方法 ============= */
+
+            const worker = BackWorkerCreation(`
+                const queue = [];
+                onmessage = function(e) {
+                    const {index, url, retry} = e.data;
+                    queue.push({index, url, retry});
+                    processQueue();
+                }
+                function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, url, retry} = queue.shift();
+                        setTimeout(function() {
+                            xmlRequest(index, url, retry);
+                            processQueue();
+                        }, ${ExperimentalDownloadDelay});
+                    }
+                }
+
+                // XMLHttpRequest 比較容易出現同源限制錯誤
+                async function xmlRequest(index, url, retry) {
+                    let xhr = new XMLHttpRequest();
+                    xhr.open("GET", url, true);
+                    xhr.responseType = "blob";
+                    xhr.onload = function() {
+                        if (xhr.status === 200) {postMessage({ blob: xhr.response, index, url: url, error: false})
+                        } else {fetchRequest(index, url, retry)}
+                    };
+                    xhr.onerror = function() {
+                        fetchRequest(index, url, retry);
+                    };
+                    xhr.send();
+                }
+
+                // Fetch 受到同源的限制較少
+                async function fetchRequest(index, url, retry) {
+                    try {
+                        const response = await fetch(url, {method: 'GET'});
+                        if (response.status === 200) {
+                            const blob = await response.blob();
+                            postMessage({ blob, index, url: url, error: false });
                         } else {
+                            if (retry > 0) {fetchRequest(index, url, retry - 1)}
+                            else {postMessage({ blob: "", index, url: url, error: true })}
+                        }
+                    } catch (error) {
+                        if (retry > 0) {fetchRequest(index, url, retry - 1)}
+                        else {postMessage({ blob: "", index, url: url, error: true })}
+                    }
+                }
+            `);
+            
+            // 接收訊息
+            worker.onmessage = function (e) {
+                const { blob, index, url, error } = e.data;
+
+                if (!error) {
+                    if (DeBug) {console.log("Download Successful")}
+
+                    mantissa = (index + 1).toString().padStart(3, '0');
+                    zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
+                    Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
+                    document.title = `[${progress}/${Total}]`;
+                    progress++;
+                    task++;
+
+                } else {
+                    if (DeBug) {console.log(`Request Failed Link : [${url}]`)}
+
+                    /* 最後的下載 */
+                    async function Request(url, retry) {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: url,
+                            responseType: "blob",
+                            onload: response => { 
+                                if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                                    mantissa = (index + 1).toString().padStart(3, '0');
+                                    zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
+                                    Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
+                                    document.title = `[${progress}/${Total}]`;
+                                    progress++;
+                                    task++;
+                                } else {
+                                    if (retry > 0) {
+                                        Request(url, retry-1);
+                                    } else {
+                                        task++;
+                                    }
+                                }
+                            }
+                        })
+                    }
+
+                    Request(url, 10);
+                }
+            };
+
+            // 等待下載完成
+            let interval = setInterval(() => {
+                if (task === Total) {
+                    clearInterval(interval);
+                    worker.terminate();
+                    Compression();
+                }
+            }, 100);
+
+            // 錯誤訊息
+            worker.onerror = function (e) {
+                console.error(`Worker error: ${e.message}`);
+            }
+
+            // 發送訊息
+            for (let i = 0; i < Total; i++) {
+                link = ImgData.get(i);
+                extension = GetExtension(link);
+                worker.postMessage({ index: i, url: link, retry: 10 });
+                Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
+            }
+
+        } else { /* ============= 舊方法 ============= */
+
+            function Request(index, retry) {
+                link = ImgData.get(index);
+                extension = GetExtension(link);
+                return new Promise((resolve, reject) => {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: link,
+                        responseType: "blob",
+                        headers : {"user-agent": navigator.userAgent},
+                        onload: response => {
+                            if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                                mantissa = (index + 1).toString().padStart(3, '0');
+                                zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
+                                document.title = `[${progress}/${Total}]`;
+                                Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
+                                progress++;
+                                resolve();
+                            } else {
+                                if (retry > 0) {
+                                    if (DeBug) {console.log(`Request Retry : [${retry}]`)}
+                                    Request(index, retry-1);
+                                    resolve();
+                                } else {
+                                    console.groupCollapsed("Request Error");
+                                    console.log(`[Request Error] : ${link}`);
+                                    console.groupEnd();
+                                    reject(new Error("Request error"));
+                                }
+                            }
+                        },
+                        onerror: error => {
                             if (retry > 0) {
-                                if (debug) {console.log(`Request Retry : [${retry}]`)}
+                                if (DeBug) {console.log(`Request Retry : [${retry}]`)}
                                 Request(index, retry-1);
                                 resolve();
                             } else {
                                 console.groupCollapsed("Request Error");
                                 console.log(`[Request Error] : ${link}`);
                                 console.groupEnd();
-                                reject(new Error("Request error"));
+                                reject(error);
                             }
                         }
-                    },
-                    onerror: error => {
-                        if (retry > 0) {
-                            if (debug) {console.log(`Request Retry : [${retry}]`)}
-                            Request(index, retry-1);
-                            resolve();
-                        } else {
-                            console.groupCollapsed("Request Error");
-                            console.log(`[Request Error] : ${link}`);
-                            console.groupEnd();
-                            reject(error);
-                        }
-                    }
+                    });
                 });
-            });
-        }
-        for (let i = 0; i < Total; i++) {
-            let promise = Request(i, 10);
-            pool.push(promise);
-            if (pool.length >= poolSize) {
-                await Promise.allSettled(pool);
-                pool = [];
             }
+
+            for (let i = 0; i < Total; i++) {
+                let promise = Request(i, 10);
+                Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
+                pool.push(promise);
+                if (pool.length >= PoolSize) {
+                    await Promise.allSettled(pool);
+                    pool = [];
+                }
+            }
+            if (pool.length > 0) {await Promise.allSettled(pool)}
+            Compression();
         }
-        if (pool.length > 0) {await Promise.allSettled(pool)}
-        Compression();
+        
         async function Compression() {
             zip.generateAsync({
                 type: "blob",
@@ -234,24 +365,29 @@
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
                 Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
-            }).then(zip => {
-                saveAs(zip, `${Folder}.zip`);
-                Button.textContent = language.DS_08;
+            }).then(async zip => {
                 document.title = OriginalTitle;
-                setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
-                Button.disabled = false;
+                await saveAs(zip, `${Folder}.zip`);
+                Button.textContent = language.DS_08;
+                setTimeout(() => {
+                    if (CompleteClose) {window.close()}
+                    Button.textContent = ModeDisplay;
+                    Button.disabled = false;
+                }, 3000);
             }).catch(result => {
                 Button.textContent = language.DS_07;
                 document.title = OriginalTitle;
-                setTimeout(() => {Button.textContent = ModeDisplay}, 6000);
-                Button.disabled = false;
+                setTimeout(() => {
+                    Button.textContent = ModeDisplay;
+                    Button.disabled = false;
+                }, 6000);
             })
         }
     }
-    
+
     /* 單圖下載 */
     async function ImageDownload(Folder, ImgData, Button) {
-        const name = IllegalFilter(Folder.split(" ")[1]), Total = ImgData.size;
+        const name = IllegalFilter(Folder.split(" ")[1]), Total = ImgData.size, OriginalTitle = document.title;
         let progress = 1, link, extension;
         for (let i = 0; i < Total; i++) {
             link = ImgData.get(i);
@@ -269,10 +405,13 @@
                 }
             });
         }
-        Button.textContent = language.DS_08;
-        setTimeout(() => {Button.textContent = ModeDisplay}, 4000);
         document.title = OriginalTitle;
-        Button.disabled = false;
+        Button.textContent = language.DS_08;
+        setTimeout(() => {
+            Button.disabled = false;
+            Button.textContent = ModeDisplay;
+            if (CompleteClose) {window.close()}
+        }, 5000);
     }
 
     /* 下載模式切換 */
@@ -296,7 +435,7 @@
     }
 
     /* ==================== 數據處理 ====================  */
-    
+
     /* 獲取主頁元素, 以Json輸出 */
     async function GetPageData(section) {
         const menu = section.querySelector("a.pagination-button-after-current");
@@ -349,7 +488,7 @@
             }
         }
     }
-    
+
     /* 一鍵開啟當前所有帖子 */
     async function OpenData() {
         try {
@@ -370,7 +509,7 @@
         let blob = new Blob([code], {type: "application/javascript"});
         return new Worker(URL.createObjectURL(blob));
     }
-    
+
     function display_language(language) {
         let display = {
             "zh-TW": [{
@@ -387,6 +526,7 @@
                 "DS_06" : "封裝進度",
                 "DS_07" : "壓縮封裝失敗",
                 "DS_08" : "下載完成",
+                "DS_09" : "請求進度",
                 "NF_01" : "模式切換",
                 "NF_02" : "數據處理中",
                 "NF_03" : "當前處理頁數",
@@ -409,6 +549,7 @@
                 "DS_06" : "封装进度",
                 "DS_07" : "压缩封装失败",
                 "DS_08" : "下载完成",
+                "DS_09" : "请求进度",
                 "NF_01" : "模式切换",
                 "NF_02" : "数据处理中",
                 "NF_03" : "当前处理页数",
@@ -418,48 +559,50 @@
                 "NF_07" : "错误的打开页面"
             }],
             "ja": [{
-                "RM_01" : '🔁 ダウンロードモードの切り替え',
-                "RM_02" : '📑 すべての投稿のJsonデータを取得する',
-                "RM_03" : '📃 現在のページのすべての投稿を開く',
-                "DM_01" : '圧縮ダウンロードモード',
-                "DM_02" : 'シングル画像ダウンロードモード',
-                "DS_01" : '圧縮ダウンロード',
-                "DS_02" : 'シングル画像ダウンロード',
-                "DS_03" : 'ダウンロードを開始する',
-                "DS_04" : 'ダウンロードできません',
-                "DS_05" : 'ダウンロードの進行状況',
-                "DS_06" : 'パッケージング中',
-                "DS_07" : '圧縮パッケージングに失敗しました',
-                "DS_08" : 'ダウンロードが完了しました',
-                "NF_01" : 'モード切り替え',
-                "NF_02" : 'データ処理中',
-                "NF_03" : '現在の処理ページ数',
-                "NF_04" : 'データ処理が完了しました',
-                "NF_05" : 'Jsonデータのダウンロード',
-                "NF_06" : '間違ったリクエストページ',
-                "NF_07" : '間違ったページを開く'
+                "RM_01" : "🔁 ダウンロードモードの切り替え",
+                "RM_02" : "📑 すべての投稿のJsonデータを取得する",
+                "RM_03" : "📃 現在のページのすべての投稿を開く",
+                "DM_01" : "圧縮ダウンロードモード",
+                "DM_02" : "シングル画像ダウンロードモード",
+                "DS_01" : "圧縮ダウンロード",
+                "DS_02" : "シングル画像ダウンロード",
+                "DS_03" : "ダウンロードを開始する",
+                "DS_04" : "ダウンロードできません",
+                "DS_05" : "ダウンロードの進行状況",
+                "DS_06" : "パッケージング中",
+                "DS_07" : "圧縮パッケージングに失敗しました",
+                "DS_08" : "ダウンロードが完了しました",
+                "DS_09" : "リクエストの進捗",
+                "NF_01" : "モード切り替え",
+                "NF_02" : "データ処理中",
+                "NF_03" : "現在の処理ページ数",
+                "NF_04" : "データ処理が完了しました",
+                "NF_05" : "Jsonデータのダウンロード",
+                "NF_06" : "間違ったリクエストページ",
+                "NF_07" : "間違ったページを開く"
             }],
             "en": [{
-                "RM_01" : '🔁 Switch download mode',
-                "RM_02" : '📑 Get all post Json data',
-                "RM_03" : '📃 Open all posts on the current page',
-                "DM_01" : 'Compressed download mode',
-                "DM_02" : 'Single image download mode',
-                "DS_01" : 'Compressed download',
-                "DS_02" : 'Single image download',
-                "DS_03" : 'Start downloading',
-                "DS_04" : 'Unable to download',
-                "DS_05" : 'Download progress',
-                "DS_06" : 'Packaging',
-                "DS_07" : 'Compression packaging failed',
-                "DS_08" : 'Download completed',
-                "NF_01" : 'Mode switch',
-                "NF_02" : 'Data processing',
-                "NF_03" : 'Current processing page number',
-                "NF_04" : 'Data processing completed',
-                "NF_05" : 'Json data download',
-                "NF_06" : 'Wrong request page',
-                "NF_07" : 'Wrong page to open'
+                "RM_01" : "🔁 Switch download mode",
+                "RM_02" : "📑 Get all post Json data",
+                "RM_03" : "📃 Open all posts on the current page",
+                "DM_01" : "Compressed download mode",
+                "DM_02" : "Single image download mode",
+                "DS_01" : "Compressed download",
+                "DS_02" : "Single image download",
+                "DS_03" : "Start downloading",
+                "DS_04" : "Unable to download",
+                "DS_05" : "Download progress",
+                "DS_06" : "Packaging",
+                "DS_07" : "Compression packaging failed",
+                "DS_08" : "Download completed",
+                "DS_09" : "Request progress",
+                "NF_01" : "Mode switch",
+                "NF_02" : "Data processing",
+                "NF_03" : "Current processing page number",
+                "NF_04" : "Data processing completed",
+                "NF_05" : "Json data download",
+                "NF_06" : "Wrong request page",
+                "NF_07" : "Wrong page to open"
             }]
         };
         return display[language][0] || display["en"][0];
