@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.11
+// @version      0.0.12
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -608,6 +608,11 @@
                 "NF_07" : "Wrong page to open"
             }]
         };
-        return display[language][0] || display["en"][0];
+
+        if (display.hasOwnProperty(language)) {
+            return display[language][0];
+        } else {
+            return display["en-US"][0];
+        }
     }
 })();
