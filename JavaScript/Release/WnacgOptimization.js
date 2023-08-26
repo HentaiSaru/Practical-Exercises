@@ -538,9 +538,9 @@ function display_language(language) {
         "ja": [
             "画像設定", "上下の余白", "基本幅", "最大幅", "基本高さ", "最大高さ", "背景色", "設定の保存", "スクロール読み取り", "ページ読み取り" 
         ],
-        "en": [
+        "en-US": [
             "Image settings", "Margin", "Base width", "Maximum width", "Base height", "Maximum height", "Background color", "Save settings", "Scroll reading", "Page reading"
         ]
     };
-    return display[language] || display["en"];
+    return display[language] || display["en-US"];
 }
