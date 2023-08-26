@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -624,7 +624,7 @@
                 "DS_07" : "圧縮に失敗しました",
                 "DS_08" : "ダウンロードが完了しました"
             }],
-            "en": [{
+            "en-US": [{
                 "MN_01" : "🔁 Switch download mode",
                 "DM_01" : "Compressed download",
                 "DM_02" : "Single image download",
@@ -651,6 +651,11 @@
                 "DS_08" : "다운로드 완료"
             }]
         };
-        return display[language][0] || display["en"][0];
+
+        if (display.hasOwnProperty(language)) {
+            return display[language][0];
+        } else {
+            return display["en-US"][0];
+        }
     }
 })();
