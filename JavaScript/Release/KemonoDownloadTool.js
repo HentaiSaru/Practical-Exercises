@@ -357,7 +357,7 @@
             if (pool.length > 0) {await Promise.allSettled(pool)}
             Compression();
         }
-        
+
         async function Compression() {
             zip.generateAsync({
                 type: "blob",
