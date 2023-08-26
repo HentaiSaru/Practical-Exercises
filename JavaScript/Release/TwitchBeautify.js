@@ -289,9 +289,9 @@ function display_language(language) {
     let display = {
         "zh-TW": ["🛠️ 以禁用美化❌", "🛠️ 以啟用美化✅"],
         "zh-CN": ["🛠️ 已禁用美化❌", "🛠️ 已启用美化✅"],
+        "ko": ["🛠️ 미화 비활성화❌", "🛠️ 미화 활성화✅"],
         "ja": ["🛠️ 美化を無効にしました❌", "🛠️ 美化を有効にしました✅"],
-        "en": ["🛠️ Beautification disabled❌", "🛠️ Beautification enabled✅"],
-        "ko": ["🛠️ 미화 비활성화❌", "🛠️ 미화 활성화✅"]
+        "en-US": ["🛠️ Beautification disabled❌", "🛠️ Beautification enabled✅"],
     };
-    return display[language] || display["en"];
+    return display[language] || display["en-US"];
 }
