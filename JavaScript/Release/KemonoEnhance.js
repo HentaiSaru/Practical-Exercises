@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.29
+// @version      0.0.30
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -957,7 +957,7 @@
                 "MIS_03" : "画像の最大幅",
                 "MIS_04": "画像の間隔の高さ"
             }],
-            "en": [{
+            "en-US": [{
                 "RM_01" : "📝 Settings Menu",
                 "MT_01" : "Settings Menu",
                 "MO_01" : "Image Settings",
@@ -975,6 +975,11 @@
                 "MIS_04" : "Image Spacing Height"
             }],
         };
-        return display[language][0] || display["en"][0];
+        
+        if (display.hasOwnProperty(language)) {
+            return display[language][0];
+        } else {
+            return display["en-US"][0];
+        }
     }
 })();
