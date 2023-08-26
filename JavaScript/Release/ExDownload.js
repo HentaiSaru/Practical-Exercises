@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -46,11 +46,11 @@
 
     /* @===== 可調設置 =====@ */
 
-    let debug = false, experiment = false;
-    let Delay = {
-        "Home" : 100, // 主頁數據獲取延遲
-        "Image" : 30, // 圖片連結獲取延遲
-        "Download": 500, // 下載速度延遲
+    let DeBug = false, Experimental = true;
+    const Delay = {
+        Home: 100, // 主頁數據獲取延遲
+        Image: 30, // 圖片連結獲取延遲
+        Download: 300, // 下載速度延遲
     }
 
     /* @===== 運行入口 =====@ */
@@ -149,33 +149,41 @@
 
     /* 主頁數據處理 */
     async function HomeDataProcessing(button) {
-        let title, homepage = new Map(),
+        let title, homepage = new Map(), task = 0, DC = 1,
         pages = GetTotal(document.querySelector("div#gdd").querySelectorAll("td.gdt2"));
         title = document.getElementById("gj").textContent.trim() || document.getElementById("gn").textContent.trim();
         title = IllegalFilter(title);
         pages = Math.ceil(pages / 20);
      
-        if (experiment) {
+        if (Experimental) {
             const worker = BackWorkerCreation(`
-                const queue = [];
+                let queue = [], processing = false;
                 onmessage = function(e) {
                     const {index, url} = e.data;
                     queue.push({index, url});
-                    processQueue();
-                }
-                function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url} = queue.shift();
-                        setTimeout(function() {
-                            FetchRequest(index, url);
-                            processQueue();
-                        }, ${Delay["Home"]});
+
+                    if (!processing) {
+                        processQueue();
+                        processing = true;
                     }
                 }
+
+                async function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, url} = queue.shift();
+                        FetchRequest(index, url);
+                        setTimeout(processQueue, ${Delay.Home});
+                    }
+                }
+
                 async function FetchRequest(index, url) {
-                    const response = await fetch(url);
-                    const html = await response.text();
-                    postMessage({index, html});
+                    try {
+                        const response = await fetch(url);
+                        const html = await response.text();
+                        postMessage({index, html, error: false});
+                    } catch {
+                        postMessage({index, url, error: true});
+                    }
                 }
             `)
 
@@ -187,26 +195,50 @@
 
             // 接受訊息
             worker.onmessage = function(e) {
-                const {index, html} = e.data;
-                GetLink(index, parser.parseFromString(html, "text/html"));
+                const {index, html, error} = e.data;
+                if (!error) {GetLink(index, parser.parseFromString(html, "text/html"))}
+                else {FetchRequest(index, html, 10)}
             }
 
+            // 獲取連結
             async function GetLink(index, data) {
                 const homebox = [];
                 data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
                     homebox.push(link.href)
                 });
                 homepage.set(index, homebox);
-                button.textContent = `${language.DS_02}: [${index+1}/${pages}]`;
+                button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
 
-                if (homepage.size === pages) { // 全部處理完成
+                DC++;
+                task++;
+            }
+
+            // 數據試錯請求
+            async function FetchRequest(index, url, retry) {
+                try {
+                    const response = await fetch(url);
+                    const html = await response.text();
+                    await GetLink(index, parser.parseFromString(html, "text/html"));
+                } catch {
+                    if (retry > 0) {
+                        await FetchRequest(index, url, retry-1);
+                    } else {
+                        task++;
+                    }
+                }
+            }
+
+            // 等待全部處理完成 (雖然會吃資源, 但是比較能避免例外)
+            let interval = setInterval(() => {
+                if (task === pages) {
+                    clearInterval(interval);
                     worker.terminate();
                     const homebox = [];
                     for (let i = 0; i < homepage.size; i++) {
                         homebox.push(...homepage.get(i));
                     }
                 
-                    if (debug) {
+                    if (DeBug) {
                         console.groupCollapsed("Home Page Data");
                         console.log(`[Title] : ${title}`);
                         console.log(homebox);
@@ -214,7 +246,7 @@
                     }
                     ImageLinkProcessing(button, title, homebox);
                 }
-            }
+            }, 100);
 
         } else {
             async function GetLink(index, data) { // 獲取頁面所有連結
@@ -235,7 +267,7 @@
             for (let index = 1; index < pages; index++) {
                 promises.push(FetchRequest(index, `${url}?p=${index}`));
                 button.textContent = `${language.DS_02}: [${index+1}/${pages}]`;
-                await new Promise(resolve => setTimeout(resolve, Delay["Home"]));
+                await new Promise(resolve => setTimeout(resolve, Delay.Home));
             }
             await Promise.allSettled(promises);
         
@@ -244,7 +276,7 @@
                 homebox.push(...homepage.get(i));
             }
         
-            if (debug) {
+            if (DeBug) {
                 console.groupCollapsed("Home Page Data");
                 console.log(`[Title] : ${title}`);
                 console.log(homebox);
@@ -256,32 +288,36 @@
 
     /* 漫畫連結處理 */
     async function ImageLinkProcessing(button, title, link) {
-        let imgbox = new Map(), pages = link.length;
+        let imgbox = new Map(), pages = link.length, DC = 1, task = 0;
 
-        if (experiment) {
+        if (Experimental) {
             const worker = BackWorkerCreation(`
-                const queue = [];
+                let queue = [], processing = false;
                 onmessage = function(e) {
                     const {index, url} = e.data;
                     queue.push({index, url});
-                    processQueue();
-                }
-                function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url} = queue.shift();
-                        setTimeout(function() {
-                            FetchRequest(index, url);
-                            processQueue();
-                        }, ${Delay["Image"]});
+
+                    if (!processing) {
+                        processQueue();
+                        processing = true;
                     }
                 }
+
+                async function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, url} = queue.shift();
+                        FetchRequest(index, url);
+                        setTimeout(processQueue, ${Delay.Image});
+                    }
+                }
+
                 async function FetchRequest(index, url) {
                     try {
                         const response = await fetch(url);
                         const html = await response.text();
-                        postMessage({index, html});
-                    } catch (error) {
-                        await FetchRequest(index, url);
+                        postMessage({index, html, error: false});
+                    } catch {
+                        postMessage({index, url, error: true});
                     }
                 }
             `)
@@ -293,30 +329,55 @@
 
             // 接收回傳
             worker.onmessage = function(e) {
-                const {index, html} = e.data;
-                GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
+                const {index, html, error} = e.data;
+                if (!error) {GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"))}
+                else {FetchRequest(index, html, 10)}
             }
 
+            // 獲取連結
             async function GetLink(index, data) {
                 try {
                     imgbox.set(index, data.src);
-                    button.textContent = `${language.DS_03}: [${index + 1}/${pages}]`;
+                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
                 } catch {
                     try {
                         imgbox.set(index, data.href);
-                        button.textContent = `${language.DS_03}: [${index + 1}/${pages}]`;
+                        button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
                     } catch {}
                 }
-                if (imgbox.size === pages) {
+
+                DC++; // 顯示效正
+                task++; // 任務完成
+            }
+
+            // 數據試錯請求
+            async function FetchRequest(index, url, retry) {
+                try {
+                    const response = await fetch(url);
+                    const html = await response.text();
+                    await GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
+                } catch {
+                    if (retry > 0) {
+                        await FetchRequest(index, url, retry-1);
+                    } else {
+                        task++;
+                    }
+                }
+            }
+
+            // 等待完成
+            let interval = setInterval(() => {
+                if (task === pages) {
+                    clearInterval(interval);
                     worker.terminate();
-                    if (debug) {
+                    if (DeBug) {
                         console.groupCollapsed("Img Link Data");
                         console.log(imgbox);
                         console.groupEnd();
                     }
                     DownloadTrigger(button, title, imgbox);
                 }
-            }
+            }, 300);
 
         } else {
             async function GetLink(index, data) {
@@ -344,11 +405,11 @@
             const promises = [];
             for (let index = 0; index < pages; index++) {
                 promises.push(FetchRequest(index, link[index]));
-                await new Promise(resolve => setTimeout(resolve, Delay["Image"]));
+                await new Promise(resolve => setTimeout(resolve, Delay.Image));
             }
         
             await Promise.allSettled(promises);
-            if (debug) {
+            if (DeBug) {
                 console.groupCollapsed("Img Link Data");
                 console.log(imgbox);
                 console.groupEnd();
@@ -388,7 +449,7 @@
                             resolve();
                         } else {
                             if (retry > 0) {
-                                if (debug) {console.log(`Request Retry : [${retry}]`)}
+                                if (DeBug) {console.log(`Request Retry : [${retry}]`)}
                                 Request(index, retry-1);
                                 resolve();
                             } else {
@@ -398,7 +459,7 @@
                     },
                     onerror: error => {
                         if (retry > 0) {
-                            if (debug) {console.log(`Request Retry : [${retry}]`)}
+                            if (DeBug) {console.log(`Request Retry : [${retry}]`)}
                             Request(index, retry-1);
                             resolve();
                         } else {
@@ -416,11 +477,12 @@
             count++;
             if (count === 5) {
                 count = 0;
-                await new Promise(resolve => setTimeout(resolve, Delay["Download"]));
+                await new Promise(resolve => setTimeout(resolve, Delay.Download));
             }
         }
         await Promise.allSettled(promises);
         Compression();
+        
         async function Compression() {
             zip.generateAsync({
                 type: "blob",
@@ -431,8 +493,8 @@
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
                 Button.textContent = `${language.DS_05}: ${progress.percent.toFixed(1)} %`;
-            }).then(zip => {
-                saveAs(zip, `${Folder}.zip`);
+            }).then(async zip => {
+                await saveAs(zip, `${Folder}.zip`);
                 Button.textContent = language.DS_06;
                 document.title = OriginalTitle;
                 setTimeout(() => {
@@ -470,7 +532,7 @@
                     },
                     onerror: () => {
                         if (retry > 0) {
-                            if (debug) {console.log(`Request Retry : [${retry}]`)}
+                            if (DeBug) {console.log(`Request Retry : [${retry}]`)}
                             Request(index, retry-1);
                             resolve();
                         } else {
