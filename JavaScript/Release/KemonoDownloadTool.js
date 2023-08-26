@@ -395,6 +395,7 @@
         for (let i = 0; i < Total; i++) {
             link = ImgData.get(i);
             extension = GetExtension(link);
+            Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
             GM_download({
                 url: link,
                 name: `${name}_${(progress+i).toString().padStart(3, '0')}.${extension}`,
