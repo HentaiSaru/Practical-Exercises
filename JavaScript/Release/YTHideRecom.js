@@ -234,7 +234,7 @@ let display = {
 (Alt + 3) : 機能オプションを非表示にする
 (Alt + 4) : プレイリスト情報を非表示にする
 (Ctrl + Z) : 簡素化を使用する`],
-    "en": ["📜 Settings Shortcut", `@ When function fails [Please refresh] =>
+    "en-US": ["📜 Settings Shortcut", `@ When function fails [Please refresh] =>
 
 (Shift) : Fully hide video end recommendations
 (Alt + 1) : Hide right side video recommendations
@@ -250,5 +250,5 @@ let display = {
 (Alt + 3) : 기능 옵션 숨기기
 (Alt + 4) : 재생 목록 정보 숨기기
 (Ctrl + Z) : 미니멀리즘 사용하기`]};
-    return display[language] || display["en"];
+    return display[language] || display["en-US"];
 }
