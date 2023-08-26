@@ -228,7 +228,7 @@
                     }
                 }
             `);
-            
+
             // 接收訊息
             worker.onmessage = function (e) {
                 const { blob, index, url, error } = e.data;
