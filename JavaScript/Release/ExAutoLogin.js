@@ -426,7 +426,7 @@ function display_language(language) {
             '現在のクッキーの設定',
             '注入可能なクッキーが検出されませんでした!!\nメニューから設定してください'
         ],
-        "en": [
+        "en-US": [
             '📜 Automatically retrieve cookies [Please log in first]',
             '📝 Manually enter cookies',
             '🔍 View saved cookies',
@@ -473,5 +473,5 @@ function display_language(language) {
             '주입 가능한 쿠키가 감지되지 않았습니다 !!\n메뉴에서 설정하세요'
         ]
     };
-    return display[language] || display["en"];
+    return display[language] || display["en-US"];
 }
