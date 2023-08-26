@@ -584,7 +584,7 @@
                 "NF_06" : "間違ったリクエストページ",
                 "NF_07" : "間違ったページを開く"
             }],
-            "en": [{
+            "en-US": [{
                 "RM_01" : "🔁 Switch download mode",
                 "RM_02" : "📑 Get all post Json data",
                 "RM_03" : "📃 Open all posts on the current page",
