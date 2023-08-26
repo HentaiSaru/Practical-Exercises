@@ -61,10 +61,10 @@
         if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
             CardSize(); // 帖子預覽卡放大
             PostCardFade(true); // 帖子文字卡淡化 [true: 淡化 + 隱藏, false: 淡化]
-            QuickPostToggle(); // 快速切換帖子頁面
             NewTabOpens(); // 自動新分頁
+            QuickPostToggle(); // 快速切換帖子頁面
         }
-    }, 300);
+    }, 250);
     
     setTimeout(() => {
         if (pattern.test(Url)) {
