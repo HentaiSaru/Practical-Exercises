@@ -177,19 +177,22 @@
         if (ExperimentalDownload) { /* ============= 實驗方法 ============= */
 
             const worker = BackWorkerCreation(`
-                const queue = [];
+                let queue = [], processing = false;
                 onmessage = function(e) {
                     const {index, url, retry} = e.data;
                     queue.push({index, url, retry});
-                    processQueue();
+
+                    if (!processing) {
+                        processQueue();
+                        processing = true;
+                    }
                 }
-                function processQueue() {
+
+                async function processQueue() {
                     if (queue.length > 0) {
                         const {index, url, retry} = queue.shift();
-                        setTimeout(function() {
-                            xmlRequest(index, url, retry);
-                            processQueue();
-                        }, ${ExperimentalDownloadDelay});
+                        xmlRequest(index, url, retry);
+                        setTimeout(processQueue, ${ExperimentalDownloadDelay});
                     }
                 }
 
