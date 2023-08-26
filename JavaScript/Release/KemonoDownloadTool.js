@@ -383,7 +383,7 @@
                 setTimeout(() => {
                     Button.textContent = ModeDisplay;
                     Button.disabled = false;
-                }, 6000);
+                }, 5000);
             })
         }
     }
@@ -391,7 +391,7 @@
     /* 單圖下載 */
     async function ImageDownload(Folder, ImgData, Button) {
         const name = IllegalFilter(Folder.split(" ")[1]), Total = ImgData.size, OriginalTitle = document.title;
-        let progress = 1, link, extension;
+        let progress = 1, task = 0, link, extension;
         for (let i = 0; i < Total; i++) {
             link = ImgData.get(i);
             extension = GetExtension(link);
@@ -402,19 +402,26 @@
                     document.title = `[${progress}/${Total}]`;
                     Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                     progress++;
+                    task++;
                 },
                 onerror: () => {
                     i--;
                 }
             });
         }
-        document.title = OriginalTitle;
-        Button.textContent = language.DS_08;
-        setTimeout(() => {
-            Button.disabled = false;
-            Button.textContent = ModeDisplay;
-            if (CompleteClose) {window.close()}
-        }, 5000);
+
+        let interval = setInterval(() => {
+            if (task === Total) {
+                clearInterval(interval);
+                document.title = OriginalTitle;
+                Button.textContent = language.DS_08;
+                setTimeout(() => {
+                    Button.disabled = false;
+                    Button.textContent = ModeDisplay;
+                    if (CompleteClose) {window.close()}
+                }, 3000);     
+            }
+        }, 1000);
     }
 
     /* 下載模式切換 */
