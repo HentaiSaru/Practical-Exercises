@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -37,14 +37,25 @@
 
 (function() {
     const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
-    var CompressMode = GM_getValue("Compression", []),
-    parser = new DOMParser(), ModeDisplay, JsonDict, Pages;
+    var CompressMode = GM_getValue("Compression", []), parser = new DOMParser(), ModeDisplay, JsonDict, Pages;
+    let jsonmode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}, genmode=true;
 
     let PoolSize = 5, // 併發請求數 (下載線程)
     DeBug = false, // 顯示請求資訊, 與錯誤資訊
     CompleteClose = false, // 完成後自動關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
-    ExperimentalDownload = false, // 實驗下載功能 [壓縮下載 / json 下載]
+    ExperimentalDownload = true, // 實驗下載功能 [壓縮下載 / json 下載]
     ExperimentalDownloadDelay = 150; // 實驗下載請求延遲 (ms)
+
+    /** ---------------------/
+    * 設置實驗 json 分類輸出格式
+    * 原始連結: "orlink"
+    * 圖片數量: "imgnb"
+    * 影片數量: "videonb"
+    * 連結數量: "dllink"
+    * 排除模式: "FilterMode"
+    * 唯一模式: "OnlyMode"
+    * -----------------------/
+    // ToJsonSet(["orlink", "videonb"], "OnlyMode");
 
     /* ==================== 監聽按鈕創建 (入口點) ====================  */
 
@@ -298,7 +309,7 @@
 
         } else { /* ============= 舊方法 ============= */
 
-            function Request(index, retry) {
+            async function Request(index, retry) {
                 link = ImgData.get(index);
                 extension = GetExtension(link);
                 return new Promise((resolve, reject) => {
@@ -481,7 +492,7 @@
             await GetNextPage(menu.href);
         } catch {ToJson()}
     }
-
+    
     /* 獲取下一頁數據 */
     async function GetNextPage(NextPage) {
         GM_xmlhttpRequest({
@@ -494,6 +505,25 @@
                 GetPageData(DOM.querySelector("section"));
             }
         });
+    }
+
+    /* 分類盒子生成 */
+    function GenerateBox(ol, pn, vn, lb) {
+        if (genmode) {
+            return {
+                ...(jsonmode.hasOwnProperty("orlink") ? { [language.CD_01]: ol } : {}),
+                ...(jsonmode.hasOwnProperty("imgnb") ? { [language.CD_02]: pn } : {}),
+                ...(jsonmode.hasOwnProperty("videonb") ? { [language.CD_03]: vn } : {}),
+                ...(jsonmode.hasOwnProperty("dllink") ? { [language.CD_04]: lb || {} } : {}),
+            }
+        } else {
+            return {
+                ...(jsonmode.hasOwnProperty("orlink") ? { [language.CD_01]: ol } : {}),
+                ...(jsonmode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [language.CD_02]: pn } : {}),
+                ...(jsonmode.hasOwnProperty("videonb") && vn > 0 && pn <= 5 ? { [language.CD_03]: vn } : {}),
+                ...(jsonmode.hasOwnProperty("dllink") ? { [language.CD_04]: lb || {} } : {}),
+            }
+        }
     }
 
     /* 數據分類Json */
@@ -517,14 +547,11 @@
                         link_box[download_name] = download_link;
                     })
 
-                    let Category_box = {
-                        [language.CD_01]: original_link,
-                        [language.CD_02]: pictures_number,
-                        [language.CD_03]: video_number,
-                        [language.CD_04]: link_box || {}
+                    const Box = GenerateBox(original_link, pictures_number, video_number, link_box);
+                    if (Object.keys(Box).length !== 0) {
+                        JsonDict[title] = Box;
                     }
-                    
-                    JsonDict[title] = Category_box;
+
                     if (DeBug) {console.log(JsonDict)}
                     document.title = `（${page} - ${++progress}）`;
                     resolve();
@@ -534,6 +561,37 @@
                 }
             })
         });
+    }
+
+    /**
+    * 設置分類輸出 Json時的格式
+    *
+    * @param {Array} set    - 要進行的設置 [預設: []]
+    * @param {string} mode  - 設定的模式 [預設: "FilterMode"]
+    *
+    * @example
+    * 基本設置: ToJsonSet(["orlink", "imgnb", "videonb", "dllink"]) 可選項目
+    * mode = "FilterMode", 根據傳入的值, 將 {原始連結, 圖片數, 影片數, 下載連結} (過濾掉/刪除該項目)
+    * mode = "OnlyMode", 根據傳入的值, 例如 {set = ["imgnb"]}, 那就只會顯示有圖片的
+    * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘5張的被排除}
+    */
+    async function ToJsonSet(set = [], mode = "FilterMode") {
+        try {
+            switch (mode) {
+                case "FilterMode":
+                    genmode = true;
+                    set.forEach(key => {delete jsonmode[key]});
+                    break;
+                case "OnlyMode":
+                    genmode = false;
+                    const filtercache = Object.keys(jsonmode).reduce((obj, key) => {
+                        if (set.includes(key)) {obj[key] = jsonmode[key]}
+                        return obj;
+                    }, {});
+                    jsonmode = filtercache;
+                    break;
+            }
+        } catch (error) {console.error(error)}
     }
 
     /* 輸出Json */
