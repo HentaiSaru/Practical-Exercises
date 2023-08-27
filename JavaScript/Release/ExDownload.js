@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -209,8 +209,8 @@
                 homepage.set(index, homebox);
                 button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
 
-                DC++;
-                task++;
+                DC++; // 顯示效正
+                task++; // 任務進度
             }
 
             // 數據試錯請求
@@ -246,9 +246,9 @@
                     }
                     ImageLinkProcessing(button, title, homebox);
                 }
-            }, 100);
+            }, 300);
 
-        } else {
+        } else { // 舊處理
             async function GetLink(index, data) { // 獲取頁面所有連結
                 const homebox = [];
                 data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
@@ -347,7 +347,7 @@
                 }
 
                 DC++; // 顯示效正
-                task++; // 任務完成
+                task++; // 任務進度
             }
 
             // 數據試錯請求
@@ -379,7 +379,7 @@
                 }
             }, 300);
 
-        } else {
+        } else { // 舊處理
             async function GetLink(index, data) {
                 try {
                     imgbox.set(index, data.src);
@@ -434,43 +434,45 @@
             link = ImgData.get(index);
             extension = GetExtension(link);
             return new Promise((resolve, reject) => {
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: link,
-                    responseType: "blob",
-                    headers : {"user-agent": navigator.userAgent},
-                    onload: response => {
-                        if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                            mantissa = (index + 1).toString().padStart(4, '0');
-                            zip.file(`${Folder}/${mantissa}.${extension}`, response.response);
-                            document.title = `[${progress}/${Total}]`;
-                            Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
-                            progress++;
-                            resolve();
-                        } else {
+                if (typeof link !== "undefined") {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: link,
+                        responseType: "blob",
+                        headers : {"user-agent": navigator.userAgent},
+                        onload: response => {
+                            if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                                mantissa = (index + 1).toString().padStart(4, '0');
+                                zip.file(`${Folder}/${mantissa}.${extension}`, response.response);
+                                document.title = `[${progress}/${Total}]`;
+                                Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                                progress++;
+                                resolve();
+                            } else {
+                                if (retry > 0) {
+                                    if (DeBug) {console.log(`Request Retry : [${retry}]`)}
+                                    Request(index, retry-1);
+                                    resolve();
+                                } else {
+                                    reject(new Error("Request error"));
+                                }
+                            }
+                        },
+                        onerror: error => {
                             if (retry > 0) {
                                 if (DeBug) {console.log(`Request Retry : [${retry}]`)}
                                 Request(index, retry-1);
                                 resolve();
                             } else {
-                                reject(new Error("Request error"));
+                                console.groupCollapsed("Request Error");
+                                console.log(`[Request Error] : ${link}`);
+                                console.groupEnd();
+                                reject(error);
                             }
                         }
-                    },
-                    onerror: error => {
-                        if (retry > 0) {
-                            if (DeBug) {console.log(`Request Retry : [${retry}]`)}
-                            Request(index, retry-1);
-                            resolve();
-                        } else {
-                            console.groupCollapsed("Request Error");
-                            console.log(`[Request Error] : ${link}`);
-                            console.groupEnd();
-                            reject(error);
-                        }
-                    }
-                })
-            });
+                    })
+                } else {reject(new Error("undefined url"))}
+            });  
         }
         for (let i = 0; i < Total; i++) {
             promises.push(Request(i, 10));
@@ -520,31 +522,33 @@
             link = ImgData.get(index);
             extension = GetExtension(link);
             return new Promise((resolve, reject) => {
-                GM_download({
-                    url: link,
-                    name: `${Folder}_${(index + 1).toString().padStart(4, '0')}.${extension}`,
-                    headers : {"user-agent": navigator.userAgent},
-                    onload: () => {
-                        document.title = `[${progress}/${Total}]`;
-                        Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
-                        progress++;
-                        resolve();
-                    },
-                    onerror: () => {
-                        if (retry > 0) {
-                            if (DeBug) {console.log(`Request Retry : [${retry}]`)}
-                            Request(index, retry-1);
+                if (typeof link !== "undefined") {
+                    GM_download({
+                        url: link,
+                        name: `${Folder}_${(index + 1).toString().padStart(4, '0')}.${extension}`,
+                        headers : {"user-agent": navigator.userAgent},
+                        onload: () => {
+                            document.title = `[${progress}/${Total}]`;
+                            Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                            progress++;
                             resolve();
-                        } else {
-                            reject(new Error("Request error"));
+                        },
+                        onerror: () => {
+                            if (retry > 0) {
+                                if (DeBug) {console.log(`Request Retry : [${retry}]`)}
+                                Request(index, retry-1);
+                                resolve();
+                            } else {
+                                reject(new Error("Request error"));
+                            }
                         }
-                    }
-                });
-            });
+                    })
+                } else {reject(new Error("undefined url"))}
+            });    
         }
         for (let i = 0; i < Total; i++) {
             promises.push(Request(i));
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(resolve => setTimeout(resolve, Delay.Download));
         }
         await Promise.allSettled(promises);
         Button.textContent = language.DS_08;
