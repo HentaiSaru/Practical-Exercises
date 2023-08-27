@@ -154,7 +154,7 @@
         title = document.getElementById("gj").textContent.trim() || document.getElementById("gn").textContent.trim();
         title = IllegalFilter(title);
         pages = Math.ceil(pages / 20);
-     
+
         if (Experimental) {
             const worker = BackWorkerCreation(`
                 let queue = [], processing = false;
@@ -237,7 +237,7 @@
                     for (let i = 0; i < homepage.size; i++) {
                         homebox.push(...homepage.get(i));
                     }
-                
+
                     if (DeBug) {
                         console.groupCollapsed("Home Page Data");
                         console.log(`[Title] : ${title}`);
@@ -256,13 +256,13 @@
                 });
                 homepage.set(index, homebox); // 確保索引順序
             }
-        
+
             async function FetchRequest(index, url) { // 數據請求
                 const response = await fetch(url);
                 const html = await response.text();
                 await GetLink(index, parser.parseFromString(html, "text/html"));
             }
-        
+
             const promises = [FetchRequest(0, url)];
             for (let index = 1; index < pages; index++) {
                 promises.push(FetchRequest(index, `${url}?p=${index}`));
@@ -270,12 +270,12 @@
                 await new Promise(resolve => setTimeout(resolve, Delay.Home));
             }
             await Promise.allSettled(promises);
-        
+
             const homebox = [];
             for (let i = 0; i < homepage.size; i++) {
                 homebox.push(...homepage.get(i));
             }
-        
+
             if (DeBug) {
                 console.groupCollapsed("Home Page Data");
                 console.log(`[Title] : ${title}`);
@@ -391,7 +391,7 @@
                     } catch {}
                 }
             }
-        
+
             async function FetchRequest(index, url) {
                 try {
                     const response = await fetch(url);
@@ -401,13 +401,13 @@
                     await FetchRequest(index, url);
                 }
             }
-        
+
             const promises = [];
             for (let index = 0; index < pages; index++) {
                 promises.push(FetchRequest(index, link[index]));
                 await new Promise(resolve => setTimeout(resolve, Delay.Image));
             }
-        
+
             await Promise.allSettled(promises);
             if (DeBug) {
                 console.groupCollapsed("Img Link Data");
@@ -472,7 +472,7 @@
                         }
                     })
                 } else {reject(new Error("undefined url"))}
-            });  
+            });
         }
         for (let i = 0; i < Total; i++) {
             promises.push(Request(i, 10));
@@ -484,7 +484,7 @@
         }
         await Promise.allSettled(promises);
         Compression();
-        
+
         async function Compression() {
             zip.generateAsync({
                 type: "blob",
@@ -544,7 +544,7 @@
                         }
                     })
                 } else {reject(new Error("undefined url"))}
-            });    
+            });
         }
         for (let i = 0; i < Total; i++) {
             promises.push(Request(i));

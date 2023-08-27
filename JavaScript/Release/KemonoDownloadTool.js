@@ -262,7 +262,7 @@
                             method: "GET",
                             url: url,
                             responseType: "blob",
-                            onload: response => { 
+                            onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                     mantissa = (index + 1).toString().padStart(3, '0');
                                     zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
@@ -456,14 +456,14 @@
     }
 
     /* ==================== 數據處理 ====================  */
-    var progress, OriginalTitle = document.title; // 進度顯示
+    var progress, filtercache, OriginalTitle = document.title; // 進度顯示
 
     /* 獲取主頁元素 */
     async function GetPageData(section) {
         let title, link, promises = [];
         const menu = section.querySelector("a.pagination-button-after-current");
         const item = section.querySelectorAll(".card-list__items article");
-        
+
         Pages++;
         progress = 0;
         GM_notification({
@@ -477,7 +477,7 @@
         for (const card of item) {
             title = card.querySelector(".post-card__header").textContent.trim();
             link = card.querySelector("a").href;
-    
+
             if (ExperimentalDownload) {
                 promises.push(DataClassification(title, link, Pages));
                 await new Promise(resolve => setTimeout(resolve, ExperimentalDownloadDelay));
@@ -492,7 +492,7 @@
             await GetNextPage(menu.href);
         } catch {ToJson()}
     }
-    
+
     /* 獲取下一頁數據 */
     async function GetNextPage(NextPage) {
         GM_xmlhttpRequest({
@@ -536,7 +536,7 @@
                 nocache: false,
                 onload: response => {
                     const DOM = parser.parseFromString(response.responseText, "text/html");
-                
+
                     const original_link = url;
                     const pictures_number = DOM.querySelectorAll("div.post__thumbnail").length;
                     const video_number = DOM.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li').length;
@@ -584,7 +584,7 @@
                     break;
                 case "OnlyMode":
                     genmode = false;
-                    const filtercache = Object.keys(jsonmode).reduce((obj, key) => {
+                    filtercache = Object.keys(jsonmode).reduce((obj, key) => {
                         if (set.includes(key)) {obj[key] = jsonmode[key]}
                         return obj;
                     }, {});
