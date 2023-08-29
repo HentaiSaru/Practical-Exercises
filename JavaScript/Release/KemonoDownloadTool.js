@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.14
+// @version      0.0.15
 // @author       HentiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -40,8 +40,9 @@
     var CompressMode = GM_getValue("Compression", []), parser = new DOMParser(), ModeDisplay, JsonDict, Pages;
     let jsonmode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}, genmode=true;
 
-    let PoolSize = 5, // 併發請求數 (下載線程)
+    let PoolSize = 5, // 併發請求數 (下載線程) [實驗下載非適用]
     DeBug = false, // 顯示請求資訊, 與錯誤資訊
+    NotiFication = true, // 操作 系統通知
     CompleteClose = false, // 完成後自動關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
     ExperimentalDownload = true, // 實驗下載功能 [壓縮下載 / json 下載]
     ExperimentalDownloadDelay = 150; // 實驗下載請求延遲 (ms)
@@ -54,8 +55,8 @@
     * 連結數量: "dllink"
     * 排除模式: "FilterMode"
     * 唯一模式: "OnlyMode"
-    * -----------------------/
-    // ToJsonSet(["orlink", "videonb"], "OnlyMode");
+    */
+    // ToJsonSet(["orlink", "dllink"], "OnlyMode");
 
     /* ==================== 監聽按鈕創建 (入口點) ====================  */
 
@@ -68,7 +69,7 @@
 
     /* ==================== 選項菜單 ====================  */
 
-    GM_registerMenuCommand(language.RM_01, function() {DownloadModeSwitch()}, "C");
+    GM_registerMenuCommand(language.RM_01, function() {DownloadModeSwitch()});
     GM_registerMenuCommand(language.RM_02, function() {
         const section = document.querySelector("section");
         if (section) {
@@ -77,7 +78,7 @@
             GetPageData(section);
         }
     }, "J");
-    GM_registerMenuCommand(language.RM_03, function() {OpenData()}, "O");
+    GM_registerMenuCommand(language.RM_03, function() {OpenData()});
 
     /* ==================== 數據處理 ====================  */
 
@@ -292,7 +293,7 @@
                     worker.terminate();
                     Compression();
                 }
-            }, 100);
+            }, 500);
 
             // 錯誤訊息
             worker.onerror = function (e) {
@@ -351,7 +352,7 @@
                                 reject(error);
                             }
                         }
-                    });
+                    })
                 });
             }
 
@@ -439,18 +440,22 @@
     async function DownloadModeSwitch() {
         if (GM_getValue("Compression", [])){
             GM_setValue("Compression", false);
-            GM_notification({
-                title: language.NF_01,
-                text: language.DM_02,
-                timeout: 1500
-            });
+            if (NotiFication) {
+                GM_notification({
+                    title: language.NF_01,
+                    text: language.DM_02,
+                    timeout: 1500
+                });
+            }
         } else {
             GM_setValue("Compression", true);
-            GM_notification({
-                title: language.NF_01,
-                text: language.DM_01,
-                timeout: 1500
-            });
+            if (NotiFication) {
+                GM_notification({
+                    title: language.NF_01,
+                    text: language.DM_01,
+                    timeout: 1500
+                });
+            }
         }
         location.reload();
     }
@@ -466,12 +471,14 @@
 
         Pages++;
         progress = 0;
-        GM_notification({
-            title: language.NF_02,
-            text: `${language.NF_03} : ${Pages}`,
-            image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
-            timeout: 800
-        });
+        if (NotiFication) {
+            GM_notification({
+                title: language.NF_02,
+                text: `${language.NF_03} : ${Pages}`,
+                image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                timeout: 800
+            });
+        }
 
         // 遍歷數據
         for (const card of item) {
@@ -487,7 +494,6 @@
         }
         // 等待所有請求完成
         await Promise.allSettled(promises);
-
         try { // 請求下一頁
             await GetNextPage(menu.href);
         } catch {ToJson()}
@@ -520,8 +526,8 @@
             return {
                 ...(jsonmode.hasOwnProperty("orlink") ? { [language.CD_01]: ol } : {}),
                 ...(jsonmode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [language.CD_02]: pn } : {}),
-                ...(jsonmode.hasOwnProperty("videonb") && vn > 0 && pn <= 5 ? { [language.CD_03]: vn } : {}),
-                ...(jsonmode.hasOwnProperty("dllink") ? { [language.CD_04]: lb || {} } : {}),
+                ...(jsonmode.hasOwnProperty("videonb") && vn > 0 && pn <= 10 ? { [language.CD_03]: vn } : {}),
+                ...(jsonmode.hasOwnProperty("dllink") && Object.keys(lb).length > 0 ? { [language.CD_04]: lb } : {}),
             }
         }
     }
@@ -540,12 +546,18 @@
                     const original_link = url;
                     const pictures_number = DOM.querySelectorAll("div.post__thumbnail").length;
                     const video_number = DOM.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li').length;
+                    const mega_link = DOM.querySelectorAll("div.post__content strong");
                     DOM.querySelectorAll("a.post__attachment-link").forEach(link => {
                         const analyze =  decodeURIComponent(link.href).split("?f=");
                         const download_link = analyze[0];
                         const download_name = analyze[1];
                         link_box[download_name] = download_link;
                     })
+                    try {
+                        link_box[mega_link[0].textContent.trim().replace(":", "")] = {
+                            [mega_link[2].textContent.trim()]: mega_link[1].parentElement.href
+                        };
+                    } catch {}
 
                     const Box = GenerateBox(original_link, pictures_number, video_number, link_box);
                     if (Object.keys(Box).length !== 0) {
@@ -573,7 +585,7 @@
     * 基本設置: ToJsonSet(["orlink", "imgnb", "videonb", "dllink"]) 可選項目
     * mode = "FilterMode", 根據傳入的值, 將 {原始連結, 圖片數, 影片數, 下載連結} (過濾掉/刪除該項目)
     * mode = "OnlyMode", 根據傳入的值, 例如 {set = ["imgnb"]}, 那就只會顯示有圖片的
-    * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘5張的被排除}
+    * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘10張的被排除}
     */
     async function ToJsonSet(set = [], mode = "FilterMode") {
         try {
@@ -604,12 +616,14 @@
             json.download = `${author}.json`;
             json.click();
             json.remove();
-            GM_notification({
-                title: language.NF_04,
-                text: language.NF_05,
-                image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
-                timeout: 2000
-            });
+            if (NotiFication) {
+                GM_notification({
+                    title: language.NF_04,
+                    text: language.NF_05,
+                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                    timeout: 2000
+                });
+            }
             document.title = OriginalTitle;
         } catch {alert(language.NF_06)}
     }
