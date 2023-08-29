@@ -77,7 +77,7 @@
             Pages = 0;
             GetPageData(section);
         }
-    }, "J");
+    });
     GM_registerMenuCommand(language.RM_03, function() {OpenData()});
 
     /* ==================== 數據處理 ====================  */
