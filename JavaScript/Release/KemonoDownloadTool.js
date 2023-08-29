@@ -5,7 +5,7 @@
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
 // @version      0.0.15
-// @author       HentiSaru
+// @author       HentaiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-CN   一键下载图片 (压缩下载/单图下载) , 页面数据创建 json 下载 , 一键开启当前所有帖子
