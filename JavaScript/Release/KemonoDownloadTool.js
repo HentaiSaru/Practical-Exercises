@@ -425,11 +425,11 @@
         let interval = setInterval(() => {
             if (task === Total) {
                 clearInterval(interval);
-                document.title = OriginalTitle;
+                document.title = `✓ ${OriginalTitle}`;
                 Button.textContent = language.DS_08;
                 setTimeout(() => {
                     Button.disabled = false;
-                    Button.textContent = ModeDisplay;
+                    Button.textContent = `✓ ${ModeDisplay}`;
                     if (CompleteClose) {window.close()}
                 }, 3000);
             }
