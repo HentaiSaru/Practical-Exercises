@@ -5,7 +5,7 @@
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
 // @version      0.0.31
-// @author       HentiSaru
+// @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-CN  侧边栏收缩美化界面 , 自动加载原图 , 简易隐藏广告 , 浏览翻页优化 , 自动开新分页 , 影片区块优化 , 底部添加下一页与回到顶部按钮 , 快捷翻页
