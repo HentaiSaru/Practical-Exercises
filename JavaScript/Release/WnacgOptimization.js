@@ -5,7 +5,7 @@
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
 // @version         0.0.11
-// @author          HentiSaru
+// @author          HentaiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-CN   漫画观看页面自定义, 图像大小, 背景颜色, 自动翻页, 观看模式
