@@ -380,12 +380,12 @@
                 document.title = `${progress.percent.toFixed(1)} %`;
                 Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
             }).then(async zip => {
-                document.title = OriginalTitle;
+                document.title = `✓ ${OriginalTitle}`;
                 await saveAs(zip, `${Folder}.zip`);
                 Button.textContent = language.DS_08;
                 setTimeout(() => {
                     if (CompleteClose) {window.close()}
-                    Button.textContent = ModeDisplay;
+                    Button.textContent = `✓ ${ModeDisplay}`;
                     Button.disabled = false;
                 }, 3000);
             }).catch(result => {
