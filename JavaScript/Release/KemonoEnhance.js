@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.30
+// @version      0.0.31
 // @author       HentiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -39,7 +39,7 @@
 // ==/UserScript==
 
 (function () {
-    let menu, img_rule, tryerror = 0, xhr = new XMLHttpRequest(),
+    var menu, img_rule, set, tryerror = 0, xhr = new XMLHttpRequest(),
     language = display_language(GM_getValue("language", null)),
     Url = window.location.href, parser = new DOMParser(),
     buffer = document.createDocumentFragment();
@@ -65,7 +65,7 @@
             QuickPostToggle(); // 快速切換帖子頁面
         }
     }, 250);
-    
+
     setTimeout(() => {
         if (pattern.test(Url)) {
             OriginalImage(); // 自動原圖
@@ -202,7 +202,7 @@
     /* 移除公告通知 */
     async function RemoveNotice() {
         let announce;
-        const interval = setInterval(() => { 
+        const interval = setInterval(() => {
             announce = document.querySelector("body > div.content-wrapper.shifted > a");
             if (announce) {
                 clearInterval(interval);
@@ -250,7 +250,7 @@
 
     /* 載入原圖 */
     async function OriginalImage() {
-        const set = GetSettings("ImgSet");
+        set = GetSettings("ImgSet");
         addstyle(`
             .img-style {
                 display: block;
@@ -311,7 +311,7 @@
             }, 1500);
         }
     }
-    
+
     /* 完整廣告攔截消除 */
     async function Ad_Block(Clear = false) {
         if (Clear) {
@@ -647,7 +647,7 @@
             $(".modal-background").remove();
             Menu();
         });
-        // 語言設置
+        // 圖片設置
         $(".Image-input-settings").on("input change", function (event) {
             event.stopPropagation();
             const target = $(this), value = target.val(), id = target.attr("id");
@@ -699,7 +699,6 @@
                     save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
                 }
             })
-            array = [save];
             GM_setValue("ImgSet", [save]);
 
             // 菜單資訊
@@ -732,7 +731,7 @@
                 return value || 0;
             }
         `);
-        const set = GetSettings("MenuSet");
+        set = GetSettings("MenuSet");
         addstyle(`
             .modal-background {
                 top: 0;
@@ -975,7 +974,7 @@
                 "MIS_04" : "Image Spacing Height"
             }],
         };
-        
+
         if (display.hasOwnProperty(language)) {
             return display[language][0];
         } else {
