@@ -498,9 +498,9 @@
             }).then(async zip => {
                 await saveAs(zip, `${Folder}.zip`);
                 Button.textContent = language.DS_06;
-                document.title = OriginalTitle;
+                document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
-                    Button.textContent = ModeDisplay;
+                    Button.textContent = `✓ ${ModeDisplay}`;
                     Button.disabled = false;
                 }, 3000);
             }).catch(result => {
@@ -553,7 +553,7 @@
         await Promise.allSettled(promises);
         Button.textContent = language.DS_08;
         setTimeout(() => {
-            Button.textContent = ModeDisplay;
+            Button.textContent = `✓ ${ModeDisplay}`;
             Button.disabled = false;
         }, 3000);
     }
