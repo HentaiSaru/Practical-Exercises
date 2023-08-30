@@ -19,12 +19,12 @@
             borderWidth: 2,
             pointerThickness: 2,
             pointerBorderWidth: 0,
-            pointerColor: "#E60965",
-            borderColor: "#F94892",
+            pointerColor: "#FAF0E6",
+            borderColor: "#5C5470",
             controlBorderWidth: 1,
-            controlBorderColor: "#FAFAFA",
-            buttonColor: "#E60965",
-            backgroundColor: "#FFA1C9",
+            controlBorderColor: "#B9B4C7",
+            buttonColor: "#FAF0E6",
+            backgroundColor: "#352F44",
             onInput: function(color = this.toRGBAString()) {
                 $("protection").css("background-color", color);
             },
@@ -58,29 +58,34 @@
             position: fixed;
             top: 50px;
             left: 50px;
-            width: 300px;
-            height: 200px;
-            border-radius: 10px;
+            height: 5vh;
             pointer-events: auto;
         }
         .interface-header {
-            padding: 10px;
+            padding: 3px 10px 3px 10px;
             cursor: pointer;
-            background-color: rgb(255, 161, 201);
+            text-align: end;
+            font-size: 24px;
+            color: #FAF0E6;
+            font-weight: bold;
+            border-radius: 3px;
+            background-color: #B9B4C7;
         }
         .interface-body {
             padding: 10px;
-            background-color: #da5d5d;
+            height: 100%;
+            border-radius: 3px;
+            background-color: #352F44;
         }
         .color-picker {
-            color: #fffefe;
+            color: #FAF0E6;
             cursor: pointer;
             width: 14rem;
             font-size: 1.3rem;
             font-weight: bold;
             border-radius: 5px;
-            background-color: #FFA1C9;
-            border: 3px solid #f05d73;
+            background-color: #5C5470;
+            border: 3px solid #B9B4C7;
         }
         ul {
             list-style: none;
@@ -90,26 +95,13 @@
 <body>
     <protection></protection>
 
-    <!--<div id="modal-background" class="modal-background">
+    <div id="modal-background" class="modal-background">
         <div class="modal-interface">
-            <div id="interface-header" class="interface-header"></div>
+            <div id="interface-header" class="interface-header"><span id="close">X</span></div>
             <div id="interface-body" class="interface-body">
-                <input type="text" id="select_color" class="jscolor color-picker" value="rgba(255, 161, 201, 1)" data-jscolor="{preset:'default'}">
+                <input type="text" id="select_color" class="jscolor color-picker" value="rgba(43, 43, 43, 1)" data-jscolor="{preset:'default'}">
                 <div style="color: #585858;"></div>
             </div>
-        </div>
-    </div>-->
-
-    <div class="tabs">
-        <ul>
-            <li><a href="#tab-1"><button>選項卡 1</button></a></li>
-            <li><a href="#tab-2">選項卡 2</a></li>
-        </ul>
-        <div id="tab-1">
-            <p>這是選項卡 1 的內容。</p>
-        </div>
-        <div id="tab-2">
-            <p>這是選項卡 2 的內容。</p>
         </div>
     </div>
     
@@ -117,7 +109,6 @@
         // 當頁面加載完成後
         $(function() {
             // 顯示模態背景和模態介面
-            $(".tabs").tabs();
             $("#modal-background").show();
         
             // 使用 jQuery UI 的 draggable 方法使模態介面可拖動
@@ -125,12 +116,13 @@
                 handle: "#interface-header" // 指定拖動手柄
             });
             $("#interface-header").on("mousedown", () => {
-                $(".modal-interface").css("border", "3px solid #585858");
                 $("#interface-header").css("cursor", "move");
             })
             $("#interface-header").on("mouseup", () => {
-                $(".modal-interface").css("border", "none");
                 $("#interface-header").css("cursor", "pointer");
+            });
+            $("#close").on("click", () => {
+                $("#modal-background").remove();
             });
         });
     </script>
