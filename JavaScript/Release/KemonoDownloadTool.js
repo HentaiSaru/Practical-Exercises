@@ -553,11 +553,14 @@
                         const download_name = analyze[1];
                         link_box[download_name] = download_link;
                     })
-                    try {
-                        link_box[mega_link[0].textContent.trim().replace(":", "")] = {
-                            [mega_link[2].textContent.trim()]: mega_link[1].parentElement.href
-                        };
-                    } catch {}
+                    
+                    if (mega_link.length > 0) {
+                        try {
+                            link_box[mega_link[0].textContent.trim().replace(":", "")] = {
+                                [mega_link[2].textContent.trim()]: mega_link[1].parentElement.href
+                            }
+                        } catch {}
+                    }
 
                     const Box = GenerateBox(original_link, pictures_number, video_number, link_box);
                     if (Object.keys(Box).length !== 0) {
