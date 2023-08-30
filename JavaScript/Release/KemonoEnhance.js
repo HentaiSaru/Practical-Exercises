@@ -39,7 +39,7 @@
 // ==/UserScript==
 
 (function () {
-    var menu, img_rule, set, tryerror = 0, xhr = new XMLHttpRequest(),
+    var menu, img_rule, set, xhr = new XMLHttpRequest(),
     language = display_language(GM_getValue("language", null)),
     Url = window.location.href, parser = new DOMParser(),
     buffer = document.createDocumentFragment();
@@ -64,7 +64,7 @@
             NewTabOpens(); // 自動新分頁
             QuickPostToggle(); // 快速切換帖子頁面
         }
-    }, 250);
+    }, 150);
 
     setTimeout(() => {
         if (pattern.test(Url)) {
@@ -154,19 +154,28 @@
     GM_addStyle(GM_getResourceText("font-awesome"));
     addstyle(`
         .gif-overlay {
-            position: absolute;
-            opacity: 0.3;
             top: 30%;
             left: 50%;
             width: 60%;
             height: 60%;
+            opacity: 0.3;
             z-index: 9999;
+            position: absolute;
             border-radius: 50%;
             background-size: contain;
             background-position: center;
             background-repeat: no-repeat;
             transform: translate(-50%, -50%);
             background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+        }
+        .card-list__items {
+            gap: 0.5em;
+            display: flex;
+            grid-gap: 0.5em;
+            position: relative;
+            flex-flow: var(--local-flex-flow);
+            justify-content: var(--local-justify);
+            align-items: var(--local-align);
         }
     `, "Effects");
 
@@ -201,7 +210,7 @@
 
     /* 移除公告通知 */
     async function RemoveNotice() {
-        let announce;
+        let announce, tryerror = 0;
         const interval = setInterval(() => {
             announce = document.querySelector("body > div.content-wrapper.shifted > a");
             if (announce) {
@@ -443,8 +452,7 @@
 
     /* 將瀏覽帖子頁面都變成開新分頁 */
     async function NewTabOpens() {
-        const card = document.querySelectorAll("div.card-list__items article a");
-        card.forEach(link => {
+        document.querySelectorAll("article a").forEach(link => {
             addlistener(link, "click", event => {
                 event.preventDefault();
                 GM_openInTab(link.href, { active: false, insert: true });
@@ -481,15 +489,14 @@
     async function QuickPostToggle() {
         let Old_data, New_data, item;
         async function Request(link) {
+            Old_data = document.querySelector("section");
             item = document.querySelector("div.card-list__items");
-            item.style.position = "relative";
             GM_addElement(item, "img", {class: "gif-overlay"});
             GM_xmlhttpRequest({
                 method: "GET",
                 url: link,
-                nocache: true,
+                nocache: false,
                 onload: response => {
-                    Old_data = document.querySelector("section");
                     New_data = parser.parseFromString(response.responseText, "text/html").querySelector("section");
                     ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);
                     history.pushState(null, null, link);
@@ -701,14 +708,15 @@
             })
             GM_setValue("ImgSet", [save]);
 
-            // 菜單資訊
+            // 菜單位置資訊
             save = {};
             const menu_location = $(".modal-interface");
             const top = menu_location.css("top");
             const left = menu_location.css("left");
             save["MT"] = top;
             save["ML"] = left;
-            GM_setValue("MenuSet", [save])
+            GM_setValue("MenuSet", [save]);
+            
             styleRules["MT"](top);
             styleRules["ML"](left);
             $(".modal-background").remove();
