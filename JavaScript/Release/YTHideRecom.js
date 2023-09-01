@@ -64,7 +64,7 @@
                 language = display_language(navigator.language),
                 ListenerRecord = new Map(),
                 Lookup_Delay = 300
-                Dev = true;
+                Dev = false;
 
                 /* 註冊菜單 */
                 GM_registerMenuCommand(language[0], function() {alert(language[1])});
