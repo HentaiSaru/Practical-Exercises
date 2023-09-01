@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.19
+// @version      0.0.20
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -63,7 +63,7 @@
                 Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
                 language = display_language(navigator.language),
                 ListenerRecord = new Map(),
-                Lookup_Delay = 300
+                Lookup_Delay = 300,
                 Dev = false;
 
                 /* 註冊菜單 */
@@ -108,6 +108,7 @@
 
                     const observer = new MutationObserver(() => {
                         elements = selectors.map(selector => document.getElementById(selector));
+                        if (Dev) {console.log(elements)}
                         if (elements.every(element => element)) {
                             observer.disconnect();
                             clearTimeout(timer);
@@ -120,12 +121,11 @@
                         observer.disconnect();
                     }, timeout);
                 }
-
+    
                 /* ======================= 讀取設置 ========================= */
-                const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container", "actions"];
-
+                const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
                 WaitElem(HideElem, 8000, element => {
-                    const [end, below, secondary, related, inner, chat, comments, menu, actions] = element;
+                    const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
                     if (VVP_Pattern.test(currentUrl)) {
@@ -157,10 +157,8 @@
                             // 功能選項
                             set = GM_getValue("Trigger_3", null);
                             if (set && set !== null){
-                                Promise.all([SetTrigger(menu), SetTrigger(actions)]).then(results => {
-                                    if (results.every(result => result)) {
-                                        if (Dev) {console.log("隱藏功能選項")}
-                                    }
+                                SetTrigger(menu).then(() => {
+                                    if (Dev) {console.log("隱藏功能選項")}
                                 });
                             }
                         }
@@ -222,7 +220,6 @@
                         } else if (event.altKey && event.key === "3") {
                             event.preventDefault();
                             HideJudgment(menu, "Trigger_3");
-                            HideJudgment(actions);
                         } else if (event.altKey && event.key === "4") {
                             event.preventDefault();
                             let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
