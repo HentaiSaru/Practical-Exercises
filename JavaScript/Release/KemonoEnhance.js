@@ -275,8 +275,8 @@
 
     /* 載入原圖 */
     async function OriginalImage() {
-        set = GetSettings("ImgSet");
         MenuDependent();
+        set = GetSettings("ImgSet");
         addstyle(`
             .img-style {
                 display: block;
