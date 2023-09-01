@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.32
+// @version      0.0.33
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -275,7 +275,6 @@
 
     /* 載入原圖 */
     async function OriginalImage() {
-        MenuDependent();
         set = GetSettings("ImgSet");
         addstyle(`
             .img-style {
@@ -286,6 +285,7 @@
                 max-width: ${set.img_mw};
             }
         `);
+        MenuDependent();
         let href, img;
         WaitElem("div.post__thumbnail", true, 5000, thumbnail => {
             function ImgRendering({ ID, href }) {
@@ -348,7 +348,7 @@
                     } catch {}
                     let XMLRequest = XMLHttpRequest.prototype.open;
                     XMLHttpRequest.prototype.open = function(method, url) {
-                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") { // 攔截
+                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {
                             return;
                         }
                         XMLRequest.apply(this, arguments);
@@ -478,14 +478,14 @@
     /* 替換頁面的初始化 */
     async function Initialization() {
         ExtraButton();
+        OriginalImage();
+        VideoBeautify();
         if (document.querySelectorAll(".post__content img").length > 2) {
             document.querySelector(".post__content").remove();
         }
-        setTimeout(OriginalImage, 500);
-        setTimeout(VideoBeautify, 500);
         document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
     }
-    /* 快捷切換頁面 */
+    /* 切換頁面 */
     async function AjexReplace(url, old_main) {
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
@@ -733,7 +733,7 @@
             save["MT"] = top;
             save["ML"] = left;
             GM_setValue("MenuSet", [save]);
-            
+
             styleRules["MT"](top);
             styleRules["ML"](left);
             $(".modal-background").remove();
