@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.31
+// @version      0.0.32
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -57,24 +57,22 @@
 
     /* ==================== 其餘附加選項 ==================== */
 
-    setTimeout(() => {
-        if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
-            CardSize(); // 帖子預覽卡放大
-            PostCardFade(true); // 帖子文字卡淡化 [true: 淡化 + 隱藏, false: 淡化]
-            NewTabOpens(); // 自動新分頁
-            QuickPostToggle(); // 快速切換帖子頁面
-        }
-    }, 150);
+    if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
 
-    setTimeout(() => {
-        if (pattern.test(Url)) {
-            OriginalImage(); // 自動原圖
-            VideoBeautify(); // 影片美化
-            LinkOriented(); // 連結轉換
-            ExtraButton(); // 額外的下方按鈕
-            GM_registerMenuCommand(language.RM_01, function () {Menu()}); // 菜單註冊 (當前只在帖子內)
-        }
-    }, 650); // 功能常沒觸發, 延遲就調高 預設 650ms = 0.65s
+        CardSize(); // 帖子預覽卡放大
+        PostCardFade(true); // 帖子文字卡淡化 [true: 淡化 + 隱藏, false: 淡化]
+        NewTabOpens(); // 自動新分頁
+        QuickPostToggle(); // 快速切換帖子頁面
+
+    } else if (pattern.test(Url)) {
+
+        OriginalImage(); // 自動原圖
+        VideoBeautify(); // 影片美化
+        LinkOriented(); // 連結轉換
+        ExtraButton(); // 額外的下方按鈕
+        GM_registerMenuCommand(language.RM_01, function () {Menu()}); // 菜單註冊 (當前只在帖子內)
+
+    }
 
     /* ==================== API ==================== */
 
@@ -104,7 +102,7 @@
     /* 添加監聽API */
     async function addlistener(element, type, listener) {
         if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-            element.addEventListener(type, listener);
+            element.addEventListener(type, listener, true);
             if (!ListenerRecord.has(element)) {
                 ListenerRecord.set(element, new Map());
             }
@@ -119,6 +117,34 @@
             element.removeEventListener(type, listen);
             ListenerRecord.get(element).delete(type);
         }
+    }
+
+    /* 等待元素 API */
+    async function WaitElem(selector, all, timeout, callback) {
+        let timer;
+
+        const observer = new MutationObserver(() => {
+            if (all) {
+                const element = document.querySelectorAll(selector);
+                if (element.length > 0) {
+                    observer.disconnect();
+                    clearTimeout(timer);
+                    callback(element);
+                }
+            } else {
+                const element = document.querySelector(selector);
+                if (element) {
+                    observer.disconnect();
+                    clearTimeout(timer);
+                    callback(element);
+                }
+            }
+        });
+
+        observer.observe(document.body, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+            observer.disconnect();
+        }, timeout);
     }
 
     /* 導入設定 API */
@@ -210,17 +236,9 @@
 
     /* 移除公告通知 */
     async function RemoveNotice() {
-        let announce, tryerror = 0;
-        const interval = setInterval(() => {
-            announce = document.querySelector("body > div.content-wrapper.shifted > a");
-            if (announce) {
-                clearInterval(interval);
-                announce.remove();
-            } else {
-                tryerror++;
-                if (tryerror > 100) { clearInterval(interval) }
-            }
-        }, 100);
+        WaitElem("body > div.content-wrapper.shifted > a", false, 8000, announce => {
+            announce.remove();
+        });
     }
 
     /* 影片美化 */
@@ -231,9 +249,7 @@
                 width: 80%;
             }
         `, "Effects");
-        let stream, parents;
-        parents = document.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li');
-        if (parents.length > 0) {
+        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5000, parents => {
             function ReactBeautify({ stream }) {
                 return React.createElement("video", {
                     key: "video",
@@ -247,19 +263,20 @@
                 }));
             }
             parents.forEach(li => {
-                stream = li.querySelector("source");
+                const stream = li.querySelector("source");
                 if (stream) {
                     ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
                 } else {
                     console.log("Debug: Could not find source, please refresh");
                 }
             })
-        }
+        });
     }
 
     /* 載入原圖 */
     async function OriginalImage() {
         set = GetSettings("ImgSet");
+        MenuDependent();
         addstyle(`
             .img-style {
                 display: block;
@@ -269,10 +286,8 @@
                 max-width: ${set.img_mw};
             }
         `);
-        MenuDependent();
-        let thumbnail, href, img;
-        thumbnail = document.querySelectorAll("div.post__thumbnail");
-        if (thumbnail.length > 0) {
+        let href, img;
+        WaitElem("div.post__thumbnail", true, 5000, thumbnail => {
             function ImgRendering({ ID, href }) {
                 return React.createElement("a", {
                     id: ID,
@@ -286,12 +301,12 @@
                     }
                 })
                 )
-            }
+            };
             thumbnail.forEach(async (object, index) => {
                 object.classList.remove("post__thumbnail");
                 href = object.querySelector("a");
                 await ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-            })
+            });
             document.querySelectorAll("a.image-link").forEach(link => {
                 const handleClick = () => {
                     img = link.querySelector("img");
@@ -303,7 +318,7 @@
                 }
                 link.addEventListener("click", handleClick);
             });
-        }
+        });
     }
     /* 載入原圖 (死圖重試) */
     async function Reload(ID, retry) {
@@ -348,57 +363,55 @@
 
     /* 轉換下載連結參數 */
     async function LinkOriented() {
-        document.querySelectorAll("a.post__attachment-link").forEach(link => {
-            link.setAttribute("download", "");
-        })
+        WaitElem("a.post__attachment-link", true, 5000, post => {
+            post.forEach(link => {
+                link.setAttribute("download", "");
+            });
+        });
     }
 
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
-        const interval = setInterval(() => {
-            const comments = document.querySelector("h2.site-section__subheading");
+        WaitElem("h2.site-section__subheading", false, 8000, comments => {
             const prev = document.querySelector("a.post__nav-link.prev");
             const next = document.querySelector("a.post__nav-link.next");
-            if (comments) {
-                clearInterval(interval);
-                const span = document.createElement("span");
-                const svg = document.createElement("svg");
-                span.id = "next_box";
-                span.style = "float: right";
-                span.appendChild(next.cloneNode(true));
-                svg.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                        <style>svg{fill:#e8a17d}</style>
-                        <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
-                    </svg>
-                `
-                buffer.appendChild(svg);
-                buffer.appendChild(span);
-                comments.appendChild(buffer);
-                addlistener(svg, "click", () => {
-                    document.querySelector("header").scrollIntoView();
-                })
-                const main = document.querySelector("main");
-                addlistener(document.querySelector("#next_box a"), "click", event => {
+            const span = document.createElement("span");
+            const svg = document.createElement("svg");
+            span.id = "next_box";
+            span.style = "float: right";
+            span.appendChild(next.cloneNode(true));
+            svg.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
+                    <style>svg{fill:#e8a17d}</style>
+                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
+                </svg>
+            `
+            buffer.appendChild(svg);
+            buffer.appendChild(span);
+            comments.appendChild(buffer);
+            addlistener(svg, "click", () => {
+                document.querySelector("header").scrollIntoView();
+            })
+            const main = document.querySelector("main");
+            addlistener(document.querySelector("#next_box a"), "click", event => {
+                event.preventDefault();
+                AjexReplace(next.href, main);
+            });
+            // 監聽按鍵切換
+            /* 暫時停用
+            const main = document.querySelector("main");
+            addlistener(document, "keydown", event => {
+                if (event.key === "4") {
                     event.preventDefault();
+                    removlistener(document, "keydown");
+                    AjexReplace(prev.href, main);
+                } else if (event.key === "6") {
+                    event.preventDefault();
+                    removlistener(document, "keydown");
                     AjexReplace(next.href, main);
-                });
-                // 監聽按鍵切換
-                /* 暫時停用
-                const main = document.querySelector("main");
-                addlistener(document, "keydown", event => {
-                    if (event.key === "4") {
-                        event.preventDefault();
-                        removlistener(document, "keydown");
-                        AjexReplace(prev.href, main);
-                    } else if (event.key === "6") {
-                        event.preventDefault();
-                        removlistener(document, "keydown");
-                        AjexReplace(next.href, main);
-                    }
-                })*/
-            }
-        }, 300);
+                }
+            })*/
+        });
     }
 
     /* 帖子說明文字淡化 */
@@ -452,10 +465,12 @@
 
     /* 將瀏覽帖子頁面都變成開新分頁 */
     async function NewTabOpens() {
-        document.querySelectorAll("article a").forEach(link => {
-            addlistener(link, "click", event => {
-                event.preventDefault();
-                GM_openInTab(link.href, { active: false, insert: true });
+        WaitElem("article a", true, 8000, article => {
+            article.forEach(link => {
+                addlistener(link, "click", event => {
+                    event.preventDefault();
+                    GM_openInTab(link.href, { active: false, insert: true });
+                })
             })
         });
     }
@@ -505,10 +520,12 @@
                 }
             });
         }
-        document.querySelectorAll("menu a").forEach(ma => {
-            addlistener(ma, "click", (event) => {
-                event.preventDefault();
-                Request(ma.href);
+        WaitElem("menu a", true, 8000, meun => {
+            meun.forEach(ma => {
+                addlistener(ma, "click", (event) => {
+                    event.preventDefault();
+                    Request(ma.href);
+                })
             })
         });
     }
