@@ -122,7 +122,7 @@
     }
 
     /* ==================== 檢測注入 ==================== */
-    
+
     /* 登入檢測 */
     async function CookieCheck(cookies) {
         let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"]; // 需要的 cookie
@@ -175,7 +175,7 @@
             }
         });
     }
-    
+
     /* 自動獲取 Cookies */
     async function GetCookiesAutomatically() {
         let cookie_box = [];
