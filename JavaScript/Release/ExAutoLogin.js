@@ -76,9 +76,13 @@
 
     /* 通知展示 */
     async function Growl(message, theme, life) {
-        $.jGrowl(message, {
+        $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
             theme: theme,
-            life: life
+            life: life,
+            close: false,
+            animateOpen: {
+                height: "show"
+            }
         });
     }
 
@@ -163,6 +167,7 @@
         }
 
         $(document).on("click", ".modal-background, #login", function(event) {
+            event.stopPropagation();
             if ($(event.target).hasClass("modal-background")) {
                 $(document).off("click", ".modal-background, #login");
                 $(".modal-background").remove();
@@ -172,7 +177,6 @@
                 GM_setValue(`${domain}_SessionTime`, new Date().getTime());
                 location.reload();
             }
-            event.stopPropagation();
         });
     }
     
@@ -205,13 +209,14 @@
         `
         $(document.body).append(modal);
         $(document).on('click', '#close, .modal-background', function(click) {
+            click.stopPropagation();
             if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close') {
                 $(document).off('click', '#close, .show-modal-background');
                 $('.modal-background').remove();
             }
-            click.stopPropagation();
         });
-        $(document).on('click', '#save', function() {
+        $(document).on('click', '#save', function(click) {
+            click.stopPropagation();
             GM_setValue("E/Ex_Cookies", cookies);
             Growl(language.SM_05, "jGrowl", 1500);
             $(document).off('click', '#save');
@@ -256,11 +261,15 @@
             click.stopPropagation();
         });
         $("#set_cookies").on("submit", function(event) {
-            event.preventDefault(); // 阻止默認的表單提交行為
+            event.preventDefault();
+            event.stopPropagation();
             if ($(event.originalEvent.submitter).attr("id") === "save") {
                 const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
-                    return { name: $(input).attr("name"), value: $(input).val() };
-                });
+                    const value = $(input).val();
+                    if (value.trim() !== "") {
+                        return { name: $(input).attr("name"), value: value };
+                    }
+                }).filter(Boolean);
                 // 保存後 , 在獲取並轉換格式 , 並將其顯示
                 GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
                 const cookie = JSON.parse(GM_getValue("E/Ex_Cookies", null));
@@ -297,11 +306,11 @@
         $("#view_cookies").append(textarea);
         // 監聽關閉
         $(document).on('click', '#close, .modal-background', function(click) {
+            click.stopPropagation();
             if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close'){
                 $(document).off('click', '#close, .modal-background');
                 $('.modal-background').remove();
             }
-            click.stopPropagation();
         });
         // 監聽改變保存
         $('#save').on('click', function() {
@@ -367,10 +376,12 @@
                 ${jGrowl_style}
                 top: 0;
                 left: 50%;
+                width: auto;
                 z-index: 9999;
-                font-size: 1.5rem;
+                font-size: 1.3rem;
                 border-radius: 2px;
                 text-align: center;
+                white-space: nowrap;
                 transform: translateX(-50%);
             }
             .modal-background {
