@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.18
+// @version      0.0.19
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -42,12 +42,14 @@
 
     /* ==================== 主運行 ==================== */
     if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 11 * 60 * 1000)} // 沒有時間戳時的預
-    const cookie = GM_getValue("E/Ex_Cookies", null); // 獲取保存 Cookie
     const conversion = (time - sessiontime) / (1000 * 60); // 轉換時間
 
-    if (conversion > 10 && cookie !== null) {
-        CookieCheck(JSON.parse(cookie));
-        GM_setValue(`${domain}_SessionTime`, time.getTime());
+    if (conversion > 10) {
+        const cookie = GM_getValue("E/Ex_Cookies", null); // 獲取保存 Cookie
+        if (cookie !== null) {
+            CookieCheck(JSON.parse(cookie));
+            GM_setValue(`${domain}_SessionTime`, time.getTime());
+        }
     }
 
     /* ==================== 註冊菜單 ==================== */
@@ -96,11 +98,10 @@
 
     /* 刪除 cookie */
     function DeleteCookies(cookies) {
-        const cookieName = Object.keys(cookies);
-        for (const Name of cookieName) {
+        for (const Name of Object.keys(cookies)) {
             Cookies.remove(Name, { path: "/" })
-            Cookies.remove(Name, { path: "/", domain: ".exhentai.org" })
             Cookies.remove(Name, { path: "/", domain: ".e-hentai.org" })
+            Cookies.remove(Name, { path: "/", domain: ".exhentai.org" })
         }
     }
 
@@ -124,14 +125,11 @@
     
     /* 登入檢測 */
     async function CookieCheck(cookies) {
-        // 需要的 cookie 值
-        let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"], cookie;
-        if (domain === "exhentai.org") {RequiredCookies = ["igneous", "ipb_member_id", "ipb_pass_hash"]}
-        cookie = GetCookies();
-        let cookiesFound = RequiredCookies.every(function(cookieName) {
-            return cookie.hasOwnProperty(cookieName) && cookie[cookieName] !== undefined;
-        });
-        if (!cookiesFound || (!cookie.hasOwnProperty("igneous") || cookie.igneous === "mystery")) {
+        let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"]; // 需要的 cookie
+        if (domain === "exhentai.org") {RequiredCookies.unshift("igneous")}
+        const cookie = new Set(Object.keys(GetCookies())); // 檢測
+        let cookiesFound = RequiredCookies.every(CookieName => cookie.has(CookieName));
+        if (!cookiesFound) { // 判斷
             DeleteCookies(cookie);
             AddCookies(cookies);
             location.reload();
@@ -145,6 +143,7 @@
         const Share = GetShare();
         const AccountQuantity = Object.keys(Share).length
 
+        CreateDetection(".modal-background");
         modal = `
             <div class="modal-background">
                 <div class="acc-modal">
@@ -159,7 +158,7 @@
 
         $(document.body).append(modal);
         for (let i = 1; i <= AccountQuantity; i++) {
-            const option = $("<option>").attr({value: i}).text(`帳戶 ${i}`);
+            const option = $("<option>").attr({value: i}).text(`${language.SM_19} ${i}`);
             $("#account-select").append(option);
         }
 
@@ -179,10 +178,9 @@
     
     /* 自動獲取 Cookies */
     async function GetCookiesAutomatically() {
-        let cookie_box = [], cookieName;
-        const gc = GetCookies();
-        for (cookieName in gc) {
-            cookie_box.push({"name" : cookieName, "value" : gc[cookieName]});
+        let cookie_box = [];
+        for (const [name, value] of Object.entries(GetCookies())) {
+            cookie_box.push({"name": name, "value" : value});
         }
         if (cookie_box.length > 1) {
             Cookie_Show(JSON.stringify(cookie_box, null, 4));
@@ -355,7 +353,6 @@
             show_style = "background-color: #34353b; border: 2px ridge #5C0D12;"
             acc_style = "color: #f1f1f1; background-color: #34353b; border: 2px solid #8d8d8d;"
             button_style = "color: #fefefe; border: 2px solid #8d8d8d; background-color: #34353b;"
-            
             addstyle(`
                 body {
                     padding: 2px;
@@ -496,7 +493,8 @@
                 "SM_15": "未獲取到 Cookies !!\n\n請先登入帳戶",
                 "SM_16": "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置",
                 "SM_17": "帳戶選擇",
-                "SM_18": "登入"
+                "SM_18": "登入",
+                "SM_19": "帳號"
             }],
             "zh-CN": [{
                 "RM_00": "🍪 共享登录",
@@ -522,7 +520,8 @@
                 "SM_15": "未获取到 Cookies !!\n\n请先登录账户",
                 "SM_16": "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
                 "SM_17": "帐户选择",
-                "SM_18": "登录"
+                "SM_18": "登录",
+                "SM_19": "帐号"
             }],
             "ja": [{
                 "RM_00": "🍪 共有ログイン",
@@ -548,7 +547,8 @@
                 "SM_15": "Cookies を取得できませんでした !!\n\n最初にアカウントにログインしてください",
                 "SM_16": "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
                 "SM_17": "アカウント选択",
-                "SM_18": "ログイン"
+                "SM_18": "ログイン",
+                "SM_19": "アカウント"
             }],
             "en-US": [{
                 "RM_00": "🍪 Shared Login",
@@ -574,7 +574,8 @@
                 "SM_15": "Failed to get Cookies !!\n\nPlease log in to your account first",
                 "SM_16": "No injectable cookies detected !!\n\nPlease set from the menu",
                 "SM_17": "Account Selection",
-                "SM_18": "Log In"
+                "SM_18": "Log In",
+                "SM_19": "Account"
             }],
             "ko": [{
                 "RM_00": "🍪 공유 로그인",
@@ -600,7 +601,8 @@
                 "SM_15": "Cookies를 가져오지 못했습니다 !!\n\n먼저 계정에 로그인하십시오",
                 "SM_16": "주입 가능한 쿠키가 감지되지 않았습니다 !!\n\n메뉴에서 설정하세요",
                 "SM_17": "계정 선택",
-                "SM_18": "로그인"
+                "SM_18": "로그인",
+                "SM_19": "계정"
             }]
         };
 
