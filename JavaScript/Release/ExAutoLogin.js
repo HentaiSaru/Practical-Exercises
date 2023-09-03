@@ -78,11 +78,7 @@
     async function Growl(message, theme, life) {
         $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
             theme: theme,
-            life: life,
-            close: false,
-            animateOpen: {
-                height: "show"
-            }
+            life: life
         });
     }
 
