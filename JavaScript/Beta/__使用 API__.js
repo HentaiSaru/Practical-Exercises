@@ -170,7 +170,7 @@
  *      }
  * `, "ID")
  */
-async function addstyle(Rule, ID="New-Add-Style") {
+async function addstyle(Rule, ID="Add-Style") {
     let new_style = document.getElementById(ID);
     if (!new_style) {
         new_style = document.createElement("style");
@@ -194,7 +194,7 @@ async function addstyle(Rule, ID="New-Add-Style") {
  *      console.log(a);
  * `, "ID")
  */
-async function addscript(Rule, ID="New-Add-script") {
+async function addscript(Rule, ID="Add-script") {
     let new_script = document.getElementById(ID);
     if (!new_script) {
         new_script = document.createElement("script");
