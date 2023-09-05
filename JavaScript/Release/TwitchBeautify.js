@@ -4,7 +4,7 @@
 // @name:zh-CN   Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.19
+// @version      0.0.20
 // @author       HentaiSaru
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
@@ -32,26 +32,30 @@
 // ==/UserScript==
 
 (function() {
-    var enabledstate, language = display_language(navigator.language);
+    var enabledstate,
+    home = "https://www.twitch.tv/",
+    pattern = /^https:\/\/www\.twitch\.tv\/.+/,
+    language = display_language(navigator.language);
 
     /* ======================= 判斷是否調用美化 ========================= */
     if (GM_getValue("Beautify", [])) {
         enabledstate = language[1];
-        if (window.location.href === "https://www.twitch.tv/") {PlayerAborted(true)} // 首頁影片靜音
+        if (document.URL === home) {PlayerAborted(true)} // 首頁影片靜音
         main();
         setTimeout(DeleteFooter, 500);
     } else {
         enabledstate = language[0];
     }
     GM_registerMenuCommand(enabledstate, function() {Use()});
-    
+
     /* ======================= 檢測美化觸發與恢復 (API) ========================= */
 
     /* 使用美化監聽 */
     async function main() {
-        const pattern = /^https:\/\/www\.twitch\.tv\/.+/, observer = new MutationObserver(() => {
-            if (pattern.test(window.location.href) && document.querySelector("video")) {
+        const observer = new MutationObserver(() => {
+            if (pattern.test(document.URL) && document.querySelector("video")) {
                 observer.disconnect();
+                ActivityDeletion(); // 關閉活動公告 (臨時添加)
                 BeautifyTrigger();
                 fun($("div[data-a-player-state='']"), false);
             }
@@ -62,7 +66,7 @@
     /* 首頁恢復監聽 */
     async function HomeRecovery(Nav, CB, CX) {
         const observer = new MutationObserver(() => {
-            if (window.location.href === "https://www.twitch.tv/") {
+            if (document.URL === home) {
                 observer.disconnect();
                 Nav.removeClass("Nav_Effect");
                 CX.removeClass("Channel_Expand_Effect");
@@ -79,7 +83,7 @@
         let timer, elements;
         const observer = new MutationObserver(() => {
             elements = selectors.map(selector => $(selector));
-            if (elements.every(element => element)) {
+            if (elements.every(element => element[0])) {
                 observer.disconnect();
                 clearTimeout(timer);
                 callback(elements);
@@ -92,7 +96,7 @@
     }
 
     /* 添加js */
-    async function addscript(Rule, ID="New-Add-script") {
+    async function addscript(Rule, ID="Add-script") {
         let new_script = document.getElementById(ID);
         if (!new_script) {
             new_script = document.createElement("script");
@@ -160,7 +164,7 @@
                 width: 24rem;
             }
         `);
-        play.css("z-index", "9999");
+        //play.css("z-index", "9999");
         Nav.addClass("Nav_Effect");
         CX.addClass("Channel_Expand_Effect");
     }
@@ -172,7 +176,7 @@
         let recover;
         const observer = new MutationObserver(() => {
             try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
-            if (window.location.href === "https://www.twitch.tv/") {
+            if (document.URL === home) {
                 observer.disconnect();
             } else if (recover.length > 0) {
                 recover.click();
@@ -222,7 +226,7 @@
     async function fun(element, state=true) {
         if (element.length > 0) {
             if (state) {
-                element.draggable({ 
+                element.draggable({
                     cursor: "grabbing",
                     start: function(event, ui) {
                         $(this).find("div.ScAspectRatio-sc-18km980-1").addClass("drag-border");
@@ -246,34 +250,43 @@
         }
     }
 
-    /* 影片暫停和靜音 */
+    /* 影片暫停和靜音 (愚蠢的寫法 但我懶得改) */
     async function PlayerAborted(control) {
         let timeout=0, interval = setInterval(() => {
             const player = document.querySelector("video");
             if (player) {
+                clearInterval(interval);
                 if(control) {
-                    player.muted = true;
-                    if (!player.paused) {
-                        clearInterval(interval);
-                        player.pause();
-                    } else {
-                        timeout++;
-                        if (timeout > 50) {
-                            clearInterval(interval);
-                        }
-                    }
+                    const interval = setInterval(() => {
+                        try {
+                            player.pause();
+                            player.muted = true;
+                            if (player.paused && player.muted) {
+                                clearInterval(interval);
+                            } else {
+                                timeout++;
+                                if (timeout > 30) {
+                                    clearInterval(interval);
+                                }
+                            }
+                        } catch {}
+                    }, 300);
                 } else {
-                    player.play();
-                    player.muted = false;
-                    if (player.muted) {
-                        clearInterval(interval);
-                        player.muted = false;
-                    } else {
-                        timeout++;
-                        if (timeout > 50) {
-                            clearInterval(interval);
-                        }
-                    }
+                    const interval = setInterval(() => {
+                        try {
+                            player.play();
+                            player.muted = false;
+                            if (!player.paused && !player.muted) {
+                                clearInterval(interval);
+                                player.muted = false;
+                            } else {
+                                timeout++;
+                                if (timeout > 30) {
+                                    clearInterval(interval);
+                                }
+                            }
+                        } catch {}
+                    }, 300);
                 }
             }
         }, 500);
@@ -292,6 +305,13 @@
     /* 刪除頁腳 */
     async function DeleteFooter() {
         try {$("#twilight-sticky-footer-root").css("display", "none")} catch {}
+    }
+
+    /* 關閉活動條 */
+    async function ActivityDeletion() {
+        WaitElem(["div.Layout-sc-1xcs6mc-0.itnkhV button"], 8000, element => {
+            document.querySelector("div.Layout-sc-1xcs6mc-0.itnkhV button").click();
+        });
     }
 
     /* ======================= 切換/自適應 ========================= */
