@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.9
+// @version      0.0.10
 // @author       HentaiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -21,7 +21,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
+// @run-at       document-body
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -37,32 +37,65 @@
 (function() {
     const Ex_HManga = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
     const E_HManga = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
-    var count = 0, ModeDisplay,
-    parser = new DOMParser(),
-    OriginalTitle = document.title,
-    url = window.location.href.split("?p=")[0],
-    CompressMode = GM_getValue("CompressedMode", []),
-    language = display_language(navigator.language);
+    var parser, language, ModeDisplay, ListenerRecord, OriginalTitle, CompressMode,
+    url = document.URL.split("?p=")[0];
 
-    /* @===== 可調設置 =====@ */
+    /* ============ 可調設置 ============ */
 
-    let DeBug = false, Experimental = true;
+    let DeBug = false;
     const Delay = {
         Home: 100, // 主頁數據獲取延遲
         Image: 30, // 圖片連結獲取延遲
         Download: 300, // 下載速度延遲
     }
 
-    /* @===== 運行入口 =====@ */
+    /* ============ 運行入口 ============ */
 
     /* 判斷創建的網址格式 */
     if (Ex_HManga.test(url) || E_HManga.test(url)) {
-        ButtonCreation();
-    }
-    /* 創建菜單 */
-    GM_registerMenuCommand(language.MN_01, function() {DownloadModeSwitch()}, "C");
+        /* 宣告 (減少不須創建時的性能開銷) */
+        parser = new DOMParser();
+        ListenerRecord = new Map();
+        OriginalTitle = document.title;
+        language = display_language(navigator.language);
+        CompressMode = GM_getValue("CompressedMode", []);
 
-    /* @===== 按鈕創建 =====@ */
+        /* 創建按鈕 */
+        ButtonCreation();
+        /* 創建菜單 */
+        GM_registerMenuCommand(language.MN_01, function() {DownloadModeSwitch()});
+    }
+
+    /* ============ API ============ */
+
+    /* 自適應css */
+    function AdaptiveCSS(e, ex) {
+        const Domain = location.hostname;
+        if (Domain === "e-hentai.org") {
+            GM_addStyle(`${e}`);
+        } else if (Domain === "exhentai.org") {
+            GM_addStyle(`${ex}`);
+        }
+    }
+
+    /* work創建 */
+    function WorkerCreation(code) {
+        let blob = new Blob([code], {type: "application/javascript"});
+        return new Worker(URL.createObjectURL(blob));
+    }
+
+    /* 添加監聽器 */
+    async function addlistener(element, type, listener, add={}) {
+        if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
+            element.addEventListener(type, listener, add);
+            if (!ListenerRecord.has(element)) {
+                ListenerRecord.set(element, new Map());
+            }
+            ListenerRecord.get(element).set(type, listener);
+        }
+    }
+
+    /* ============ 按鈕創建 ============ */
 
     async function ButtonCreation() {
         let download_button;
@@ -119,15 +152,15 @@
                 ModeDisplay = language.DM_02;
             }
             download_button.textContent = ModeDisplay;
-            download_button.addEventListener("click", function() {
+            addlistener(download_button, "click", () => {
                 download_button.textContent = language.DS_01;
                 download_button.disabled = true;
                 HomeDataProcessing(download_button);
-            });
+            }, {capture: true, passive: true});
         } catch {}
     }
 
-    /* @===== 數據處理 =====@ */
+    /* ============ 數據處理 ============ */
 
     /* 非法字元排除 */
     function IllegalFilter(Name) {
@@ -136,7 +169,7 @@
 
     /* 取得總頁數 */
     function GetTotal(page) {
-        return parseInt(page[page.length - 2].textContent.replace(/\D/g, ''));
+        return +page[page.length - 2].textContent.replace(/\D/g, '');
     }
 
     /* 圖片擴展名 */
@@ -147,278 +180,189 @@
         } catch {return "png"}
     }
 
+    /* ============ 獲取處理 ============ */
+
     /* 主頁數據處理 */
     async function HomeDataProcessing(button) {
         let title, homepage = new Map(), task = 0, DC = 1,
-        pages = GetTotal(document.querySelector("div#gdd").querySelectorAll("td.gdt2"));
+        pages = GetTotal(document.querySelectorAll("#gdd td.gdt2"));
         title = document.getElementById("gj").textContent.trim() || document.getElementById("gn").textContent.trim();
         title = IllegalFilter(title);
         pages = Math.ceil(pages / 20);
 
-        if (Experimental) {
-            const worker = BackWorkerCreation(`
-                let queue = [], processing = false;
-                onmessage = function(e) {
-                    const {index, url} = e.data;
-                    queue.push({index, url});
-
-                    if (!processing) {
-                        processQueue();
-                        processing = true;
-                    }
+        const worker = WorkerCreation(`
+            let queue = [], processing = false;
+            onmessage = function(e) {
+                const {index, url} = e.data;
+                queue.push({index, url});
+                if (!processing) {
+                    processQueue();
+                    processing = true;
                 }
-
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url} = queue.shift();
-                        FetchRequest(index, url);
-                        setTimeout(processQueue, ${Delay.Home});
-                    }
+            }
+            async function processQueue() {
+                if (queue.length > 0) {
+                    const {index, url} = queue.shift();
+                    FetchRequest(index, url);
+                    setTimeout(processQueue, ${Delay.Home});
                 }
-
-                async function FetchRequest(index, url) {
-                    try {
-                        const response = await fetch(url);
-                        const html = await response.text();
-                        postMessage({index, html, error: false});
-                    } catch {
-                        postMessage({index, url, error: true});
-                    }
-                }
-            `)
-
-            // 傳遞訊息
-            worker.postMessage({index: 0, url: url});
-            for (let index = 1; index < pages; index++) {
-                worker.postMessage({index, url: `${url}?p=${index}`});
             }
-
-            // 接受訊息
-            worker.onmessage = function(e) {
-                const {index, html, error} = e.data;
-                if (!error) {GetLink(index, parser.parseFromString(html, "text/html"))}
-                else {FetchRequest(index, html, 10)}
-            }
-
-            // 獲取連結
-            async function GetLink(index, data) {
-                const homebox = [];
-                data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
-                    homebox.push(link.href)
-                });
-                homepage.set(index, homebox);
-                button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
-
-                DC++; // 顯示效正
-                task++; // 任務進度
-            }
-
-            // 數據試錯請求
-            async function FetchRequest(index, url, retry) {
+            async function FetchRequest(index, url) {
                 try {
                     const response = await fetch(url);
                     const html = await response.text();
-                    await GetLink(index, parser.parseFromString(html, "text/html"));
+                    postMessage({index, html, error: false});
                 } catch {
-                    if (retry > 0) {
-                        await FetchRequest(index, url, retry-1);
-                    } else {
-                        task++;
-                    }
+                    postMessage({index, url, error: true});
                 }
             }
+        `)
 
-            // 等待全部處理完成 (雖然會吃資源, 但是比較能避免例外)
-            let interval = setInterval(() => {
-                if (task === pages) {
-                    clearInterval(interval);
-                    worker.terminate();
-                    const homebox = [];
-                    for (let i = 0; i < homepage.size; i++) {
-                        homebox.push(...homepage.get(i));
-                    }
+        // 傳遞訊息
+        worker.postMessage({index: 0, url: url});
+        for (let index = 1; index < pages; index++) {
+            worker.postMessage({index, url: `${url}?p=${index}`});
+        }
 
-                    if (DeBug) {
-                        console.groupCollapsed("Home Page Data");
-                        console.log(`[Title] : ${title}`);
-                        console.log(homebox);
-                        console.groupEnd();
-                    }
-                    ImageLinkProcessing(button, title, homebox);
-                }
-            }, 300);
+        // 接受訊息
+        worker.onmessage = function(e) {
+            const {index, html, error} = e.data;
+            if (!error) {GetLink(index, parser.parseFromString(html, "text/html"))}
+            else {FetchRequest(index, html, 10)}
+        }
 
-        } else { // 舊處理
-            async function GetLink(index, data) { // 獲取頁面所有連結
-                const homebox = [];
-                data.querySelector("#gdt").querySelectorAll("a").forEach(link => {
-                    homebox.push(link.href)
-                });
-                homepage.set(index, homebox); // 確保索引順序
-            }
+        // 獲取連結
+        async function GetLink(index, data) {
+            const homebox = [];
+            data.querySelectorAll("#gdt a").forEach(link => {
+                homebox.push(link.href)
+            });
+            homepage.set(index, homebox);
+            document.title = `[${DC}/${pages}]`;
+            button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
+            DC++; // 顯示效正
+            task++; // 任務進度
+        }
 
-            async function FetchRequest(index, url) { // 數據請求
+        // 數據試錯請求
+        async function FetchRequest(index, url, retry) {
+            try {
                 const response = await fetch(url);
                 const html = await response.text();
                 await GetLink(index, parser.parseFromString(html, "text/html"));
+            } catch {
+                if (retry > 0) {
+                    await FetchRequest(index, url, retry-1);
+                } else {
+                    task++;
+                }
             }
-
-            const promises = [FetchRequest(0, url)];
-            for (let index = 1; index < pages; index++) {
-                promises.push(FetchRequest(index, `${url}?p=${index}`));
-                button.textContent = `${language.DS_02}: [${index+1}/${pages}]`;
-                await new Promise(resolve => setTimeout(resolve, Delay.Home));
-            }
-            await Promise.allSettled(promises);
-
-            const homebox = [];
-            for (let i = 0; i < homepage.size; i++) {
-                homebox.push(...homepage.get(i));
-            }
-
-            if (DeBug) {
-                console.groupCollapsed("Home Page Data");
-                console.log(`[Title] : ${title}`);
-                console.log(homebox);
-                console.groupEnd();
-            }
-            ImageLinkProcessing(button, title, homebox);
         }
+
+        // 等待全部處理完成 (雖然會吃資源, 但是比較能避免例外)
+        let interval = setInterval(() => {
+            if (task === pages) {
+                clearInterval(interval);
+                worker.terminate();
+                const homebox = [];
+                for (let i = 0; i < homepage.size; i++) {
+                    homebox.push(...homepage.get(i));
+                }
+                if (DeBug) {
+                    console.groupCollapsed("Home Page Data");
+                    console.log(`[Title] : ${title}`);
+                    console.log(homebox);
+                    console.groupEnd();
+                }
+                ImageLinkProcessing(button, title, homebox);
+            }
+        }, 300);
     }
 
     /* 漫畫連結處理 */
     async function ImageLinkProcessing(button, title, link) {
         let imgbox = new Map(), pages = link.length, DC = 1, task = 0;
 
-        if (Experimental) {
-            const worker = BackWorkerCreation(`
-                let queue = [], processing = false;
-                onmessage = function(e) {
-                    const {index, url} = e.data;
-                    queue.push({index, url});
-
-                    if (!processing) {
-                        processQueue();
-                        processing = true;
-                    }
-                }
-
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url} = queue.shift();
-                        FetchRequest(index, url);
-                        setTimeout(processQueue, ${Delay.Image});
-                    }
-                }
-
-                async function FetchRequest(index, url) {
-                    try {
-                        const response = await fetch(url);
-                        const html = await response.text();
-                        postMessage({index, html, error: false});
-                    } catch {
-                        postMessage({index, url, error: true});
-                    }
-                }
-            `)
-
-            // 傳遞訊息
-            for (let index = 0; index < pages; index++) {
-                worker.postMessage({index, url: link[index]});
-            }
-
-            // 接收回傳
-            worker.onmessage = function(e) {
-                const {index, html, error} = e.data;
-                if (!error) {GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"))}
-                else {FetchRequest(index, html, 10)}
-            }
-
-            // 獲取連結
-            async function GetLink(index, data) {
-                try {
-                    imgbox.set(index, data.src);
-                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
-                } catch {
-                    try {
-                        imgbox.set(index, data.href);
-                        button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
-                    } catch {}
-                }
-
-                DC++; // 顯示效正
-                task++; // 任務進度
-            }
-
-            // 數據試錯請求
-            async function FetchRequest(index, url, retry) {
-                try {
-                    const response = await fetch(url);
-                    const html = await response.text();
-                    await GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
-                } catch {
-                    if (retry > 0) {
-                        await FetchRequest(index, url, retry-1);
-                    } else {
-                        task++;
-                    }
+        const worker = WorkerCreation(`
+            let queue = [], processing = false;
+            onmessage = function(e) {
+                const {index, url} = e.data;
+                queue.push({index, url});
+                if (!processing) {
+                    processQueue();
+                    processing = true;
                 }
             }
-
-            // 等待完成
-            let interval = setInterval(() => {
-                if (task === pages) {
-                    clearInterval(interval);
-                    worker.terminate();
-                    if (DeBug) {
-                        console.groupCollapsed("Img Link Data");
-                        console.log(imgbox);
-                        console.groupEnd();
-                    }
-                    DownloadTrigger(button, title, imgbox);
-                }
-            }, 300);
-
-        } else { // 舊處理
-            async function GetLink(index, data) {
-                try {
-                    imgbox.set(index, data.src);
-                    button.textContent = `${language.DS_03}: [${index + 1}/${pages}]`;
-                } catch {
-                    try {
-                        imgbox.set(index, data.href);
-                        button.textContent = `${language.DS_03}: [${index + 1}/${pages}]`;
-                    } catch {}
+            async function processQueue() {
+                if (queue.length > 0) {
+                    const {index, url} = queue.shift();
+                    FetchRequest(index, url);
+                    setTimeout(processQueue, ${Delay.Image});
                 }
             }
-
             async function FetchRequest(index, url) {
                 try {
                     const response = await fetch(url);
                     const html = await response.text();
-                    await GetLink(index, parser.parseFromString(html, "text/html").querySelector("img#img"));
-                } catch (error) {
-                    await FetchRequest(index, url);
+                    postMessage({index, html, error: false});
+                } catch {
+                    postMessage({index, url, error: true});
                 }
             }
+        `)
 
-            const promises = [];
-            for (let index = 0; index < pages; index++) {
-                promises.push(FetchRequest(index, link[index]));
-                await new Promise(resolve => setTimeout(resolve, Delay.Image));
-            }
-
-            await Promise.allSettled(promises);
-            if (DeBug) {
-                console.groupCollapsed("Img Link Data");
-                console.log(imgbox);
-                console.groupEnd();
-            }
-            DownloadTrigger(button, title, imgbox);
+        // 傳遞訊息
+        for (let index = 0; index < pages; index++) {
+            worker.postMessage({index, url: link[index]});
         }
+
+        // 接收回傳
+        worker.onmessage = function(e) {
+            const {index, html, error} = e.data;
+            if (!error) {GetLink(index, parser.parseFromString(html, "text/html").getElementById("img"))}
+            else {FetchRequest(index, html, 10)}
+        }
+
+        // 獲取連結
+        async function GetLink(index, data) {
+            imgbox.set(index, data.src || data.href );
+            document.title = `[${DC}/${pages}]`;
+            button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
+            DC++; // 顯示效正
+            task++; // 任務進度
+        }
+
+        // 數據試錯請求
+        async function FetchRequest(index, url, retry) {
+            try {
+                const response = await fetch(url);
+                const html = await response.text();
+                await GetLink(index, parser.parseFromString(html, "text/html").getElementById("img"));
+            } catch {
+                if (retry > 0) {
+                    await FetchRequest(index, url, retry-1);
+                } else {
+                    task++;
+                }
+            }
+        }
+
+        // 等待完成
+        let interval = setInterval(() => {
+            if (task === pages) {
+                clearInterval(interval);
+                worker.terminate();
+                if (DeBug) {
+                    console.groupCollapsed("Img Link Data");
+                    console.log(imgbox);
+                    console.groupEnd();
+                }
+                DownloadTrigger(button, title, imgbox);
+            }
+        }, 300);
     }
 
-    /* @===== 下載處理 =====@ */
+    /* ============ 下載處理 ============ */
 
     /* 下載觸發器 */
     async function DownloadTrigger(button, title, link) {
@@ -429,7 +373,7 @@
     /* 壓縮下載 */
     async function ZipDownload(Button, Folder, ImgData) {
         const zip = new JSZip(), Total = ImgData.size, promises = [];
-        let progress = 1, link, mantissa, extension;
+        let progress = 1, count = 0, link, mantissa, extension;
         async function Request(index, retry) {
             link = ImgData.get(index);
             extension = GetExtension(link);
@@ -558,23 +502,7 @@
         }, 3000);
     }
 
-    /* @===== 附加功能函數 =====@ */
-
-    /* 自適應css */
-    function AdaptiveCSS(e, ex) {
-        const Domain = window.location.hostname;
-        if (Domain === "e-hentai.org") {
-            GM_addStyle(`${e}`);
-        } else if (Domain === "exhentai.org") {
-            GM_addStyle(`${ex}`);
-        }
-    }
-
-    /* work創建 */
-    function BackWorkerCreation(code) {
-        let blob = new Blob([code], {type: "application/javascript"});
-        return new Worker(URL.createObjectURL(blob));
-    }
+    /* ============ 附加功能 ============ */
 
     /* 下載模式切換 */
     async function DownloadModeSwitch() {
