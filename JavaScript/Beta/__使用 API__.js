@@ -12,7 +12,8 @@
  * [創建包含文本的節點]: document.createTextNode(text)
  *
  * [添加節點到末端]: 被添加元素.appendChild(添加元素)
- * [刪除節點的某節點]: 父節點.removeChild(刪除元素)
+ * [刪除節點]: 父節點.removeChild(刪除元素)
+ * [替換子節點]: 父節點.replaceChildren("替換內容")
  * [刪除節點]: 節點.remove()
  *
  * [設置元素屬性]: 元素.setAttribute(name, value)
