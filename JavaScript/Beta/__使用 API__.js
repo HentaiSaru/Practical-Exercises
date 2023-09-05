@@ -300,7 +300,6 @@ async function WaitElem(selector, all, timeout, callback) {
  * @param {function} callback   - 回條函式
  * 
  * @example
- * 
  * element = ["元素1", "元素2", "元素3"]
  * 
  * WaitElem(element, 1000, call => {
@@ -322,6 +321,40 @@ async function WaitElem(selectors, timeout, callback) {
     timer = setTimeout(() => {
         observer.disconnect();
     }, timeout);
+}
+
+/* ==================================================== */
+
+/**
+ * Worker 的工作創建 API
+ * 
+ * @param {*} code  - 放入後台工作的代碼
+ * 
+ * @example
+ * const worker = WorkerCreation(`
+ *      接收傳遞訊息
+ *      onmessage = function(e) {
+ *          const {value1, value2, ...} = e.data;
+ *      }
+ * 
+ *      其餘操作...
+ * 
+ *      回傳結果訊息
+ *      postMessage({result1: 1, result2: 2, ...});
+ * `)
+ * 
+ * 傳遞訊息
+ * worker.postMessage({value1: 1, value2: 2, ...});
+ * 
+ * 接收回傳訊息
+ * worker.onmessage = function(e) {
+ *   const {result1, result2, ...} = e.data;
+ *   接收後操作...
+ * }
+ */
+function WorkerCreation(code) {
+    let blob = new Blob([code], {type: "application/javascript"});
+    return new Worker(URL.createObjectURL(blob));
 }
 
 /* ==================================================== */
