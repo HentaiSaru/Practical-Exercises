@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.20
+// @version      0.0.21
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -47,10 +47,42 @@
         if (pattern.test(currentUrl) && !document.body.hasAttribute("data-hide")) {
             document.body.setAttribute("data-hide", true);
             let transform = false, set;
-            RunMaim();
+
+            /***
+             * _ooOoo_
+             * o8888888o
+             * 88" . "88
+             * (| -_- |)
+             *  O\ = /O
+             * ___/`---'\____
+             * .   ' \\| |// `.
+             * / \\||| : |||// \
+             * / _||||| -:- |||||- \
+             * | | \\\ - /// | |
+             * | \_| ''\---/'' | |
+             * \ .-\__ `-` ___/-. /
+             * ___`. .' /--.--\ `. . __
+             * ."" '< `.___\_<|>_/___.' >'"".
+             * | | : `- \`.;`\ _ /`;.`/ - ` : | |
+             * \ \ `-. \_ __\ /__ _/ .-` / /
+             * ======`-.____`-.___\_____/___.-`____.-'======
+             * `=---='
+             * .............................................
+             *   要準確的判斷快捷, 要完全自訂需要寫一堆定義, 實在是有點麻煩(懶)
+             *   懂設置可於這邊修改快捷!
+             */
+            const HotKey = {
+                RecomCard: event => event.shiftKey,                         // 影片結尾推薦卡
+                MinimaList: event => event.ctrlKey && event.key == "z",     // 極簡化
+                RecomPlay: event => event.altKey && event.key == "1",       // 推薦播放
+                Message: event => event.altKey && event.key == "2",         // 留言區
+                FunctionBar: event => event.altKey && event.key == "3",     // 功能區
+                ListDesc: event => event.altKey && event.key == "4"         // 播放清單資訊
+            }
 
             /* ======================= 主運行 ========================= */
 
+            RunMaim();
             async function RunMaim() {
                 /* 修改樣式 */
                 GM_addStyle(`
@@ -92,9 +124,9 @@
                 }
 
                 /* 添加 監聽器 API */
-                async function addlistener(element, type, listener) {
+                async function addlistener(element, type, listener, add={}) {
                     if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-                        element.addEventListener(type, listener, true);
+                        element.addEventListener(type, listener, add);
                         if (!ListenerRecord.has(element)) {
                             ListenerRecord.set(element, new Map());
                         }
@@ -177,15 +209,14 @@
                     }
 
                     /* ======================= 快捷設置 ========================= */
-
                     addlistener(document, "keydown", event => {
-                        if (event.shiftKey) {
+                        if (HotKey.RecomCard(event)) {
                             event.preventDefault();
                             let elements = document.querySelectorAll(".ytp-ce-element, .ytp-ce-covering");
                             elements.forEach(function(element) {
                                 HideJudgment(element);
                             });
-                        } else if (event.ctrlKey && event.key === "z") {
+                        } else if (HotKey.MinimaList(event)) {
                             event.preventDefault();
                             set = GM_getValue("Minimalist", null);
                             if (set && set != null) {
@@ -201,7 +232,7 @@
                                 related.style.display = "none";
                                 GM_setValue("Minimalist", true);
                             }
-                        } else if (event.altKey && event.key === "1") {
+                        } else if (HotKey.RecomPlay(event)) {
                             event.preventDefault();
                             let child = inner.childElementCount;
                             if (child > 1) {// 子元素數量
@@ -214,18 +245,18 @@
                                 HideJudgment(related);
                                 transform = true;
                             }
-                        } else if (event.altKey && event.key === "2") {
+                        } else if (HotKey.Message(event)) {
                             event.preventDefault();
                             HideJudgment(comments, "Trigger_2");
-                        } else if (event.altKey && event.key === "3") {
+                        } else if (HotKey.FunctionBar(event)) {
                             event.preventDefault();
                             HideJudgment(menu, "Trigger_3");
-                        } else if (event.altKey && event.key === "4") {
+                        } else if (HotKey.ListDesc(event)) {
                             event.preventDefault();
                             let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                             HideJudgment(playlist, "Trigger_4");
                         }
-                    })
+                    }, { capture: true })
                 });
             }
         }
