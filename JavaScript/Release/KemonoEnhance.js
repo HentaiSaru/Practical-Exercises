@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.33
+// @version      0.0.34
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
@@ -39,45 +39,48 @@
 // ==/UserScript==
 
 (function () {
-    var menu, img_rule, set, xhr = new XMLHttpRequest(),
-    language = display_language(GM_getValue("language", null)),
-    Url = window.location.href, parser = new DOMParser(),
-    buffer = document.createDocumentFragment();
+    var img_rule, set, xhr = new XMLHttpRequest(),
+    Url = document.URL, parser = new DOMParser(),
+    buffer = document.createDocumentFragment(),
+    language = display_language(GM_getValue("language", null));
 
-    const pattern = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-        UserPage = /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
-        PostsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
-        DmsPage = /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/;
-
-    /* ==================== 主要框架優化 ==================== */
-
-    Beautify(); // 側邊攔收縮美化
-    Ad_Block(true); // 封鎖清除廣告 [true: 隱藏 + 阻擋, false: 隱藏]
-    RemoveNotice() // 刪除頂部紅條公告
-
-    /* ==================== 其餘附加選項 ==================== */
-
-    if (UserPage.test(Url) || PostsPage.test(Url) || DmsPage.test(Url)) {
-
-        CardSize(); // 帖子預覽卡放大
-        PostCardFade(true); // 帖子文字卡淡化 [true: 淡化 + 隱藏, false: 淡化]
-        NewTabOpens(); // 自動新分頁
-        QuickPostToggle(); // 快速切換帖子頁面
-
-    } else if (pattern.test(Url)) {
-
-        OriginalImage(); // 自動原圖
-        VideoBeautify(); // 影片美化
-        LinkOriented(); // 連結轉換
-        ExtraButton(); // 額外的下方按鈕
-        GM_registerMenuCommand(language.RM_01, function () {Menu()}); // 菜單註冊 (當前只在帖子內)
-
+    /* 功能選擇使用 ( 1 = true, 0 = false) */
+    const use = {
+        Beautify: 1,        // 側邊攔收縮美化
+        Ad_Block: 1,        // 清除阻擋廣告
+        RemoveNotice: 1,    // 刪除頂部紅條公告
+        CardSize: 1,        // 帖子預覽卡放大
+        PostCardFade: 1,    // 帖子文字卡淡化 [0 = 不使用, 1 = 隱藏, 2 = 淡化]
+        NewTabOpens: 1,     // 自動新分頁
+        QuickPostToggle: 1, // 快速切換帖子
+        OriginalImage: 1,   // 自動原圖
+        VideoBeautify: 1,   // 影片美化
+        LinkOriented: 1,    // 連結轉換
+        ExtraButton: 1,     // 額外的下方按鈕
     }
+
+    /* ==================== 舊的調用 (測試新調用) ==================== */
+
+    /*Beautify();
+    Ad_Block();
+    RemoveNotice()
+    if (Match.match3(Url)) {
+        CardSize();
+        PostCardFade(true);
+        NewTabOpens();
+        QuickPostToggle();
+    } else if (Match.match1(Url)) {
+        OriginalImage();
+        VideoBeautify();
+        LinkOriented();
+        ExtraButton();
+        GM_registerMenuCommand(language.RM_01, function () {Menu()});
+    }*/
 
     /* ==================== API ==================== */
 
     /* 樣式添加 API */
-    async function addstyle(Rule, ID="New-Add-Style") {
+    async function addstyle(Rule, ID="Add-Style") {
         let new_style = document.getElementById(ID);
         if (!new_style) {
             new_style = document.createElement("style");
@@ -88,7 +91,7 @@
     }
 
     /* 腳本添加 API */
-    async function addscript(Rule, ID="New-Add-script") {
+    async function addscript(Rule, ID="Add-script") {
         let new_script = document.getElementById(ID);
         if (!new_script) {
             new_script = document.createElement("script");
@@ -98,11 +101,11 @@
         new_script.appendChild(document.createTextNode(Rule));
     }
 
-    let ListenerRecord = new Map(), listen;
+    let ListenerRecord = new Map();
     /* 添加監聽API */
-    async function addlistener(element, type, listener) {
+    async function addlistener(element, type, listener, add={}) {
         if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-            element.addEventListener(type, listener, true);
+            element.addEventListener(type, listener, add);
             if (!ListenerRecord.has(element)) {
                 ListenerRecord.set(element, new Map());
             }
@@ -110,75 +113,82 @@
         }
     }
 
-    /* 刪除監聽API */
-    async function removlistener(element, type) {
-        if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
-            listen = ListenerRecord.get(element).get(type);
-            element.removeEventListener(type, listen);
-            ListenerRecord.get(element).delete(type);
-        }
-    }
-
     /* 等待元素 API */
     async function WaitElem(selector, all, timeout, callback) {
-        let timer;
-
+        let timer, element, result;
         const observer = new MutationObserver(() => {
-            if (all) {
-                const element = document.querySelectorAll(selector);
-                if (element.length > 0) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    callback(element);
-                }
-            } else {
-                const element = document.querySelector(selector);
-                if (element) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    callback(element);
-                }
+            element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+            result = all ? element.length > 0 : element;
+            if (result) {
+                observer.disconnect();
+                clearTimeout(timer);
+                callback(element);
             }
         });
-
         observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
         }, timeout);
     }
 
-    /* 導入設定 API */
-    function GetSettings(record) {
-        let Settings;
-        switch (record) {
-            case "MenuSet":
-                Settings = GM_getValue(record, null) || [{
-                    "MT": "2vh",
-                    "ML": "65vw",
-                }];
-                break;
-            case "ImgSet":
-                Settings = GM_getValue(record, null) || [{
-                    "img_h": "auto",
-                    "img_w": "auto",
-                    "img_mw": "100%",
-                    "img_gap": "0px",
-                }];
-                break;
-        }
-        return Settings[0];
-    }
-
-    /* React 區域渲染API */
+    /* React 區域渲染 API */
     function ReactRendering({ content }) {
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
     }
 
+    /* 獲取設定 API */
+    const GetSet = {
+        MenuSet: () => GM_getValue("MenuSet", null)[0] || [{
+            "MT": "2vh",
+            "ML": "65vw",
+        }][0],
+        ImgSet: () => GM_getValue("ImgSet", null)[0] || [{
+            "img_h": "auto",
+            "img_w": "auto",
+            "img_mw": "100%",
+            "img_gap": "0px",
+        }][0],
+    }
+
+    /* 主程式調用入口 (我真的在搞自己) */
+    Main();
+    async function Main() {
+        const Match = {
+            DmsPage: /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
+            PostsPage: /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
+            Browse: /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
+            UserPage: /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
+            match1: function(url) {return this.Browse.test(url)},
+            match3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
+        }, Run = {
+            Beautify: select => select == 1 ? Beautify() : null,
+            Ad_Block: select => select == 1 ? Ad_Block() : null,
+            RemoveNotice: select => select == 1 ? RemoveNotice() : null,
+            CardSize: select => select == 1 ? CardSize() : null,
+            PostCardFade: select => select == 1 ? PostCardFade(true) : select == 2 ? PostCardFade(false) : null,
+            NewTabOpens: select => select == 1 ? NewTabOpens() : null,
+            QuickPostToggle: select => select == 1 ? QuickPostToggle() : null,
+            OriginalImage: select => select == 1 ? OriginalImage() : null,
+            VideoBeautify: select => select == 1 ? VideoBeautify() : null,
+            LinkOriented: select => select == 1 ? LinkOriented() : null,
+            ExtraButton: select => select == 1 ? ExtraButton() : null,
+        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 11)];
+
+        /* 調用數據 (實驗) */
+        gb.forEach(([func, set]) => Run[func](set));
+        if (Match.match3(Url)) {
+            pp.forEach(([func, set]) => Run[func](set));
+        } else if (Match.match1(Url)) {
+            wp.forEach(([func, set]) => Run[func](set));
+            GM_registerMenuCommand(language.RM_01, function () {Menu()});
+        }
+    }
+    
     /* ==================== 功能邏輯 ==================== */
 
     /* 樣式添加 */
-    GM_addStyle(GM_getResourceText("font-awesome"));
     addstyle(`
+        ${GM_getResourceText("font-awesome")}
         .gif-overlay {
             top: 30%;
             left: 50%;
@@ -275,7 +285,7 @@
 
     /* 載入原圖 */
     async function OriginalImage() {
-        set = GetSettings("ImgSet");
+        set = GetSet.ImgSet();
         addstyle(`
             .img-style {
                 display: block;
@@ -337,28 +347,24 @@
     }
 
     /* 完整廣告攔截消除 */
-    async function Ad_Block(Clear = false) {
-        if (Clear) {
-            GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
-            addscript(`
-                const observer = new MutationObserver(() => {
-                    try {
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
-                        document.querySelector(".root--ujvuu button").click();
-                    } catch {}
-                    let XMLRequest = XMLHttpRequest.prototype.open;
-                    XMLHttpRequest.prototype.open = function(method, url) {
-                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {
-                            return;
-                        }
-                        XMLRequest.apply(this, arguments);
-                    };
-                });
-                observer.observe(document.body, {childList: true, subtree: true});
-            `, "ADB");
-        } else {
-            GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
-        }
+    async function Ad_Block() {
+        GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
+        addscript(`
+            const observer = new MutationObserver(() => {
+                try {
+                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
+                    document.querySelector(".root--ujvuu button").click();
+                } catch {}
+                let XMLRequest = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {
+                        return;
+                    }
+                    XMLRequest.apply(this, arguments);
+                };
+            });
+            observer.observe(document.body, {childList: true, subtree: true});
+        `, "ADB");
     }
 
     /* 轉換下載連結參數 */
@@ -391,12 +397,12 @@
             comments.appendChild(buffer);
             addlistener(svg, "click", () => {
                 document.querySelector("header").scrollIntoView();
-            })
+            }, { capture: true, passive: true })
             const main = document.querySelector("main");
             addlistener(document.querySelector("#next_box a"), "click", event => {
                 event.preventDefault();
                 AjexReplace(next.href, main);
-            });
+            }, { capture: true, once: true });
             // 監聽按鍵切換
             /* 暫時停用
             const main = document.querySelector("main");
@@ -470,7 +476,7 @@
                 addlistener(link, "click", event => {
                     event.preventDefault();
                     GM_openInTab(link.href, { active: false, insert: true });
-                })
+                }, { capture: true })
             })
         });
     }
@@ -525,7 +531,7 @@
                 addlistener(ma, "click", (event) => {
                     event.preventDefault();
                     Request(ma.href);
-                })
+                }, { capture: true, once: true })
             })
         });
     }
@@ -543,11 +549,11 @@
     };
     /* 創建菜單 */
     async function Menu() {
-        img_rule = document.getElementById("New-Add-Style").sheet.cssRules;
-        set = GetSettings("ImgSet");
+        img_rule = document.getElementById("Add-Style").sheet.cssRules;
+        set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
         const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
-        menu = `
+        const menu = `
             <div class="modal-background">
                 <div class="modal-interface">
                     <table class="modal-box">
@@ -574,54 +580,19 @@
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
                                                     <h2 class="narrative">${language.MIS_01}：</h2>
-                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)">
-                                                        <select class="Image-input-settings" style="margin-left: 1rem;">
-                                                            <option value="px" selected>px</option>
-                                                            <option value="%">%</option>
-                                                            <option value="rem">rem</option>
-                                                            <option value="vh">vh</option>
-                                                            <option value="vw">vw</option>
-                                                            <option value="auto">auto</option>
-                                                        </select></p>
+                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
                                                     <h2 class="narrative">${language.MIS_02}：</h2>
-                                                    <p><input type="number" id="img_w" class="Image-input-settings"
-                                                            oninput="value = check(value)">
-                                                        <select class="Image-input-settings" style="margin-left: 1rem;">
-                                                            <option value="px" selected>px</option>
-                                                            <option value="%">%</option>
-                                                            <option value="rem">rem</option>
-                                                            <option value="vh">vh</option>
-                                                            <option value="vw">vw</option>
-                                                            <option value="auto">auto</option>
-                                                        </select></p>
+                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
                                                     <h2 class="narrative">${language.MIS_03}：</h2>
-                                                    <p><input type="number" id="img_mw" class="Image-input-settings"
-                                                            oninput="value = check(value)">
-                                                        <select class="Image-input-settings" style="margin-left: 1rem;">
-                                                            <option value="px" selected>px</option>
-                                                            <option value="%">%</option>
-                                                            <option value="rem">rem</option>
-                                                            <option value="vh">vh</option>
-                                                            <option value="vw">vw</option>
-                                                            <option value="auto">auto</option>
-                                                        </select></p>
+                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${language.MIS_04}：</h2><p>
-                                                        <input type="number" id="img_gap" class="Image-input-settings"
-                                                            oninput="value = check(value)">
-                                                        <select class="Image-input-settings" style="margin-left: 1rem;">
-                                                            <option value="px" selected>px</option>
-                                                            <option value="%">%</option>
-                                                            <option value="rem">rem</option>
-                                                            <option value="vh">vh</option>
-                                                            <option value="vw">vw</option>
-                                                            <option value="auto">auto</option>
-                                                        </select></p>
+                                                    <h2 class="narrative">${language.MIS_04}：</h2>
+                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                             </div>
                                         </td>
@@ -635,7 +606,7 @@
                                                 <option value="zh-CN">${language.ML_04}</option>
                                                 <option value="ja">${language.ML_05}</option>
                                             </select>
-                                            <button id="readsettings" class="button-options">${language.MB_01}</button>
+                                            <button id="readsettings" class="button-options" disabled>${language.MB_01}</button>
                                             <span class="button-space"></span>
                                             <button id="closure" class="button-options">${language.MB_02}</button>
                                             <span class="button-space"></span>
@@ -649,20 +620,38 @@
                 </div>
             </div>
         `
+        const UnitOptions = `
+            <select class="Image-input-settings" style="margin-left: 1rem;">
+                <option value="px" selected>px</option>
+                <option value="%">%</option>
+                <option value="rem">rem</option>
+                <option value="vh">vh</option>
+                <option value="vw">vw</option>
+                <option value="auto">auto</option>
+            </select>
+        `
         $(document.body).append(menu);
         $(".modal-interface").draggable({ cursor: "grabbing" });
         $(".modal-interface").tabs();
         // 菜單選擇
-        $("#image-settings").on("click", function () {
-            $("#image-settings-show").css({
-                "height": "auto",
-                "width": "auto",
-                "opacity": 1
-            });
+        $("#image-settings").on("click", () => {
+            const img_set = $("#image-settings-show");
+            if (img_set.css("opacity") === "0") {
+                img_set.find("p").each(function() {
+                    $(this).append(UnitOptions);
+                });
+                img_set.css({
+                    "height": "auto",
+                    "width": "auto",
+                    "opacity": 1
+                });
+                $("#readsettings").prop("disabled", false);
+                PictureSettings();
+            }
         })
         // 語言選擇
         $("#language").val(GM_getValue("language", null) || "")
-        $("#language").on("input change",  function (event) {
+        $("#language").on("input change", function (event) {
             event.stopPropagation();
             const value = $(this).val();
             language = display_language(value);
@@ -672,26 +661,28 @@
             Menu();
         });
         // 圖片設置
-        $(".Image-input-settings").on("input change", function (event) {
-            event.stopPropagation();
-            const target = $(this), value = target.val(), id = target.attr("id");
-            parent = target.closest("div");
-            if (isNaN(value)) {
-                child = parent.find("input");
-                if (value === "auto") {
-                    child.prop("disabled", true);
-                    styleRules[child.attr("id")](value);
+        async function PictureSettings() {
+            $(".Image-input-settings").on("input change", function (event) {
+                event.stopPropagation();
+                const target = $(this), value = target.val(), id = target.attr("id");
+                parent = target.closest("div");
+                if (isNaN(value)) {
+                    child = parent.find("input");
+                    if (value === "auto") {
+                        child.prop("disabled", true);
+                        styleRules[child.attr("id")](value);
+                    } else {
+                        child.prop("disabled", false);
+                        styleRules[child.attr("id")](`${child.val()}${value}`);
+                    }
                 } else {
-                    child.prop("disabled", false);
-                    styleRules[child.attr("id")](`${child.val()}${value}`);
+                    child = parent.find("select");
+                    styleRules[id](`${value}${child.val()}`);
                 }
-            } else {
-                child = parent.find("select");
-                styleRules[id](`${value}${child.val()}`);
-            }
-        });
+            });
+        }
         // 讀取保存
-        $("#readsettings").on("click", function () {
+        $("#readsettings").on("click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
                 img_input = img_set.eq(index).find("input");
@@ -709,8 +700,7 @@
         });
         // 應用保存
         let save = {};
-        $("#application").on("click", function () {
-            $("#application").off("click");
+        $("#application").on("click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
                 img_input = img_set.eq(index).find("input");
@@ -738,8 +728,9 @@
             styleRules["ML"](left);
             $(".modal-background").remove();
         });
+
         // 關閉菜單
-        $("#closure").on("click", function () {
+        $("#closure").on("click", () => {
             $(".modal-background").remove();
         });
     }
@@ -756,7 +747,7 @@
                 return value || 0;
             }
         `);
-        set = GetSettings("MenuSet");
+        set = GetSet.MenuSet();
         addstyle(`
             .modal-background {
                 top: 0;
