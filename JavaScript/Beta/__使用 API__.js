@@ -267,22 +267,14 @@ async function removlistener(element, type) {
  * })
  */
 async function WaitElem(selector, all, timeout, callback) {
-    let timer, element;
+    let timer, element, result;
     const observer = new MutationObserver(() => {
-        if (all) {
-            element = document.querySelectorAll(selector);
-            if (element.length > 0) {
-                observer.disconnect();
-                clearTimeout(timer);
-                callback(element);
-            }
-        } else {
-            element = document.querySelector(selector);
-            if (element) {
-                observer.disconnect();
-                clearTimeout(timer);
-                callback(element);
-            }
+        element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+        result = all ? element.length > 0 : element;
+        if (result) {
+            observer.disconnect();
+            clearTimeout(timer);
+            callback(element);
         }
     });
     observer.observe(document.body, { childList: true, subtree: true });
