@@ -153,7 +153,7 @@
                         observer.disconnect();
                     }, timeout);
                 }
-    
+
                 /* ======================= 讀取設置 ========================= */
                 const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
                 WaitElem(HideElem, 8000, element => {
