@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 下载工具
 // @name:ja      Kemono ダウンロードツール
 // @name:en      Kemono DownloadTool
-// @version      0.0.15
+// @version      0.0.16
 // @author       HentaiSaru
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -26,6 +26,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
+// @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_notification
 // @grant        GM_xmlhttpRequest
@@ -40,12 +41,14 @@
     var CompressMode = GM_getValue("Compression", []), parser = new DOMParser(), ModeDisplay, JsonDict, Pages;
     let jsonmode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}, genmode=true;
 
-    let PoolSize = 5, // 併發請求數 (下載線程) [實驗下載非適用]
-    DeBug = false, // 顯示請求資訊, 與錯誤資訊
-    NotiFication = true, // 操作 系統通知
-    CompleteClose = false, // 完成後自動關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
-    ExperimentalDownload = true, // 實驗下載功能 [壓縮下載 / json 下載]
-    ExperimentalDownloadDelay = 150; // 實驗下載請求延遲 (ms)
+    const UserSet = {
+        DeBug: false,                   // 顯示請求資訊, 與錯誤資訊
+        NotiFication: true,             // 操作時 系統通知
+        CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
+        ExperimentalDownload: true,     // 實驗功能 [json 下載]
+        BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
+        ExperimentalDownloadDelay: 150, // 實驗下載請求延遲 (ms)
+    }
 
     /** ---------------------/
     * 設置實驗 json 分類輸出格式
@@ -61,9 +64,9 @@
     /* ==================== 監聽按鈕創建 (入口點) ====================  */
 
     const observer = new MutationObserver(() => {
-        if (pattern.test(window.location.href) && !document.querySelector("#DBExist")) {ButtonCreation()}
+        if (pattern.test(document.URL) && !document.getElementById("DBExist")) {ButtonCreation()}
     });
-    if (pattern.test(window.location.href)) {
+    if (pattern.test(document.URL)) {
         observer.observe(document.head, {childList: true, subtree: true});
     }
 
@@ -80,14 +83,19 @@
     });
     GM_registerMenuCommand(language.RM_03, function() {OpenData()});
 
-    /* ==================== 數據處理 ====================  */
+    /* ==================== 數據處理 API ====================  */
 
+    /* 排除非法字元 */
     function IllegalFilter(Name) {
         return Name.replace(/[\/\?<>\\:\*\|":]/g, '');
     }
+
+    /* 檔名轉換 */
     function Conversion(Name) {
         return Name.replace(/[\[\]]/g, '');
     }
+
+    /* 獲得擴展名 */
     function GetExtension(link) {
         try {
             const match = link.match(/\.([^.]+)$/);
@@ -95,10 +103,17 @@
         } catch {return "png"}
     }
 
+    /* Worker 創建 */
+    function WorkerCreation(code) {
+        let blob = new Blob([code], {type: "application/javascript"});
+        return new Worker(URL.createObjectURL(blob));
+    }
+
     /* ==================== 下載處理 ====================  */
 
     /* 按鈕創建 */
     async function ButtonCreation() {
+        let download_button;
         GM_addStyle(`
             .File_Span {
                 padding: 1rem;
@@ -123,7 +138,6 @@
                 cursor: default;
             }
         `);
-        let download_button;
         try {
             const Files = document.querySelectorAll("div.post__body h2")
             const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
@@ -139,7 +153,7 @@
             download_button.textContent = ModeDisplay;
             download_button.addEventListener("click", function() {
                 DownloadTrigger(download_button);
-            });
+            }, {capture: true, passive: true});
         } catch {
             download_button.textContent = language.DS_04;
             download_button.disabled = true;
@@ -161,7 +175,7 @@
                     link = files.href || files.querySelector("img").src;
                     data.set(index, link.split("?f=")[0]);
                 });
-                if (DeBug) {
+                if (UserSet.DeBug) {
                     console.groupCollapsed("Get Data");
                     console.log(`[${user}] ${title}`);
                     console.log(data);
@@ -183,192 +197,120 @@
         Total = ImgData.size,
         OriginalTitle = document.title,
         name = IllegalFilter(Folder.split(" ")[1]);
-        let pool = [], progress = 1, task = 0, mantissa, link, extension;
+        let progress = 1, task = 0, mantissa, link;
 
-        if (ExperimentalDownload) { /* ============= 實驗方法 ============= */
-
-            const worker = BackWorkerCreation(`
-                let queue = [], processing = false;
-                onmessage = function(e) {
-                    const {index, url, retry} = e.data;
-                    queue.push({index, url, retry});
-
-                    if (!processing) {
-                        processQueue();
-                        processing = true;
-                    }
+        const worker = WorkerCreation(`
+            let queue = [], processing = false;
+            onmessage = function(e) {
+                const {index, url, retry} = e.data;
+                queue.push({index, url, retry});
+                if (!processing) {
+                    processQueue();
+                    processing = true;
                 }
-
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url, retry} = queue.shift();
-                        xmlRequest(index, url, retry);
-                        setTimeout(processQueue, ${ExperimentalDownloadDelay});
-                    }
+            }
+            async function processQueue() {
+                if (queue.length > 0) {
+                    const {index, url, retry} = queue.shift();
+                    xmlRequest(index, url, retry);
+                    setTimeout(processQueue, ${UserSet.ExperimentalDownloadDelay});
                 }
-
-                // XMLHttpRequest 比較容易出現同源限制錯誤
-                async function xmlRequest(index, url, retry) {
-                    let xhr = new XMLHttpRequest();
-                    xhr.open("GET", url, true);
-                    xhr.responseType = "blob";
-                    xhr.onload = function() {
-                        if (xhr.status === 200) {postMessage({ blob: xhr.response, index, url: url, error: false})
-                        } else {fetchRequest(index, url, retry)}
-                    };
-                    xhr.onerror = function() {
-                        fetchRequest(index, url, retry);
-                    };
-                    xhr.send();
-                }
-
-                // Fetch 受到同源的限制較少
-                async function fetchRequest(index, url, retry) {
-                    try {
-                        const response = await fetch(url, {method: 'GET'});
-                        if (response.status === 200) {
-                            const blob = await response.blob();
-                            postMessage({ blob, index, url: url, error: false });
-                        } else {
-                            if (retry > 0) {fetchRequest(index, url, retry - 1)}
-                            else {postMessage({ blob: "", index, url: url, error: true })}
-                        }
-                    } catch (error) {
+            }
+            // XMLHttpRequest 比較容易出現同源限制錯誤
+            async function xmlRequest(index, url, retry) {
+                let xhr = new XMLHttpRequest();
+                xhr.open("GET", url, true);
+                xhr.responseType = "blob";
+                xhr.onload = function() {
+                    if (xhr.status === 200) {postMessage({ blob: xhr.response, index, url: url, error: false})
+                    } else {fetchRequest(index, url, retry)}
+                };
+                xhr.onerror = function() {
+                    fetchRequest(index, url, retry);
+                };
+                xhr.send();
+            }
+            // Fetch 受到同源的限制較少
+            async function fetchRequest(index, url, retry) {
+                try {
+                    const response = await fetch(url, {method: 'GET'});
+                    if (response.status === 200) {
+                        const blob = await response.blob();
+                        postMessage({ blob, index, url: url, error: false });
+                    } else {
                         if (retry > 0) {fetchRequest(index, url, retry - 1)}
                         else {postMessage({ blob: "", index, url: url, error: true })}
                     }
+                } catch (error) {
+                    if (retry > 0) {fetchRequest(index, url, retry - 1)}
+                    else {postMessage({ blob: "", index, url: url, error: true })}
                 }
-            `);
-
-            // 接收訊息
-            worker.onmessage = function (e) {
-                const { blob, index, url, error } = e.data;
-
-                if (!error) {
-                    if (DeBug) {console.log("Download Successful")}
-
-                    mantissa = (index + 1).toString().padStart(3, '0');
-                    zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
-                    Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
-                    document.title = `[${progress}/${Total}]`;
-                    progress++;
-                    task++;
-
-                } else {
-                    if (DeBug) {console.log(`Request Failed Link : [${url}]`)}
-
-                    /* 最後的下載 */
-                    async function Request(url, retry) {
-                        GM_xmlhttpRequest({
-                            method: "GET",
-                            url: url,
-                            responseType: "blob",
-                            onload: response => {
-                                if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                                    mantissa = (index + 1).toString().padStart(3, '0');
-                                    zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
-                                    Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
-                                    document.title = `[${progress}/${Total}]`;
-                                    progress++;
-                                    task++;
-                                } else {
-                                    if (retry > 0) {
-                                        Request(url, retry-1);
-                                    } else {
-                                        task++;
-                                    }
-                                }
-                            }
-                        })
-                    }
-
-                    Request(url, 10);
-                }
-            };
-
-            // 等待下載完成
-            let interval = setInterval(() => {
-                if (task === Total) {
-                    clearInterval(interval);
-                    worker.terminate();
-                    Compression();
-                }
-            }, 500);
-
-            // 錯誤訊息
-            worker.onerror = function (e) {
-                console.error(`Worker error: ${e.message}`);
             }
+        `);
 
-            // 發送訊息
-            for (let i = 0; i < Total; i++) {
-                link = ImgData.get(i);
-                extension = GetExtension(link);
-                worker.postMessage({ index: i, url: link, retry: 10 });
-                Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
-            }
+        // 發送訊息
+        for (let i = 0; i < Total; i++) {
+            link = ImgData.get(i);
+            worker.postMessage({ index: i, url: link, retry: 10 });
+            Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
+        }
 
-        } else { /* ============= 舊方法 ============= */
-
-            async function Request(index, retry) {
-                link = ImgData.get(index);
-                extension = GetExtension(link);
-                return new Promise((resolve, reject) => {
+        // 接收訊息
+        worker.onmessage = function (e) {
+            const { blob, index, url, error } = e.data;
+            if (!error) {
+                if (UserSet.DeBug) {console.log("Download Successful")}
+                mantissa = (index + 1).toString().padStart(3, '0');
+                zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
+                Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
+                document.title = `[${progress}/${Total}]`;
+                progress++;
+                task++;
+            } else {
+                if (UserSet.DeBug) {console.log(`Request Failed Link : [${url}]`)}
+                /* 最後的下載 */
+                async function Request(url, retry) {
                     GM_xmlhttpRequest({
                         method: "GET",
-                        url: link,
+                        url: url,
                         responseType: "blob",
-                        headers : {"user-agent": navigator.userAgent},
                         onload: response => {
                             if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                 mantissa = (index + 1).toString().padStart(3, '0');
-                                zip.file(`${File}/${name}_${mantissa}.${extension}`, response.response);
-                                document.title = `[${progress}/${Total}]`;
+                                zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
                                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
+                                document.title = `[${progress}/${Total}]`;
                                 progress++;
-                                resolve();
+                                task++;
                             } else {
                                 if (retry > 0) {
-                                    if (DeBug) {console.log(`Request Retry : [${retry}]`)}
-                                    Request(index, retry-1);
-                                    resolve();
+                                    Request(url, retry-1);
                                 } else {
-                                    console.groupCollapsed("Request Error");
-                                    console.log(`[Request Error] : ${link}`);
-                                    console.groupEnd();
-                                    reject(new Error("Request error"));
+                                    task++;
                                 }
-                            }
-                        },
-                        onerror: error => {
-                            if (retry > 0) {
-                                if (DeBug) {console.log(`Request Retry : [${retry}]`)}
-                                Request(index, retry-1);
-                                resolve();
-                            } else {
-                                console.groupCollapsed("Request Error");
-                                console.log(`[Request Error] : ${link}`);
-                                console.groupEnd();
-                                reject(error);
                             }
                         }
                     })
-                });
-            }
-
-            for (let i = 0; i < Total; i++) {
-                let promise = Request(i, 10);
-                Button.textContent = `${language.DS_09} [${i + 1}/${Total}]`;
-                pool.push(promise);
-                if (pool.length >= PoolSize) {
-                    await Promise.allSettled(pool);
-                    pool = [];
                 }
+                Request(url, 10);
             }
-            if (pool.length > 0) {await Promise.allSettled(pool)}
-            Compression();
+        };
+
+        // 錯誤訊息
+        worker.onerror = function (e) {
+            console.error(`Worker error: ${e.message}`);
         }
 
+        // 等待下載完成
+        let interval = setInterval(() => {
+            if (task === Total) {
+                clearInterval(interval);
+                worker.terminate();
+                Compression();
+            }
+        }, 500);
+
+        // 壓縮設置
         async function Compression() {
             zip.generateAsync({
                 type: "blob",
@@ -384,7 +326,7 @@
                 await saveAs(zip, `${Folder}.zip`);
                 Button.textContent = language.DS_08;
                 setTimeout(() => {
-                    if (CompleteClose) {window.close()}
+                    if (UserSet.CompleteClose) {window.close()}
                     Button.textContent = `✓ ${ModeDisplay}`;
                     Button.disabled = false;
                 }, 3000);
@@ -430,7 +372,7 @@
                 setTimeout(() => {
                     Button.disabled = false;
                     Button.textContent = `✓ ${ModeDisplay}`;
-                    if (CompleteClose) {window.close()}
+                    if (UserSet.CompleteClose) {window.close()}
                 }, 3000);
             }
         }, 1000);
@@ -440,7 +382,7 @@
     async function DownloadModeSwitch() {
         if (GM_getValue("Compression", [])){
             GM_setValue("Compression", false);
-            if (NotiFication) {
+            if (UserSet.NotiFication) {
                 GM_notification({
                     title: language.NF_01,
                     text: language.DM_02,
@@ -449,7 +391,7 @@
             }
         } else {
             GM_setValue("Compression", true);
-            if (NotiFication) {
+            if (UserSet.NotiFication) {
                 GM_notification({
                     title: language.NF_01,
                     text: language.DM_01,
@@ -471,7 +413,7 @@
 
         Pages++;
         progress = 0;
-        if (NotiFication) {
+        if (UserSet.NotiFication) {
             GM_notification({
                 title: language.NF_02,
                 text: `${language.NF_03} : ${Pages}`,
@@ -485,9 +427,9 @@
             title = card.querySelector(".post-card__header").textContent.trim();
             link = card.querySelector("a").href;
 
-            if (ExperimentalDownload) {
+            if (UserSet.ExperimentalDownload) {
                 promises.push(DataClassification(title, link, Pages));
-                await new Promise(resolve => setTimeout(resolve, ExperimentalDownloadDelay));
+                await new Promise(resolve => setTimeout(resolve, UserSet.ExperimentalDownloadDelay));
             } else {
                 JsonDict[`${link}`] = title;
             }
@@ -567,7 +509,7 @@
                         JsonDict[title] = Box;
                     }
 
-                    if (DeBug) {console.log(JsonDict)}
+                    if (UserSet.DeBug) {console.log(JsonDict)}
                     document.title = `（${page} - ${++progress}）`;
                     resolve();
                 },
@@ -619,7 +561,7 @@
             json.download = `${author}.json`;
             json.click();
             json.remove();
-            if (NotiFication) {
+            if (UserSet.NotiFication) {
                 GM_notification({
                     title: language.NF_04,
                     text: language.NF_05,
@@ -634,22 +576,19 @@
     /* 一鍵開啟當前所有帖子 */
     async function OpenData() {
         try {
-            let content = document.querySelector('.card-list__items').querySelectorAll('article.post-card');
-            content.forEach(function(content) {
-                let link = content.querySelector('a').getAttribute('href');
-                setTimeout(() => {
-                    window.open("https://kemono.party" + link , "_blank");
-                }, 300);
-            });
+            const card = document.querySelectorAll("article.post-card a");
+            if (card.length == 0) {throw new Error("No links found")}
+            for (const link of card) {
+                GM_openInTab(link.href, {
+                    active: false,
+                    insert: false,
+                    setParent: false
+                });
+                await new Promise(resolve => setTimeout(resolve, UserSet.BatchOpenDelay));
+            }
         } catch {
             alert(language.NF_07);
         }
-    }
-
-    /* Worker 創建 */
-    function BackWorkerCreation(code) {
-        let blob = new Blob([code], {type: "application/javascript"});
-        return new Worker(URL.createObjectURL(blob));
     }
 
     function display_language(language) {
