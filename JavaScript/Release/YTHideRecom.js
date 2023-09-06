@@ -72,12 +72,12 @@
              *   懂設置可於這邊修改快捷!
              */
             const HotKey = {
-                RecomCard: event => event.shiftKey,                         // 影片結尾推薦卡
-                MinimaList: event => event.ctrlKey && event.key == "z",     // 極簡化
-                RecomPlay: event => event.altKey && event.key == "1",       // 推薦播放
-                Message: event => event.altKey && event.key == "2",         // 留言區
-                FunctionBar: event => event.altKey && event.key == "3",     // 功能區
-                ListDesc: event => event.altKey && event.key == "4"         // 播放清單資訊
+                RecomCard:   event => event.shiftKey,                     // 影片結尾推薦卡
+                MinimaList:  event => event.ctrlKey && event.key == "z",  // 極簡化
+                RecomPlay:   event => event.altKey && event.key == "1",   // 推薦播放
+                Message:     event => event.altKey && event.key == "2",   // 留言區
+                FunctionBar: event => event.altKey && event.key == "3",   // 功能區
+                ListDesc:    event => event.altKey && event.key == "4"    // 播放清單資訊
             }
 
             /* ======================= 主運行 ========================= */
