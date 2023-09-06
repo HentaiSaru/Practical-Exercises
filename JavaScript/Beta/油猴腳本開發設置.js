@@ -41,7 +41,7 @@
 // GM_notification(text文字, title標題, image圖片, silent是否播放通知音, timeout自動關閉時間, onclick通知被點觸發, ondone通知關閉觸發(自動關閉也算))
 
 // @grant        GM_openInTab
-// GM_openInTab("URL", active(新分頁是否轉移焦點), insert(是否插入至當前頁面的後方))
+// GM_openInTab("URL", active:新分頁是否轉移焦點, insert:是否插入至當前頁面的後方, setParent:是否將新標籤頁的父頁面設置為當前頁面)
 
 // @grant        GM_registerMenuCommand
 // GM_registerMenuCommand(創建名稱 , 呼叫函數, 訪問快捷(s)當按下s可觸發) 創建菜單
