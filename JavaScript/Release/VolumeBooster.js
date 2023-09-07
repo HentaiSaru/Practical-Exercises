@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.26
+// @version      0.0.27
 // @author       HentaiSaru
 // @description  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 *://*/* , 目前只match特定網域
 
@@ -21,29 +21,30 @@
 // ==/UserScript==
 
 (function() {
-    var Booster, Increase = 1.0,
+    var Booster, Increase,
     ListenerRecord = new Map(),
-    domain = window.location.hostname,
+    domain = location.hostname,
     buffer = document.createDocumentFragment(),
-    enabledDomains = GM_getValue("啟用網域", []);
-
+    enabledDomains = store("get", "啟用網域", []);
+    
     FindVideo();
     MenuHotkey();
     setTimeout(function() {MonitorAjax()}, 1000);
 
     /* ==================== 菜單註冊 ==================== */
-    GM_registerMenuCommand("🔊 [開關] 自動增幅", function() {Useboost(enabledDomains, domain)});
-    GM_registerMenuCommand("🛠️ 設置增幅", function() {IncrementalSetting()});
-    GM_registerMenuCommand("📜 菜單熱鍵", function() {
-        alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)");
-    });
+
+    Menu({
+        "🔊 [開關] 自動增幅": ()=> Useboost(enabledDomains, domain),
+        "🛠️ 設置增幅": ()=> IncrementalSetting(),
+        "📜 菜單熱鍵": ()=> alert("可使用熱鍵方式呼叫設置菜單!!\n\n快捷組合 : (Alt + B)"),
+    })
 
     /* ==================== API ==================== */
 
-    /* 添加監聽 API */
-    async function addlistener(element, type, listener) {
+    /* 添加監聽 */
+    async function addlistener(element, type, listener, add={}) {
         if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-            element.addEventListener(type, listener, true);
+            element.addEventListener(type, listener, add);
             if (!ListenerRecord.has(element)) {
                 ListenerRecord.set(element, new Map());
             }
@@ -51,11 +52,22 @@
         }
     }
 
+    /* 查找元素 */
+    function $(element, all=false) {
+        if (!all) {
+            const analyze = element.includes(" ") ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
     /* 等待元素 */
     async function WaitElem(selector, timeout, callback) {
         let timer, element;
         const observer = new MutationObserver(() => {
-            element = document.querySelector(selector);
+            element = $(selector);
             if (element) {
                 observer.disconnect();
                 clearTimeout(timer);
@@ -72,21 +84,37 @@
     async function MonitorAjax() {
         let Video;
         const observer = new MutationObserver(() => {
-            Video = document.querySelector("video");
-            if (Video && !Video.hasAttribute("data-audio-context")) {
-                FindVideo();
-            }
+            Video = $("video");
+            Video && !Video.hasAttribute("data-audio-context") ? FindVideo() : null;
         });
         observer.observe(document.head, { childList: true, subtree: true });
     }
 
-    /* 註冊快捷鍵(開啟菜單) */
+    /* 註冊菜單 API */
+    async function Menu(item) {
+        for (const [name, call] of Object.entries(item)) {
+            GM_registerMenuCommand(name, ()=> {call()});
+        }
+    }
+
+    /* 註冊快捷鍵(開啟菜單) API */
     async function MenuHotkey() {
         addlistener(document, "keydown", event => {
             if (event.altKey && event.key === "b") {
                 IncrementalSetting()
             }
-        });
+        }, { passive: true, capture: true });
+    }
+
+    /* 數據保存讀取 API */
+    function store(operate, key, orig=null){
+        return {
+            __verify: val => val !== undefined ? val : null,
+            set: function(val, put) {return GM_setValue(val, put)},
+            get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+            setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
+            getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+        }[operate](key, orig);
     }
 
     /* ==================== 注入邏輯 ==================== */
@@ -95,10 +123,7 @@
     async function FindVideo() {
         WaitElem("video", 10000, video => {
             try {
-                if (enabledDomains.includes(domain)) {
-                    Increase = GM_getValue(domain, null) || Increase;
-                }
-                // 音量增幅
+                Increase = enabledDomains.includes(domain) ? store("get", domain) || 1.0 : 1.0;
                 Booster = booster(video, Increase);
             } catch {}
         });
@@ -155,17 +180,15 @@
     /* 使用自動增幅 */
     async function Useboost(enabledDomains, domain) {
         if (enabledDomains.includes(domain)) {
-            // 從已啟用列表中移除當前網域
-            enabledDomains = enabledDomains.filter(function(value) {
+            enabledDomains = enabledDomains.filter(function(value) { // 從已啟用列表中移除當前網域
                 return value !== domain;
             });
             alert("❌ 禁用自動增幅");
         } else {
-            // 添加當前網域到已啟用列表
-            enabledDomains.push(domain);
+            enabledDomains.push(domain); // 添加當前網域到已啟用列表
             alert("✅ 啟用自動增幅");
         }
-        GM_setValue("啟用網域", enabledDomains);
+        store("set", "啟用網域", enabledDomains);
         location.reload();
     }
 
@@ -215,9 +238,8 @@
             margin: 10px;
             font-weight:bold;
         }
-        .slider {
-            width: 350px;
-        }
+        .slider {width: 350px;}
+        input {cursor: pointer;}
     `);
 
     /* 設定菜單 */
@@ -240,30 +262,28 @@
         `
         modal.classList.add("modal-background");
         document.body.appendChild(buffer.appendChild(modal));
-        const CurrentValue = document.getElementById("CurrentValue");
-        const slider = document.getElementById("sound-amplification");
+        const CurrentValue = $("#CurrentValue");
+        const slider = $("#sound-amplification");
 
         // 監聽設定拉條
         addlistener(slider, "input", event => {
             const Current = event.target.value;
             CurrentValue.textContent = Current;
             Booster.setVolume(Current);
-        });
+        }, { passive: true, capture: true });
 
-        // 監聽保存
-        addlistener(document.getElementById("sound-save"), "click", () => {
-            if (enabledDomains.includes(domain)) {
-                const RangeValue = parseFloat(slider.value);
-                GM_setValue(domain, RangeValue);
-                modal.remove();
-            } else {
-                alert("需啟用自動增幅才可保存");
+        // 監聽保存關閉
+        addlistener($(".modal-background"), "click", click => {
+            click.stopPropagation();
+            const target = click.target;
+            if (target.id === "sound-save") {
+                if (enabledDomains.includes(domain)) {
+                    store("set", domain, parseFloat(slider.value));
+                    $(".modal-background").remove();
+                } else {alert("需啟用自動增幅才可保存")}
+            } else if (target.className === "modal-background" || target.id === "sound-close") {
+                $(".modal-background").remove();
             }
-        });
-
-        // 監聽關閉
-        addlistener(document.getElementById("sound-close"), "click", () => {
-            modal.remove();
-        });
+        }, { capture: true });
     }
 })();
