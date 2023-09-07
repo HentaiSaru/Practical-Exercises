@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.21
+// @version      0.0.22
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -31,43 +31,42 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.5/js.cookie.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
-// @require      https://greasyfork.org/scripts/473817-gmx-menu/code/GMX_menu.js?version=1240400
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
 
 (function() {
-    var modal, time = new Date(), domain = location.host, language = display_language(navigator.language),
-    sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)),
-    $Value = { // 為了解決一個值變成 undefined 的 Bug
-        __verify: val => val !== undefined ? val : null,
-        set: function(val, put) {return GM_setValue(val, put)},
-        get: function(val, call) {return this.__verify(GM_getValue(val, call))},
-        setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
-        getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))}
-    }
+    var modal, GM, time = new Date(), domain = location.hostname, language = display_language(navigator.language),
+    sessiontime = new Date(store("get", `${domain}_SessionTime`));
 
     /* ==================== 主運行 ==================== */
     sessiontime = isNaN(sessiontime) ? new Date(time.getTime() + 11 * 60 * 1000) : sessiontime;
     const conversion = (time - sessiontime) / (1000 * 60); // 轉換時間
 
-    if (conversion > 10) { // 10 分鐘檢測
-        const cookie = $Value.getjs("E/Ex_Cookies", null);
+    if (conversion >= 10) { // 10 分鐘檢測
+        const cookie = store("getjs", "E/Ex_Cookies");
         if (cookie !== null) {CookieCheck(cookie)}
-        $Value.set(`${domain}_SessionTime`, time.getTime());
+        store("set", `${domain}_SessionTime`, time.getTime());
     }
 
     /* ==================== 註冊菜單 ==================== */
     ImportStyle(); // 導入樣式
-    GMX_menu.install({
-        items: [
-            {name: "op0", text: language.RM_00, callback: ()=> {SharedLogin()}},
-            {name: "op1", text: language.RM_01, callback: ()=> {GetCookiesAutomatically()}},
-            {name: "op2", text: language.RM_02, callback: ()=> {ManualSetting()}},
-            {name: "op3", text: language.RM_03, callback: ()=> {ViewSaveCookie()}},
-            {name: "op4", text: language.RM_04, callback: ()=> {CookieInjection()}},
-            {name: "op5", text: language.RM_05, callback: ()=> {CookieDelete()}},
-        ]
+    const state = store("get", "Expand") || false,
+    disp = state ? language.RM_C1 : language.RM_C0;
+    
+    Menu({
+        [language.RM_00]: ()=> SharedLogin(),
+        [disp]: ()=> fold(),
     });
+
+    if (state) {
+        Menu({
+            [language.RM_01]: ()=> GetCookiesAutomatically(),
+            [language.RM_02]: ()=> ManualSetting(),
+            [language.RM_03]: ()=> ViewSaveCookie(),
+            [language.RM_04]: ()=> CookieInjection(),
+            [language.RM_05]: ()=> CookieDelete(),
+        });
+    }
 
     /* ==================== API ==================== */
 
@@ -82,9 +81,34 @@
         new_style.appendChild(document.createTextNode(rule));
     }
 
+    /* 操作存储 */
+    function store(operate, key, orig=null){
+        if (typeof GM === "undefined") {
+            GM = {
+                __verify: val => val !== undefined ? val : null,
+                set: function(val, put) {GM_setValue(val, put)},
+                get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+                setjs: function(val, put) {GM_setValue(val, JSON.stringify(put, null, 4))},
+                getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+            }
+        }
+        switch (operate[0]) {
+            case "g": return GM[operate](key, orig);
+            case "s": orig !== null ? GM[operate](key, orig) : null;
+            default: return new Error("wrong type of operation");
+        }
+    }
+
     /* 添加監聽器 */
     async function $on(element, type, listener) {
         $(element).on(type, listener);
+    }
+
+    /* 添加菜單 */
+    async function Menu(item) {
+        for (const [name, call] of Object.entries(item)) {
+            GM_registerMenuCommand(name, ()=> {call()});
+        }
     }
 
     /* 通知展示 */
@@ -179,7 +203,7 @@
             click.stopPropagation();
             const target = click.target;
             if (target.id === "login") {
-                $Value.set(`${domain}_SessionTime`, new Date().getTime());
+                store("set", `${domain}_SessionTime`, new Date().getTime());
                 DeleteCookies(GetCookies());
                 AddCookies(Share[+$("#account-select").val()]);
                 location.reload();
@@ -221,7 +245,7 @@
             click.stopPropagation();
             const target = click.target;
             if (target.id === "save") {
-                $Value.set("E/Ex_Cookies", cookies);
+                store("set", "E/Ex_Cookies", cookies)
                 Growl(language.SM_05, "jGrowl", 1500);
                 $(".modal-background").remove();
             } else if (target.className === "modal-background" || target.id === "close") {
@@ -276,7 +300,7 @@
             click.stopPropagation();
             const target = click.target;
             if (target.className === "modal-background" || target.id === "close") {
-                $Value.set("E/Ex_Cookies", cookie);
+                store("set", "E/Ex_Cookies", cookie);
                 $(".modal-background").remove();
             }
         });
@@ -296,7 +320,7 @@
             </div>
         `
         $(document.body).append(modal);
-        const cookie = $Value.getjs("E/Ex_Cookies", null);
+        const cookie = store("getjs", "E/Ex_Cookies");
         const textarea = $("<textarea>").attr({
             rows: 20,
             cols: 50,
@@ -315,7 +339,7 @@
                     image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                     timeout: 4000
                 });
-                $Value.setjs("E/Ex_Cookies", JSON.parse($("#view_SC").val()));
+                store("setjs", "E/Ex_Cookies", JSON.parse($("#view_SC").val()));
                 $(".modal-background").remove();
             } else if (target.className === "modal-background" || target.id === "close") {
                 $(".modal-background").remove();
@@ -327,8 +351,8 @@
     async function CookieInjection() {
         try {
             DeleteCookies(GetCookies());
-            AddCookies($Value.getjs("E/Ex_Cookies", null));
-            $Value.set(`${domain}_SessionTime`, new Date().getTime());
+            AddCookies(store("getjs", "E/Ex_Cookies"));
+            store("set", `${domain}_SessionTime`, new Date().getTime());
             location.reload();
         } catch (error) {
             alert(language.SM_16);
@@ -338,6 +362,13 @@
     /* 刪除所有 Cookies */
     async function CookieDelete() {
         DeleteCookies(GetCookies());
+        location.reload();
+    }
+
+    /* 摺疊菜單 */
+    async function fold() {
+        state ? store("set", "Expand", false)
+        : store("set", "Expand", true);
         location.reload();
     }
 
@@ -479,6 +510,8 @@
         let display = {
             "zh-TW": [{
                 "RM_00": "🍪 共享登入",
+                "RM_C0": "📂 展開菜單",
+                "RM_C1": "📁 摺疊菜單",
                 "RM_01": "📜 自動獲取",
                 "RM_02": "📝 手動輸入",
                 "RM_03": "🔍 查看保存",
@@ -506,6 +539,8 @@
             }],
             "zh-CN": [{
                 "RM_00": "🍪 共享登录",
+                "RM_C0": "📂 展开菜单",
+                "RM_C1": "📁 折叠菜单",
                 "RM_01": "📜 自动获取",
                 "RM_02": "📝 手动输入",
                 "RM_03": "🔍 查看保存",
@@ -533,6 +568,8 @@
             }],
             "ja": [{
                 "RM_00": "🍪 共有ログイン",
+                "RM_C0": "📂 メニューを展開する",
+                "RM_C1": "📁 メニューを折りたたむ",
                 "RM_01": "📜 自動取得",
                 "RM_02": "📝 手動入力",
                 "RM_03": "🔍 保存を見る",
@@ -560,6 +597,8 @@
             }],
             "en-US": [{
                 "RM_00": "🍪 Shared Login",
+                "RM_C0": "📂 Expand menu",
+                "RM_C1": "📁 Collapse menu",
                 "RM_01": "📜 Automatically get",
                 "RM_02": "📝 Manual input",
                 "RM_03": "🔍 View saved",
@@ -587,6 +626,8 @@
             }],
             "ko": [{
                 "RM_00": "🍪 공유 로그인",
+                "RM_C0": "📂 메뉴 펼치기",
+                "RM_C1": "📁 메뉴 접기",
                 "RM_01": "📜 자동으로 가져오기",
                 "RM_02": "📝 수동 입력",
                 "RM_03": "🔍 저장된 것 보기",
