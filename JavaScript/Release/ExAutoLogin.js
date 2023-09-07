@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.20
+// @version      0.0.21
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -22,7 +22,6 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-start
-// @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_notification
@@ -32,46 +31,60 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.5/js.cookie.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
+// @require      https://greasyfork.org/scripts/473817-gmx-menu/code/GMX_menu.js?version=1240400
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
 
 (function() {
-    var modal, domain = window.location.hostname;
-    const language = display_language(navigator.language);
-    let sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)), time = new Date();
+    var modal, time = new Date(), domain = location.host, language = display_language(navigator.language),
+    sessiontime = new Date(GM_getValue(`${domain}_SessionTime`, null)),
+    $Value = { // 為了解決一個值變成 undefined 的 Bug
+        __verify: val => val !== undefined ? val : null,
+        set: function(val, put) {return GM_setValue(val, put)},
+        get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+        setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
+        getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))}
+    }
 
     /* ==================== 主運行 ==================== */
-    if (isNaN(sessiontime)) {sessiontime = new Date(time.getTime() + 11 * 60 * 1000)} // 沒有時間戳時的預
+    sessiontime = isNaN(sessiontime) ? new Date(time.getTime() + 11 * 60 * 1000) : sessiontime;
     const conversion = (time - sessiontime) / (1000 * 60); // 轉換時間
 
-    if (conversion > 10) {
-        const cookie = GM_getValue("E/Ex_Cookies", null); // 獲取保存 Cookie
-        if (cookie !== null) {
-            CookieCheck(JSON.parse(cookie));
-            GM_setValue(`${domain}_SessionTime`, time.getTime());
-        }
+    if (conversion > 10) { // 10 分鐘檢測
+        const cookie = $Value.getjs("E/Ex_Cookies", null);
+        if (cookie !== null) {CookieCheck(cookie)}
+        $Value.set(`${domain}_SessionTime`, time.getTime());
     }
 
     /* ==================== 註冊菜單 ==================== */
     ImportStyle(); // 導入樣式
-    GM_registerMenuCommand(language.RM_00, function(){SharedLogin()});
-    GM_registerMenuCommand(language.RM_01, function(){GetCookiesAutomatically()});
-    GM_registerMenuCommand(language.RM_02, function(){ManualSetting()});
-    GM_registerMenuCommand(language.RM_03, function(){ViewSaveCookie()});
-    GM_registerMenuCommand(language.RM_04, function(){CookieInjection()});
-    GM_registerMenuCommand(language.RM_05, function(){CookieDelete()});
+    GMX_menu.install({
+        items: [
+            {name: "op0", text: language.RM_00, callback: ()=> {SharedLogin()}},
+            {name: "op1", text: language.RM_01, callback: ()=> {GetCookiesAutomatically()}},
+            {name: "op2", text: language.RM_02, callback: ()=> {ManualSetting()}},
+            {name: "op3", text: language.RM_03, callback: ()=> {ViewSaveCookie()}},
+            {name: "op4", text: language.RM_04, callback: ()=> {CookieInjection()}},
+            {name: "op5", text: language.RM_05, callback: ()=> {CookieDelete()}},
+        ]
+    });
 
     /* ==================== API ==================== */
 
     /* Style 添加 */
-    async function addstyle(rule) {
-        let new_style = document.getElementById("New-Add-Style");
+    async function addstyle(rule, ID="Add-Style") {
+        let new_style = document.getElementById(ID);
         if (!new_style) {
             new_style = document.createElement("style");
-            new_style.id = "New-Add-Style";
+            new_style.id = ID;
             document.head.appendChild(new_style);
         }
         new_style.appendChild(document.createTextNode(rule));
+    }
+
+    /* 添加監聽器 */
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
     }
 
     /* 通知展示 */
@@ -99,9 +112,8 @@
     /* 刪除 cookie */
     function DeleteCookies(cookies) {
         for (const Name of Object.keys(cookies)) {
-            Cookies.remove(Name, { path: "/" })
-            Cookies.remove(Name, { path: "/", domain: ".e-hentai.org" })
-            Cookies.remove(Name, { path: "/", domain: ".exhentai.org" })
+            Cookies.remove(Name, { path: "/" });
+            Cookies.remove(Name, { path: "/", domain: `.${domain}` });
         }
     }
 
@@ -125,11 +137,13 @@
 
     /* 登入檢測 */
     async function CookieCheck(cookies) {
-        let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"]; // 需要的 cookie
+        let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
         if (domain === "exhentai.org") {RequiredCookies.unshift("igneous")}
-        const cookie = new Set(Object.keys(GetCookies())); // 檢測
-        let cookiesFound = RequiredCookies.every(CookieName => cookie.has(CookieName));
-        if (!cookiesFound) { // 判斷
+
+        const cookie = new Set(Object.keys(GetCookies()));
+        const CookieFound = RequiredCookies.every(Name => cookie.has(Name));
+
+        if (!CookieFound) { // 判斷
             DeleteCookies(cookie);
             AddCookies(cookies);
             location.reload();
@@ -161,17 +175,16 @@
             const option = $("<option>").attr({value: i}).text(`${language.SM_19} ${i}`);
             $("#account-select").append(option);
         }
-
-        $(document).on("click", ".modal-background, #login", function(event) {
-            event.stopPropagation();
-            if ($(event.target).hasClass("modal-background")) {
-                $(document).off("click", ".modal-background, #login");
-                $(".modal-background").remove();
-            } else if ($(event.target).attr("id") === "login") {
+        $on(".modal-background", "click", function(click) {
+            click.stopPropagation();
+            const target = click.target;
+            if (target.id === "login") {
+                $Value.set(`${domain}_SessionTime`, new Date().getTime());
                 DeleteCookies(GetCookies());
                 AddCookies(Share[+$("#account-select").val()]);
-                GM_setValue(`${domain}_SessionTime`, new Date().getTime());
                 location.reload();
+            } else if (target.className === "modal-background") {
+                $(".modal-background").remove();
             }
         });
     }
@@ -204,19 +217,16 @@
             </div>
         `
         $(document.body).append(modal);
-        $(document).on('click', '#close, .modal-background', function(click) {
+        $on(".modal-background", "click", function(click) {
             click.stopPropagation();
-            if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close') {
-                $(document).off('click', '#close, .show-modal-background');
-                $('.modal-background').remove();
+            const target = click.target;
+            if (target.id === "save") {
+                $Value.set("E/Ex_Cookies", cookies);
+                Growl(language.SM_05, "jGrowl", 1500);
+                $(".modal-background").remove();
+            } else if (target.className === "modal-background" || target.id === "close") {
+                $(".modal-background").remove();
             }
-        });
-        $(document).on('click', '#save', function(click) {
-            click.stopPropagation();
-            GM_setValue("E/Ex_Cookies", cookies);
-            Growl(language.SM_05, "jGrowl", 1500);
-            $(document).off('click', '#save');
-            $('.modal-background').remove();
         });
     }
 
@@ -242,37 +252,32 @@
                 </div>
             </div>
         `
+        let cookie;
         $(document.body).append(modal);
         const textarea = $("<textarea>").attr({
-            style: "margin-top: 1.15rem",
-            rows: 20,
-            cols: 50,
+            style: "margin: 1.15rem auto 0 auto",
+            rows: 18,
+            cols: 40,
             readonly: true
         });
-        $(document).on('click', '#close, .modal-background', function(click) {
-            if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close') {
-                $(document).off('click', '#close, .modal-background');
-                $('.modal-background').remove();
-            }
-            click.stopPropagation();
+        $on("#set_cookies", "submit", function(submit) {
+            submit.preventDefault();
+            submit.stopPropagation();
+            const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                const value = $(input).val();
+                return value.trim() !== "" ? { name: $(input).attr("name"), value: value } : null;
+            }).filter(Boolean);
+            cookie = JSON.stringify(cookie_list, null, 4);
+            textarea.val(cookie);
+            $("#set_cookies div").append(textarea);
+            Growl(language.SM_13, "jGrowl", 3000);
         });
-        $("#set_cookies").on("submit", function(event) {
-            event.preventDefault();
-            event.stopPropagation();
-            if ($(event.originalEvent.submitter).attr("id") === "save") {
-                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
-                    const value = $(input).val();
-                    if (value.trim() !== "") {
-                        return { name: $(input).attr("name"), value: value };
-                    }
-                }).filter(Boolean);
-                // 保存後 , 在獲取並轉換格式 , 並將其顯示
-                GM_setValue("E/Ex_Cookies", JSON.stringify(cookie_list, null, 4));
-                const cookie = JSON.parse(GM_getValue("E/Ex_Cookies", null));
-                textarea.val(JSON.stringify(cookie, null, 4));
-                // 將 textarea 添加到指定的 div 元素中
-                $("#set_cookies div").append(textarea);
-                Growl(language.SM_13, "jGrowl", 3500);
+        $on(".modal-background", "click", function(click) {
+            click.stopPropagation();
+            const target = click.target;
+            if (target.className === "modal-background" || target.id === "close") {
+                $Value.set("E/Ex_Cookies", cookie);
+                $(".modal-background").remove();
             }
         });
     }
@@ -291,7 +296,7 @@
             </div>
         `
         $(document.body).append(modal);
-        const cookie = JSON.parse(GM_getValue("E/Ex_Cookies", null)) || [];
+        const cookie = $Value.getjs("E/Ex_Cookies", null);
         const textarea = $("<textarea>").attr({
             rows: 20,
             cols: 50,
@@ -300,25 +305,21 @@
         });
         textarea.val(JSON.stringify(cookie , null, 4));
         $("#view_cookies").append(textarea);
-        // 監聽關閉
-        $(document).on('click', '#close, .modal-background', function(click) {
+        $on(".modal-background", "click", function(click) {
             click.stopPropagation();
-            if ($(click.target).hasClass('modal-background') || $(click.target).attr('id') === 'close'){
-                $(document).off('click', '#close, .modal-background');
-                $('.modal-background').remove();
+            const target = click.target;
+            if (target.id === "save") { // 保存改變
+                GM_notification({
+                    title: language.SM_07,
+                    text: language.SM_08,
+                    image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
+                    timeout: 4000
+                });
+                $Value.setjs("E/Ex_Cookies", JSON.parse($("#view_SC").val()));
+                $(".modal-background").remove();
+            } else if (target.className === "modal-background" || target.id === "close") {
+                $(".modal-background").remove();
             }
-        });
-        // 監聽改變保存
-        $('#save').on('click', function() {
-            GM_notification({
-                title: language.SM_07,
-                text: language.SM_08,
-                image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
-                timeout: 4000
-            });
-            GM_setValue("E/Ex_Cookies", JSON.stringify(JSON.parse(document.getElementById("view_SC").value), null, 4));
-            $(document).off('click', '#save');
-            $('.modal-background').remove();
         });
     }
 
@@ -326,8 +327,8 @@
     async function CookieInjection() {
         try {
             DeleteCookies(GetCookies());
-            AddCookies(JSON.parse(GM_getValue("E/Ex_Cookies", null)));
-            GM_setValue(`${domain}_SessionTime`, new Date().getTime());
+            AddCookies($Value.getjs("E/Ex_Cookies", null));
+            $Value.set(`${domain}_SessionTime`, new Date().getTime());
             location.reload();
         } catch (error) {
             alert(language.SM_16);
@@ -345,14 +346,13 @@
     /* 導入 Style */
     async function ImportStyle() {
         let show_style, button_style, button_hover, jGrowl_style, acc_style;
-        GM_addStyle(GM_getResourceText("jgrowl-css"));
-        if (domain === "e-hentai.org") {
+        if (domain == "e-hentai.org") {
             button_hover = "color: #8f4701;"
             jGrowl_style = "background-color: #5C0D12; color: #fefefe;"
             show_style = "background-color: #fefefe; border: 3px ridge #34353b;"
             acc_style = "color: #5C0D12; background-color: #fefefe; border: 2px solid #B5A4A4;"
             button_style = "color: #5C0D12; border: 2px solid #B5A4A4; background-color: #fefefe;"
-        } else if (domain === "exhentai.org") {
+        } else if (domain == "exhentai.org") {
             button_hover = "color: #989898;"
             jGrowl_style = "background-color: #fefefe; color: #5C0D12;"
             show_style = "background-color: #34353b; border: 2px ridge #5C0D12;"
@@ -368,6 +368,7 @@
             `)
         }
         addstyle(`
+            ${GM_getResourceText("jgrowl-css")}
             .jGrowl {
                 ${jGrowl_style}
                 top: 0;
