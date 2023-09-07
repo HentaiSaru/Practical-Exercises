@@ -43,3 +43,29 @@ function store(operate, key, orig=null){
         getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
     }[operate](key, orig);
 }
+
+/**
+ ** { 操作存储空間(改)}
+ *
+ * 使用方法只有差在, 在程式開頭要宣告 GM
+ * 改版的有對數據處理做優化
+ */
+let GM;
+function store(operate, key, orig=null){
+    if (typeof GM === "undefined") {
+        GM = {
+            __verify: val => val !== undefined ? val : null,
+            set: function(val, put) {GM_setValue(val, put)},
+            get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+            setjs: function(val, put) {GM_setValue(val, JSON.stringify(put, null, 4))},
+            getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+        }
+    }
+    switch (operate[0]) {
+        case "g": return GM[operate](key, orig);
+        case "s": orig !== null ? GM[operate](key, orig) : null;
+        default: return new Error("wrong type of operation");
+    }
+}
+
+/* ==================================================== */
