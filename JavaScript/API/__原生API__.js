@@ -181,9 +181,10 @@ class Collection {
  * @example
  * 獲取 = $("要找的DOM")
  */
-function $(element, all=false) {
+ function $(element, all=false) {
     if (!all) {
-        const analyze = element.includes(" ") ? " " : element[0];
+        const slice = element.slice(1),
+        analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
         return analyze == " " ? document.querySelector(element)
         : analyze == "#" ? document.getElementById(element.slice(1))
         : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
