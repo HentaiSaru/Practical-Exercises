@@ -19,10 +19,10 @@
 
 (function() {
     const custom = {
-        button: "button.ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.buUmIQ",
+        button: "button.ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1",
         CheckInterval: 60, // 檢查間隔 (seconds / 秒數)
-    }
-    const observer = new MutationObserver(() => {
+
+    }, observer = new MutationObserver(() => {
         const claimButton = document.querySelector(custom.button);
         claimButton ? (observer.disconnect(), claimButton.click()) : null;
     });
