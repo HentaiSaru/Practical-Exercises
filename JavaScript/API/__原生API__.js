@@ -387,3 +387,34 @@ function WorkerCreation(code) {
 }
 
 /* ==================================================== */
+
+/**
+ ** {控制台打印 API}
+ *
+ * @param {*} label     - 打印的數據
+ * @param {string} type - 要打印的類型
+ * 
+ * @example
+ * log("打印文字")
+ * log("打印錯誤", "error")
+ */
+function log(label, type="log") {
+    console.time("運行計算")
+    const style = {
+        group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
+        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
+        `
+    }, template = {
+        log: label=> console.log(`%c${label}`, style.text),
+        warn: label=> console.warn(`%c${label}`, style.text),
+        error: label=> console.error(`%c${label}`, style.text),
+        count: label=> console.count(label),
+    }
+    type = typeof type === "string" && template[type] ? type : type = "log";
+    console.groupCollapsed("%c___ 開發除錯 ___", style.group);
+    template[type](label);
+    console.groupEnd();
+    console.timeEnd("運行計算")
+}
+
+/* ==================================================== */
