@@ -2,13 +2,17 @@
 // @name                Twitch 自動領取掉寶 / Auto Receive Drops
 // @name:zh-TW          Twitch 自動領取掉寶
 // @name:zh-CN          Twitch 自动领取掉宝
-// @name:en             Twitch Auto Receive Drops
-// @version             0.0.3
+// @name:en             Twitch Auto Claim Drops
+// @name:ja             Twitch 自動ドロップ受け取り
+// @name:ko             Twitch 자동 드롭 수령
+// @version             0.0.4
 // @author              HentaiSaru
-// @description         Twitch 自動收取 [掉寶/Drops] , 簡易自訂設置 (優化版)
-// @description:zh-TW   Twitch 自動收取 [掉寶/Drops] , 簡易自訂設置 (優化版)
-// @description:zh-CN   Twitch 自动收取 [掉宝/Drops] , 简易自定义设置 (优化版)
-// @description:en      Twitch Auto Receive Drops, Easy Custom Settings (Optimized Version)
+// @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
+// @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
+// @description:zh-CN   Twitch 自动领取 (掉宝/Drops) , 窗口标签显示进度 , 直播结束时还没领完 , 会自动寻找任意掉宝直播 , 并开启后继续挂机 , 代码自定义设置
+// @description:en      Automatically claim Twitch Drops, display progress in the tab, and if not finished when the stream ends, it will automatically find another Drops-enabled stream and continue farming. Customizable settings in the code.
+// @description:ja      Twitch のドロップを自動的に受け取り、タブに進捗狀況を表示し、ストリーム終了時にまだ受け取っていない場合、自動的に別のドロップ有効なストリームを検索し、収穫を続けます。コードでのカスタマイズ可能な設定
+// @description:ko      Twitch 드롭을 자동으로 받아오고 탭에 진행 상황을 표시하며, 스트림이 종료되었을 때 아직 완료되지 않았다면 자동으로 다른 드롭 활성 스트림을 찾아 계속 수집합니다. 코드에서 사용자 정의 설정 가능합니다
 
 // @match        https://www.twitch.tv/drops/inventory
 // @icon         https://cdn-icons-png.flaticon.com/512/8214/8214044.png
@@ -22,41 +26,44 @@
 // ==/UserScript==
 
 (function() {
-    var Withdraw, title;
+    var Withdraw, title, state, NumberBox = [];
     /* 配置設定 */
     let config = {
-        RestartTime: 3, // 重啟直播相差時間 (Minute / 分鐘) [設置太短可能勿檢測]
-        FindTag: "drops", // 重啟直播查找標籤 (根據指定的Tag 標籤, 開啟直播)
-        RestartLive: true, // 重新啟用直播 (功能)
-        CheckInterval: 90, // 檢查間隔 (seconds / 秒數)
-        ProgressDisplay: true, // 在選項卡展示進度 (功能)
+        RestartLive: true, // 重新啟用直播
+        ProgressDisplay: true, // 在選項卡展示進度
+
+        RestartTime: 4, // 重啟直播相差時間 (Minute) [設置太短可能勿檢測]
+        DetectionDelay: 1.5, // 延遲開始檢測時間 (seconds), 提高可降低性能消耗, 過高會找不到元素
+        CheckInterval: 100, // 檢查間隔 (seconds)
+
+        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 直播查找標籤, 只要有包含該字串即可
+
         ProgressBar: "p.CoreText-sc-1txzju1-0.egOfyN span.CoreText-sc-1txzju1-0",
         Checkbutton: "button.ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1",
 
     }, observer = new MutationObserver(() => {
-        title = document.querySelectorAll(config.ProgressBar);
-        title = title.length > 0 ? title[title.length - 1] : false;
-        title && config.ProgressDisplay ? document.title = `${title.textContent}%` : null;
+        title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
+        title = title.length > 0 && title != false ? (title.forEach(progress=> NumberBox.push(progress.textContent)), Math.max(...NumberBox)) : false;
+        state = config.ProgressDisplay && title != false ? (document.title = `${title}%`, true) : false;
 
-        if (config.RestartLive && title) {
+        if (config.RestartLive && state) {
             config.RestartLive = false;
 
-            const time = new Date(), data = +title.textContent,
-            record = GM_getValue("record", null) || [time.getTime(), data],
+            const time = new Date(), record = GM_getValue("record", null) || [time.getTime(), title],
             [Timestamp, Progress] = record, conversion = (time - Timestamp) / (1000 * 60);
 
-            if (conversion >= config.RestartTime && data === Progress) {
+            if (conversion >= config.RestartTime && title === Progress) {
                 AutoRestartLive();
-                GM_setValue("record", [time.getTime(), data]);
-            } else if (conversion === 0 || data !== Progress) {
-                GM_setValue("record", [time.getTime(), data]);
+                GM_setValue("record", [time.getTime(), title]);
+            } else if (conversion === 0 || title !== Progress) {
+                GM_setValue("record", [time.getTime(), title]);
             }
         }
 
         Withdraw = document.querySelector(config.Checkbutton);
         Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
     });
-    observer.observe(document.body, {childList: true, subtree: true});
+    setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
 
     async function AutoRestartLive() {
         let article;
@@ -74,12 +81,13 @@
                     clearInterval(Interval);
                     const index = Array.from(article).findIndex(element => {
                         const tag = element.querySelector(choose.TagType).textContent.toLowerCase();
-                        return tag.includes(config.FindTag);
+                        return config.FindTag.some(match=> tag.includes(match.toLowerCase()));
                     });
                     article[index].querySelector(choose.LiveLink).click();
                 }
             }, 1000);
         }
     }
+
     setTimeout(()=> {location.reload()}, 1000 * config.CheckInterval);
 })();
