@@ -293,11 +293,11 @@ async function removlistener(element, type) {
  * 
  * @param {string} selector     - 等待元素
  * @param {boolean} all         - 是否多選
- * @param {number} timeout      - 等待超時
+ * @param {number} timeout      - 等待超時 (秒數)
  * @param {function} callback   - 回條函式
  * 
  * @example
- * WaitElem("元素", false, 1000, call => {
+ * WaitElem("元素", false, 1, call => {
  *      後續操作...
  *      console.log(call);
  * })
@@ -316,7 +316,7 @@ async function WaitElem(selector, all, timeout, callback) {
     observer.observe(document.body, { childList: true, subtree: true });
     timer = setTimeout(() => {
         observer.disconnect();
-    }, timeout);
+    }, (1000 * timeout));
 }
 
 //! 查找的部份可用 switch 或 if 切換, 匹配類型自由搭配
@@ -325,13 +325,13 @@ async function WaitElem(selector, all, timeout, callback) {
  ** { 等待元素出現的 API (Map 物件版) }
  * 
  * @param {string} selector     - 等待元素
- * @param {number} timeout      - 等待超時
+ * @param {number} timeout      - 等待超時 (秒數)
  * @param {function} callback   - 回條函式
  * 
  * @example
  * element = ["元素1", "元素2", "元素3"]
  * 
- * WaitElem(element, 1000, call => {
+ * WaitElem(element, 1, call => {
  *      全部找到後續操作...
  *      const [元素1, 元素2, 元素3] = call;
  * })
@@ -349,7 +349,7 @@ async function WaitElem(selectors, timeout, callback) {
     observer.observe(document.body, { childList: true, subtree: true });
     timer = setTimeout(() => {
         observer.disconnect();
-    }, timeout);
+    }, (1000 * timeout));
 }
 
 /* ==================================================== */
@@ -399,7 +399,6 @@ function WorkerCreation(code) {
  * log("打印錯誤", "error")
  */
 function log(label, type="log") {
-    console.time("運行計算")
     const style = {
         group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
         text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
@@ -414,7 +413,6 @@ function log(label, type="log") {
     console.groupCollapsed("%c___ 開發除錯 ___", style.group);
     template[type](label);
     console.groupEnd();
-    console.timeEnd("運行計算")
 }
 
 /* ==================================================== */
