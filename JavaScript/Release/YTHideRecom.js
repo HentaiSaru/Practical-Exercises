@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.21
+// @version      0.0.22
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -40,49 +40,56 @@
 // ==/UserScript==
 
 (function() {
-    const pattern = /^https:\/\/www\.youtube\.com\/.+$/;
-    var currentUrl;
-    const observer = new MutationObserver(() => {
-        currentUrl = window.location.href;
+    let currentUrl, pattern = /^https:\/\/www\.youtube\.com\/.+$/;
+    /***
+        * _ooOoo_
+        * o8888888o
+        * 88" . "88
+        * (| -_- |)
+        *  O\ = /O
+        * ___/`---'\____
+        * .   ' \\| |// `.
+        * / \\||| : |||// \
+        * / _||||| -:- |||||- \
+        * | | \\\ - /// | |
+        * | \_| ''\---/'' | |
+        * \ .-\__ `-` ___/-. /
+        * ___`. .' /--.--\ `. . __
+        * ."" '< `.___\_<|>_/___.' >'"".
+        * | | : `- \`.;`\ _ /`;.`/ - ` : | |
+        * \ \ `-. \_ __\ /__ _/ .-` / /
+        * ======`-.____`-.___\_____/___.-`____.-'======
+        * `=---='
+        * .............................................
+        *   要準確的判斷快捷, 要完全自訂需要寫一堆定義, 實在是有點麻煩(懶)
+        *   懂設置可於這邊修改快捷 =>
+        */
+    const HotKey = {
+        RecomCard:   event => event.shiftKey, // 影片結尾推薦卡
+        MinimaList:  event => event.ctrlKey && event.key == "z", // 極簡化
+        RecomPlay:   event => event.altKey && event.key == "1", // 推薦播放
+        Message:     event => event.altKey && event.key == "2", // 留言區
+        FunctionBar: event => event.altKey && event.key == "3", // 功能區
+        ListDesc:    event => event.altKey && event.key == "4" // 播放清單資訊
+
+    }, observer = new MutationObserver(() => {
+        currentUrl = document.URL;
         if (pattern.test(currentUrl) && !document.body.hasAttribute("data-hide")) {
             document.body.setAttribute("data-hide", true);
-            let transform = false, set;
+            let set, transform = false;
 
-            /***
-             * _ooOoo_
-             * o8888888o
-             * 88" . "88
-             * (| -_- |)
-             *  O\ = /O
-             * ___/`---'\____
-             * .   ' \\| |// `.
-             * / \\||| : |||// \
-             * / _||||| -:- |||||- \
-             * | | \\\ - /// | |
-             * | \_| ''\---/'' | |
-             * \ .-\__ `-` ___/-. /
-             * ___`. .' /--.--\ `. . __
-             * ."" '< `.___\_<|>_/___.' >'"".
-             * | | : `- \`.;`\ _ /`;.`/ - ` : | |
-             * \ \ `-. \_ __\ /__ _/ .-` / /
-             * ======`-.____`-.___\_____/___.-`____.-'======
-             * `=---='
-             * .............................................
-             *   要準確的判斷快捷, 要完全自訂需要寫一堆定義, 實在是有點麻煩(懶)
-             *   懂設置可於這邊修改快捷!
-             */
-            const HotKey = {
-                RecomCard:   event => event.shiftKey,                     // 影片結尾推薦卡
-                MinimaList:  event => event.ctrlKey && event.key == "z",  // 極簡化
-                RecomPlay:   event => event.altKey && event.key == "1",   // 推薦播放
-                Message:     event => event.altKey && event.key == "2",   // 留言區
-                FunctionBar: event => event.altKey && event.key == "3",   // 功能區
-                ListDesc:    event => event.altKey && event.key == "4"    // 播放清單資訊
-            }
+            /* 宣告 */
+            const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
+            Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
+            language = display_language(navigator.language),
+            Lookup_Delay = 300,
+            Dev = false;
+
+            /* 註冊菜單 */
+            GM_registerMenuCommand(language[0], function() {alert(language[1])});
+            RunMaim();
 
             /* ======================= 主運行 ========================= */
-
-            RunMaim();
             async function RunMaim() {
                 /* 修改樣式 */
                 GM_addStyle(`
@@ -90,73 +97,72 @@
                     .ytp-ce-element:hover{opacity: 1 !important;}
                 `);
 
-                /* 宣告 */
-                const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
-                Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
-                language = display_language(navigator.language),
-                ListenerRecord = new Map(),
-                Lookup_Delay = 300,
-                Dev = false;
-
-                /* 註冊菜單 */
-                GM_registerMenuCommand(language[0], function() {alert(language[1])});
-
                 /* ======================= 設置 API ========================= */
 
                 /* 觸發設置 API */
                 async function SetTrigger(element) {
                     element.style.display = "none";
                     return new Promise(resolve => {
-                        if (element.style.display === "none") {resolve(true)}
-                        else {resolve(false)}
+                        element.style.display === "none" ? resolve(true) : resolve(false);
                     });
                 }
 
                 /* 設置判斷 API */
-                async function HideJudgment(element, gm="") {
+                async function HideJudgment(element, gm=null) {
                     if (element.style.display === "none" || transform) {
                         element.style.display = "block";
-                        if (gm !== "") {GM_setValue(gm, false)}
+                        gm !== null ? GM_setValue(gm, false) : null
                     } else {
                         element.style.display = "none";
-                        if (gm !== "") {GM_setValue(gm, true)}
+                        gm !== null ? GM_setValue(gm, true) : null
                     }
                 }
 
-                /* 添加 監聽器 API */
+                /* 添加 監聽器 API (簡化版) */
                 async function addlistener(element, type, listener, add={}) {
-                    if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-                        element.addEventListener(type, listener, add);
-                        if (!ListenerRecord.has(element)) {
-                            ListenerRecord.set(element, new Map());
-                        }
-                        ListenerRecord.get(element).set(type, listener);
-                    }
+                    element.addEventListener(type, listener, add);
                 }
 
                 /* 等待元素出現 API */
                 async function WaitElem(selectors, timeout, callback) {
                     let timer, elements;
-
                     const observer = new MutationObserver(() => {
                         elements = selectors.map(selector => document.getElementById(selector));
-                        if (Dev) {console.log(elements)}
+                        Dev ? log(elements) : null;
                         if (elements.every(element => element)) {
                             observer.disconnect();
                             clearTimeout(timer);
                             callback(elements);
                         }
                     });
-
                     observer.observe(document.body, { childList: true, subtree: true });
+
                     timer = setTimeout(() => {
                         observer.disconnect();
-                    }, timeout);
+                    }, (1000 * timeout));
+                }
+
+                /* 開發者除錯打印 API */
+                function log(label, type="log") {
+                    const style = {
+                        group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
+                        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
+                        `
+                    }, template = {
+                        log: label=> console.log(`%c${label}`, style.text),
+                        warn: label=> console.warn(`%c${label}`, style.text),
+                        error: label=> console.error(`%c${label}`, style.text),
+                        count: label=> console.count(label),
+                    }
+                    type = typeof type === "string" && template[type] ? type : type = "log";
+                    console.groupCollapsed("%c___ 開發除錯 ___", style.group);
+                    template[type](label);
+                    console.groupEnd();
                 }
 
                 /* ======================= 讀取設置 ========================= */
                 const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
-                WaitElem(HideElem, 8000, element => {
+                WaitElem(HideElem, 15, element => {
                     const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
@@ -166,7 +172,7 @@
                         if (set && set !== null) {
                             Promise.all([SetTrigger(end), SetTrigger(below), SetTrigger(secondary), SetTrigger(related)]).then(results => {
                                 if (results.every(result => result)) {
-                                    if (Dev) {console.log("極簡化")}
+                                    Dev ? log("極簡化") : null;
                                 }
                             });
                         } else {
@@ -175,7 +181,7 @@
                             if (set && set !== null){
                                 Promise.all([SetTrigger(chat), SetTrigger(secondary), SetTrigger(related)]).then(results => {
                                     if (results.every(result => result)) {
-                                        if (Dev) {console.log("隱藏推薦播放")}
+                                        Dev ? log("隱藏推薦播放") : null;
                                     }
                                 });
                             }
@@ -183,14 +189,14 @@
                             set = GM_getValue("Trigger_2", null);
                             if (set && set !== null){
                                 SetTrigger(comments).then(() => {
-                                    if (Dev) {console.log("隱藏留言區")}
+                                    Dev ? log("隱藏留言區") : null;
                                 });
                             }
                             // 功能選項
                             set = GM_getValue("Trigger_3", null);
                             if (set && set !== null){
                                 SetTrigger(menu).then(() => {
-                                    if (Dev) {console.log("隱藏功能選項")}
+                                    Dev ? log("隱藏功能選項") : null;
                                 });
                             }
                         }
