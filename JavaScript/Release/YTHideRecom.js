@@ -85,9 +85,9 @@
             Lookup_Delay = 300,
             Dev = false;
 
+            RunMaim();
             /* 註冊菜單 */
             GM_registerMenuCommand(language[0], function() {alert(language[1])});
-            RunMaim();
 
             /* ======================= 主運行 ========================= */
             async function RunMaim() {
@@ -97,72 +97,9 @@
                     .ytp-ce-element:hover{opacity: 1 !important;}
                 `);
 
-                /* ======================= 設置 API ========================= */
-
-                /* 觸發設置 API */
-                async function SetTrigger(element) {
-                    element.style.display = "none";
-                    return new Promise(resolve => {
-                        element.style.display === "none" ? resolve(true) : resolve(false);
-                    });
-                }
-
-                /* 設置判斷 API */
-                async function HideJudgment(element, gm=null) {
-                    if (element.style.display === "none" || transform) {
-                        element.style.display = "block";
-                        gm !== null ? GM_setValue(gm, false) : null
-                    } else {
-                        element.style.display = "none";
-                        gm !== null ? GM_setValue(gm, true) : null
-                    }
-                }
-
-                /* 添加 監聽器 API (簡化版) */
-                async function addlistener(element, type, listener, add={}) {
-                    element.addEventListener(type, listener, add);
-                }
-
-                /* 等待元素出現 API */
-                async function WaitElem(selectors, timeout, callback) {
-                    let timer, elements;
-                    const observer = new MutationObserver(() => {
-                        elements = selectors.map(selector => document.getElementById(selector));
-                        Dev ? log(elements) : null;
-                        if (elements.every(element => element)) {
-                            observer.disconnect();
-                            clearTimeout(timer);
-                            callback(elements);
-                        }
-                    });
-                    observer.observe(document.body, { childList: true, subtree: true });
-
-                    timer = setTimeout(() => {
-                        observer.disconnect();
-                    }, (1000 * timeout));
-                }
-
-                /* 開發者除錯打印 API */
-                function log(label, type="log") {
-                    const style = {
-                        group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
-                        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
-                        `
-                    }, template = {
-                        log: label=> console.log(`%c${label}`, style.text),
-                        warn: label=> console.warn(`%c${label}`, style.text),
-                        error: label=> console.error(`%c${label}`, style.text),
-                        count: label=> console.count(label),
-                    }
-                    type = typeof type === "string" && template[type] ? type : type = "log";
-                    console.groupCollapsed("%c___ 開發除錯 ___", style.group);
-                    template[type](label);
-                    console.groupEnd();
-                }
-
                 /* ======================= 讀取設置 ========================= */
                 const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
-                WaitElem(HideElem, 15, element => {
+                WaitElem(HideElem, 20, element => {
                     const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
@@ -264,6 +201,69 @@
                         }
                     }, { capture: true })
                 });
+
+                /* ======================= 設置 API ========================= */
+
+                /* 觸發設置 API */
+                async function SetTrigger(element) {
+                    element.style.display = "none";
+                    return new Promise(resolve => {
+                        element.style.display === "none" ? resolve(true) : resolve(false);
+                    });
+                }
+
+                /* 設置判斷 API */
+                async function HideJudgment(element, gm=null) {
+                    if (element.style.display === "none" || transform) {
+                        element.style.display = "block";
+                        gm !== null ? GM_setValue(gm, false) : null
+                    } else {
+                        element.style.display = "none";
+                        gm !== null ? GM_setValue(gm, true) : null
+                    }
+                }
+
+                /* 添加 監聽器 API (簡化版) */
+                async function addlistener(element, type, listener, add={}) {
+                    element.addEventListener(type, listener, add);
+                }
+
+                /* 等待元素出現 API */
+                async function WaitElem(selectors, timeout, callback) {
+                    let timer, elements;
+                    const observer = new MutationObserver(() => {
+                        elements = selectors.map(selector => document.getElementById(selector));
+                        Dev ? log(elements) : null;
+                        if (elements.every(element => element)) {
+                            observer.disconnect();
+                            clearTimeout(timer);
+                            callback(elements);
+                        }
+                    });
+                    observer.observe(document.body, { childList: true, subtree: true });
+
+                    timer = setTimeout(() => {
+                        observer.disconnect();
+                    }, (1000 * timeout));
+                }
+
+                /* 開發者除錯打印 API */
+                function log(label, type="log") {
+                    const style = {
+                        group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
+                        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
+                        `
+                    }, template = {
+                        log: label=> console.log(`%c${label}`, style.text),
+                        warn: label=> console.warn(`%c${label}`, style.text),
+                        error: label=> console.error(`%c${label}`, style.text),
+                        count: label=> console.count(label),
+                    }
+                    type = typeof type === "string" && template[type] ? type : type = "log";
+                    console.groupCollapsed("%c___ 開發除錯 ___", style.group);
+                    template[type](label);
+                    console.groupEnd();
+                }
             }
         }
     });
