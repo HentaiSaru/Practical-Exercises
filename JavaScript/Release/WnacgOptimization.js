@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.12
+// @version         0.0.13
 // @author          HentaiSaru
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -32,13 +32,36 @@
 // ==/UserScript==
 
 (function () {
-    var modal, style_rule, set, DisplayMode = GM_getValue("DisplayMode", null) || "checked", language = display_language(navigator.language);
+    var modal, style_rule, set, Mode_V2 = GM_getValue("Mode_V2", null) || "Auto", language = display_language(navigator.language);
 
+    /* ==================== 主程式觸發 ==================== */
+
+    ImportStyle(); // 導入樣式
+
+    const select = [
+        ".png.bread", // 廣告
+        "#photo_body", // 圖片區塊
+        "span.newpagelabel b", // 當前頁數
+        "#bodywrap", // 底部樣式 1
+        ".newpagewrap", // 底部樣式 2
+        ".footer.wrap" // 底部樣式 3
+    ];
+    WaitElem(select, 10, element => { // 查找元素觸發翻頁
+        const [ad, photo_box, current_page, body_wrap, page_wrap, footer_wrap] = element,
+        total_page = $_(document, "select option", true).length;
+        AdReplace(ad);
+        ImageGeneration(photo_box, current_page, total_page);
+        WrapRemove([body_wrap, page_wrap, footer_wrap]);
+    });
+
+    HotKey(); // 註冊熱鍵
+    
     /* ==================== API ==================== */
 
     /* 取得設置 */
     function GetSettings() {
         let Settings = GM_getValue("Settings", null) || [{
+            /* 這邊是預設值 */
             "BC": "#000",
             "ULS": "0rem",
             "BW": "100%",
@@ -62,38 +85,40 @@
         new_style.appendChild(document.createTextNode(Rule));
     }
 
+    /* 添加監聽器 */
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
+    }
+
+    /* 仿 jquery 查找元素 (改版) */
+    function $_(document, element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
     /* 等待元素 */
     async function WaitElem(selectors, timeout, callback) {
-        let timer, result = [], elements = {
-            only: query => ({ type: "only", query: document.querySelector(query) }),
-            all: query => ({ type: "all", query: document.querySelectorAll(query) }),
-            id: query => ({ type: "id", query: document.getElementById(query) }),
-        };
+        let timer, elements;
 
         const observer = new MutationObserver(() => {
-            Object.entries(selectors).map(([type, query]) => {
-                const quer = elements[type](query);
-
-                if (quer.type === "all" && quer.query.length > 0) {
-                    delete selectors[quer.type]
-                    result.push(quer.query)
-                } else if (quer.type !== "all" && quer.query) {
-                    delete selectors[quer.type]
-                    result.push(quer.query)
-                }
-
-                if (Object.keys(selectors).length === 0) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    callback(result);
-                }
-            });
+            elements = selectors.map(selector => $_(document, selector));
+            if (elements.every(element => element)) {
+                observer.disconnect();
+                clearTimeout(timer);
+                callback(elements);
+            }
         });
 
         observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-        }, timeout);
+        }, (1000 * timeout));
     }
 
     /* 數據解析 */
@@ -109,13 +134,12 @@
 
     /* 註冊菜單熱鍵 */
     async function HotKey() {
-        $(document).on("keydown", event => {
+        $on(document, "keydown", event => {
             event.stopPropagation();
-            if (event.key === "Escape") {
-                $(".modal-background").remove();
-            } else if (event.key === "Shift" && !$(".modal-background")[0]) {
-                SettingInterface();
-            }
+            const key = event.key;
+            key === "Escape" ? $(".modal-background").remove()
+            : key === "Shift" && !$(".modal-background")[0] ? SettingInterface()
+            : null;
         });
     }
 
@@ -131,30 +155,16 @@
         ML: value => style_rule[9].style.left = value
     };
 
-    /* ==================== 主程式觸發 ==================== */
-
-    ImportStyle(); // 導入樣式
-    const selectors = {
-        "id": "photo_body",
-        "only": "span.newpagelabel b",
-        "all": "select option"
-    }
-    WaitElem(selectors, 8000, element => { // 查找元素觸發翻頁
-        const [photo_box, current, total] = element;
-        photo_box.classList.remove("photo_body");
-        ImageGeneration(photo_box, current, total);
-        AdReplace();
-    });
-    HotKey(); // 註冊熱鍵
-
     /* ==================== 圖片創建 ==================== */
 
-    async function ImageGeneration(box, current, total) {
+    async function ImageGeneration(box, current_page, total_page) {
         // 總頁數 = 總共頁數 - 當前頁數
-        var total_pages = total.length - +current.textContent, RecordBox = new Map(), RecorNumber = 0;
-        let NLink, img, dom, parser = new DOMParser();
-        /* ----- 自動滾動翻頁 ----- */
-        var observer = new IntersectionObserver(function (observed) {
+        let total_pages = total_page - +current_page.textContent, RecordBox = new Map(), RecorNumber = 0,
+        NLink, img, dom, parser = new DOMParser(), CurrentURL = document.URL;
+        box.classList.remove("photo_body");
+
+        /* ========== 自動滾動翻頁 ========== */
+        const observer = new IntersectionObserver(function (observed) {
             observed.forEach(function (entry) {
                 if (entry.isIntersecting) { 
                     history.pushState(null, null, entry.target.alt) 
@@ -177,17 +187,17 @@
                 fetch(link)
                     .then(response => response.text())
                     .then(async html => {
-                        dom = parser.parseFromString(html, "text/html").getElementById("photo_body");
-                        NLink = dom.querySelector("a").href;
-                        img = dom.querySelector("img").src;
+                        dom = $_(parser.parseFromString(html, "text/html"), "#photo_body");
+                        NLink = $_(dom, "a").href;
+                        img = $_(dom, "img").src;
                         await ReactDOM.render(React.createElement(Auto_ReactRender, { OLink: link, src: img }), box.appendChild(document.createElement("div")));
                         total_pages--;
                         await Auto_NextPage(NLink);
                     })
             }
-        }/* ----- 自動滾動翻頁 ----- */
+        }/* ========== 自動滾動翻頁 ========== */
 
-        /* ----- 手動按鍵翻頁 ----- */
+        /* ========== 手動按鍵翻頁 (手動沒特別維護, 可能有些問題) ========== */
         function Manually_ReactRender({ number, NLink, src }) {
             return React.createElement("img", {
                 className: "ImageOptimization",
@@ -202,77 +212,81 @@
                 .then(html => {
                     history.pushState(null, null, Link);
                     RecordBox.set(RecorNumber, Link);
-                    dom = parser.parseFromString(html, "text/html").getElementById("photo_body");
-                    NLink = dom.querySelector("a").href;
-                    img = dom.querySelector("img").src;
+                    dom = $_(parser.parseFromString(html, "text/html"), "#photo_body");
+                    NLink = $_(dom, "a").href;
+                    img = $_(dom, "img").src;
                     ReactDOM.render(React.createElement(Manually_ReactRender, { number: RecorNumber, NLink: NLink, src: img }), box);
                     window.scrollTo(0, 0);
             })
-        }/* ----- 手動按鍵翻頁 ----- */
-        document.title = document.title.split(" - ")[1]; // 變換 title 格式
-        NLink = box.querySelector("a").href; // 獲取下一頁連結
-        img = box.querySelector("img").src; // 獲取圖像連結
-        HeavyTypography(); // 調整排版樣式
+        }/* ========== 手動按鍵翻頁 ========== */
 
-        const CurrentURL = document.URL;
-        if (DisplayMode === "checked") {
+        /* ========== 首次觸發邏輯 ========== */
+        document.title = document.title.split(" - ")[1]; // 變換 title 格式
+        NLink = $_(box, "a").href; // 獲取下一頁連結
+        img = $_(box, "img").src; // 獲取圖像連結
+
+        /* ========== 後續觸發邏輯 ========== */
+        if (Mode_V2 === "Auto") { // 自動翻頁觸發
             ReactDOM.render(React.createElement(Auto_ReactRender, { OLink: CurrentURL, src: img }), box);
-            document.querySelector("p.result").scrollIntoView(); // 回到最上方
+            $_(document, "#header").scrollIntoView(); // 回到最上方
             Auto_NextPage(NLink); // 請求下一頁
-        } else {
+
+        } else if (Mode_V2 === "Manual") { // 手動翻頁觸發
             RecorNumber++;
             RecordBox.set(RecorNumber, CurrentURL); // 紀錄連結
             ReactDOM.render(React.createElement(Manually_ReactRender, { number: RecorNumber, NLink: NLink, src: img }), box);
-            document.addEventListener("keydown", function (event) {
-                img = box.querySelector("img");
-                if (event.key === "4") {
+
+            $on(document, "keydown", event => {
+                const key = event.key;
+                img = $_(box, "img");
+                if (key === "4") {
                     event.preventDefault();
                     Manually_NextPage(RecordBox.get(img.getAttribute("data-number") - 1));
                     RecorNumber--;
-                } else if (event.key === "6") {
+                } else if (key === "6") {
                     event.preventDefault();
                     Manually_NextPage(img.getAttribute("data-next"));
                     RecorNumber++;
                 }
-            })
+            });
         }
     }
 
     /* 廣告隱藏 */
-    async function AdReplace() {
-        const breadHTML = { __html: document.querySelector(".png.bread").innerHTML };
+    async function AdReplace(ad) {
+        const breadHTML = { __html: ad.innerHTML };
         ReactDOM.render(
             React.createElement("div", { dangerouslySetInnerHTML: breadHTML }
-            ),
-            document.getElementById("bread")
+            ), $_(document, "#bread")
         );
     }
 
-    /* 重新調整排版 */
-    async function HeavyTypography() {
-        try {
-            $("#bodywrap").remove();
-            $(".newpagewrap").remove();
-            $(".footer.wrap").remove();
-        } catch {}
+    /* 調整排版 */
+    async function WrapRemove(wrap) {
+        wrap.map(w=> w.remove());
     }
 
     /* 設定介面 */
     async function SettingInterface() {
-        let array = [], save = {}, showElement, id, value;
+        let array = [], save = {}, showElement, id, value, check;
         set = GetSettings(); // 用這種笨方式避免順序出錯
         for (const result of [set.BC, set.ULS, set.BW, set.MW, set.BH, set.MH]) {
             value = Analyze(result);
             array.push({ "key": value[0], "value": value[1] });
         }
+
+        /* 讓每次啟動菜單都是獲取最新狀態 */
         style_rule = document.getElementById("Add-Style").sheet.cssRules;
+        Mode_V2 = GM_getValue("Mode_V2", null) || "Auto";
+        check = Mode_V2 === "Auto" ? "checked" : "";
+
         modal = `
             <div class="modal-background">
                 <div class="modal-interface">
                     <div style="display: flex; justify-content: space-between;">
                         <h1 style="margin-bottom: 1rem; font-size: 1.3rem;">${language[0]}</h1>
                         <div class="DMS">
-                            <input type="checkbox" class="DMS-checkbox" id="DMS" ${DisplayMode}>
+                            <input type="checkbox" class="DMS-checkbox" id="DMS" ${check}>
                             <label class="DMS-label" for="DMS">
                                 <span class="DMS-inner"></span>
                                 <span class="DMS-switch"></span>
@@ -317,19 +331,19 @@
             opacity: 0.8,
             cursor: "grabbing",
         });
-        $("#BC").on("input", event => {
+        $on("#BC", "input", event => {
             value = $(event.target).val();
             id = event.target.id;
             styleRules[id](value);
-        });
-        $("#ULS").on("input", event => {
+        })
+        $on("#ULS", "input", event => {
             showElement = $(event.target).next(".Cshow");
             value = $(event.target).val();
             id = event.target.id;
             styleRules[id](`${value}rem`);
             showElement.text(`${value}rem`);
         });
-        $("#BW, #MW").on("input", event => {
+        $on("#BW, #MW", "input", event => {
             showElement = $(event.target).next(".Cshow");
             value = $(event.target).val();
             id = event.target.id;
@@ -342,7 +356,7 @@
                 showElement.text(`${value}%`);
             }
         });
-        $("#BH, #MH").on("input", event => {
+        $on("#BH, #MH", "input", event => {
             showElement = $(event.target).next(".Cshow");
             value = $(event.target).val();
             id = event.target.id;
@@ -355,7 +369,7 @@
                 showElement.text(`${value}rem`);
             }
         });
-        $('#save_set').on("click", function () {
+        $on("#save_set", "click", function () {
             $(".modal-interface").find("input").each(function () {
                 id = $(this).attr('id');
                 value = $(this).val();
@@ -373,11 +387,11 @@
             save["MT"] = top;
             save["ML"] = left;
             // 判斷顯示狀態
-            if ($("#DMS").prop("checked")) {GM_setValue("DisplayMode", "checked")} else {GM_setValue("DisplayMode", "")}
+            $("#DMS").prop("checked") ? GM_setValue("Mode_V2", "Auto") : GM_setValue("Mode_V2", "Manual");
             GM_setValue("Settings", [save]);
             styleRules["MT"](top);
             styleRules["ML"](left);
-            $('.modal-background').remove();
+            $(".modal-background").remove();
         });
     }
 
