@@ -278,7 +278,6 @@
                             player.muted = false;
                             if (!player.paused && !player.muted) {
                                 clearInterval(interval);
-                                player.muted = false;
                             } else {
                                 timeout++;
                                 if (timeout > 30) {
