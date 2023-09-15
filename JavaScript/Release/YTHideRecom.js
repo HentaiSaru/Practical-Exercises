@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.22
+// @version      0.0.23
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -99,7 +99,7 @@
 
                 /* ======================= 讀取設置 ========================= */
                 const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
-                WaitElem(HideElem, 20, element => {
+                WaitElem(HideElem, element => {
                     const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
@@ -199,7 +199,7 @@
                             let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                             HideJudgment(playlist, "Trigger_4");
                         }
-                    }, { capture: true })
+                    })
                 });
 
                 /* ======================= 設置 API ========================= */
@@ -228,23 +228,17 @@
                     element.addEventListener(type, listener, add);
                 }
 
-                /* 等待元素出現 API */
-                async function WaitElem(selectors, timeout, callback) {
-                    let timer, elements;
-                    const observer = new MutationObserver(() => {
+                /* 等待元素出現 API (修改版) */
+                async function WaitElem(selectors, callback) {
+                    let elements;
+                    const interval = setInterval(()=> {
                         elements = selectors.map(selector => document.getElementById(selector));
                         Dev ? log(elements) : null;
                         if (elements.every(element => element)) {
-                            observer.disconnect();
-                            clearTimeout(timer);
+                            clearInterval(interval);
                             callback(elements);
                         }
-                    });
-                    observer.observe(document.body, { childList: true, subtree: true });
-
-                    timer = setTimeout(() => {
-                        observer.disconnect();
-                    }, (1000 * timeout));
+                    }, 700);
                 }
 
                 /* 開發者除錯打印 API */
