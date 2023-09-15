@@ -4,13 +4,13 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.34
+// @version      0.0.35
 // @author       HentaiSaru
-// @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
-// @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕 , 快捷翻頁
-// @description:zh-CN  侧边栏收缩美化界面 , 自动加载原图 , 简易隐藏广告 , 浏览翻页优化 , 自动开新分页 , 影片区块优化 , 底部添加下一页与回到顶部按钮 , 快捷翻页
-// @description:ja     サイドバーを縮小してインターフェースを美しくし、オリジナル画像を自動的に読み込み、広告を簡単に非表示にし、ページの閲覧とページめくりを最適化し、新しいページを自動的に開き、ビデオセクションを最適化し、下部に「次のページ」と「トップに戻る」ボタンを追加し、クイックページめくりができます。
-// @description:en     Collapse the sidebar to beautify the interface, automatically load original images, easily hide ads, optimize page browsing and flipping, automatically open new pages, optimize the video section, add next page and back to top buttons at the bottom, and quickly flip pages.
+// @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
+// @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
+// @description:zh-CN  侧边栏收缩美化界面 , 自动加载原图 , 简易隐藏广告 , 浏览翻页优化 , 自动开新分页 , 影片区块优化 , 底部添加下一页与回到顶部按钮
+// @description:ja     サイドバーを縮小してインターフェースを美しくし、オリジナル画像を自動的に読み込み、広告を簡単に非表示にし、ページの閲覧とページめくりを最適化し、新しいページを自動的に開き、ビデオセクションを最適化し、下部に「次のページ」と「トップに戻る」ボタンを追加し。
+// @description:en     Collapse the sidebar to beautify the interface, automatically load original images, easily hide ads, optimize page browsing and flipping, automatically open new pages, optimize the video section, add next page and back to top buttons at the bottom.
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
@@ -31,7 +31,7 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
@@ -59,84 +59,9 @@
         ExtraButton: 1,     // 額外的下方按鈕
     }
 
-    /* ==================== 舊的調用 (測試新調用) ==================== */
-
-    /*Beautify();
-    Ad_Block();
-    RemoveNotice()
-    if (Match.match3(Url)) {
-        CardSize();
-        PostCardFade(true);
-        NewTabOpens();
-        QuickPostToggle();
-    } else if (Match.match1(Url)) {
-        OriginalImage();
-        VideoBeautify();
-        LinkOriented();
-        ExtraButton();
-        GM_registerMenuCommand(language.RM_01, function () {Menu()});
-    }*/
-
     /* ==================== API ==================== */
 
-    /* 樣式添加 API */
-    async function addstyle(Rule, ID="Add-Style") {
-        let new_style = document.getElementById(ID);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-        }
-        new_style.appendChild(document.createTextNode(Rule));
-    }
-
-    /* 腳本添加 API */
-    async function addscript(Rule, ID="Add-script") {
-        let new_script = document.getElementById(ID);
-        if (!new_script) {
-            new_script = document.createElement("script");
-            new_script.id = ID;
-            document.head.appendChild(new_script);
-        }
-        new_script.appendChild(document.createTextNode(Rule));
-    }
-
-    let ListenerRecord = new Map();
-    /* 添加監聽API */
-    async function addlistener(element, type, listener, add={}) {
-        if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-            element.addEventListener(type, listener, add);
-            if (!ListenerRecord.has(element)) {
-                ListenerRecord.set(element, new Map());
-            }
-            ListenerRecord.get(element).set(type, listener);
-        }
-    }
-
-    /* 等待元素 API */
-    async function WaitElem(selector, all, timeout, callback) {
-        let timer, element, result;
-        const observer = new MutationObserver(() => {
-            element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-            result = all ? element.length > 0 : element;
-            if (result) {
-                observer.disconnect();
-                clearTimeout(timer);
-                callback(element);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-        }, timeout);
-    }
-
-    /* React 區域渲染 API */
-    function ReactRendering({ content }) {
-        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
-    }
-
-    /* 獲取設定 API */
+    /* 獲取設定 */
     const GetSet = {
         MenuSet: () => GM_getValue("MenuSet", null)[0] || [{
             "MT": "2vh",
@@ -150,8 +75,77 @@
         }][0],
     }
 
-    /* 主程式調用入口 (我真的在搞自己) */
+    /* 主程式調用 */
     Main();
+
+    /* React 區域渲染 */
+    function ReactRendering({ content }) {
+        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
+    }
+
+    /* 仿 jquery 查找元素 (改版) */
+    function $_(document, element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
+    /* 樣式添加 */
+    async function addstyle(Rule, ID="Add-Style") {
+        let new_style = $_(document, `#${ID}`);
+        if (!new_style) {
+            new_style = document.createElement("style");
+            new_style.id = ID;
+            document.head.appendChild(new_style);
+        }
+        new_style.appendChild(document.createTextNode(Rule));
+    }
+
+    /* 腳本添加 */
+    async function addscript(Rule, ID="Add-script") {
+        let new_script = $_(document, `#${ID}`);
+        if (!new_script) {
+            new_script = document.createElement("script");
+            new_script.id = ID;
+            document.head.appendChild(new_script);
+        }
+        new_script.appendChild(document.createTextNode(Rule));
+    }
+
+    /* 添加監聽 (簡化) */
+    async function addlistener(element, type, listener, add={}) {
+        element.addEventListener(type, listener, add);
+    }
+
+    /* 添加監聽 (jquery) */
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
+    }
+
+    /* 等待元素 */
+    async function WaitElem(selector, all, timeout, callback) {
+        let timer, element, result;
+        const observer = new MutationObserver(() => {
+            element = all ? $_(document, selector, true) : $_(document, selector);
+            result = all ? element.length > 0 : element;
+            if (result) {
+                observer.disconnect();
+                clearTimeout(timer);
+                callback(element);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+            observer.disconnect();
+        }, timeout);
+    }
+
+    /* 主程式調用 */
     async function Main() {
         const Match = {
             DmsPage: /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
@@ -183,7 +177,7 @@
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
     }
-    
+
     /* ==================== 功能邏輯 ==================== */
 
     /* 樣式添加 */
@@ -273,11 +267,9 @@
                 }));
             }
             parents.forEach(li => {
-                const stream = li.querySelector("source");
+                const stream = $_(li, "source");
                 if (stream) {
                     ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
-                } else {
-                    console.log("Debug: Could not find source, please refresh");
                 }
             })
         });
@@ -314,12 +306,12 @@
             };
             thumbnail.forEach(async (object, index) => {
                 object.classList.remove("post__thumbnail");
-                href = object.querySelector("a");
+                href = $_(object, "a");
                 await ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
             });
-            document.querySelectorAll("a.image-link").forEach(link => {
+            $_(document, "a.image-link", true).forEach(link => {
                 const handleClick = () => {
-                    img = link.querySelector("img");
+                    img = $_(link, "img");
                     if (!img.complete) {
                         img.src = img.src;
                     } else {
@@ -334,7 +326,7 @@
     async function Reload(ID, retry) {
         if (retry > 0) {
             setTimeout(() => {
-                let object = document.getElementById(ID), old = object.querySelector("img"), img = document.createElement("img");
+                let object = $_(document, `#${ID}`), old = $_(object, "img"), img = document.createElement("img");
                 img.src = old.src;
                 img.alt = "Reload";
                 img.className = "img-style";
@@ -379,8 +371,8 @@
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
         WaitElem("h2.site-section__subheading", false, 8000, comments => {
-            const prev = document.querySelector("a.post__nav-link.prev");
-            const next = document.querySelector("a.post__nav-link.next");
+            const prev = $_(document, "a.post__nav-link.prev");
+            const next = $_(document, "a.post__nav-link.next");
             const span = document.createElement("span");
             const svg = document.createElement("svg");
             span.id = "next_box";
@@ -396,27 +388,13 @@
             buffer.appendChild(span);
             comments.appendChild(buffer);
             addlistener(svg, "click", () => {
-                document.querySelector("header").scrollIntoView();
+                $_(document, "header").scrollIntoView();
             }, { capture: true, passive: true })
-            const main = document.querySelector("main");
-            addlistener(document.querySelector("#next_box a"), "click", event => {
+            const main = $_(document, "main");
+            addlistener($_(document, "#next_box a"), "click", event => {
                 event.preventDefault();
                 AjexReplace(next.href, main);
             }, { capture: true, once: true });
-            // 監聽按鍵切換
-            /* 暫時停用
-            const main = document.querySelector("main");
-            addlistener(document, "keydown", event => {
-                if (event.key === "4") {
-                    event.preventDefault();
-                    removlistener(document, "keydown");
-                    AjexReplace(prev.href, main);
-                } else if (event.key === "6") {
-                    event.preventDefault();
-                    removlistener(document, "keydown");
-                    AjexReplace(next.href, main);
-                }
-            })*/
         });
     }
 
@@ -486,17 +464,17 @@
         ExtraButton();
         OriginalImage();
         VideoBeautify();
-        if (document.querySelectorAll(".post__content img").length > 2) {
-            document.querySelector(".post__content").remove();
+        if ($_(document, ".post__content img", true).length > 2) {
+            $_(document, ".post__content").remove();
         }
-        document.querySelector("h1.post__title").scrollIntoView(); // 滾動到上方
+        $_(document, "h1.post__title").scrollIntoView(); // 滾動到上方
     }
     /* 切換頁面 */
     async function AjexReplace(url, old_main) {
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
-                let New_data = parser.parseFromString(xhr.responseText, 'text/html');
-                let New_main = New_data.querySelector("main");
+                let New_data = parser.parseFromString(xhr.responseText, "text/html");
+                let New_main = $_(New_data, "main");
                 ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
                 history.pushState(null, null, url);
                 setTimeout(Initialization(), 500);
@@ -510,8 +488,8 @@
     async function QuickPostToggle() {
         let Old_data, New_data, item;
         async function Request(link) {
-            Old_data = document.querySelector("section");
-            item = document.querySelector("div.card-list__items");
+            Old_data = $_(document, "section");
+            item = $_(document, "div.card-list__items");
             GM_addElement(item, "img", {class: "gif-overlay"});
             GM_xmlhttpRequest({
                 method: "GET",
@@ -549,7 +527,7 @@
     };
     /* 創建菜單 */
     async function Menu() {
-        img_rule = document.getElementById("Add-Style").sheet.cssRules;
+        img_rule = $_(document, "#Add-Style").sheet.cssRules;
         set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
         const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
@@ -634,7 +612,7 @@
         $(".modal-interface").draggable({ cursor: "grabbing" });
         $(".modal-interface").tabs();
         // 菜單選擇
-        $("#image-settings").on("click", () => {
+        $on("#image-settings", "click", () => {
             const img_set = $("#image-settings-show");
             if (img_set.css("opacity") === "0") {
                 img_set.find("p").each(function() {
@@ -651,7 +629,7 @@
         })
         // 語言選擇
         $("#language").val(GM_getValue("language", null) || "")
-        $("#language").on("input change", function (event) {
+        $on("#language", "input change", function (event) {
             event.stopPropagation();
             const value = $(this).val();
             language = display_language(value);
@@ -662,7 +640,7 @@
         });
         // 圖片設置
         async function PictureSettings() {
-            $(".Image-input-settings").on("input change", function (event) {
+            $on(".Image-input-settings", "input change", function (event) {
                 event.stopPropagation();
                 const target = $(this), value = target.val(), id = target.attr("id");
                 parent = target.closest("div");
@@ -682,7 +660,7 @@
             });
         }
         // 讀取保存
-        $("#readsettings").on("click", () => {
+        $on("#readsettings", "click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
                 img_input = img_set.eq(index).find("input");
@@ -700,7 +678,7 @@
         });
         // 應用保存
         let save = {};
-        $("#application").on("click", () => {
+        $on("#application", "click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
                 img_input = img_set.eq(index).find("input");
@@ -730,7 +708,7 @@
         });
 
         // 關閉菜單
-        $("#closure").on("click", () => {
+        $on("#closure", "click", () => {
             $(".modal-background").remove();
         });
     }
