@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.35
+// @version      0.0.36
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -63,16 +63,22 @@
 
     /* 獲取設定 */
     const GetSet = {
-        MenuSet: () => GM_getValue("MenuSet", null)[0] || [{
-            "MT": "2vh",
-            "ML": "65vw",
-        }][0],
-        ImgSet: () => GM_getValue("ImgSet", null)[0] || [{
-            "img_h": "auto",
-            "img_w": "auto",
-            "img_mw": "100%",
-            "img_gap": "0px",
-        }][0],
+        MenuSet: function () {
+            const data = GM_getValue("MenuSet", null) || [{
+                "MT": "2vh",
+                "ML": "50vw",
+            }];
+            return data[0];
+        },
+        ImgSet: function () {
+            const data = GM_getValue("ImgSet", null) || [{
+                "img_h": "auto",
+                "img_w": "auto",
+                "img_mw": "100%",
+                "img_gap": "0px",
+            }]
+            return data[0];
+        },
     }
 
     /* 主程式調用 */
