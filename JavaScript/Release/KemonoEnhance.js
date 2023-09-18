@@ -145,7 +145,7 @@
                 callback(element);
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(document, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
         }, timeout);
