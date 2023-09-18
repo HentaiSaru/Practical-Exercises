@@ -401,8 +401,7 @@ function WorkerCreation(code) {
 function log(label, type="log") {
     const style = {
         group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
-        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
-        `
+        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;`
     }, template = {
         log: label=> console.log(`%c${label}`, style.text),
         warn: label=> console.warn(`%c${label}`, style.text),
