@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.36
+// @version      0.0.37
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -21,7 +21,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-start
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -39,10 +39,9 @@
 // ==/UserScript==
 
 (function () {
-    var img_rule, set, xhr = new XMLHttpRequest(),
+    var img_rule, language, set, xhr = new XMLHttpRequest(),
     Url = document.URL, parser = new DOMParser(),
-    buffer = document.createDocumentFragment(),
-    language = display_language(GM_getValue("language", null));
+    buffer = document.createDocumentFragment();
 
     /* 功能選擇使用 ( 1 = true, 0 = false) */
     const use = {
@@ -67,8 +66,7 @@
             const data = GM_getValue("MenuSet", null) || [{
                 "MT": "2vh",
                 "ML": "50vw",
-            }];
-            return data[0];
+            }]; return data[0];
         },
         ImgSet: function () {
             const data = GM_getValue("ImgSet", null) || [{
@@ -76,13 +74,9 @@
                 "img_w": "auto",
                 "img_mw": "100%",
                 "img_gap": "0px",
-            }]
-            return data[0];
+            }]; return data[0];
         },
     }
-
-    /* 主程式調用 */
-    Main();
 
     /* React 區域渲染 */
     function ReactRendering({ content }) {
@@ -145,7 +139,7 @@
                 callback(element);
             }
         });
-        observer.observe(document, { childList: true, subtree: true });
+        observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
         }, timeout);
@@ -174,19 +168,23 @@
             ExtraButton: select => select == 1 ? ExtraButton() : null,
         }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 11)];
 
-        /* 調用數據 (實驗) */
+        /* 調用數據 (設置範圍加速遍歷) */
         gb.forEach(([func, set]) => Run[func](set));
         if (Match.match3(Url)) {
             pp.forEach(([func, set]) => Run[func](set));
         } else if (Match.match1(Url)) {
+            language = display_language(GM_getValue("language", null));
             wp.forEach(([func, set]) => Run[func](set));
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
     }
 
-    /* ==================== 功能邏輯 ==================== */
+    /* 主程式調用 */
+    Main();
 
-    /* 樣式添加 */
+    /* ==================== 整體介面 ==================== */
+
+    /* 效果樣式添加 */
     addstyle(`
         ${GM_getResourceText("font-awesome")}
         .gif-overlay {
@@ -251,35 +249,124 @@
         });
     }
 
-    /* 影片美化 */
-    async function VideoBeautify() {
+    /* 完整廣告攔截消除 */
+    async function Ad_Block() {
+        GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
+        addscript(`
+            const Ad_observer = new MutationObserver(() => {
+                try {
+                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
+                    document.querySelector(".root--ujvuu button").click();
+                } catch {}
+                let XMLRequest = XMLHttpRequest.prototype.open;
+                XMLHttpRequest.prototype.open = function(method, url) {
+                    if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {
+                        return;
+                    }
+                    XMLRequest.apply(this, arguments);
+                };
+            });
+
+            try {
+                Ad_observer.observe(document.body, {childList: true, subtree: true});
+            } catch {}
+        `, "ADB");
+    }
+
+    /* ==================== 帖子預覽 ==================== */
+
+    /* 帖子預覽卡大小 */
+    async function CardSize() {
         addstyle(`
-            .post__video {
-                height: 80%;
-                width: 80%;
+            .card-list--legacy {
+                --card-size: 12vw;
             }
         `, "Effects");
-        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5000, parents => {
-            function ReactBeautify({ stream }) {
-                return React.createElement("video", {
-                    key: "video",
-                    controls: true,
-                    preload: "auto",
-                    className: "post__video",
-                }, React.createElement("source", {
-                    key: "source",
-                    src: stream.src,
-                    type: stream.type
-                }));
-            }
-            parents.forEach(li => {
-                const stream = $_(li, "source");
-                if (stream) {
-                    ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
+    }
+
+    /* 帖子說明文字淡化 */
+    async function PostCardFade(Advanced = false) {
+        if (Advanced) {
+            addstyle(`
+                .post-card__header {
+                    opacity: 0;
+                    z-index: 1;
+                    padding: 5px;
+                    pointer-events: none;
+                    transform: translateY(-6vh);
                 }
+                .post-card__footer {
+                    opacity: 0;
+                    z-index: 1;
+                    padding: 5px;
+                    pointer-events: none;
+                    transform: translateY(6vh);
+                }
+                a:hover .post-card__header,
+                a:hover .post-card__footer {
+                    opacity: 1;
+                    pointer-events: auto;
+                    transform: translateY(0vh);
+                    transition: transform 0.4s, opacity 0.6s;
+                }
+            `, "Effects");
+        } else {
+            addstyle(`
+                .post-card__header, .post-card__footer {
+                    opacity: 0.4;
+                    transition: opacity 0.3s;
+                }
+                a:hover .post-card__header,
+                a:hover .post-card__footer {
+                    opacity: 1;
+                }
+            `, "Effects");
+        }
+    }
+
+    /* 將瀏覽帖子頁面都變成開新分頁 */
+    async function NewTabOpens() {
+        WaitElem("article a", true, 8000, article => {
+            article.forEach(link => {
+                addlistener(link, "click", event => {
+                    event.preventDefault();
+                    GM_openInTab(link.href, { active: false, insert: true });
+                }, { capture: true })
             })
         });
     }
+
+    /* 帖子快速切換 */
+    async function QuickPostToggle() {
+        let Old_data, New_data, item;
+        async function Request(link) {
+            Old_data = $_(document, "section");
+            item = $_(document, "div.card-list__items");
+            GM_addElement(item, "img", {class: "gif-overlay"});
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: link,
+                nocache: false,
+                onload: response => {
+                    New_data = parser.parseFromString(response.responseText, "text/html").querySelector("section");
+                    ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);
+                    history.pushState(null, null, link);
+                    QuickPostToggle();
+                    NewTabOpens();
+                }
+            });
+        }
+        WaitElem("menu a", true, 8000, meun => {
+            meun.forEach(ma => {
+                addlistener(ma, "click", (event) => {
+                    event.preventDefault();
+                    Request(ma.href);
+                }, { capture: true, once: true })
+            })
+        });
+    }
+
+    /* ==================== 帖子觀看 ==================== */
 
     /* 載入原圖 */
     async function OriginalImage() {
@@ -344,25 +431,34 @@
         }
     }
 
-    /* 完整廣告攔截消除 */
-    async function Ad_Block() {
-        GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
-        addscript(`
-            const observer = new MutationObserver(() => {
-                try {
-                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
-                    document.querySelector(".root--ujvuu button").click();
-                } catch {}
-                let XMLRequest = XMLHttpRequest.prototype.open;
-                XMLHttpRequest.prototype.open = function(method, url) {
-                    if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {
-                        return;
-                    }
-                    XMLRequest.apply(this, arguments);
-                };
-            });
-            observer.observe(document.body, {childList: true, subtree: true});
-        `, "ADB");
+    /* 影片美化 */
+    async function VideoBeautify() {
+        addstyle(`
+            .post__video {
+                height: 80%;
+                width: 80%;
+            }
+        `, "Effects");
+        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5000, parents => {
+            function ReactBeautify({ stream }) {
+                return React.createElement("video", {
+                    key: "video",
+                    controls: true,
+                    preload: "auto",
+                    className: "post__video",
+                }, React.createElement("source", {
+                    key: "source",
+                    src: stream.src,
+                    type: stream.type
+                }));
+            }
+            parents.forEach(li => {
+                const stream = $_(li, "source");
+                if (stream) {
+                    ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
+                }
+            })
+        });
     }
 
     /* 轉換下載連結參數 */
@@ -372,6 +468,17 @@
                 link.setAttribute("download", "");
             });
         });
+    }
+
+    /* Ajex換頁的初始化 */
+    async function Initialization() {
+        ExtraButton();
+        OriginalImage();
+        VideoBeautify();
+        if ($_(document, ".post__content img", true).length > 2) {
+            $_(document, ".post__content").remove();
+        }
+        $_(document, "h1.post__title").scrollIntoView(); // 滾動到上方
     }
 
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
@@ -404,77 +511,6 @@
         });
     }
 
-    /* 帖子說明文字淡化 */
-    async function PostCardFade(Advanced = false) {
-        if (Advanced) {
-            addstyle(`
-                .post-card__header {
-                    opacity: 0;
-                    z-index: 1;
-                    padding: 5px;
-                    pointer-events: none;
-                    transform: translateY(-6vh);
-                }
-                .post-card__footer {
-                    opacity: 0;
-                    z-index: 1;
-                    padding: 5px;
-                    pointer-events: none;
-                    transform: translateY(6vh);
-                }
-                a:hover .post-card__header,
-                a:hover .post-card__footer {
-                    opacity: 1;
-                    pointer-events: auto;
-                    transform: translateY(0vh);
-                    transition: transform 0.4s, opacity 0.6s;
-                }
-            `, "Effects");
-        } else {
-            addstyle(`
-                .post-card__header, .post-card__footer {
-                    opacity: 0.4;
-                    transition: opacity 0.3s;
-                }
-                a:hover .post-card__header,
-                a:hover .post-card__footer {
-                    opacity: 1;
-                }
-            `, "Effects");
-        }
-    }
-
-    /* 帖子預覽卡大小 */
-    async function CardSize() {
-        addstyle(`
-            .card-list--legacy {
-                --card-size: 12vw;
-            }
-        `, "Effects");
-    }
-
-    /* 將瀏覽帖子頁面都變成開新分頁 */
-    async function NewTabOpens() {
-        WaitElem("article a", true, 8000, article => {
-            article.forEach(link => {
-                addlistener(link, "click", event => {
-                    event.preventDefault();
-                    GM_openInTab(link.href, { active: false, insert: true });
-                }, { capture: true })
-            })
-        });
-    }
-
-    /* 替換頁面的初始化 */
-    async function Initialization() {
-        ExtraButton();
-        OriginalImage();
-        VideoBeautify();
-        if ($_(document, ".post__content img", true).length > 2) {
-            $_(document, ".post__content").remove();
-        }
-        $_(document, "h1.post__title").scrollIntoView(); // 滾動到上方
-    }
     /* 切換頁面 */
     async function AjexReplace(url, old_main) {
         xhr.onreadystatechange = function () {
@@ -488,36 +524,6 @@
         };
         xhr.open("GET", url, true);
         xhr.send();
-    }
-
-    /* 帖子快速切換 */
-    async function QuickPostToggle() {
-        let Old_data, New_data, item;
-        async function Request(link) {
-            Old_data = $_(document, "section");
-            item = $_(document, "div.card-list__items");
-            GM_addElement(item, "img", {class: "gif-overlay"});
-            GM_xmlhttpRequest({
-                method: "GET",
-                url: link,
-                nocache: false,
-                onload: response => {
-                    New_data = parser.parseFromString(response.responseText, "text/html").querySelector("section");
-                    ReactDOM.render(React.createElement(ReactRendering, { content: New_data.innerHTML }), Old_data);
-                    history.pushState(null, null, link);
-                    QuickPostToggle();
-                    NewTabOpens();
-                }
-            });
-        }
-        WaitElem("menu a", true, 8000, meun => {
-            meun.forEach(ma => {
-                addlistener(ma, "click", (event) => {
-                    event.preventDefault();
-                    Request(ma.href);
-                }, { capture: true, once: true })
-            })
-        });
     }
 
     /* ==================== 菜單 UI / 文本顯示 - 依賴項目 ==================== */
