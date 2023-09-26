@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.4
+// @version             0.0.5
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -39,12 +39,11 @@
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 直播查找標籤, 只要有包含該字串即可
 
         ProgressBar: "p.CoreText-sc-1txzju1-0.egOfyN span.CoreText-sc-1txzju1-0",
-        Checkbutton: "button.ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1",
-
+        Checkbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.buUmIQ.bxHedf",
     }, observer = new MutationObserver(() => {
         title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
         title = title.length > 0 && title != false ? (title.forEach(progress=> NumberBox.push(progress.textContent)), Math.max(...NumberBox)) : false;
-        state = config.ProgressDisplay && title != false ? (document.title = `${title}%`, true) : false;
+        state = config.ProgressDisplay && title != false ? (ShowTitle(`${title}%`), true) : false;
 
         if (config.RestartLive && state) {
             config.RestartLive = false;
@@ -63,7 +62,16 @@
         Withdraw = document.querySelector(config.Checkbutton);
         Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
     });
+
     setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
+
+    async function ShowTitle(display) {
+        config.ProgressDisplay = false;
+        const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續15秒)
+            document.title !== display ? document.title = display : null;
+        }, 500);
+        setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 15);
+    }
 
     async function AutoRestartLive() {
         let article;
