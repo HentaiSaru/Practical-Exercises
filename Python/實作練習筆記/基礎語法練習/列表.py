@@ -105,3 +105,22 @@ Todo    [ Dict ]
 
 ?   [有序/可遍/Key值不允許重複(後向覆蓋前項)]
 """
+Dict = {
+    "Key1": "value1",
+    "key2": ["value1", "value2"],
+    "key3": {"key": "value"}
+}
+print(Dict.get("Key1")) # 使用 key Get 來取得 value
+print(Dict["key2"]) # 透過Key值獲取value
+#* 獲取多個數據可以用 for _ in dict.items() 來遍歷數據
+print(Dict.keys()) # 獲取所有的key值
+print(Dict.values()) # 獲取所有的value值
+print(Dict.items()) # 獲取所有數據
+
+#* 另一種字典宣告方式
+Dict = dict(key1="value1", key2="value2")
+print(Dict)
+Dict.update({"key2": "修改數據"})
+print(Dict)
+Dict["key1"] = "覆蓋修改數據"
+print(Dict)
