@@ -38,3 +38,41 @@ def pr2():
     
 pr2()
 print(a)
+
+"""
+Todo ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+*   函數參數傳遞
+"""
+
+def add(a:int, b):
+    print(a+b)
+    
+add(5, 5)
+
+#* 不知道傳遞的參數數量
+def add2(*number):
+    _sum = 0
+    
+    for n in number:
+        _sum += n
+        
+    print(_sum)
+    
+add2(10, 20, 30, 40, 50, 60, 70, 80, 90, 100)
+
+#* 不知道關鍵字的數量
+def merge(**string):
+    _str = ""
+
+    for s in string.values():
+        _str += s
+        
+    print(_str)
+    
+merge(str1="A", str2="B", str3="C")
+
+#* 有回傳值的函數
+def get_add(a, b):
+    return a + b
+
+print(get_add(10, 10))
