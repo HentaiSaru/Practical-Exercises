@@ -61,29 +61,64 @@
     */
     // ToJsonSet(["orlink", "dllink"], "OnlyMode");
 
-    /* ==================== 監聽按鈕創建 (入口點) ====================  */
+    /* ==================== 監聽按鈕創建 (入口點) ==================== */
 
     const observer = new MutationObserver(() => {
-        if (pattern.test(document.URL) && !document.getElementById("DBExist")) {ButtonCreation()}
+        if (pattern.test(document.URL) && !$("#DBExist")) {ButtonCreation()}
     });
     if (pattern.test(document.URL)) {
         observer.observe(document.head, {childList: true, subtree: true});
     }
 
-    /* ==================== 選項菜單 ====================  */
+    /* ==================== 選項菜單 ==================== */
 
-    GM_registerMenuCommand(language.RM_01, function() {DownloadModeSwitch()});
-    GM_registerMenuCommand(language.RM_02, function() {
-        const section = document.querySelector("section");
-        if (section) {
-            JsonDict = {};
-            Pages = 0;
-            GetPageData(section);
-        }
+    Menu({
+        [language.RM_01]: ()=> DownloadModeSwitch(),
+        [language.RM_02]: ()=> {
+            const section = $("section");
+            if (section) {
+                JsonDict = {};
+                Pages = 0;
+                GetPageData(section);
+            }
+        },
+        [language.RM_03]: ()=> OpenData()
     });
-    GM_registerMenuCommand(language.RM_03, function() {OpenData()});
 
-    /* ==================== 數據處理 API ====================  */
+    /* ==================== 簡化 API ==================== */
+
+    /* 菜單註冊 */
+    async function Menu(item) {
+        for (const [name, call] of Object.entries(item)) {
+            GM_registerMenuCommand(name, ()=> {call()});
+        }
+    }
+
+    /* 簡化元素查找 */
+    function $(element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
+    /* 改版 API */
+    function $_(document, element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
+    /* ==================== 數據處理 API ==================== */
 
     /* 排除非法字元 */
     function IllegalFilter(Name) {
@@ -103,13 +138,34 @@
         } catch {return "png"}
     }
 
+    /* Mega 連結解析 (測試中 有些Bug) */
+    function MegaAnalysis(data) {
+        let title_box = [], link_box = [], result = {}, pass;
+        for (let i=0; i<data.length; i++) {
+            const str = data[i].textContent.trim();
+            if (str.startsWith("Pass")) { // 解析密碼字串
+                const ps = data[i].innerHTML.match(/Pass:([^<]*)/);
+                try {pass = `Pass : ${ps[1].trim()}`} catch {pass = str}
+            } else if (str.toUpperCase() == "MEGA") {
+                link_box.push(data[i].parentElement.href);
+            } else {
+                title_box.push(str.replace(":", "").trim());
+            }
+        }
+        // 合併數據
+        for (let i=0; i<title_box.length; i++) {
+            result[title_box[i]] = link_box[i]
+        }
+        return { pass, result };
+    }
+
     /* Worker 創建 */
     function WorkerCreation(code) {
         let blob = new Blob([code], {type: "application/javascript"});
         return new Worker(URL.createObjectURL(blob));
     }
 
-    /* ==================== 下載處理 ====================  */
+    /* ==================== 下載處理 ==================== */
 
     /* 按鈕創建 */
     async function ButtonCreation() {
@@ -139,7 +195,7 @@
             }
         `);
         try {
-            const Files = document.querySelectorAll("div.post__body h2")
+            const Files = $("div.post__body h2", true)
             const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
             download_button = GM_addElement(spanElement, "button", {
                 class: "Download_Button",
@@ -164,15 +220,15 @@
     function DownloadTrigger(button) {
         let data = new Map(), link;
         let interval = setInterval(() => {
-            let imgdata = document.querySelectorAll("div.post__files a");
-            let title = document.querySelector("h1.post__title").textContent.trim();
-            let user = document.querySelector("a.post__user-name").textContent.trim();
+            let imgdata = $("div.post__files a", true);
+            let title = $("h1.post__title").textContent.trim();
+            let user = $("a.post__user-name").textContent.trim();
             if (imgdata.length > 0 && title && user) {
                 clearInterval(interval);
                 button.textContent = language.DS_03;
                 button.disabled = true;
                 imgdata.forEach((files, index) => {
-                    link = files.href || files.querySelector("img").src;
+                    link = files.href || $_(files, "img").src;
                     data.set(index, link.split("?f=")[0]);
                 });
                 if (UserSet.DeBug) {
@@ -216,7 +272,7 @@
                     setTimeout(processQueue, ${UserSet.ExperimentalDownloadDelay});
                 }
             }
-            // XMLHttpRequest 比較容易出現同源限制錯誤
+
             async function xmlRequest(index, url, retry) {
                 let xhr = new XMLHttpRequest();
                 xhr.open("GET", url, true);
@@ -230,7 +286,7 @@
                 };
                 xhr.send();
             }
-            // Fetch 受到同源的限制較少
+
             async function fetchRequest(index, url, retry) {
                 try {
                     const response = await fetch(url, {method: 'GET'});
@@ -402,14 +458,14 @@
         location.reload();
     }
 
-    /* ==================== 數據處理 ====================  */
+    /* ==================== Json 數據處理 ==================== */
     var progress, filtercache, OriginalTitle = document.title; // 進度顯示
 
     /* 獲取主頁元素 */
     async function GetPageData(section) {
         let title, link, promises = [];
-        const menu = section.querySelector("a.pagination-button-after-current");
-        const item = section.querySelectorAll(".card-list__items article");
+        const menu = $_(section, "a.pagination-button-after-current");
+        const item = $_(section, ".card-list__items article", true);
 
         Pages++;
         progress = 0;
@@ -424,8 +480,8 @@
 
         // 遍歷數據
         for (const card of item) {
-            title = card.querySelector(".post-card__header").textContent.trim();
-            link = card.querySelector("a").href;
+            title = $_(card, ".post-card__header").textContent.trim();
+            link = $_(card, "a").href;
 
             if (UserSet.ExperimentalDownload) {
                 promises.push(DataClassification(title, link, Pages));
@@ -450,7 +506,7 @@
             ontimeout: 8000,
             onload: response => {
                 const DOM = parser.parseFromString(response.responseText, "text/html");
-                GetPageData(DOM.querySelector("section"));
+                GetPageData($_(DOM, "section"));
             }
         });
     }
@@ -481,26 +537,25 @@
             GM_xmlhttpRequest({
                 method: "GET",
                 url: url,
-                nocache: false,
+                nocache: true,
                 onload: response => {
                     const DOM = parser.parseFromString(response.responseText, "text/html");
 
                     const original_link = url;
-                    const pictures_number = DOM.querySelectorAll("div.post__thumbnail").length;
-                    const video_number = DOM.querySelectorAll('ul[style*="text-align: center;list-style-type: none;"] li').length;
-                    const mega_link = DOM.querySelectorAll("div.post__content strong");
-                    DOM.querySelectorAll("a.post__attachment-link").forEach(link => {
-                        const analyze =  decodeURIComponent(link.href).split("?f=");
+                    const pictures_number = $_(DOM, "div.post__thumbnail", true).length;
+                    const video_number = $_(DOM, 'ul[style*="text-align: center;list-style-type: none;"] li', true).length;
+                    const mega_link = $_(DOM, "div.post__content strong", true);
+                    $_(DOM, "a.post__attachment-link", true).forEach(link => {
+                        const analyze = decodeURIComponent(link.href).split("?f=");
                         const download_link = analyze[0];
                         const download_name = analyze[1];
                         link_box[download_name] = download_link;
                     })
-                    
+
                     if (mega_link.length > 0) {
                         try {
-                            link_box[mega_link[0].textContent.trim().replace(":", "")] = {
-                                [mega_link[2].textContent.trim()]: mega_link[1].parentElement.href
-                            }
+                            const {pass, result} = MegaAnalysis(mega_link);
+                            pass != undefined ? link_box[pass] = result : null;
                         } catch {}
                     }
 
@@ -518,6 +573,28 @@
                 }
             })
         });
+    }
+
+    /* 輸出Json */
+    async function ToJson() {
+        try {
+            Object.keys(JsonDict).sort(); // 進行簡單排序
+            const author = document.querySelector('span[itemprop="name"]').textContent;
+            const json = document.createElement("a");
+            json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JsonDict, null, 4));
+            json.download = `${author}.json`;
+            json.click();
+            json.remove();
+            if (UserSet.NotiFication) {
+                GM_notification({
+                    title: language.NF_04,
+                    text: language.NF_05,
+                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                    timeout: 2000
+                });
+            }
+            document.title = OriginalTitle;
+        } catch {alert(language.NF_06)}
     }
 
     /**
@@ -551,32 +628,10 @@
         } catch (error) {console.error(error)}
     }
 
-    /* 輸出Json */
-    async function ToJson() {
-        try {
-            Object.keys(JsonDict).sort(); // 進行簡單排序
-            const author = document.querySelector('span[itemprop="name"]').textContent;
-            const json = document.createElement("a");
-            json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(JsonDict, null, 4));
-            json.download = `${author}.json`;
-            json.click();
-            json.remove();
-            if (UserSet.NotiFication) {
-                GM_notification({
-                    title: language.NF_04,
-                    text: language.NF_05,
-                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
-                    timeout: 2000
-                });
-            }
-            document.title = OriginalTitle;
-        } catch {alert(language.NF_06)}
-    }
-
     /* 一鍵開啟當前所有帖子 */
     async function OpenData() {
         try {
-            const card = document.querySelectorAll("article.post-card a");
+            const card = $("article.post-card a", true);
             if (card.length == 0) {throw new Error("No links found")}
             for (const link of card) {
                 GM_openInTab(link.href, {
