@@ -38,13 +38,17 @@ Todo    常用 API
 ?   列表類型數據 API
 
 *   list.add(value) 添加新元素 [用於set類型]
+*   list.append() 添加元素到最後的索引 [用於list/array類型]
+*   list.extend(另一個列表) 延伸列表數據, 將新列表數據添加至, 舊列表的後方
+*   list.insert() 在指定的索引位置, 插入新的元素
 *   list.union(value) 將兩個set合併, 回傳一個set排除重複 [用於set類型]
 *   list.update(value) 將 value 這個 set 插入, list 這個set中 [用於set類型]
+*   list.reverse() 反轉陣列
+*   list.sort() 陣列排序
 *   list.clear() 清空列表 [通用]
 *   list.copy() 複製列表, 回傳數據 [通用]
 *   list.difference() 回傳包含差異的 set [不確定]
 *   list.discard() 刪除指定的項目
 *   list.pop() 刪除一個元素
 *   list.remove() 刪除指定元素
-
 """
