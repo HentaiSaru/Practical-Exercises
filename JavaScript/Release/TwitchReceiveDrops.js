@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.5
+// @version             0.0.6
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -26,7 +26,7 @@
 // ==/UserScript==
 
 (function() {
-    var Withdraw, title, state, NumberBox = [];
+    var Withdraw, title, state, use=true, NumberBox=[];
     /* 配置設定 */
     let config = {
         RestartLive: true, // 重新啟用直播
@@ -42,7 +42,7 @@
         Checkbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.buUmIQ.bxHedf",
     }, observer = new MutationObserver(() => {
         title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
-        title = title.length > 0 && title != false ? (title.forEach(progress=> NumberBox.push(progress.textContent)), Math.max(...NumberBox)) : false;
+        title = title.length > 0 && use ? (use = false, title.forEach(progress=> NumberBox.push(+progress.textContent)), ProgressParse(NumberBox)) : false;
         state = config.ProgressDisplay && title != false ? (ShowTitle(`${title}%`), true) : false;
 
         if (config.RestartLive && state) {
@@ -65,12 +65,17 @@
 
     setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
 
+    function ProgressParse(progress) { // 找到 <= 100 的最大值
+        progress.sort((a, b) => b - a);
+        return progress.find(number => number <= 100);
+    }
+
     async function ShowTitle(display) {
         config.ProgressDisplay = false;
-        const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續15秒)
+        const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續10秒)
             document.title !== display ? document.title = display : null;
-        }, 500);
-        setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 15);
+        }, 300);
+        setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 10);
     }
 
     async function AutoRestartLive() {
