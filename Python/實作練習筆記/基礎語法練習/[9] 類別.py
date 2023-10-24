@@ -37,7 +37,7 @@ class cla2(cla1):
         self.name = name
         self.arg = arg
         self.__print()
-        
+
     def __print(self): # 打印傳入值
         print(self.name, self.arg)
 
