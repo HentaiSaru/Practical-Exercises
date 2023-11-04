@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.6
+// @version             0.0.7
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -38,8 +38,8 @@
 
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 直播查找標籤, 只要有包含該字串即可
 
-        ProgressBar: "p.CoreText-sc-1txzju1-0.egOfyN span.CoreText-sc-1txzju1-0",
-        Checkbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.buUmIQ.bxHedf",
+        ProgressBar: "p.CoreText-sc-1txzju1-0.mLvNZ span.CoreText-sc-1txzju1-0", // 掉寶進度
+        getbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
     }, observer = new MutationObserver(() => {
         title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
         title = title.length > 0 && use ? (use = false, title.forEach(progress=> NumberBox.push(+progress.textContent)), ProgressParse(NumberBox)) : false;
@@ -59,17 +59,19 @@
             }
         }
 
-        Withdraw = document.querySelector(config.Checkbutton);
+        Withdraw = document.querySelector(config.getbutton);
         Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
     });
 
     setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
 
+    /* 解析進度 */
     function ProgressParse(progress) { // 找到 <= 100 的最大值
         progress.sort((a, b) => b - a);
         return progress.find(number => number <= 100);
     }
 
+    /* 展示進度於標題 */
     async function ShowTitle(display) {
         config.ProgressDisplay = false;
         const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續10秒)
@@ -78,11 +80,13 @@
         setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 10);
     }
 
+    /* 自動重啟直播 */
     async function AutoRestartLive() {
         let article;
         const choose = {
+            Mute: true, // 重啟後的直播靜音(測試功能)
             channel: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 相關頻道
-            TagType: ".InjectLayout-sc-1i43xsx-0.cerOzE span", // 頻道 Tag 類型
+            TagType: ".ScTruncateText-sc-i3kjgq-0.ickTbV span", // 頻道 Tag 類型
             LiveLink: "[data-a-target='preview-card-image-link']", // 直播連結按鈕
 
         }, channel = document.querySelector(choose.channel);
@@ -97,9 +101,19 @@
                         return config.FindTag.some(match=> tag.includes(match.toLowerCase()));
                     });
                     article[index].querySelector(choose.LiveLink).click();
+                    choose.Mute ? VideoMute(NewWindow) : null;
                 }
             }, 1000);
         }
+    }
+
+    /* 重啟直播的影片靜音(持續運行8秒) */
+    async function VideoMute(window) {
+        const Interval = setInterval(() => {
+            let video = window.document.querySelector("video");
+            video ? (video.muted = true, video.muted ? null : video.muted = true) : null;
+        }, 500);
+        setTimeout(()=> {clearInterval(Interval)}, 1000 * 8);
     }
 
     setTimeout(()=> {location.reload()}, 1000 * config.CheckInterval);
