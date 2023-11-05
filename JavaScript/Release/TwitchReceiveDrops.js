@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.7
+// @version             0.0.8
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -32,14 +32,14 @@
         RestartLive: true, // 重新啟用直播
         ProgressDisplay: true, // 在選項卡展示進度
 
-        RestartTime: 4, // 重啟直播相差時間 (Minute) [設置太短可能勿檢測]
-        DetectionDelay: 1.5, // 延遲開始檢測時間 (seconds), 提高可降低性能消耗, 過高會找不到元素
-        CheckInterval: 100, // 檢查間隔 (seconds)
+        RestartTime: 5, // 重啟直播相差時間 (Minute) [設置太短可能勿檢測]
+        DetectionDelay: 1, // 延遲開始檢測時間 (seconds) [提高可降低性能消耗, 過高會找不到元素]
+        CheckInterval: 120, // 檢查間隔 (seconds)
 
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 直播查找標籤, 只要有包含該字串即可
-
         ProgressBar: "p.CoreText-sc-1txzju1-0.mLvNZ span.CoreText-sc-1txzju1-0", // 掉寶進度
         getbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
+
     }, observer = new MutationObserver(() => {
         title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
         title = title.length > 0 && use ? (use = false, title.forEach(progress=> NumberBox.push(+progress.textContent)), ProgressParse(NumberBox)) : false;
@@ -65,10 +65,10 @@
 
     setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
 
-    /* 解析進度 */
-    function ProgressParse(progress) { // 找到 <= 100 的最大值
+    /* 解析進度(找到 < 100 的最大值) */
+    function ProgressParse(progress) {
         progress.sort((a, b) => b - a);
-        return progress.find(number => number <= 100);
+        return progress.find(number => number < 100);
     }
 
     /* 展示進度於標題 */
@@ -107,13 +107,18 @@
         }
     }
 
-    /* 重啟直播的影片靜音(持續運行8秒) */
+    /* 重啟直播的影片靜音(持續執行5秒) */
     async function VideoMute(window) {
         const Interval = setInterval(() => {
             let video = window.document.querySelector("video");
-            video ? (video.muted = true, video.muted ? null : video.muted = true) : null;
-        }, 500);
-        setTimeout(()=> {clearInterval(Interval)}, 1000 * 8);
+            if (video) {
+                clearInterval(Interval);
+                const SilentInterval = setInterval(() => {
+                    video.muted = true;
+                }, 300);
+                setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 5);
+            }
+        }, 1000);
     }
 
     setTimeout(()=> {location.reload()}, 1000 * config.CheckInterval);
