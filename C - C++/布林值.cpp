@@ -13,4 +13,6 @@ int main() {
     printf("True: %d | False: %d", a, b);
     // 比較輸出布林
     printf("\n大小比較: %d", 10 > 9);
+
+    return 0;
 }
