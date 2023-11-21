@@ -38,7 +38,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-
+//https://www.youtube.com/
 (function() {
     let currentUrl, pattern = /^https:\/\/www\.youtube\.com\/.+$/;
     /***
@@ -82,8 +82,8 @@
             const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
             Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
             language = display_language(navigator.language),
-            Lookup_Delay = 300,
-            Dev = false;
+            Lookup_Delay = 500, // 查找間隔
+            Dev = true; // 開發偵錯
 
             RunMaim();
             /* 註冊菜單 */
@@ -98,8 +98,16 @@
                 `);
 
                 /* ======================= 讀取設置 ========================= */
-                const HideElem = ["end", "below", "secondary", "related", "secondary-inner", "chat-container", "comments", "menu-container"];
-                WaitElem(HideElem, element => {
+                WaitElem([
+                    "end",
+                    "below",
+                    "secondary",
+                    "related",
+                    "secondary-inner",
+                    "chat-container",
+                    "comments",
+                    "menu-container"
+                ], element => {
                     const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
@@ -108,33 +116,25 @@
                         set = GM_getValue("Minimalist", null);
                         if (set && set !== null) {
                             Promise.all([SetTrigger(end), SetTrigger(below), SetTrigger(secondary), SetTrigger(related)]).then(results => {
-                                if (results.every(result => result)) {
-                                    Dev ? log("極簡化") : null;
-                                }
+                                results.every(result => result) && Dev ? log("極簡化") : null;
                             });
                         } else {
                             // 推薦播放
                             set = GM_getValue("Trigger_1", null);
                             if (set && set !== null){
                                 Promise.all([SetTrigger(chat), SetTrigger(secondary), SetTrigger(related)]).then(results => {
-                                    if (results.every(result => result)) {
-                                        Dev ? log("隱藏推薦播放") : null;
-                                    }
+                                    results.every(result => result) && Dev ? log("隱藏推薦播放") : null;
                                 });
                             }
                             // 留言區
                             set = GM_getValue("Trigger_2", null);
                             if (set && set !== null){
-                                SetTrigger(comments).then(() => {
-                                    Dev ? log("隱藏留言區") : null;
-                                });
+                                SetTrigger(comments).then(() => {Dev ? log("隱藏留言區") : null});
                             }
                             // 功能選項
                             set = GM_getValue("Trigger_3", null);
                             if (set && set !== null){
-                                SetTrigger(menu).then(() => {
-                                    Dev ? log("隱藏功能選項") : null;
-                                });
+                                SetTrigger(menu).then(() => {Dev ? log("隱藏功能選項") : null});
                             }
                         }
                     } else if (Playlist_Pattern.test(currentUrl)) {
@@ -144,9 +144,7 @@
                             let interval;
                             interval = setInterval(function() {
                                 let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
-                                if (playlist) {
-                                    SetTrigger(playlist).then(() => {clearInterval(interval)});
-                                }
+                                playlist ? SetTrigger(playlist).then(() => {clearInterval(interval)}) : null;
                             }, Lookup_Delay);
                         }
                     }
@@ -230,15 +228,14 @@
 
                 /* 等待元素出現 API (修改版) */
                 async function WaitElem(selectors, callback) {
-                    let elements;
                     const interval = setInterval(()=> {
-                        elements = selectors.map(selector => document.getElementById(selector));
+                        const elements = selectors.map(selector => document.getElementById(selector));
                         Dev ? log(elements) : null;
-                        if (elements.every(element => element)) {
+                        if (elements.every(element => element && Array.from(element.children).length > 0)) {
                             clearInterval(interval);
                             callback(elements);
                         }
-                    }, 700);
+                    }, Lookup_Delay);
                 }
 
                 /* 開發者除錯打印 API */
