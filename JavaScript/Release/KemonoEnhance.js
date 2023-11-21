@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.37
+// @version      0.0.38
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -14,8 +14,6 @@
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
-// @match        *://kemono.party/*
-// @match        *://*.kemono.party/*
 // @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
 
 // @license      MIT
@@ -34,8 +32,8 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
-// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/svg-with-js.min.css
 // ==/UserScript==
 
 (function () {
@@ -47,7 +45,6 @@
     const use = {
         Beautify: 1,        // 側邊攔收縮美化
         Ad_Block: 1,        // 清除阻擋廣告
-        RemoveNotice: 1,    // 刪除頂部紅條公告
         CardSize: 1,        // 帖子預覽卡放大
         PostCardFade: 1,    // 帖子文字卡淡化 [0 = 不使用, 1 = 隱藏, 2 = 淡化]
         NewTabOpens: 1,     // 自動新分頁
@@ -157,7 +154,6 @@
         }, Run = {
             Beautify: select => select == 1 ? Beautify() : null,
             Ad_Block: select => select == 1 ? Ad_Block() : null,
-            RemoveNotice: select => select == 1 ? RemoveNotice() : null,
             CardSize: select => select == 1 ? CardSize() : null,
             PostCardFade: select => select == 1 ? PostCardFade(true) : select == 2 ? PostCardFade(false) : null,
             NewTabOpens: select => select == 1 ? NewTabOpens() : null,
@@ -166,7 +162,7 @@
             VideoBeautify: select => select == 1 ? VideoBeautify() : null,
             LinkOriented: select => select == 1 ? LinkOriented() : null,
             ExtraButton: select => select == 1 ? ExtraButton() : null,
-        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 11)];
+        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 2), analyze.slice(2, 6), analyze.slice(6, 10)];
 
         /* 調用數據 (設置範圍加速遍歷) */
         gb.forEach(([func, set]) => Run[func](set));
@@ -242,13 +238,6 @@
         `, "Effects");
     }
 
-    /* 移除公告通知 */
-    async function RemoveNotice() {
-        WaitElem("body > div.content-wrapper.shifted > a", false, 8000, announce => {
-            announce.remove();
-        });
-    }
-
     /* 完整廣告攔截消除 */
     async function Ad_Block() {
         GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
@@ -278,7 +267,7 @@
     /* 帖子預覽卡大小 */
     async function CardSize() {
         addstyle(`
-            .card-list--legacy {
+            * {
                 --card-size: 12vw;
             }
         `, "Effects");
