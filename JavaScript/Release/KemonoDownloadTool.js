@@ -14,8 +14,6 @@
 
 // @match        *://kemono.su/*
 // @match        *://*.kemono.su/*
-// @match        *://kemono.party/*
-// @match        *://*.kemono.party/*
 // @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @license      MIT
@@ -42,12 +40,12 @@
     let jsonmode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}, genmode=true;
 
     const UserSet = {
-        DeBug: false,                   // 顯示請求資訊, 與錯誤資訊
+        DeBug: true,                   // 顯示請求資訊, 與錯誤資訊
         NotiFication: true,             // 操作時 系統通知
         CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
         BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
-        ExperimentalDownloadDelay: 150, // 實驗下載請求延遲 (ms)
+        ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     }
 
     /** ---------------------/
@@ -61,14 +59,12 @@
     */
     // ToJsonSet(["orlink", "dllink"], "OnlyMode");
 
-    /* ==================== 監聽按鈕創建 (入口點) ==================== */
+    /* ==================== 按鈕創建 (入口點) ==================== */
 
     const observer = new MutationObserver(() => {
-        if (pattern.test(document.URL) && !$("#DBExist")) {ButtonCreation()}
+        pattern.test(document.URL) && !$("#DBExist") ? ButtonCreation() : null;
     });
-    if (pattern.test(document.URL)) {
-        observer.observe(document.head, {childList: true, subtree: true});
-    }
+    pattern.test(document.URL) ? observer.observe(document.head, {childList: true, subtree: true}) : null;
 
     /* ==================== 選項菜單 ==================== */
 
@@ -167,37 +163,53 @@
 
     /* ==================== 下載處理 ==================== */
 
+    /* 添加樣式 */
+    GM_addStyle(`
+        .File_Span {
+            padding: 1rem;
+            font-size: 20% !important;
+        }
+        .Download_Button {
+            color: hsl(0, 0%, 45%);
+            padding: 6px;
+            border-radius: 8px;
+            border: 2px solid rgba(59, 62, 68, 0.7);
+            background-color: rgba(29, 31, 32, 0.8);W
+            font-family: Arial, sans-serif;
+        }
+        .Download_Button:hover {
+            color: hsl(0, 0%, 95%);
+            background-color: hsl(0, 0%, 45%);
+            font-family: Arial, sans-serif;
+        }
+        .Download_Button:disabled {
+            color: hsl(0, 0%, 95%);
+            background-color: hsl(0, 0%, 45%);
+            cursor: default;
+        }
+    `);
+
+    /**
+     * 修改思路
+     * 
+     * 於網頁右下角創建一個模態
+     * 使用一個圖示 "https://kemono.su/static/favicon.ico"
+     * 滑鼠懸浮時彈出下載介面, 上方設置功能, 下方下載按鈕
+     * 上方設置: 操作系統通知(開關按鈕)/ 下載完成後自動關閉(開關按鈕)/ 實驗功能(開關按鈕)
+     * 一鍵開帖延遲(輸入框/毫秒)/ 實驗下載延遲(輸入框/毫秒)
+     * Json 實驗下載功能按鈕/ 模式選擇
+     * 影片下載 + 圖片下載按鈕
+     * 開啟當前所有頁面按鈕 + Json 數據倒出
+     */
+
     /* 按鈕創建 */
     async function ButtonCreation() {
-        let download_button;
-        GM_addStyle(`
-            .File_Span {
-                padding: 1rem;
-                font-size: 20% !important;
-            }
-            .Download_Button {
-                color: hsl(0, 0%, 45%);
-                padding: 6px;
-                border-radius: 8px;
-                border: 2px solid rgba(59, 62, 68, 0.7);
-                background-color: rgba(29, 31, 32, 0.8);
-                font-family: Arial, sans-serif;
-            }
-            .Download_Button:hover {
-                color: hsl(0, 0%, 95%);
-                background-color: hsl(0, 0%, 45%);
-                font-family: Arial, sans-serif;
-            }
-            .Download_Button:disabled {
-                color: hsl(0, 0%, 95%);
-                background-color: hsl(0, 0%, 45%);
-                cursor: default;
-            }
-        `);
+        const Files = $("div.post__body h2", true);
+        let video_button, img_button;
+
         try {
-            const Files = $("div.post__body h2", true)
             const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
-            download_button = GM_addElement(spanElement, "button", {
+            img_button = GM_addElement(spanElement, "button", {
                 class: "Download_Button",
                 id: "DBExist"
             });
@@ -206,13 +218,13 @@
             } else {
                 ModeDisplay = language.DS_02;
             }
-            download_button.textContent = ModeDisplay;
-            download_button.addEventListener("click", function() {
-                DownloadTrigger(download_button);
+            img_button.textContent = ModeDisplay;
+            img_button.addEventListener("click", function() {
+                DownloadTrigger(img_button);
             }, {capture: true, passive: true});
         } catch {
-            download_button.textContent = language.DS_04;
-            download_button.disabled = true;
+            img_button.textContent = language.DS_04;
+            img_button.disabled = true;
         }
     }
 
@@ -224,7 +236,7 @@
             let title = $("h1.post__title").textContent.trim();
             let user = $("a.post__user-name").textContent.trim();
             if (imgdata.length > 0 && title && user) {
-                clearInterval(interval);
+                clearInterval(interval); // 等到找到所有下載元素後觸發下載
                 button.textContent = language.DS_03;
                 button.disabled = true;
                 imgdata.forEach((files, index) => {
@@ -248,7 +260,7 @@
 
     /* 壓縮下載 */
     async function ZipDownload(Folder, ImgData, Button) {
-        const zip = new JSZip(),
+        const Data = new JSZip(),
         File = Conversion(Folder),
         Total = ImgData.size,
         OriginalTitle = document.title,
@@ -317,7 +329,7 @@
             if (!error) {
                 if (UserSet.DeBug) {console.log("Download Successful")}
                 mantissa = (index + 1).toString().padStart(3, '0');
-                zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
+                Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                 document.title = `[${progress}/${Total}]`;
                 progress++;
@@ -333,7 +345,7 @@
                         onload: response => {
                             if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                 mantissa = (index + 1).toString().padStart(3, '0');
-                                zip.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
+                                Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
                                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                                 document.title = `[${progress}/${Total}]`;
                                 progress++;
@@ -362,39 +374,9 @@
             if (task === Total) {
                 clearInterval(interval);
                 worker.terminate();
-                Compression();
+                Compression(Data, Folder, Button, OriginalTitle);
             }
         }, 500);
-
-        // 壓縮設置
-        async function Compression() {
-            zip.generateAsync({
-                type: "blob",
-                compression: "DEFLATE",
-                compressionOptions: {
-                    level: 5
-                }
-            }, (progress) => {
-                document.title = `${progress.percent.toFixed(1)} %`;
-                Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
-            }).then(async zip => {
-                document.title = `✓ ${OriginalTitle}`;
-                await saveAs(zip, `${Folder}.zip`);
-                Button.textContent = language.DS_08;
-                setTimeout(() => {
-                    if (UserSet.CompleteClose) {window.close()}
-                    Button.textContent = `✓ ${ModeDisplay}`;
-                    Button.disabled = false;
-                }, 3000);
-            }).catch(result => {
-                Button.textContent = language.DS_07;
-                document.title = OriginalTitle;
-                setTimeout(() => {
-                    Button.textContent = ModeDisplay;
-                    Button.disabled = false;
-                }, 5000);
-            })
-        }
     }
 
     /* 單圖下載 */
@@ -432,6 +414,43 @@
                 }, 3000);
             }
         }, 1000);
+    }
+
+    /**
+    * 壓縮處理
+    * 
+    * @param {*} Data  - 需壓縮的數據文件
+    * @param {String} Folder - 壓縮檔名
+    * @param {Element} Button - 按鈕元素
+    * @param {String} OriginalTitle - 原始標題
+    */
+    async function Compression(Data, Folder, Button, OriginalTitle) {
+        Data.generateAsync({
+            type: "blob",
+            compression: "DEFLATE",
+            compressionOptions: {
+                level: 5
+            }
+        }, (progress) => {
+            document.title = `${progress.percent.toFixed(1)} %`;
+            Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
+        }).then(async zip => {
+            document.title = `✓ ${OriginalTitle}`;
+            await saveAs(zip, `${Folder}.zip`);
+            Button.textContent = language.DS_08;
+            setTimeout(() => {
+                if (UserSet.CompleteClose) {window.close()}
+                Button.textContent = `✓ ${ModeDisplay}`;
+                Button.disabled = false;
+            }, 3000);
+        }).catch(result => {
+            Button.textContent = language.DS_07;
+            document.title = OriginalTitle;
+            setTimeout(() => {
+                Button.textContent = ModeDisplay;
+                Button.disabled = false;
+            }, 5000);
+        })
     }
 
     /* 下載模式切換 */
