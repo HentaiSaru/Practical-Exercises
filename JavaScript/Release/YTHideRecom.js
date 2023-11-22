@@ -11,7 +11,7 @@
 // @name:fr      Outil de Masquage de Youtube
 // @name:hi      यूट्यूब छुपाने का उपकरण
 // @name:id      Alat Sembunyikan Youtube
-// @version      0.0.23
+// @version      0.0.24
 // @author       HentaiSaru
 // @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
 // @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
@@ -38,9 +38,8 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // ==/UserScript==
-//https://www.youtube.com/
+
 (function() {
-    let currentUrl, pattern = /^https:\/\/www\.youtube\.com\/.+$/;
     /***
         * _ooOoo_
         * o8888888o
@@ -72,22 +71,23 @@
         FunctionBar: event => event.altKey && event.key == "3", // 功能區
         ListDesc:    event => event.altKey && event.key == "4" // 播放清單資訊
 
+    }, Config = {
+        Dev: false, // 開發偵錯
+        Lookup_Delay: 500, // 查找間隔(ms)
+        language: display_language(navigator.language),
+        pattern: /^https:\/\/www\.youtube\.com\/.+$/,
+        VVP_Pattern: /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
+        Playlist_Pattern: /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/ // 判斷在播放清單運行
+
     }, observer = new MutationObserver(() => {
-        currentUrl = document.URL;
-        if (pattern.test(currentUrl) && !document.body.hasAttribute("data-hide")) {
+        const currentUrl = document.URL;
+        if (Config.pattern.test(currentUrl) && !document.body.hasAttribute("data-hide")) {
             document.body.setAttribute("data-hide", true);
             let set, transform = false;
 
-            /* 宣告 */
-            const VVP_Pattern = /^https:\/\/www\.youtube\.com\/watch\?v=.+$/, // 判斷在播放頁面運行
-            Playlist_Pattern = /^https:\/\/www\.youtube\.com\/playlist\?list=.+$/, // 判斷在播放清單運行
-            language = display_language(navigator.language),
-            Lookup_Delay = 500, // 查找間隔
-            Dev = true; // 開發偵錯
-
-            RunMaim();
             /* 註冊菜單 */
-            GM_registerMenuCommand(language[0], function() {alert(language[1])});
+            GM_registerMenuCommand(Config.language[0], function() {alert(Config.language[1])});
+            RunMaim();
 
             /* ======================= 主運行 ========================= */
             async function RunMaim() {
@@ -111,33 +111,33 @@
                     const [end, below, secondary, related, inner, chat, comments, menu] = element;
 
                     /* 獲取設置 */
-                    if (VVP_Pattern.test(currentUrl)) {
+                    if (Config.VVP_Pattern.test(currentUrl)) {
                         // 極簡化
                         set = GM_getValue("Minimalist", null);
                         if (set && set !== null) {
                             Promise.all([SetTrigger(end), SetTrigger(below), SetTrigger(secondary), SetTrigger(related)]).then(results => {
-                                results.every(result => result) && Dev ? log("極簡化") : null;
+                                results.every(result => result) && Config.Dev ? log("極簡化") : null;
                             });
                         } else {
                             // 推薦播放
                             set = GM_getValue("Trigger_1", null);
                             if (set && set !== null){
                                 Promise.all([SetTrigger(chat), SetTrigger(secondary), SetTrigger(related)]).then(results => {
-                                    results.every(result => result) && Dev ? log("隱藏推薦播放") : null;
+                                    results.every(result => result) && Config.Dev ? log("隱藏推薦播放") : null;
                                 });
                             }
                             // 留言區
                             set = GM_getValue("Trigger_2", null);
                             if (set && set !== null){
-                                SetTrigger(comments).then(() => {Dev ? log("隱藏留言區") : null});
+                                SetTrigger(comments).then(() => {Config.Dev ? log("隱藏留言區") : null});
                             }
                             // 功能選項
                             set = GM_getValue("Trigger_3", null);
                             if (set && set !== null){
-                                SetTrigger(menu).then(() => {Dev ? log("隱藏功能選項") : null});
+                                SetTrigger(menu).then(() => {Config.Dev ? log("隱藏功能選項") : null});
                             }
                         }
-                    } else if (Playlist_Pattern.test(currentUrl)) {
+                    } else if (Config.Playlist_Pattern.test(currentUrl)) {
                         // 播放清單資訊
                         set = GM_getValue("Trigger_4", null);
                         if (set && set !== null){
@@ -145,7 +145,7 @@
                             interval = setInterval(function() {
                                 let playlist = document.querySelector("#page-manager > ytd-browse > ytd-playlist-header-renderer > div");
                                 playlist ? SetTrigger(playlist).then(() => {clearInterval(interval)}) : null;
-                            }, Lookup_Delay);
+                            }, Config.Lookup_Delay);
                         }
                     }
 
@@ -175,8 +175,7 @@
                             }
                         } else if (HotKey.RecomPlay(event)) {
                             event.preventDefault();
-                            let child = inner.childElementCount;
-                            if (child > 1) {// 子元素數量
+                            if (inner.childElementCount > 1) {
                                 HideJudgment(chat, "Trigger_1");
                                 HideJudgment(secondary);
                                 HideJudgment(related);
@@ -230,20 +229,19 @@
                 async function WaitElem(selectors, callback) {
                     const interval = setInterval(()=> {
                         const elements = selectors.map(selector => document.getElementById(selector));
-                        Dev ? log(elements) : null;
-                        if (elements.every(element => element && Array.from(element.children).length > 0)) {
+                        Config.Dev ? log(elements) : null;
+                        if (elements.every(element => element)) {
                             clearInterval(interval);
                             callback(elements);
                         }
-                    }, Lookup_Delay);
+                    }, Config.Lookup_Delay);
                 }
 
                 /* 開發者除錯打印 API */
                 function log(label, type="log") {
                     const style = {
                         group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
-                        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;
-                        `
+                        text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;`
                     }, template = {
                         log: label=> console.log(`%c${label}`, style.text),
                         warn: label=> console.warn(`%c${label}`, style.text),
