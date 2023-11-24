@@ -267,6 +267,10 @@ async function addlistener(element, type, listener, add={}) {
         ListenerRecord.get(element).set(type, listener);
     }
 }
+/* 簡化版 */
+async function addlistener(element, type, listener, add={}) {
+    element.addEventListener(type, listener, add);
+}
 
 /**
  ** { 刪除 監聽器 API }
