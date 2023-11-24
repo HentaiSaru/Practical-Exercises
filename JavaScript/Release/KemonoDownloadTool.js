@@ -28,10 +28,12 @@
 // @grant        GM_addElement
 // @grant        GM_notification
 // @grant        GM_xmlhttpRequest
+// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 
 // @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/svg-with-js.min.css
 // ==/UserScript==
 
 (function() {
@@ -114,6 +116,11 @@
         } else {return document.querySelectorAll(element)}
     }
 
+    /* (簡化版) 監聽器添加 */
+    async function addlistener(element, type, listener, add={}) {
+        element.addEventListener(type, listener, add);
+    }
+
     /* ==================== 數據處理 API ==================== */
 
     /* 排除非法字元 */
@@ -165,16 +172,21 @@
 
     /* 添加樣式 */
     GM_addStyle(`
+        ${GM_getResourceText("font-awesome")}
         .File_Span {
             padding: 1rem;
             font-size: 20% !important;
         }
+        .Setting_Button {
+            cursor: pointer;
+        }
         .Download_Button {
             color: hsl(0, 0%, 45%);
             padding: 6px;
+            margin: 10px;
             border-radius: 8px;
             border: 2px solid rgba(59, 62, 68, 0.7);
-            background-color: rgba(29, 31, 32, 0.8);W
+            background-color: rgba(29, 31, 32, 0.8);
             font-family: Arial, sans-serif;
         }
         .Download_Button:hover {
@@ -192,8 +204,6 @@
     /**
      * 修改思路
      * 
-     * 於網頁右下角創建一個模態
-     * 使用一個圖示 "https://kemono.su/static/favicon.ico"
      * 滑鼠懸浮時彈出下載介面, 上方設置功能, 下方下載按鈕
      * 上方設置: 操作系統通知(開關按鈕)/ 下載完成後自動關閉(開關按鈕)/ 實驗功能(開關按鈕)
      * 一鍵開帖延遲(輸入框/毫秒)/ 實驗下載延遲(輸入框/毫秒)
@@ -204,24 +214,29 @@
 
     /* 按鈕創建 */
     async function ButtonCreation() {
+        let img_button;
         const Files = $("div.post__body h2", true);
-        let video_button, img_button;
+        ModeDisplay = CompressMode ? language.DS_01 : language.DS_02;
 
         try {
-            const spanElement = GM_addElement(Files[Files.length - 1], "span", {class: "File_Span"});
-            img_button = GM_addElement(spanElement, "button", {
-                class: "Download_Button",
+            // 創建 Span
+            const spanElement = GM_addElement(Files[Files.length - 1], "span", {
+                class: "File_Span",
                 id: "DBExist"
             });
-            if (CompressMode) {
-                ModeDisplay = language.DS_01;
-            } else {
-                ModeDisplay = language.DS_02;
-            }
+            // 創建 Svg
+            const setting = GM_addElement(spanElement, "svg", {
+                class: "Setting_Button"
+            });
+            setting.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="1.3rem" viewBox="0 0 512 512"><style>svg {fill:hsl(0, 0%, 45%) !important;}</style>
+            <path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>`
+            addlistener(setting, "click", ()=> {SettingMenu()}, {capture: true, passive: true});
+            // 創建 Button
+            img_button = GM_addElement(spanElement, "button", {
+                class: "Download_Button"
+            });
             img_button.textContent = ModeDisplay;
-            img_button.addEventListener("click", function() {
-                DownloadTrigger(img_button);
-            }, {capture: true, passive: true});
+            addlistener(img_button, "click", ()=> {DownloadTrigger(img_button)}, {capture: true, passive: true});
         } catch {
             img_button.textContent = language.DS_04;
             img_button.disabled = true;
@@ -328,7 +343,7 @@
             const { blob, index, url, error } = e.data;
             if (!error) {
                 if (UserSet.DeBug) {console.log("Download Successful")}
-                mantissa = (index + 1).toString().padStart(3, '0');
+                mantissa = (index + 1).toString().padStart(3, "0");
                 Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                 document.title = `[${progress}/${Total}]`;
@@ -530,7 +545,14 @@
         });
     }
 
-    /* 分類盒子生成 */
+    /**
+     * 傳入數據生成列表物件
+     * 
+     * @param {string} ol - 原始連結
+     * @param {string} pn - 圖片數量
+     * @param {string} vn - 影片數量
+     * @param {string} lb - 下載連結
+     */
     function GenerateBox(ol, pn, vn, lb) {
         if (genmode) {
             return {
@@ -549,7 +571,13 @@
         }
     }
 
-    /* 數據分類Json */
+    /**
+     * Json 數據分類
+     * 
+     * @param {string} title - 帖子名稱 標題
+     * @param {string} url - 連結索引
+     * @param {int} page - 頁數計數
+     */
     async function DataClassification(title, url, page) {
         const link_box = {};
         return new Promise((resolve, reject) => {
@@ -663,6 +691,11 @@
         } catch {
             alert(language.NF_07);
         }
+    }
+
+    /* 設置菜單 */
+    async function SettingMenu() {
+        alert("後續開發");
     }
 
     function display_language(language) {
