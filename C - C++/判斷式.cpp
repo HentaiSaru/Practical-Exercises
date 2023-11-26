@@ -17,5 +17,17 @@ int main() {
         printf("NULL");
     }
 
+    // Switch
+    int test = 2;
+    switch (test) {
+        case 1:
+            break;
+        case 2:
+            printf("\nSwitch: %d", test);
+            break;
+        default:
+            break;
+    }
+
     return 0;
 }
