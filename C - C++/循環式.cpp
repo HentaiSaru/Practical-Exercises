@@ -28,12 +28,18 @@ int main() {
     } while (w <= 5);
 
     //Todo [ For 循環式 ]
-    int x, y;
+    int x, y, z;
     printf("\n");
 
     for (x=1; x<10; x++) {
         for (y=1; y<10; y++) {
-            printf("%d x %d = %d ", y, x, x*y);
+            z = x * y;
+
+            if (z < 10) {
+                printf("%d x %d =  %d ", y, x, z);
+            } else {
+                printf("%d x %d = %d ", y, x, z);
+            }
         }
         printf("\n");
 
@@ -44,6 +50,14 @@ int main() {
             continue; //? 是奇數就跳過該輪
         }
         printf("%d ", i);
+    }
+
+    //Todo [ 類似 Foreach 循環式]
+    char test[] = "C 語言沒有 foreach";
+    printf("\n");
+
+    for (char s : test) {
+        printf("%c", s);
     }
 
     return 0;
