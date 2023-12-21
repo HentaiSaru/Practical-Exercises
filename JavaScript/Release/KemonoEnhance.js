@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemono 使用增强
 // @name:ja      Kemono 使用を強化
 // @name:en      Kemono Usage Enhancement
-// @version      0.0.38
+// @version      0.0.39
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -13,7 +13,10 @@
 // @description:en     Collapse the sidebar to beautify the interface, automatically load original images, easily hide ads, optimize page browsing and flipping, automatically open new pages, optimize the video section, add next page and back to top buttons at the bottom.
 
 // @match        *://kemono.su/*
+// @match        *://coomer.su/*
 // @match        *://*.kemono.su/*
+// @match        *://*.coomer.su/*
+
 // @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
 
 // @license      MIT
@@ -33,7 +36,7 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
-// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/svg-with-js.min.css
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
 (function () {
@@ -41,7 +44,7 @@
     Url = document.URL, parser = new DOMParser(),
     buffer = document.createDocumentFragment();
 
-    /* 功能選擇使用 ( 1 = true, 0 = false) */
+    /* 功能選擇使用 (1 = true, 0 = false) */
     const use = {
         Beautify: 1,        // 側邊攔收縮美化
         Ad_Block: 1,        // 清除阻擋廣告
@@ -57,15 +60,15 @@
 
     /* ==================== API ==================== */
 
-    /* 獲取設定 */
+    /* 獲取設定 (預設值) */
     const GetSet = {
-        MenuSet: function () {
+        MenuSet: () => {
             const data = GM_getValue("MenuSet", null) || [{
                 "MT": "2vh",
                 "ML": "50vw",
             }]; return data[0];
         },
-        ImgSet: function () {
+        ImgSet: () => {
             const data = GM_getValue("ImgSet", null) || [{
                 "img_h": "auto",
                 "img_w": "auto",
@@ -75,80 +78,14 @@
         },
     }
 
-    /* React 區域渲染 */
-    function ReactRendering({ content }) {
-        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
-    }
-
-    /* 仿 jquery 查找元素 (改版) */
-    function $_(document, element, all=false) {
-        if (!all) {
-            const slice = element.slice(1),
-            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
-            return analyze == " " ? document.querySelector(element)
-            : analyze == "#" ? document.getElementById(element.slice(1))
-            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-            : document.getElementsByTagName(element)[0];
-        } else {return document.querySelectorAll(element)}
-    }
-
-    /* 樣式添加 */
-    async function addstyle(Rule, ID="Add-Style") {
-        let new_style = $_(document, `#${ID}`);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-        }
-        new_style.appendChild(document.createTextNode(Rule));
-    }
-
-    /* 腳本添加 */
-    async function addscript(Rule, ID="Add-script") {
-        let new_script = $_(document, `#${ID}`);
-        if (!new_script) {
-            new_script = document.createElement("script");
-            new_script.id = ID;
-            document.head.appendChild(new_script);
-        }
-        new_script.appendChild(document.createTextNode(Rule));
-    }
-
-    /* 添加監聽 (簡化) */
-    async function addlistener(element, type, listener, add={}) {
-        element.addEventListener(type, listener, add);
-    }
-
-    /* 添加監聽 (jquery) */
-    async function $on(element, type, listener) {
-        $(element).on(type, listener);
-    }
-
-    /* 等待元素 */
-    async function WaitElem(selector, all, timeout, callback) {
-        let timer, element, result;
-        const observer = new MutationObserver(() => {
-            element = all ? $_(document, selector, true) : $_(document, selector);
-            result = all ? element.length > 0 : element;
-            if (result) {
-                observer.disconnect();
-                clearTimeout(timer);
-                callback(element);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-        }, timeout);
-    }
-
     /* 主程式調用 */
+    Main();
     async function Main() {
         const Match = {
-            DmsPage: /^(https?:\/\/)?(www\.)?kemono\..+\/dms\/?(\?.*)?$/,
-            PostsPage: /^(https?:\/\/)?(www\.)?kemono\..+\/posts\/?(\?.*)?$/,
-            Browse: /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/.+\/post\/.+$/,
-            UserPage: /^(https?:\/\/)?(www\.)?kemono\..+\/.+\/user\/[^\/]+(\?.*)?$/,
+            DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
+            PostsPage: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/,
+            Browse: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/,
+            UserPage: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/,
             match1: function(url) {return this.Browse.test(url)},
             match3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
         }, Run = {
@@ -175,10 +112,7 @@
         }
     }
 
-    /* 主程式調用 */
-    Main();
-
-    /* ==================== 整體介面 ==================== */
+    /* ==================== 功能 API ==================== */
 
     /* 效果樣式添加 */
     addstyle(`
@@ -267,9 +201,7 @@
     /* 帖子預覽卡大小 */
     async function CardSize() {
         addstyle(`
-            * {
-                --card-size: 12vw;
-            }
+            * { --card-size: 12vw; }
         `, "Effects");
     }
 
@@ -477,12 +409,13 @@
             const next = $_(document, "a.post__nav-link.next");
             const span = document.createElement("span");
             const svg = document.createElement("svg");
+            const color = location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
             span.id = "next_box";
             span.style = "float: right";
             span.appendChild(next.cloneNode(true));
             svg.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                    <style>svg{fill:#e8a17d}</style>
+                    <style>svg{fill: ${color}}</style>
                     <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                 </svg>
             `
@@ -812,9 +745,7 @@
                 border-top: 2px solid #F6F6F6;
                 border-right: 2px solid #F6F6F6;
             }
-            .narrative {
-                color: #EE2B47;
-            }
+            .narrative { color: #EE2B47; }
             .Image-input-settings {
                 width: 8rem;
                 color: #F6F6F6;
@@ -859,9 +790,7 @@
                 color: #EE2B47;
                 background-color: #F6F6F6;
             }
-            .button-space {
-                margin: 0 0.6rem;
-            }
+            .button-space { margin: 0 0.6rem; }
             .form-hidden {
                 opacity: 0;
                 height: 0;
@@ -876,26 +805,89 @@
                 margin: 0;
             }
             /* 整體框線 */
-            table,
-            td {
+            table, td {
                 margin: 0px;
                 padding: 0px;
                 overflow: auto;
                 border-spacing: 0px;
             }
-            p {
-                display: flex;
-                flex-wrap: nowrap;
-            }
-            option {
-                color: #F6F6F6;
-            }
+            p { display: flex; flex-wrap: nowrap; }
+            option { color: #F6F6F6; }
             ul {
                 list-style: none;
                 padding: 0px;
                 margin: 0px;
             }
         `);
+    }
+
+    /* ==================== 語法簡化 API ==================== */
+
+    /* React 區域渲染 */
+    function ReactRendering({ content }) {
+        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
+    }
+
+    /* 仿 jquery 查找元素 (改版) */
+    function $_(document, element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
+    /* 樣式添加 */
+    async function addstyle(Rule, ID="Add-Style") {
+        let new_style = $_(document, `#${ID}`);
+        if (!new_style) {
+            new_style = document.createElement("style");
+            new_style.id = ID;
+            document.head.appendChild(new_style);
+        }
+        new_style.appendChild(document.createTextNode(Rule));
+    }
+
+    /* 腳本添加 */
+    async function addscript(Rule, ID="Add-script") {
+        let new_script = $_(document, `#${ID}`);
+        if (!new_script) {
+            new_script = document.createElement("script");
+            new_script.id = ID;
+            document.head.appendChild(new_script);
+        }
+        new_script.appendChild(document.createTextNode(Rule));
+    }
+
+    /* 添加監聽 (簡化) */
+    async function addlistener(element, type, listener, add={}) {
+        element.addEventListener(type, listener, add);
+    }
+
+    /* 添加監聽 (jquery) */
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
+    }
+
+    /* 等待元素 */
+    async function WaitElem(selector, all, timeout, callback) {
+        let timer, element, result;
+        const observer = new MutationObserver(() => {
+            element = all ? $_(document, selector, true) : $_(document, selector);
+            result = all ? element.length > 0 : element;
+            if (result) {
+                observer.disconnect();
+                clearTimeout(timer);
+                callback(element);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+            observer.disconnect();
+        }, timeout);
     }
 
     function display_language(language) {
@@ -970,10 +962,6 @@
             }],
         };
 
-        if (display.hasOwnProperty(language)) {
-            return display[language][0];
-        } else {
-            return display["en-US"][0];
-        }
+        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
