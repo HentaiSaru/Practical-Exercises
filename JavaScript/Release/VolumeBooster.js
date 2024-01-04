@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Video Volume Booster
-// @version      0.0.27
+// @version      0.0.28
 // @author       HentaiSaru
 // @description  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 *://*/* , 目前只match特定網域
 
