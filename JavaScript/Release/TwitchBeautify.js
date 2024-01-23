@@ -32,90 +32,52 @@
 // ==/UserScript==
 
 (function() {
-    var enabledstate,
-    home = "https://www.twitch.tv/",
-    pattern = /^https:\/\/www\.twitch\.tv\/.+/,
-    language = display_language(navigator.language);
+    var EnabledState,
+    Home = "https://www.twitch.tv/",
+    Match = /^https:\/\/www\.twitch\.tv\/.+/,
+    Language = display_language(navigator.language);
 
-    /* ======================= 判斷是否調用美化 ========================= */
-    if (GM_getValue("Beautify", [])) {
-        enabledstate = language[1];
-        if (document.URL === home) {PlayerAborted(true)} // 首頁影片靜音
-        main();
-        setTimeout(DeleteFooter, 500);
+    /* 判斷是否運行美化 */
+    if (store("get", "Beautify", [])) {
+        EnabledState = Language[1];
+        document.URL == Home ? PlayControl(false) : null;
+        setTimeout(HideFooter, 1500);
+        ImportStyles();
+        Start();
     } else {
-        enabledstate = language[0];
+        EnabledState = Language[0];
     }
-    GM_registerMenuCommand(enabledstate, function() {Use()});
 
-    /* ======================= 檢測美化觸發與恢復 (API) ========================= */
+    GM_registerMenuCommand(EnabledState, function() {Use()});
 
-    /* 使用美化監聽 */
-    async function main() {
+    /* ========== 運行觸發前置 ========== */
+
+    /* 監聽開始運行美化 */
+    async function Start() {
         const observer = new MutationObserver(() => {
-            if (pattern.test(document.URL) && document.querySelector("video")) {
+            if (Match.test(document.URL) && $_("video")) {
                 observer.disconnect();
-                ActivityDeletion(); // 關閉活動公告 (臨時添加)
                 BeautifyTrigger();
-                fun($("div[data-a-player-state='']"), false);
+                Fun($("div[data-a-player-state='']"), false);
             }
         });
         observer.observe(document.head, {childList: true, subtree: true});
     }
 
-    /* 首頁恢復監聽 */
-    async function HomeRecovery(Nav, CB, CX) {
+    /* 監聽恢復美化 */
+    async function End(Nav, CB, CX) {
         const observer = new MutationObserver(() => {
-            if (document.URL === home) {
+            if (document.URL == Home) {
                 observer.disconnect();
                 Nav.removeClass("Nav_Effect");
                 CX.removeClass("Channel_Expand_Effect");
                 CB.removeClass("button_Effect");
-                fun($("div[data-a-player-state='mini']"));
-                main();// 重新執行美化監聽
+                Fun($("div[data-a-player-state='mini']"));
+                Start();// 重新執行美化監聽
             }
         });
         observer.observe(document.head, {childList: true, subtree: true});
     }
-
-    /* 等待元素 */
-    async function WaitElem(selectors, timeout, callback) {
-        let timer, elements;
-        const observer = new MutationObserver(() => {
-            elements = selectors.map(selector => $(selector));
-            if (elements.every(element => element[0])) {
-                observer.disconnect();
-                clearTimeout(timer);
-                callback(elements);
-            }
-        });
-        observer.observe(document.body, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-        }, timeout);
-    }
-
-    /* 添加js */
-    async function addscript(Rule, ID="Add-script") {
-        let new_script = document.getElementById(ID);
-        if (!new_script) {
-            new_script = document.createElement("script");
-            new_script.id = ID;
-            document.head.appendChild(new_script);
-        }
-        new_script.appendChild(document.createTextNode(Rule));
-    }
-
-    /* 導入樣式 */
-    GM_addStyle(`
-        ${GM_getResourceText("jui")}
-        .drag-border {
-            border: 2px solid white;
-            border-radius: 10px;
-        }
-    `);
-
-    /* ======================= 美化觸發 ========================= */
 
     /* 查找video頁面元素 */
     async function BeautifyTrigger() {
@@ -127,75 +89,59 @@
             "button[data-a-target='side-nav-arrow']", // 頻道列 button
             "button[data-a-target='right-column__toggle-collapse-btn']" // 聊天室 button
         ];
-        WaitElem(Elem, 8000, element => {
+        WaitElem(Elem, 8, element => {
             const [Nav, Channel, Collapsed_State, player, Channel_Button, Chat_button] = element;
             const Channel_Parent = Channel.parent();
             // 判斷兩次總該打開了吧
             if (Collapsed_State.css("visibility") !== "visible") {Channel_Button.click()}
             if (Collapsed_State.css("visibility") === "hidden") {Channel_Button.click()}
-            if (!$("#ADB")[0]) {AdProcessing()} // 刪除測試
+            if (!$_("#ADB")) {DeleteIframe()}
             Beautify(Nav, player, Channel_Parent); // 介面美化
             AutoClickC(Chat_button, Channel_Button); // 懶人自動點擊
-            PlayerAborted(false); // 恢復聲音
-            ResumeWatching(); // 監聽恢復觀看
-            HomeRecovery(Nav, Channel_Button, Channel_Parent); // 首頁復原監聽
+            PlayControl(true); // 恢復聲音
+            ResumeWatching(); // 自動恢復觀看(網路有問題時)
+            End(Nav, Channel_Button, Channel_Parent); // 首頁復原監聽
         });
     }
 
+    /* ========== 功能操作邏輯 ========== */
+
     /* 美化邏輯 */
     async function Beautify(Nav, play, CX) {
-        GM_addStyle(`
-            .Nav_Effect {
-                opacity: 0;
-                height: 1rem !important;
-                transition: opacity 0.5s , height 0.8s;
-            }
-            .Nav_Effect:hover {
-                opacity: 1;
-                height: 5rem !important;
-            }
-            .Channel_Expand_Effect {
-                opacity: 0;
-                width: 1rem;
-                transition: opacity 0.4s , width 0.7s;
-            }
-            .Channel_Expand_Effect:hover {
-                opacity: 1;
-                width: 24rem;
-            }
-        `);
         //play.css("z-index", "9999");
         Nav.addClass("Nav_Effect");
         CX.addClass("Channel_Expand_Effect");
     }
 
-    /* ======================= 附加功能 ========================= */
-
-    /* 自動恢復觀看 */
-    async function ResumeWatching() {
-        let recover;
-        const observer = new MutationObserver(() => {
-            try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
-            if (document.URL === home) {
-                observer.disconnect();
-            } else if (recover.length > 0) {
-                recover.click();
+    /* 影片播放聲音操作 */
+    async function PlayControl(control) {
+        let delay=500, interval = setInterval(() => {
+            const player = $_("video");
+            if (player) { // 查找影片元素, 找到後停止輪迴
+                clearInterval(interval);
+                if(control) { // 判斷要控制的邏輯 (播放 or 停止)
+                    const interval = setInterval(() => {
+                        player.play();
+                        player.muted = false;
+                        setTimeout(() => {
+                            !player.paused && !player.muted ? clearInterval(interval) : null;
+                        }, 1000 * 3);
+                    }, delay);
+                } else {
+                    const interval = setInterval(() => {
+                        player.pause();
+                        player.muted = true;
+                        setTimeout(() => {
+                            player.paused && player.muted ? clearInterval(interval) : null;
+                        }, 1000 * 3);
+                    }, delay);
+                }
             }
-        });
-        observer.observe($("div[data-a-player-state='']")[0], {childList: true, subtree: true});
+        }, delay);
     }
 
     /* 懶人自動點擊 */
     async function AutoClickC(Chat_button, Channel_Button) {
-        GM_addStyle(`
-            .button_Effect {
-                transform: translateY(10px);
-                color: rgba(239, 239, 241, 0.3) !important;
-            }
-            .button_Effect:hover {
-                color: rgb(239, 239, 241) !important;
-            }
-        `);
         let timer, timer2;
         Chat_button.addClass("button_Effect");
         Channel_Button.addClass("button_Effect");
@@ -222,8 +168,10 @@
         });
     }
 
+    /* ========== 附加額外功能 ========== */
+
     /* 拖動添加 */
-    async function fun(element, state=true) {
+    async function Fun(element, state=true) {
         if (element.length > 0) {
             if (state) {
                 element.draggable({
@@ -250,49 +198,22 @@
         }
     }
 
-    /* 影片暫停和靜音 (愚蠢的寫法 但我懶得改) */
-    async function PlayerAborted(control) {
-        let timeout=0, interval = setInterval(() => {
-            const player = document.querySelector("video");
-            if (player) {
-                clearInterval(interval);
-                if(control) {
-                    const interval = setInterval(() => {
-                        try {
-                            player.pause();
-                            player.muted = true;
-                            if (player.paused && player.muted) {
-                                clearInterval(interval);
-                            } else {
-                                timeout++;
-                                if (timeout > 30) {
-                                    clearInterval(interval);
-                                }
-                            }
-                        } catch {}
-                    }, 300);
-                } else {
-                    const interval = setInterval(() => {
-                        try {
-                            player.play();
-                            player.muted = false;
-                            if (!player.paused && !player.muted) {
-                                clearInterval(interval);
-                            } else {
-                                timeout++;
-                                if (timeout > 30) {
-                                    clearInterval(interval);
-                                }
-                            }
-                        } catch {}
-                    }, 300);
-                }
+    /* 自動恢復觀看 */
+    async function ResumeWatching() {
+        let recover;
+        const observer = new MutationObserver(() => {
+            try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
+            if (document.URL === Home) {
+                observer.disconnect();
+            } else if (recover.length > 0) {
+                recover.click();
             }
-        }, 500);
+        });
+        observer.observe($("div[data-a-player-state='']")[0], {childList: true, subtree: true});
     }
 
-    /* 隨便寫的隱藏廣告, (測試) */
-    async function AdProcessing() {
+    /* 刪除嵌入廣告 */
+    async function DeleteIframe() {
         addscript(`
             const interval = setInterval(() => {
                 document.querySelectorAll("iframe").forEach(iframe => {iframe.remove()});
@@ -301,38 +222,116 @@
         $("iframe").each(function() {$(this).remove()});
     }
 
-    /* 刪除頁腳 */
-    async function DeleteFooter() {
+    /* 隱藏頁腳 */
+    async function HideFooter() {
         try {$("#twilight-sticky-footer-root").css("display", "none")} catch {}
     }
 
-    /* 關閉活動條 */
-    async function ActivityDeletion() {
-        WaitElem(["div.Layout-sc-1xcs6mc-0.itnkhV button"], 8000, element => {
-            document.querySelector("div.Layout-sc-1xcs6mc-0.itnkhV button").click();
-        });
-    }
+    /* ========== 語法簡化 API ========== */
 
-    /* ======================= 切換/自適應 ========================= */
-
-    /* 使用設置開關 */
+    /* 美化使用切換 */
     function Use() {
-        if (GM_getValue("Beautify", [])) {
-            GM_setValue("Beautify", false);
-        } else {
-            GM_setValue("Beautify", true);
-        }
+        store("get", "Beautify", [])?
+        store("set", "Beautify", false):
+        store("set", "Beautify", true);
         location.reload();
     }
 
+    /* DOM 查找語法簡化 */
+    function $_(element, all=false) {
+        if (!all) {
+            const slice = element.slice(1),
+            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
+            return analyze == " " ? document.querySelector(element)
+            : analyze == "#" ? document.getElementById(element.slice(1))
+            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
+            : document.getElementsByTagName(element)[0];
+        } else {return document.querySelectorAll(element)}
+    }
+
+    /* 等待元素 */
+    async function WaitElem(selectors, timeout, callback) {
+        let timer, elements;
+        const observer = new MutationObserver(() => {
+            elements = selectors.map(selector => $(selector));
+            if (elements.every(element => element[0])) {
+                observer.disconnect();
+                clearTimeout(timer);
+                callback(elements);
+            }
+        });
+        observer.observe(document.body, { childList: true, subtree: true });
+        timer = setTimeout(() => {
+            observer.disconnect();
+        }, 1000 * timeout);
+    }
+
+    /* 添加js */
+    async function addscript(Rule, ID="Add-script") {
+        let new_script = document.getElementById(ID);
+        if (!new_script) {
+            new_script = document.createElement("script");
+            new_script.id = ID;
+            document.head.appendChild(new_script);
+        }
+        new_script.appendChild(document.createTextNode(Rule));
+    }
+
+    /* 存儲操作 */
+    function store(operate, key, orig=null){
+        return {
+            __verify: val => val !== undefined ? val : null,
+            set: function(val, put) {return GM_setValue(val, put)},
+            get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+            setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
+            getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+        }[operate](key, orig);
+    }
+
+    /* 載入所需樣式 */
+    async function ImportStyles() {
+        GM_addStyle(`
+            ${GM_getResourceText("jui")}
+            .Nav_Effect {
+                opacity: 0;
+                height: 1rem !important;
+                transition: opacity 0.5s , height 0.8s;
+            }
+            .Nav_Effect:hover {
+                opacity: 1;
+                height: 5rem !important;
+            }
+            .Channel_Expand_Effect {
+                opacity: 0;
+                width: 1rem;
+                transition: opacity 0.4s , width 0.7s;
+            }
+            .Channel_Expand_Effect:hover {
+                opacity: 1;
+                width: 24rem;
+            }
+            .button_Effect {
+                transform: translateY(10px);
+                color: rgba(239, 239, 241, 0.3) !important;
+            }
+            .button_Effect:hover {
+                color: rgb(239, 239, 241) !important;
+            }
+            .drag-border {
+                border: 2px solid white;
+                border-radius: 10px;
+            }
+        `);
+    }
+
+    /* 菜單語言顯示 */
     function display_language(language) {
-        let display = {
+        return {
             "zh-TW": ["🛠️ 以禁用美化❌", "🛠️ 以啟用美化✅"],
             "zh-CN": ["🛠️ 已禁用美化❌", "🛠️ 已启用美化✅"],
             "ko": ["🛠️ 미화 비활성화❌", "🛠️ 미화 활성화✅"],
             "ja": ["🛠️ 美化を無効にしました❌", "🛠️ 美化を有効にしました✅"],
             "en-US": ["🛠️ Beautification disabled❌", "🛠️ Beautification enabled✅"],
-        };
-        return display[language] || display["en-US"];
+        }[language] || ["en-US"];
     }
 })();
