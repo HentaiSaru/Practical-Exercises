@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.10
+// @version      0.0.11
 // @author       HentaiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -21,7 +21,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-body
+// @run-at       document-end
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -35,8 +35,8 @@
 // ==/UserScript==
 
 (function() {
-    const Ex_HManga = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
-    const E_HManga = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
+    const Ex_HManga = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/,
+    E_HManga = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
     var parser, language, ModeDisplay, ListenerRecord, OriginalTitle, CompressMode,
     url = document.URL.split("?p=")[0];
 
@@ -58,47 +58,18 @@
         ListenerRecord = new Map();
         OriginalTitle = document.title;
         language = display_language(navigator.language);
-        CompressMode = GM_getValue("CompressedMode", []);
 
         /* 創建按鈕 */
         ButtonCreation();
         /* 創建菜單 */
-        GM_registerMenuCommand(language.MN_01, function() {DownloadModeSwitch()});
-    }
-
-    /* ============ API ============ */
-
-    /* 自適應css */
-    function AdaptiveCSS(e, ex) {
-        const Domain = location.hostname;
-        if (Domain === "e-hentai.org") {
-            GM_addStyle(`${e}`);
-        } else if (Domain === "exhentai.org") {
-            GM_addStyle(`${ex}`);
-        }
-    }
-
-    /* work創建 */
-    function WorkerCreation(code) {
-        let blob = new Blob([code], {type: "application/javascript"});
-        return new Worker(URL.createObjectURL(blob));
-    }
-
-    /* 添加監聽器 */
-    async function addlistener(element, type, listener, add={}) {
-        if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
-            element.addEventListener(type, listener, add);
-            if (!ListenerRecord.has(element)) {
-                ListenerRecord.set(element, new Map());
-            }
-            ListenerRecord.get(element).set(type, listener);
-        }
+        GM_registerMenuCommand(language.MN_01, ()=> {DownloadModeSwitch()});
     }
 
     /* ============ 按鈕創建 ============ */
 
     async function ButtonCreation() {
-        let download_button;
+        CompressMode = GM_getValue("CompressedMode", []);
+        ModeDisplay = CompressMode ? language.DM_01 : language.DM_02;
         GM_addStyle(`
             .Download_Button {
                 float: right;
@@ -145,13 +116,12 @@
             }
         `);
         try {
-            download_button = GM_addElement(document.querySelector("div#gd2"), "button", {class: "Download_Button"});
-            if (CompressMode) {
-                ModeDisplay = language.DM_01;
-            } else {
-                ModeDisplay = language.DM_02;
-            }
+            let download_button = GM_addElement($$("#gd2"), "button", {
+                id: "ExDB",
+                class: "Download_Button"
+            });
             download_button.textContent = ModeDisplay;
+
             addlistener(download_button, "click", () => {
                 download_button.textContent = language.DS_01;
                 download_button.disabled = true;
@@ -160,33 +130,13 @@
         } catch {}
     }
 
-    /* ============ 數據處理 ============ */
-
-    /* 非法字元排除 */
-    function IllegalFilter(Name) {
-        return Name.replace(/[\/\?<>\\:\*\|":]/g, '');
-    }
-
-    /* 取得總頁數 */
-    function GetTotal(page) {
-        return +page[page.length - 2].textContent.replace(/\D/g, '');
-    }
-
-    /* 圖片擴展名 */
-    function GetExtension(link) {
-        try {
-            const match = link.match(/\.([^.]+)$/);
-            return match[1].toLowerCase() || "png";
-        } catch {return "png"}
-    }
-
     /* ============ 獲取處理 ============ */
 
     /* 主頁數據處理 */
     async function HomeDataProcessing(button) {
         let title, homepage = new Map(), task = 0, DC = 1,
-        pages = GetTotal(document.querySelectorAll("#gdd td.gdt2"));
-        title = document.getElementById("gj").textContent.trim() || document.getElementById("gn").textContent.trim();
+        pages = GetTotal($$("#gdd td.gdt2", true));
+        title = $$("#gj").textContent.trim() || $$("#gn").textContent.trim();
         title = IllegalFilter(title);
         pages = Math.ceil(pages / 20);
 
@@ -234,7 +184,7 @@
         // 獲取連結
         async function GetLink(index, data) {
             const homebox = [];
-            data.querySelectorAll("#gdt a").forEach(link => {
+            $$("#gdt a", true, data).forEach(link => {
                 homebox.push(link.href)
             });
             homepage.set(index, homebox);
@@ -498,8 +448,68 @@
         Button.textContent = language.DS_08;
         setTimeout(() => {
             Button.textContent = `✓ ${ModeDisplay}`;
+            document.title = `✓ ${OriginalTitle}`;
             Button.disabled = false;
         }, 3000);
+    }
+
+    /* ============ 語法簡化 API ============ */
+
+    /* 自適應css */
+    function AdaptiveCSS(e, ex) {
+        location.hostname == "exhentai.org" ? GM_addStyle(`${ex}`) : GM_addStyle(`${e}`);
+    }
+
+    /* work創建 */
+    function WorkerCreation(code) {
+        let blob = new Blob([code], {type: "application/javascript"});
+        return new Worker(URL.createObjectURL(blob));
+    }
+
+    /* 元素查找 */
+    function $$(Selector, All=false, Source=document) {
+        if (All) {return Source.querySelectorAll(Selector)}
+        else {
+            const slice = Selector.slice(1);
+            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+            switch (analyze) {
+                case "#": return Source.getElementById(slice);
+                case " ": return Source.querySelector(Selector);
+                case ".": return Source.getElementsByClassName(slice)[0];
+                default: return Source.getElementsByTagName(Selector)[0];
+            }
+        }
+    }
+
+    /* 添加監聽器 */
+    async function addlistener(element, type, listener, add={}) {
+        if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
+            element.addEventListener(type, listener, add);
+            if (!ListenerRecord.has(element)) {
+                ListenerRecord.set(element, new Map());
+            }
+            ListenerRecord.get(element).set(type, listener);
+        }
+    }
+
+    /* ============ 數據處理 API ============ */
+
+    /* 非法字元排除 */
+    function IllegalFilter(Name) {
+        return Name.replace(/[\/\?<>\\:\*\|":]/g, '');
+    }
+
+    /* 取得總頁數 */
+    function GetTotal(page) {
+        return +page[page.length - 2].textContent.replace(/\D/g, '');
+    }
+
+    /* 圖片擴展名 */
+    function GetExtension(link) {
+        try {
+            const match = link.match(/\.([^.]+)$/);
+            return match[1].toLowerCase() || "png";
+        } catch {return "png"}
     }
 
     /* ============ 附加功能 ============ */
@@ -511,7 +521,8 @@
         } else {
             GM_setValue("CompressedMode", true);
         }
-        location.reload();
+        $$("#ExDB").remove();
+        ButtonCreation();
     }
 
     /* 顯示語言 */
@@ -584,10 +595,6 @@
             }]
         };
 
-        if (display.hasOwnProperty(language)) {
-            return display[language][0];
-        } else {
-            return display["en-US"][0];
-        }
+        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
