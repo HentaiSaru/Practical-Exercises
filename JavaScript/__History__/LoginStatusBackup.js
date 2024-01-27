@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         LoginStatusBackup
-// @version      0.0.4
+// @version      0.0.1
 // @author       HentiSaru
 // @description  備份登入狀態 , 如果登出了嘗試進行登入
 
