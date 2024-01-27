@@ -440,7 +440,7 @@
         }
         switch (operate[0]) {
             case "g": return GM[operate](key, orig);
-            case "s": orig !== null ? GM[operate](key, orig) : null;
+            case "s": return orig !== null ? GM[operate](key, orig) : null;
             default: return new Error("wrong type of operation");
         }
     }
