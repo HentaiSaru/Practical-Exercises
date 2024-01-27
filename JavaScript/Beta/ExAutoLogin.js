@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.23
+// @version      0.0.24
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -66,96 +66,6 @@
             [language.RM_04]: ()=> CookieInjection(),
             [language.RM_05]: ()=> CookieDelete(),
         });
-    }
-
-    /* ==================== API ==================== */
-
-    /* Style 添加 */
-    async function addstyle(rule, ID="Add-Style") {
-        let new_style = document.getElementById(ID);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-        }
-        new_style.appendChild(document.createTextNode(rule));
-    }
-
-    /* 操作存储 */
-    function store(operate, key, orig=null){
-        if (typeof GM === "undefined") {
-            GM = {
-                __verify: val => val !== undefined ? val : null,
-                set: function(val, put) {GM_setValue(val, put)},
-                get: function(val, call) {return this.__verify(GM_getValue(val, call))},
-                setjs: function(val, put) {GM_setValue(val, JSON.stringify(put, null, 4))},
-                getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
-            }
-        }
-        switch (operate[0]) {
-            case "g": return GM[operate](key, orig);
-            case "s": orig !== null ? GM[operate](key, orig) : null;
-            default: return new Error("wrong type of operation");
-        }
-    }
-
-    /* 添加監聽器 */
-    async function $on(element, type, listener) {
-        $(element).on(type, listener);
-    }
-
-    /* 添加菜單 */
-    async function Menu(item) {
-        for (const [name, call] of Object.entries(item)) {
-            GM_registerMenuCommand(name, ()=> {call()});
-        }
-    }
-
-    /* 通知展示 */
-    async function Growl(message, theme, life) {
-        $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
-            theme: theme,
-            life: life
-        });
-    }
-
-    /* 取得 Cookies */
-    function GetCookies() {
-        return Cookies.get();
-    }
-
-    /* 添加 cookie */
-    function AddCookies(LoginCookies) {
-        let cookie, date = new Date();
-        date.setFullYear(date.getFullYear() + 1);
-        for (cookie of LoginCookies) {
-            Cookies.set(cookie.name, cookie.value, { expires: date });
-        }
-    }
-
-    /* 刪除 cookie */
-    function DeleteCookies(cookies) {
-        for (const Name of Object.keys(cookies)) {
-            Cookies.remove(Name, { path: "/" });
-            Cookies.remove(Name, { path: "/", domain: `.${domain}` });
-        }
-    }
-
-    /* 創建選單前檢測 */
-    function CreateDetection(element) {
-        const detection = $(element);
-        if (detection[0]) {
-            detection.remove();
-        }
-    }
-
-    /* 獲取共享帳號 */
-    function GetShare() {
-        return [{
-            1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
-            2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
-            3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
-        }][0]
     }
 
     /* ==================== 檢測注入 ==================== */
@@ -504,6 +414,96 @@
         `)
     }
 
+    /* ==================== 語法簡化 API ==================== */
+
+    /* Style 添加 */
+    async function addstyle(rule, ID="Add-Style") {
+        let new_style = document.getElementById(ID);
+        if (!new_style) {
+            new_style = document.createElement("style");
+            new_style.id = ID;
+            document.head.appendChild(new_style);
+        }
+        new_style.appendChild(document.createTextNode(rule));
+    }
+
+    /* 操作存储 */
+    function store(operate, key, orig=null){
+        if (typeof GM === "undefined") {
+            GM = {
+                __verify: val => val !== undefined ? val : null,
+                set: function(val, put) {GM_setValue(val, put)},
+                get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+                setjs: function(val, put) {GM_setValue(val, JSON.stringify(put, null, 4))},
+                getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+            }
+        }
+        switch (operate[0]) {
+            case "g": return GM[operate](key, orig);
+            case "s": orig !== null ? GM[operate](key, orig) : null;
+            default: return new Error("wrong type of operation");
+        }
+    }
+
+    /* 添加監聽器 */
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
+    }
+
+    /* 添加菜單 */
+    async function Menu(item) {
+        for (const [name, call] of Object.entries(item)) {
+            GM_registerMenuCommand(name, ()=> {call()});
+        }
+    }
+
+    /* 通知展示 */
+    async function Growl(message, theme, life) {
+        $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
+            theme: theme,
+            life: life
+        });
+    }
+
+    /* 取得 Cookies */
+    function GetCookies() {
+        return Cookies.get();
+    }
+
+    /* 添加 cookie */
+    function AddCookies(LoginCookies) {
+        let cookie, date = new Date();
+        date.setFullYear(date.getFullYear() + 1);
+        for (cookie of LoginCookies) {
+            Cookies.set(cookie.name, cookie.value, { expires: date });
+        }
+    }
+
+    /* 刪除 cookie */
+    function DeleteCookies(cookies) {
+        for (const Name of Object.keys(cookies)) {
+            Cookies.remove(Name, { path: "/" });
+            Cookies.remove(Name, { path: "/", domain: `.${domain}` });
+        }
+    }
+
+    /* 創建選單前檢測 */
+    function CreateDetection(element) {
+        const detection = $(element);
+        if (detection[0]) {
+            detection.remove();
+        }
+    }
+
+    /* 共享帳號 */
+    function GetShare() {
+        return [{
+            1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
+            2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
+            3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
+        }][0]
+    }
+
     /* 語言顯示 */
     function display_language(language) {
         let display = {
@@ -654,10 +654,6 @@
             }]
         };
 
-        if (display.hasOwnProperty(language)) {
-            return display[language][0];
-        } else {
-            return display["en-US"][0];
-        }
+        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
