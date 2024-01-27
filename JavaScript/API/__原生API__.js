@@ -172,24 +172,28 @@ class Collection {
 /* ==================================================== */
 
 /**
- ** { 模仿 jquery 的查找 DOM API }
+ ** { 簡化查找 DOM 的 API [並非最高效率的寫法] }
  * 
- * @param {string} element - 查找元素
- * @param {boolean} all    - 是否查找全部
- * @returns {element}      - DOM 元素
+ * @param {string} Selector - 查找元素
+ * @param {boolean} All     - 是否查找全部
+ * @param {element} Source  - 查找的源頭
+ * @returns {element}       - DOM 元素
  * 
  * @example
- * 獲取 = $("要找的DOM")
+ * 獲取 = $$("要找的DOM", 使否查找所有, 查找的來源)
  */
-function $(element, all=false) {
-    if (!all) {
-        const slice = element.slice(1),
-        analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
-        return analyze == " " ? document.querySelector(element)
-        : analyze == "#" ? document.getElementById(element.slice(1))
-        : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-        : document.getElementsByTagName(element)[0];
-    } else {return document.querySelectorAll(element)}
+function $$(Selector, All=false, Source=document) {
+    if (All) {return Source.querySelectorAll(Selector)}
+    else {
+        const slice = Selector.slice(1);
+        const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+        switch (analyze) {
+            case "#": return Source.getElementById(slice);
+            case " ": return Source.querySelector(Selector);
+            case ".": return Source.getElementsByClassName(slice)[0];
+            default: return Source.getElementsByTagName(Selector)[0];
+        }
+    }
 }
 
 /* ==================================================== */
