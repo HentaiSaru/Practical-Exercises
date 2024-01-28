@@ -179,7 +179,7 @@
     /* 刪除網站公告條 */
     async function RemoveNotice() {
         const announce = $$("body > div.content-wrapper.shifted > a");
-        announce ? announce.remove() : null;
+        if (announce) {announce.remove()}
     }
 
     /* 完整廣告攔截消除 */
@@ -357,7 +357,7 @@
                 img.onerror = function () { Reload(ID, retry) };
                 old.remove();
                 object.appendChild(buffer.appendChild(img));
-                retry - 1;
+                retry--;
             }, 1500);
         }
     }
