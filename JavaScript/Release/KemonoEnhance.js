@@ -1,10 +1,10 @@
 // ==UserScript==
-// @name         Kemono 使用增強
-// @name:zh-TW   Kemono 使用增強
-// @name:zh-CN   Kemono 使用增强
-// @name:ja      Kemono 使用を強化
-// @name:en      Kemono Usage Enhancement
-// @version      0.0.39
+// @name         Kemer 增強
+// @name:zh-TW   Kemer 增強
+// @name:zh-CN   Kemer 增强
+// @name:ja      Kemer 強化
+// @name:en      Kemer Enhancement
+// @version      0.0.40
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -47,6 +47,7 @@
     /* 功能選擇使用 (1 = true, 0 = false) */
     const use = {
         Beautify: 1,        // 側邊攔收縮美化
+        RemoveNotice: 1,    // 刪除上方公告
         Ad_Block: 1,        // 清除阻擋廣告
         CardSize: 1,        // 帖子預覽卡放大
         PostCardFade: 1,    // 帖子文字卡淡化 [0 = 不使用, 1 = 隱藏, 2 = 淡化]
@@ -55,6 +56,7 @@
         OriginalImage: 1,   // 自動原圖
         VideoBeautify: 1,   // 影片美化
         LinkOriented: 1,    // 連結轉換
+        CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     }
 
@@ -90,6 +92,7 @@
             match3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
         }, Run = {
             Beautify: select => select == 1 ? Beautify() : null,
+            RemoveNotice: select => select == 1 ? RemoveNotice() : null,
             Ad_Block: select => select == 1 ? Ad_Block() : null,
             CardSize: select => select == 1 ? CardSize() : null,
             PostCardFade: select => select == 1 ? PostCardFade(true) : select == 2 ? PostCardFade(false) : null,
@@ -98,8 +101,9 @@
             OriginalImage: select => select == 1 ? OriginalImage() : null,
             VideoBeautify: select => select == 1 ? VideoBeautify() : null,
             LinkOriented: select => select == 1 ? LinkOriented() : null,
+            CommentFormat: select => select == 1 ? CommentFormat() : null,
             ExtraButton: select => select == 1 ? ExtraButton() : null,
-        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 2), analyze.slice(2, 6), analyze.slice(6, 10)];
+        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 12)];
 
         /* 調用數據 (設置範圍加速遍歷) */
         gb.forEach(([func, set]) => Run[func](set));
@@ -118,11 +122,11 @@
     addstyle(`
         ${GM_getResourceText("font-awesome")}
         .gif-overlay {
-            top: 30%;
+            top: 45%;
             left: 50%;
             width: 60%;
             height: 60%;
-            opacity: 0.3;
+            opacity: 0.5;
             z-index: 9999;
             position: absolute;
             border-radius: 50%;
@@ -170,6 +174,12 @@
                 margin-left: 10rem;
             }
         `, "Effects");
+    }
+
+    /* 刪除網站公告條 */
+    async function RemoveNotice() {
+        const announce = $$("body > div.content-wrapper.shifted > a");
+        if (announce) {announce.remove()}
     }
 
     /* 完整廣告攔截消除 */
@@ -261,8 +271,8 @@
     async function QuickPostToggle() {
         let Old_data, New_data, item;
         async function Request(link) {
-            Old_data = $_(document, "section");
-            item = $_(document, "div.card-list__items");
+            Old_data = $$("section");
+            item = $$("div.card-list__items");
             GM_addElement(item, "img", {class: "gif-overlay"});
             GM_xmlhttpRequest({
                 method: "GET",
@@ -318,14 +328,14 @@
                 })
                 )
             };
-            thumbnail.forEach(async (object, index) => {
+            thumbnail.forEach((object, index) => {
                 object.classList.remove("post__thumbnail");
-                href = $_(object, "a");
-                await ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+                href = $$("a", false, object);
+                ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
             });
-            $_(document, "a.image-link", true).forEach(link => {
+            $$("a.image-link", true).forEach(link => {
                 const handleClick = () => {
-                    img = $_(link, "img");
+                    img = $$("img", false, link);
                     if (!img.complete) {
                         img.src = img.src;
                     } else {
@@ -340,14 +350,14 @@
     async function Reload(ID, retry) {
         if (retry > 0) {
             setTimeout(() => {
-                let object = $_(document, `#${ID}`), old = $_(object, "img"), img = document.createElement("img");
+                let object = $$(`#${ID}`), old = $$("img", false, object), img = document.createElement("img");
                 img.src = old.src;
                 img.alt = "Reload";
                 img.className = "img-style";
                 img.onerror = function () { Reload(ID, retry) };
                 old.remove();
                 object.appendChild(buffer.appendChild(img));
-                retry - 1;
+                retry--;
             }, 1500);
         }
     }
@@ -374,7 +384,7 @@
                 }));
             }
             parents.forEach(li => {
-                const stream = $_(li, "source");
+                const stream = $$("source", false, li);
                 if (stream) {
                     ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
                 }
@@ -391,22 +401,42 @@
         });
     }
 
+    /* 評論區重新排版 */
+    async function CommentFormat() {
+        addstyle(`
+            .post__comments {
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .post__comments>*:last-child {
+                margin-bottom: 0.5rem;
+            }
+            .comment {
+                margin: 0.5rem;
+                max-width: 25rem;
+                border-radius: 10px;
+                flex-basis: calc(35%);
+                border: 0.125em solid var(--colour1-secondary);
+            }
+        `, "Effects");
+    }
+
     /* Ajex換頁的初始化 */
     async function Initialization() {
         ExtraButton();
         OriginalImage();
         VideoBeautify();
-        if ($_(document, ".post__content img", true).length > 2) {
-            $_(document, ".post__content").remove();
+        if ($$(".post__content img", true).length > 2) {
+            $$(".post__content").remove();
         }
-        $_(document, "h1.post__title").scrollIntoView(); // 滾動到上方
+        $$("h1.post__title").scrollIntoView(); // 滾動到上方
     }
 
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
         WaitElem("h2.site-section__subheading", false, 8000, comments => {
-            const prev = $_(document, "a.post__nav-link.prev");
-            const next = $_(document, "a.post__nav-link.next");
+            const prev = $$("a.post__nav-link.prev");
+            const next = $$("a.post__nav-link.next");
             const span = document.createElement("span");
             const svg = document.createElement("svg");
             const color = location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
@@ -423,10 +453,10 @@
             buffer.appendChild(span);
             comments.appendChild(buffer);
             addlistener(svg, "click", () => {
-                $_(document, "header").scrollIntoView();
+                $$("header").scrollIntoView();
             }, { capture: true, passive: true })
-            const main = $_(document, "main");
-            addlistener($_(document, "#next_box a"), "click", event => {
+            const main = $$("main");
+            addlistener($$("#next_box a"), "click", event => {
                 event.preventDefault();
                 AjexReplace(next.href, main);
             }, { capture: true, once: true });
@@ -438,7 +468,7 @@
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
                 let New_data = parser.parseFromString(xhr.responseText, "text/html");
-                let New_main = $_(New_data, "main");
+                let New_main = $$("main", false, New_data);
                 ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
                 history.pushState(null, null, url);
                 setTimeout(Initialization(), 500);
@@ -461,7 +491,7 @@
     };
     /* 創建菜單 */
     async function Menu() {
-        img_rule = $_(document, "#Add-Style").sheet.cssRules;
+        img_rule = $$("#Add-Style").sheet.cssRules;
         set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
         const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
@@ -829,20 +859,23 @@
     }
 
     /* 仿 jquery 查找元素 (改版) */
-    function $_(document, element, all=false) {
-        if (!all) {
-            const slice = element.slice(1),
-            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
-            return analyze == " " ? document.querySelector(element)
-            : analyze == "#" ? document.getElementById(element.slice(1))
-            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-            : document.getElementsByTagName(element)[0];
-        } else {return document.querySelectorAll(element)}
+    function $$(Selector, All=false, Source=document) {
+        if (All) {return Source.querySelectorAll(Selector)}
+        else {
+            const slice = Selector.slice(1);
+            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+            switch (analyze) {
+                case "#": return Source.getElementById(slice);
+                case " ": return Source.querySelector(Selector);
+                case ".": return Source.getElementsByClassName(slice)[0];
+                default: return Source.getElementsByTagName(Selector)[0];
+            }
+        }
     }
 
     /* 樣式添加 */
     async function addstyle(Rule, ID="Add-Style") {
-        let new_style = $_(document, `#${ID}`);
+        let new_style = $$(`#${ID}`);
         if (!new_style) {
             new_style = document.createElement("style");
             new_style.id = ID;
@@ -853,7 +886,7 @@
 
     /* 腳本添加 */
     async function addscript(Rule, ID="Add-script") {
-        let new_script = $_(document, `#${ID}`);
+        let new_script = $$(`#${ID}`);
         if (!new_script) {
             new_script = document.createElement("script");
             new_script.id = ID;
@@ -876,7 +909,7 @@
     async function WaitElem(selector, all, timeout, callback) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
-            element = all ? $_(document, selector, true) : $_(document, selector);
+            element = all ? $$(selector, true) : $$(selector);
             result = all ? element.length > 0 : element;
             if (result) {
                 observer.disconnect();
