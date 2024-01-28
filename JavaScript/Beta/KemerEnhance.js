@@ -39,6 +39,16 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
+/**
+ * 開發設想
+ * 
+ * 1. 自動原圖的類型 (快速交替 / 慢速交替)
+ * 
+ * 2. 修改影片美化功能 (參考 https://greasyfork.org/zh-TW/scripts/459178-kemono-coomer-videoplayer/code)
+ * 
+ * 3. 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
+ */
+
 (function () {
     var img_rule, language, set, xhr = new XMLHttpRequest(),
     Url = document.URL, parser = new DOMParser(),
