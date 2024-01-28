@@ -39,7 +39,7 @@
                     Increase = EnabledStatus ? store("get", domain) || 1.0 : 1.0;
                     Booster = booster(video, Increase);
                     GM_addStyle(`
-                        .modal-background {
+                        .Booster-Modal-Background {
                             top: 0;
                             left: 0;
                             width: 100%;
@@ -51,7 +51,7 @@
                             align-items: center;
                             justify-content: center;
                         }
-                        .modal-button {
+                        .Booster-Modal-Button {
                             top: 0;
                             margin: 3% 2%;
                             color: #d877ff;
@@ -61,13 +61,13 @@
                             background-color: #ffebfa;
                             border: 1px solid rgb(124, 183, 252);
                         }
-                        .modal-button:hover,
-                        .modal-button:focus {
+                        .Booster-Modal-Button:hover,
+                        .Booster-Modal-Button:focus {
                             color: #fc0e85;
                             cursor: pointer;
                             text-decoration: none;
                         }
-                        .modal-content {
+                        .Booster-Modal-Content {
                             width: 400px;
                             padding: 5px;
                             overflow: auto;
@@ -78,14 +78,14 @@
                             border-collapse: collapse;
                             margin: 2% auto 8px auto;
                         }
-                        .multiplier {
+                        .Booster-Multiplier {
                             font-size:25px;
                             color:rgb(253, 1, 85);
                             margin: 10px;
                             font-weight:bold;
                         }
-                        .slider {width: 350px;}
-                        input {cursor: pointer;}
+                        .Booster-Slider {width: 350px;}
+                        div input {cursor: pointer;}
                     `);
                     MenuHotkey();
                     Menu({
@@ -135,7 +135,7 @@
             GainNode.connect(CompressorNode);
             CompressorNode.connect(AudioContext.destination);
             // 節點創建標記
-            video.setAttribute("data-audio-context", true);
+            video.setAttribute("Video-Audio-Booster", true);
             return {
                 // 設置音量
                 setVolume: function(increase) {
@@ -149,21 +149,21 @@
         async function IncrementalSetting() {
             const modal = document.createElement("div");
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="Booster-Modal-Content">
                     <h2 style="color: #3754f8;">音量增量</h2>
                     <div style="margin:1rem auto 1rem auto;">
-                        <div class="multiplier">
+                        <div class="Booster-Multiplier">
                             <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增量倍數 </span><span id="CurrentValue">${Increase}</span><span> 倍</span>
                         </div>
-                        <input type="range" id="sound-amplification" class="slider" min="0" max="10.0" value="${Increase}" step="0.1"><br>
+                        <input type="range" id="sound-amplification" class="Booster-Slider" min="0" max="10.0" value="${Increase}" step="0.1"><br>
                     </div>
                     <div style="text-align: right;">
-                        <button class="modal-button" id="sound-save">保存設置</button>
-                        <button class="modal-button" id="sound-close">退出選單</button>
+                        <button class="Booster-Modal-Button" id="sound-save">保存設置</button>
+                        <button class="Booster-Modal-Button" id="sound-close">退出選單</button>
                     </div>
                 </div>
             `
-            modal.classList.add("modal-background");
+            modal.classList.add("Booster-Modal-Background");
             document.body.appendChild(buffer.appendChild(modal));
             const CurrentValue = $("#CurrentValue");
             const slider = $("#sound-amplification");
@@ -176,16 +176,16 @@
             }, { passive: true, capture: true });
 
             // 監聽保存關閉
-            addlistener($(".modal-background"), "click", click => {
+            addlistener($(".Booster-Modal-Background"), "click", click => {
                 click.stopPropagation();
                 const target = click.target;
                 if (target.id === "sound-save") {
                     if (EnabledStatus) {
                         store("set", domain, parseFloat(slider.value));
-                        $(".modal-background").remove();
+                        $(".Booster-Modal-Background").remove();
                     } else {alert("需啟用自動增幅才可保存")}
-                } else if (target.className === "modal-background" || target.id === "sound-close") {
-                    $(".modal-background").remove();
+                } else if (target.className === "Booster-Modal-Background" || target.id === "sound-close") {
+                    $(".Booster-Modal-Background").remove();
                 }
             }, { capture: true });
         }
@@ -240,7 +240,7 @@
             let Video;
             const observer = new MutationObserver(() => {
                 Video = $("video");
-                if (Video && !Video.hasAttribute("data-audio-context")) {
+                if (Video && !Video.hasAttribute("Video-Audio-Booster")) {
                     FindVideo();
                 }
             });
