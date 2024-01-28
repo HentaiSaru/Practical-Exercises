@@ -243,7 +243,9 @@
         let Video;
         const observer = new MutationObserver(() => {
             Video = $("video");
-            !Video.hasAttribute("data-audio-context") ? FindVideo() : null;
+            if (Video && !Video.hasAttribute("data-audio-context")) {
+                FindVideo();
+            }
         });
         observer.observe(document.head, { childList: true, subtree: true });
     }
