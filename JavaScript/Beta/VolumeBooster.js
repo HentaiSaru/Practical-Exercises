@@ -1,19 +1,17 @@
 // ==UserScript==
-// @name         Video Volume Booster
-// @version      0.0.28
+// @name         影片音量增強器
+// @version      0.0.29
 // @author       HentaiSaru
-// @description  增強影片音量上限 , 最高增幅至10倍 , 未測試是否所有網域皆可使用 *://*/* , 目前只match特定網域
+// @description  增強影片音量上限，最高增幅至 10 倍，尚未測試是否所有網域都可使用，當影片無聲時，禁止該腳本在該網域上運行。
 
-// @match        *://*.twitch.tv/*
-// @match        *://*.youtube.com/*
-// @match        *://*.bilibili.com/*
+// @match        *://*/*
 // @exclude      *://video.eyny.com/*
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-body
+// @run-at       document-end
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -25,7 +23,8 @@
     ListenerRecord = new Map(),
     domain = location.hostname,
     buffer = document.createDocumentFragment(),
-    EnabledDomains = store("get", "啟用網域", []);
+    EnabledDomains = store("get", "啟用網域", []),
+    EnabledStatus = EnabledDomains.includes(domain);
 
     FindVideo();
     MenuHotkey();
@@ -93,9 +92,9 @@
 
     /* 查找 Video 元素 */
     async function FindVideo() {
-        WaitElem("video", 10000, video => {
+        WaitElem("video", 8, video => {
             try {
-                Increase = EnabledDomains.includes(domain) ? store("get", domain) || 1.0 : 1.0;
+                Increase = EnabledStatus ? store("get", domain) || 1.0 : 1.0;
                 Booster = booster(video, Increase);
             } catch {}
         });
@@ -184,7 +183,7 @@
             click.stopPropagation();
             const target = click.target;
             if (target.id === "sound-save") {
-                if (EnabledDomains.includes(domain)) {
+                if (EnabledStatus) {
                     store("set", domain, parseFloat(slider.value));
                     $(".modal-background").remove();
                 } else {alert("需啟用自動增幅才可保存")}
@@ -208,14 +207,18 @@
     }
 
     /* 查找元素 */
-    function $(element, all=false) {
-        if (!all) {
-            const analyze = element.includes(" ") ? " " : element[0];
-            return analyze == " " ? document.querySelector(element)
-            : analyze == "#" ? document.getElementById(element.slice(1))
-            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-            : document.getElementsByTagName(element)[0];
-        } else {return document.querySelectorAll(element)}
+    function $(Selector, All=false, Source=document) {
+        if (All) {return Source.querySelectorAll(Selector)}
+        else {
+            const slice = Selector.slice(1);
+            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+            switch (analyze) {
+                case "#": return Source.getElementById(slice);
+                case " ": return Source.querySelector(Selector);
+                case ".": return Source.getElementsByClassName(slice)[0];
+                default: return Source.getElementsByTagName(Selector)[0];
+            }
+        }
     }
 
     /* 等待元素 */
@@ -232,7 +235,7 @@
         observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-        }, timeout);
+        }, 1000 * timeout);
     }
 
     /* 監聽 Ajex 變化 */
@@ -263,7 +266,7 @@
 
     /* 使用自動增幅 */
     async function Useboost(EnabledDomains, domain) {
-        if (EnabledDomains.includes(domain)) {
+        if (EnabledStatus) {
             EnabledDomains = EnabledDomains.filter(value => { // 從已啟用列表中移除當前網域
                 return value !== domain;
             });
