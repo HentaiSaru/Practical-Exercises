@@ -56,6 +56,7 @@
         OriginalImage: 1,   // 自動原圖
         VideoBeautify: 1,   // 影片美化
         LinkOriented: 1,    // 連結轉換
+        CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     }
 
@@ -100,8 +101,9 @@
             OriginalImage: select => select == 1 ? OriginalImage() : null,
             VideoBeautify: select => select == 1 ? VideoBeautify() : null,
             LinkOriented: select => select == 1 ? LinkOriented() : null,
+            CommentFormat: select => select == 1 ? CommentFormat() : null,
             ExtraButton: select => select == 1 ? ExtraButton() : null,
-        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 11)];
+        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 12)];
 
         /* 調用數據 (設置範圍加速遍歷) */
         gb.forEach(([func, set]) => Run[func](set));
@@ -397,6 +399,26 @@
                 link.setAttribute("download", "");
             });
         });
+    }
+
+    /* 評論區重新排版 */
+    async function CommentFormat() {
+        addstyle(`
+            .post__comments {
+                display: flex;
+                flex-wrap: wrap;
+            }
+            .post__comments>*:last-child {
+                margin-bottom: 0.5rem;
+            }
+            .comment {
+                margin: 0.5rem;
+                max-width: 25rem;
+                border-radius: 10px;
+                flex-basis: calc(35%);
+                border: 0.125em solid var(--colour1-secondary);
+            }
+        `, "Effects");
     }
 
     /* Ajex換頁的初始化 */
