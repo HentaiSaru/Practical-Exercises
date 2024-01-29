@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.40
+// @version      0.0.41
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -41,9 +41,6 @@
 
 /**
  * 開發設想
- * 
- * 2. 修改影片美化功能 (參考 https://greasyfork.org/zh-TW/scripts/459178-kemono-coomer-videoplayer/code)
- * 
  * 3. 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
  */
 
@@ -61,9 +58,9 @@
         PostCardFade: 1,    // 帖子文字卡淡化 [1 = 隱藏文字 , 2 = 淡化文字]
         NewTabOpens: 1,     // 自動新分頁
         QuickPostToggle: 1, // 快速切換帖子
-        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察觸發]
-        VideoBeautify: 1,   // 影片美化
+        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察觸
         LinkOriented: 1,    // 連結轉換
+        VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     }
@@ -108,8 +105,8 @@
             NewTabOpens: s => R.U(s, NewTabOpens),
             QuickPostToggle: s => R.U(s, QuickPostToggle),
             OriginalImage: s => R.U(s, OriginalImage),
-            VideoBeautify: s => R.U(s, VideoBeautify),
             LinkOriented: s => R.U(s, LinkOriented),
+            VideoBeautify: s => R.U(s, VideoBeautify),
             CommentFormat: s => R.U(s, CommentFormat),
             ExtraButton: s => R.U(s, ExtraButton),
         }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 12)];
@@ -266,7 +263,7 @@
 
     /* 將瀏覽帖子頁面都變成開新分頁 */
     async function NewTabOpens() {
-        WaitElem("article a", true, 8000, article => {
+        WaitElem("article a", true, 8, article => {
             article.forEach(link => {
                 addlistener(link, "click", event => {
                     event.preventDefault();
@@ -296,7 +293,7 @@
                 }
             });
         }
-        WaitElem("menu a", true, 8000, meun => {
+        WaitElem("menu a", true, 8, meun => {
             meun.forEach(ma => {
                 addlistener(ma, "click", (event) => {
                     event.preventDefault();
@@ -322,7 +319,7 @@
                 max-width: ${set.img_mw};
             }
         `);
-        WaitElem("div.post__thumbnail", true, 5000, thumbnail => {
+        WaitElem("div.post__thumbnail", true, 5, thumbnail => {
             function ImgRendering({ ID, href }) {
                 return React.createElement("a", {
                     id: ID,
@@ -411,41 +408,67 @@
         }
     }
 
-    /* 影片美化 */
-    async function VideoBeautify() {
-        addstyle(`
-            .post__video {
-                height: 80%;
-                width: 80%;
-            }
-        `, "Effects");
-        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5000, parents => {
-            function ReactBeautify({ stream }) {
-                return React.createElement("video", {
-                    key: "video",
-                    controls: true,
-                    preload: "auto",
-                    className: "post__video",
-                }, React.createElement("source", {
-                    key: "source",
-                    src: stream.src,
-                    type: stream.type
-                }));
-            }
-            parents.forEach(li => {
-                const stream = $$("source", false, li);
-                if (stream) {
-                    ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
-                }
-            })
+    /* 轉換下載連結參數 */
+    async function LinkOriented() {
+        WaitElem("a.post__attachment-link", true, 5, post => {
+            post.forEach(link => {
+                link.setAttribute("download", "");
+                link.href = decodeURIComponent(link.href);
+                link.textContent = link.textContent.replace("Download", "").trim();
+            });
         });
     }
 
-    /* 轉換下載連結參數 */
-    async function LinkOriented() {
-        WaitElem("a.post__attachment-link", true, 5000, post => {
-            post.forEach(link => {
-                link.setAttribute("download", "");
+    /* 影片美化 */
+    async function VideoBeautify(Mode) {
+        addstyle(`
+            .video-title {
+                margin-top: 0.5rem;
+            }
+            .post-video {
+                height: 50%;
+                width: 60%;
+            }
+        `, "Effects");
+        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
+            WaitElem("a.post__attachment-link", true, 5, post => {
+                function ReactBeautify({ stream }) {
+                    return React.createElement("summary", {
+                            className: "video-title"
+                        } , React.createElement("video", {
+                            key: "video",
+                            controls: true,
+                            preload: "auto",
+                            "data-setup": JSON.stringify({}),
+                            className: "post-video",
+                        },
+                        React.createElement("source", {
+                            key: "source",
+                            src: stream.src,
+                            type: stream.type
+                        })
+                    ));
+                }
+                parents.forEach(li => {
+                    let title = $$("summary", false, li),
+                    stream = $$("source", false, li);
+                    if (title && stream) {
+                        post.forEach(link => {
+                            if (link.textContent.includes(title.textContent)) {
+                                switch (Mode) {
+                                    case 2:
+                                        link.parentNode.remove();
+                                        title = link;
+                                    default:
+                                        title = link.cloneNode(true);
+                                        return;
+                                }
+                            }
+                        });
+                        ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
+                        li.insertBefore(title, $$("summary", false, li));
+                    }
+                });
             });
         });
     }
@@ -483,7 +506,7 @@
 
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
-        WaitElem("h2.site-section__subheading", false, 8000, comments => {
+        WaitElem("h2.site-section__subheading", false, 8, comments => {
             const prev = $$("a.post__nav-link.prev");
             const next = $$("a.post__nav-link.next");
             const span = document.createElement("span");
@@ -969,7 +992,7 @@
         observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-        }, timeout);
+        }, 1000 * timeout);
     }
 
     function display_language(language) {
