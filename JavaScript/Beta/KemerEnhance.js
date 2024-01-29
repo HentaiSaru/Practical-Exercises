@@ -42,8 +42,6 @@
 /**
  * 開發設想
  * 
- * 1. 自動原圖的類型 (快速交替 / 慢速交替)
- * 
  * 2. 修改影片美化功能 (參考 https://greasyfork.org/zh-TW/scripts/459178-kemono-coomer-videoplayer/code)
  * 
  * 3. 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
@@ -54,16 +52,16 @@
     Url = document.URL, parser = new DOMParser(),
     buffer = document.createDocumentFragment();
 
-    /* 功能選擇使用 (1 = true, 0 = false) */
-    const use = {
+    /* 功能選擇 (0 = false | 1 = true) */
+    const Config = {
         Beautify: 1,        // 側邊攔收縮美化
         RemoveNotice: 1,    // 刪除上方公告
         Ad_Block: 1,        // 清除阻擋廣告
         CardSize: 1,        // 帖子預覽卡放大
-        PostCardFade: 1,    // 帖子文字卡淡化 [0 = 不使用, 1 = 隱藏, 2 = 淡化]
+        PostCardFade: 1,    // 帖子文字卡淡化 [1 = 隱藏文字 , 2 = 淡化文字]
         NewTabOpens: 1,     // 自動新分頁
         QuickPostToggle: 1, // 快速切換帖子
-        OriginalImage: 1,   // 自動原圖
+        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察觸發]
         VideoBeautify: 1,   // 影片美化
         LinkOriented: 1,    // 連結轉換
         CommentFormat: 1,   // 修改評論區排版
@@ -93,35 +91,35 @@
     /* 主程式調用 */
     Main();
     async function Main() {
-        const Match = {
+        const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
             PostsPage: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/,
             Browse: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/,
             UserPage: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/,
-            match1: function(url) {return this.Browse.test(url)},
-            match3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
-        }, Run = {
-            Beautify: select => select == 1 ? Beautify() : null,
-            RemoveNotice: select => select == 1 ? RemoveNotice() : null,
-            Ad_Block: select => select == 1 ? Ad_Block() : null,
-            CardSize: select => select == 1 ? CardSize() : null,
-            PostCardFade: select => select == 1 ? PostCardFade(true) : select == 2 ? PostCardFade(false) : null,
-            NewTabOpens: select => select == 1 ? NewTabOpens() : null,
-            QuickPostToggle: select => select == 1 ? QuickPostToggle() : null,
-            OriginalImage: select => select == 1 ? OriginalImage() : null,
-            VideoBeautify: select => select == 1 ? VideoBeautify() : null,
-            LinkOriented: select => select == 1 ? LinkOriented() : null,
-            CommentFormat: select => select == 1 ? CommentFormat() : null,
-            ExtraButton: select => select == 1 ? ExtraButton() : null,
-        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 12)];
+            M1: function(url) {return this.Browse.test(url)},
+            M3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
+        }, R = {
+            U: (select, func) => {select > 0 ? func(select) : null},
+            Beautify: s => R.U(s, Beautify),
+            RemoveNotice: s => R.U(s, RemoveNotice),
+            Ad_Block: s => R.U(s, Ad_Block),
+            CardSize: s => R.U(s, CardSize),
+            PostCardFade: s => R.U(s, PostCardFade),
+            NewTabOpens: s => R.U(s, NewTabOpens),
+            QuickPostToggle: s => R.U(s, QuickPostToggle),
+            OriginalImage: s => R.U(s, OriginalImage),
+            VideoBeautify: s => R.U(s, VideoBeautify),
+            LinkOriented: s => R.U(s, LinkOriented),
+            CommentFormat: s => R.U(s, CommentFormat),
+            ExtraButton: s => R.U(s, ExtraButton),
+        }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 12)];
 
         /* 調用數據 (設置範圍加速遍歷) */
-        gb.forEach(([func, set]) => Run[func](set));
-        if (Match.match3(Url)) {
-            pp.forEach(([func, set]) => Run[func](set));
-        } else if (Match.match1(Url)) {
+        g.forEach(([func, set]) => R[func](set));
+        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))}
+        else if (M.M1(Url)) {
             language = display_language(GM_getValue("language", null));
-            wp.forEach(([func, set]) => Run[func](set));
+            w.forEach(([func, set]) => R[func](set));
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
     }
@@ -226,8 +224,20 @@
     }
 
     /* 帖子說明文字淡化 */
-    async function PostCardFade(Advanced = false) {
-        if (Advanced) {
+    async function PostCardFade(Mode) {
+        switch (Mode) {
+            case 2:
+            addstyle(`
+                .post-card__header, .post-card__footer {
+                    opacity: 0.4;
+                    transition: opacity 0.3s;
+                }
+                a:hover .post-card__header,
+                a:hover .post-card__footer {
+                    opacity: 1;
+                }
+            `, "Effects");break;
+            default:
             addstyle(`
                 .post-card__header {
                     opacity: 0;
@@ -249,17 +259,6 @@
                     pointer-events: auto;
                     transform: translateY(0vh);
                     transition: transform 0.4s, opacity 0.6s;
-                }
-            `, "Effects");
-        } else {
-            addstyle(`
-                .post-card__header, .post-card__footer {
-                    opacity: 0.4;
-                    transition: opacity 0.3s;
-                }
-                a:hover .post-card__header,
-                a:hover .post-card__footer {
-                    opacity: 1;
                 }
             `, "Effects");
         }
@@ -310,7 +309,9 @@
     /* ==================== 帖子觀看 ==================== */
 
     /* 載入原圖 */
-    async function OriginalImage() {
+    async function OriginalImage(Mode) {
+        let href, a, img;
+        MenuDependent();
         set = GetSet.ImgSet();
         addstyle(`
             .img-style {
@@ -321,8 +322,6 @@
                 max-width: ${set.img_mw};
             }
         `);
-        MenuDependent();
-        let href, img;
         WaitElem("div.post__thumbnail", true, 5000, thumbnail => {
             function ImgRendering({ ID, href }) {
                 return React.createElement("a", {
@@ -330,7 +329,7 @@
                     className: "image-link"
                 }, React.createElement("img", {
                     key: "img",
-                    src: href.href,
+                    src: href.href.split("?f=")[0],
                     className: "img-style",
                     onError: function () {
                         Reload(ID, 15);
@@ -338,22 +337,60 @@
                 })
                 )
             };
-            thumbnail.forEach((object, index) => {
-                object.classList.remove("post__thumbnail");
-                href = $$("a", false, object);
-                ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-            });
-            $$("a.image-link", true).forEach(link => {
-                const handleClick = () => {
-                    img = $$("img", false, link);
-                    if (!img.complete) {
-                        img.src = img.src;
-                    } else {
-                        link.removeEventListener("click", handleClick);
-                    }
-                }
-                link.addEventListener("click", handleClick);
-            });
+            switch (Mode) {
+                case 2:
+                    Replace(0);
+                    function Replace(index) {
+                        if (index == thumbnail.length) {return}
+                        const object = thumbnail[index];
+                        object.classList.remove("post__thumbnail");
+                        a = $$("a", false, object);
+                        img = $$("img", false, a);
+                        Object.assign(img, {
+                            className: "img-style",
+                            src: a.href.split("?f=")[0],
+                        });
+                        img.removeAttribute("data-src");
+                        a.id = `IMG-${index}`
+                        a.removeAttribute("href");
+                        a.removeAttribute("download");
+                        img.onload = function() {Replace(++index)};
+                    };break;
+
+                case 3:
+                    const observer = new IntersectionObserver(observed => {
+                        observed.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                const object = entry.target;
+                                observer.unobserve(object);
+                                ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: $$("a", false, object) }), object);
+                                object.classList.remove("post__thumbnail");
+                            }
+                        });
+                    }, { threshold: 0.8 });
+                    thumbnail.forEach((object, index) => {
+                        object.alt = `IMG-${index}`;
+                        observer.observe(object);
+                    });break;
+
+                default:
+                    thumbnail.forEach((object, index) => {
+                        object.classList.remove("post__thumbnail");
+                        href = $$("a", false, object);
+                        ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+                    });
+                    $$("a.image-link", true).forEach(link => {
+                        const handleClick = () => {
+                            img = $$("img", false, link);
+                            if (!img.complete) {
+                                img.src = img.src;
+                            } else {
+                                link.removeEventListener("click", handleClick);
+                            }
+                        }
+                        link.addEventListener("click", handleClick);
+                    });
+            }
         });
     }
     /* 載入原圖 (死圖重試) */
@@ -361,9 +398,11 @@
         if (retry > 0) {
             setTimeout(() => {
                 let object = $$(`#${ID}`), old = $$("img", false, object), img = document.createElement("img");
-                img.src = old.src;
-                img.alt = "Reload";
-                img.className = "img-style";
+                Object.assign(img, {
+                    src: old.src,
+                    alt: "Reload",
+                    className: "img-style"
+                });
                 img.onerror = function () { Reload(ID, retry) };
                 old.remove();
                 object.appendChild(buffer.appendChild(img));
