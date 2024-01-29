@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.40
+// @version      0.0.41
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -44,25 +44,22 @@
     Url = document.URL, parser = new DOMParser(),
     buffer = document.createDocumentFragment();
 
-    /* 功能選擇使用 (1 = true, 0 = false) */
-    const use = {
+    /* 功能選擇 (0 = false | 1 = true) */
+    const Config = {
         Beautify: 1,        // 側邊攔收縮美化
         RemoveNotice: 1,    // 刪除上方公告
         Ad_Block: 1,        // 清除阻擋廣告
         CardSize: 1,        // 帖子預覽卡放大
-        PostCardFade: 1,    // 帖子文字卡淡化 [0 = 不使用, 1 = 隱藏, 2 = 淡化]
+        PostCardFade: 1,    // 帖子文字卡淡化 [1 = 隱藏文字 , 2 = 淡化文字]
         NewTabOpens: 1,     // 自動新分頁
         QuickPostToggle: 1, // 快速切換帖子
-        OriginalImage: 1,   // 自動原圖
-        VideoBeautify: 1,   // 影片美化
+        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察觸
         LinkOriented: 1,    // 連結轉換
+        VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     }
 
-    /* ==================== API ==================== */
-
-    /* 獲取設定 (預設值) */
     const GetSet = {
         MenuSet: () => {
             const data = GM_getValue("MenuSet", null) || [{
@@ -79,46 +76,38 @@
             }]; return data[0];
         },
     }
-
-    /* 主程式調用 */
     Main();
     async function Main() {
-        const Match = {
+        const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
             PostsPage: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/,
             Browse: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/,
             UserPage: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/,
-            match1: function(url) {return this.Browse.test(url)},
-            match3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
-        }, Run = {
-            Beautify: select => select == 1 ? Beautify() : null,
-            RemoveNotice: select => select == 1 ? RemoveNotice() : null,
-            Ad_Block: select => select == 1 ? Ad_Block() : null,
-            CardSize: select => select == 1 ? CardSize() : null,
-            PostCardFade: select => select == 1 ? PostCardFade(true) : select == 2 ? PostCardFade(false) : null,
-            NewTabOpens: select => select == 1 ? NewTabOpens() : null,
-            QuickPostToggle: select => select == 1 ? QuickPostToggle() : null,
-            OriginalImage: select => select == 1 ? OriginalImage() : null,
-            VideoBeautify: select => select == 1 ? VideoBeautify() : null,
-            LinkOriented: select => select == 1 ? LinkOriented() : null,
-            CommentFormat: select => select == 1 ? CommentFormat() : null,
-            ExtraButton: select => select == 1 ? ExtraButton() : null,
-        }, analyze = Object.entries(use), [gb, pp, wp] = [analyze.slice(0, 3), analyze.slice(3, 7), analyze.slice(7, 12)];
-
-        /* 調用數據 (設置範圍加速遍歷) */
-        gb.forEach(([func, set]) => Run[func](set));
-        if (Match.match3(Url)) {
-            pp.forEach(([func, set]) => Run[func](set));
-        } else if (Match.match1(Url)) {
+            M1: function(url) {return this.Browse.test(url)},
+            M3: function(url) {return this.UserPage.test(url) || this.PostsPage.test(url) || this.DmsPage.test(url)}
+        }, R = {
+            U: (select, func) => {select > 0 ? func(select) : null},
+            Beautify: s => R.U(s, Beautify),
+            RemoveNotice: s => R.U(s, RemoveNotice),
+            Ad_Block: s => R.U(s, Ad_Block),
+            CardSize: s => R.U(s, CardSize),
+            PostCardFade: s => R.U(s, PostCardFade),
+            NewTabOpens: s => R.U(s, NewTabOpens),
+            QuickPostToggle: s => R.U(s, QuickPostToggle),
+            OriginalImage: s => R.U(s, OriginalImage),
+            LinkOriented: s => R.U(s, LinkOriented),
+            VideoBeautify: s => R.U(s, VideoBeautify),
+            CommentFormat: s => R.U(s, CommentFormat),
+            ExtraButton: s => R.U(s, ExtraButton),
+        }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 12)];
+        g.forEach(([func, set]) => R[func](set));
+        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))}
+        else if (M.M1(Url)) {
             language = display_language(GM_getValue("language", null));
-            wp.forEach(([func, set]) => Run[func](set));
+            w.forEach(([func, set]) => R[func](set));
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
         }
     }
-
-    /* ==================== 功能 API ==================== */
-
-    /* 效果樣式添加 */
     addstyle(`
         ${GM_getResourceText("font-awesome")}
         .gif-overlay {
@@ -146,8 +135,6 @@
             align-items: var(--local-align);
         }
     `, "Effects");
-
-    /* 美化介面 */
     async function Beautify() {
         addstyle(`
             .global-sidebar {
@@ -175,14 +162,10 @@
             }
         `, "Effects");
     }
-
-    /* 刪除網站公告條 */
     async function RemoveNotice() {
         const announce = $$("body > div.content-wrapper.shifted > a");
         if (announce) {announce.remove()}
     }
-
-    /* 完整廣告攔截消除 */
     async function Ad_Block() {
         GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
         addscript(`
@@ -205,19 +188,25 @@
             } catch {}
         `, "ADB");
     }
-
-    /* ==================== 帖子預覽 ==================== */
-
-    /* 帖子預覽卡大小 */
     async function CardSize() {
         addstyle(`
             * { --card-size: 12vw; }
         `, "Effects");
     }
-
-    /* 帖子說明文字淡化 */
-    async function PostCardFade(Advanced = false) {
-        if (Advanced) {
+    async function PostCardFade(Mode) {
+        switch (Mode) {
+            case 2:
+            addstyle(`
+                .post-card__header, .post-card__footer {
+                    opacity: 0.4;
+                    transition: opacity 0.3s;
+                }
+                a:hover .post-card__header,
+                a:hover .post-card__footer {
+                    opacity: 1;
+                }
+            `, "Effects");break;
+            default:
             addstyle(`
                 .post-card__header {
                     opacity: 0;
@@ -241,23 +230,10 @@
                     transition: transform 0.4s, opacity 0.6s;
                 }
             `, "Effects");
-        } else {
-            addstyle(`
-                .post-card__header, .post-card__footer {
-                    opacity: 0.4;
-                    transition: opacity 0.3s;
-                }
-                a:hover .post-card__header,
-                a:hover .post-card__footer {
-                    opacity: 1;
-                }
-            `, "Effects");
         }
     }
-
-    /* 將瀏覽帖子頁面都變成開新分頁 */
     async function NewTabOpens() {
-        WaitElem("article a", true, 8000, article => {
+        WaitElem("article a", true, 8, article => {
             article.forEach(link => {
                 addlistener(link, "click", event => {
                     event.preventDefault();
@@ -266,8 +242,6 @@
             })
         });
     }
-
-    /* 帖子快速切換 */
     async function QuickPostToggle() {
         let Old_data, New_data, item;
         async function Request(link) {
@@ -287,7 +261,7 @@
                 }
             });
         }
-        WaitElem("menu a", true, 8000, meun => {
+        WaitElem("menu a", true, 8, meun => {
             meun.forEach(ma => {
                 addlistener(ma, "click", (event) => {
                     event.preventDefault();
@@ -296,11 +270,9 @@
             })
         });
     }
-
-    /* ==================== 帖子觀看 ==================== */
-
-    /* 載入原圖 */
-    async function OriginalImage() {
+    async function OriginalImage(Mode) {
+        let href, a, img;
+        MenuDependent();
         set = GetSet.ImgSet();
         addstyle(`
             .img-style {
@@ -311,16 +283,14 @@
                 max-width: ${set.img_mw};
             }
         `);
-        MenuDependent();
-        let href, img;
-        WaitElem("div.post__thumbnail", true, 5000, thumbnail => {
+        WaitElem("div.post__thumbnail", true, 5, thumbnail => {
             function ImgRendering({ ID, href }) {
                 return React.createElement("a", {
                     id: ID,
                     className: "image-link"
                 }, React.createElement("img", {
                     key: "img",
-                    src: href.href,
+                    src: href.href.split("?f=")[0],
                     className: "img-style",
                     onError: function () {
                         Reload(ID, 15);
@@ -328,32 +298,71 @@
                 })
                 )
             };
-            thumbnail.forEach((object, index) => {
-                object.classList.remove("post__thumbnail");
-                href = $$("a", false, object);
-                ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-            });
-            $$("a.image-link", true).forEach(link => {
-                const handleClick = () => {
-                    img = $$("img", false, link);
-                    if (!img.complete) {
-                        img.src = img.src;
-                    } else {
-                        link.removeEventListener("click", handleClick);
-                    }
-                }
-                link.addEventListener("click", handleClick);
-            });
+            switch (Mode) {
+                case 2:
+                    Replace(0);
+                    function Replace(index) {
+                        if (index == thumbnail.length) {return}
+                        const object = thumbnail[index];
+                        object.classList.remove("post__thumbnail");
+                        a = $$("a", false, object);
+                        img = $$("img", false, a);
+                        Object.assign(img, {
+                            className: "img-style",
+                            src: a.href.split("?f=")[0],
+                        });
+                        img.removeAttribute("data-src");
+                        a.id = `IMG-${index}`
+                        a.removeAttribute("href");
+                        a.removeAttribute("download");
+                        img.onload = function() {Replace(++index)};
+                    };break;
+
+                case 3:
+                    const observer = new IntersectionObserver(observed => {
+                        observed.forEach(entry => {
+                            if (entry.isIntersecting) {
+                                const object = entry.target;
+                                observer.unobserve(object);
+                                ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: $$("a", false, object) }), object);
+                                object.classList.remove("post__thumbnail");
+                            }
+                        });
+                    }, { threshold: 0.8 });
+                    thumbnail.forEach((object, index) => {
+                        object.alt = `IMG-${index}`;
+                        observer.observe(object);
+                    });break;
+
+                default:
+                    thumbnail.forEach((object, index) => {
+                        object.classList.remove("post__thumbnail");
+                        href = $$("a", false, object);
+                        ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+                    });
+                    $$("a.image-link", true).forEach(link => {
+                        const handleClick = () => {
+                            img = $$("img", false, link);
+                            if (!img.complete) {
+                                img.src = img.src;
+                            } else {
+                                link.removeEventListener("click", handleClick);
+                            }
+                        }
+                        link.addEventListener("click", handleClick);
+                    });
+            }
         });
     }
-    /* 載入原圖 (死圖重試) */
     async function Reload(ID, retry) {
         if (retry > 0) {
             setTimeout(() => {
                 let object = $$(`#${ID}`), old = $$("img", false, object), img = document.createElement("img");
-                img.src = old.src;
-                img.alt = "Reload";
-                img.className = "img-style";
+                Object.assign(img, {
+                    src: old.src,
+                    alt: "Reload",
+                    className: "img-style"
+                });
                 img.onerror = function () { Reload(ID, retry) };
                 old.remove();
                 object.appendChild(buffer.appendChild(img));
@@ -361,47 +370,69 @@
             }, 1500);
         }
     }
-
-    /* 影片美化 */
-    async function VideoBeautify() {
-        addstyle(`
-            .post__video {
-                height: 80%;
-                width: 80%;
-            }
-        `, "Effects");
-        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5000, parents => {
-            function ReactBeautify({ stream }) {
-                return React.createElement("video", {
-                    key: "video",
-                    controls: true,
-                    preload: "auto",
-                    className: "post__video",
-                }, React.createElement("source", {
-                    key: "source",
-                    src: stream.src,
-                    type: stream.type
-                }));
-            }
-            parents.forEach(li => {
-                const stream = $$("source", false, li);
-                if (stream) {
-                    ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
-                }
-            })
-        });
-    }
-
-    /* 轉換下載連結參數 */
     async function LinkOriented() {
-        WaitElem("a.post__attachment-link", true, 5000, post => {
+        WaitElem("a.post__attachment-link", true, 5, post => {
             post.forEach(link => {
                 link.setAttribute("download", "");
+                link.href = decodeURIComponent(link.href);
+                link.textContent = link.textContent.replace("Download", "").trim();
             });
         });
     }
 
-    /* 評論區重新排版 */
+    /* 影片美化 */
+    async function VideoBeautify(Mode) {
+        addstyle(`
+            .video-title {
+                margin-top: 0.5rem;
+            }
+            .post-video {
+                height: 50%;
+                width: 60%;
+            }
+        `, "Effects");
+        WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
+            WaitElem("a.post__attachment-link", true, 5, post => {
+                function ReactBeautify({ stream }) {
+                    return React.createElement("summary", {
+                            className: "video-title"
+                        } , React.createElement("video", {
+                            key: "video",
+                            controls: true,
+                            preload: "auto",
+                            "data-setup": JSON.stringify({}),
+                            className: "post-video",
+                        },
+                        React.createElement("source", {
+                            key: "source",
+                            src: stream.src,
+                            type: stream.type
+                        })
+                    ));
+                }
+                parents.forEach(li => {
+                    let title = $$("summary", false, li),
+                    stream = $$("source", false, li);
+                    if (title && stream) {
+                        post.forEach(link => {
+                            if (link.textContent.includes(title.textContent)) {
+                                switch (Mode) {
+                                    case 2:
+                                        link.parentNode.remove();
+                                        title = link;
+                                    default:
+                                        title = link.cloneNode(true);
+                                        return;
+                                }
+                            }
+                        });
+                        ReactDOM.render(React.createElement(ReactBeautify, { stream: stream }), li);
+                        li.insertBefore(title, $$("summary", false, li));
+                    }
+                });
+            });
+        });
+    }
     async function CommentFormat() {
         addstyle(`
             .post__comments {
@@ -420,8 +451,6 @@
             }
         `, "Effects");
     }
-
-    /* Ajex換頁的初始化 */
     async function Initialization() {
         ExtraButton();
         OriginalImage();
@@ -429,12 +458,10 @@
         if ($$(".post__content img", true).length > 2) {
             $$(".post__content").remove();
         }
-        $$("h1.post__title").scrollIntoView(); // 滾動到上方
+        $$("h1.post__title").scrollIntoView();
     }
-
-    /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
-        WaitElem("h2.site-section__subheading", false, 8000, comments => {
+        WaitElem("h2.site-section__subheading", false, 8, comments => {
             const prev = $$("a.post__nav-link.prev");
             const next = $$("a.post__nav-link.next");
             const span = document.createElement("span");
@@ -462,8 +489,6 @@
             }, { capture: true, once: true });
         });
     }
-
-    /* 切換頁面 */
     async function AjexReplace(url, old_main) {
         xhr.onreadystatechange = function () {
             if (xhr.readyState === 4 && xhr.status === 200) {
@@ -477,10 +502,6 @@
         xhr.open("GET", url, true);
         xhr.send();
     }
-
-    /* ==================== 菜單 UI / 文本顯示 - 依賴項目 ==================== */
-
-    /* 及時設置響應 */
     const styleRules = {
         img_h: value => img_rule[0].style.height = value,
         img_w: value => img_rule[0].style.width = value,
@@ -489,7 +510,6 @@
         MT: value => img_rule[2].style.top = value,
         ML: value => img_rule[2].style.left = value
     };
-    /* 創建菜單 */
     async function Menu() {
         img_rule = $$("#Add-Style").sheet.cssRules;
         set = GetSet.ImgSet();
@@ -575,7 +595,6 @@
         $(document.body).append(menu);
         $(".modal-interface").draggable({ cursor: "grabbing" });
         $(".modal-interface").tabs();
-        // 菜單選擇
         $on("#image-settings", "click", () => {
             const img_set = $("#image-settings-show");
             if (img_set.css("opacity") === "0") {
@@ -591,7 +610,6 @@
                 PictureSettings();
             }
         })
-        // 語言選擇
         $("#language").val(GM_getValue("language", null) || "")
         $on("#language", "input change", function (event) {
             event.stopPropagation();
@@ -602,7 +620,6 @@
             $(".modal-background").remove();
             Menu();
         });
-        // 圖片設置
         async function PictureSettings() {
             $on(".Image-input-settings", "input change", function (event) {
                 event.stopPropagation();
@@ -623,7 +640,6 @@
                 }
             });
         }
-        // 讀取保存
         $on("#readsettings", "click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
@@ -640,7 +656,6 @@
                 }
             })
         });
-        // 應用保存
         let save = {};
         $on("#application", "click", () => {
             const img_set = $("#image-settings-show").find("p");
@@ -656,8 +671,6 @@
                 }
             })
             GM_setValue("ImgSet", [save]);
-
-            // 菜單位置資訊
             save = {};
             const menu_location = $(".modal-interface");
             const top = menu_location.css("top");
@@ -670,14 +683,10 @@
             styleRules["ML"](left);
             $(".modal-background").remove();
         });
-
-        // 關閉菜單
         $on("#closure", "click", () => {
             $(".modal-background").remove();
         });
     }
-
-    /* 菜單依賴項目 */
     async function MenuDependent() {
         addscript(`
             function check(value) {
@@ -702,7 +711,6 @@
                 position: fixed;
                 pointer-events: none;
             }
-            /* 模態介面 */
             .modal-interface {
                 top: ${set.MT};
                 left: ${set.ML};
@@ -715,13 +723,11 @@
                 background-color: #2C2E3E;
                 border: 3px solid #EE2B47;
             }
-            /* 模態內容盒 */
             .modal-box {
                 padding: 0.5rem;
                 height: 50vh;
                 width: 32vw;
             }
-            /* 菜單框架 */
             .menu {
                 width: 5.5vw;
                 overflow: auto;
@@ -730,7 +736,6 @@
                 border-radius: 2px;
                 border: 2px solid #F6F6F6;
             }
-            /* 菜單文字標題 */
             .menu-text {
                 color: #EE2B47;
                 cursor: default;
@@ -742,7 +747,6 @@
                 border: 4px solid #f05d73;
                 background-color: #1f202c;
             }
-            /* 菜單選項按鈕 */
             .menu-options {
                 cursor: pointer;
                 font-size: 1.4rem;
@@ -764,7 +768,6 @@
                 background-color: #c5c5c5;
                 border: 5px inset #faa5b2;
             }
-            /* 設置內容框架 */
             .content {
                 height: 48vh;
                 width: 28vw;
@@ -789,7 +792,6 @@
                 border: 3px inset #faa5b2;
                 background-color: #5a5a5a;
             }
-            /* 底部按鈕框架 */
             .button-area {
                 display: flex;
                 padding: 0.3rem;
@@ -804,7 +806,6 @@
                 border: 3px inset #EE2B47;
                 background-color: #6e7292;
             }
-            /* 底部選項 */
             .button-options {
                 color: #F6F6F6;
                 cursor: pointer;
@@ -834,7 +835,6 @@
                 padding: 0;
                 margin: 0;
             }
-            /* 整體框線 */
             table, td {
                 margin: 0px;
                 padding: 0px;
@@ -850,15 +850,7 @@
             }
         `);
     }
-
-    /* ==================== 語法簡化 API ==================== */
-
-    /* React 區域渲染 */
-    function ReactRendering({ content }) {
-        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
-    }
-
-    /* 仿 jquery 查找元素 (改版) */
+    function ReactRendering({ content }) {return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });}
     function $$(Selector, All=false, Source=document) {
         if (All) {return Source.querySelectorAll(Selector)}
         else {
@@ -872,8 +864,6 @@
             }
         }
     }
-
-    /* 樣式添加 */
     async function addstyle(Rule, ID="Add-Style") {
         let new_style = $$(`#${ID}`);
         if (!new_style) {
@@ -883,8 +873,6 @@
         }
         new_style.appendChild(document.createTextNode(Rule));
     }
-
-    /* 腳本添加 */
     async function addscript(Rule, ID="Add-script") {
         let new_script = $$(`#${ID}`);
         if (!new_script) {
@@ -894,18 +882,8 @@
         }
         new_script.appendChild(document.createTextNode(Rule));
     }
-
-    /* 添加監聽 (簡化) */
-    async function addlistener(element, type, listener, add={}) {
-        element.addEventListener(type, listener, add);
-    }
-
-    /* 添加監聽 (jquery) */
-    async function $on(element, type, listener) {
-        $(element).on(type, listener);
-    }
-
-    /* 等待元素 */
+    async function addlistener(element, type, listener, add={}) {element.addEventListener(type, listener, add);}
+    async function $on(element, type, listener) {$(element).on(type, listener);}
     async function WaitElem(selector, all, timeout, callback) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
@@ -920,9 +898,8 @@
         observer.observe(document.body, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-        }, timeout);
+        }, 1000 * timeout);
     }
-
     function display_language(language) {
         let display = {
             "zh-TW": [{
@@ -994,7 +971,6 @@
                 "MIS_04" : "Image Spacing Height"
             }],
         };
-
         return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
