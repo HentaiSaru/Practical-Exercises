@@ -146,6 +146,35 @@ class Collection {
  * Object.is(物件1, 物件2) [判斷物件是否相同]
  * Object.freeze(物件) [凍結 Object 防止修改]
  * Object.preventExtensions(物件) [防止 Object 擴展]
+ * Object.sort((a, b) => b - a); [小到大排序, 反過來就寫 a - b]
+ */
+
+/**_________________________
+ ** { Array 陣列}
+ *
+ * Array.push(新元素) [添加新元素到陣列末端]
+ * Array.unshift(新元素) [添加新元素到陣列前端]
+ * Array.concat(arr1, arr2, arrn) [將陣列合併, 回傳新的陣列]
+ * Array.slice(開始索引, 結束索引) [回傳陣列的切片範圍]
+ * Array.pop() [刪除陣列其他元素, 回傳最後一項的值]
+ * Array.shift() [刪除陣列其他元素, 回傳第一項的值]
+ * Array.splice(開始索引, 刪除數量, 選擇新添加元素) [添加刪除或替換陣列中的元素, 修改原始陣列]
+ * Array.indexOf(查找元素, 可選開始索引) [從前面開始查找, 找到就回傳索引, 找不到回傳 -1]
+ * Array.lastIndexOf(查找元素, 可選開始索引) [從後面面開始查找, 找到就回傳索引, 找不到回傳 -1]
+ * 
+ * 帶參數的查找, 回傳 True / False
+ * Array.find((查找元素, 查找索引) => { 找到符合條件的值, 沒有就是 undefined })
+ * Array.findIndex((查找元素, 查找索引) => { 找到符合條件的索引值, 沒有就是 -1 })
+ * 
+ * 不帶參數的遍歷, 回傳符合條件的值
+ * Array.find(number => number > 5) [回傳第一個大於 5 的數值]
+ * Array.findIndex(number => number > 5) [回傳第一個大於 5 的索引值]
+ * 
+ * Array.filter(number => number % 2 == 0) [過濾出所有的偶數並回傳]
+ * Array.reduce((累加值, 當前值) => {return 累加值 + 當前值}, 初始值) [對陣列進行累加]
+ * Array.map(參數 => 操作邏輯) [回傳符合邏輯處理後的結果]
+ * Array.every(參數 => 判斷) [當所有參數都符合判斷, 回傳 True 反之 False]
+ * Array.some(參數 => 判斷) [只要有一個符合判斷, 回傳 True 反之 False]
  */
 
 /**_________________________
