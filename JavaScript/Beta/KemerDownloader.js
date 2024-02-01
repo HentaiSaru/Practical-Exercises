@@ -12,11 +12,11 @@
 // @description:ja      画像をワンクリックでダウンロード（圧縮ダウンロード/単一画像ダウンロード）、ページデータを作成してjsonでダウンロード、現在のすべての投稿をワンクリックで開く
 // @description:en      One-click download of images (compressed download/single image download), create page data for json download, one-click open all current posts
 
+// @connect      *
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
-// @connect      *
 // @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @license      MIT

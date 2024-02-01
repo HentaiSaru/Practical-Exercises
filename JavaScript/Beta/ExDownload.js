@@ -14,9 +14,9 @@
 // @description:ko      E 및 Ex의 만화 페이지에서 다운로드 버튼을 만들고, [압축 다운로드/단일 이미지 다운로드]를 사용하여 이미지를 자동으로 다운로드합니다.
 // @description:en      On the comic pages of E and Ex, create a download button that can use [compressed download/single image download] to automatically download images.
 
+// @connect      *
 // @match        https://e-hentai.org/*
 // @match        https://exhentai.org/*
-// @connect      *
 // @icon         https://e-hentai.org/favicon.ico
 
 // @license      MIT
