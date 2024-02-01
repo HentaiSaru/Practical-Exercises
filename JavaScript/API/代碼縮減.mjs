@@ -1,7 +1,7 @@
 import path from "path";
 import open from "fs";
 
-/* 代碼縮短程式 v1.0.0
+/* 代碼縮短程式 [陣列排除版] v1.0.1
 
   開發環境
   Node.js: v21.6.1
@@ -12,49 +12,74 @@ import open from "fs";
 */
 
 class LoadData {
-    constructor(input, output) {
+    constructor(input, output, debug=false) {
       this.input = input;
       this.output = output;
       this.extname = null;
 
-      this.s_advanced = false;
-      this.e_advanced = true;
+      this.debug = debug;
+      this.s_mark = false;
+      this.e_mark = true;
 
       this.space = /^\s*\r$/; // 空白區
       this.tailspace = /\s+$/; // 尾部空白區
       this.comment = /^\s*(\/\/|#).+\r$/; // 單行註解
-      this.ms_comment = /^\s*(\/\*|""")/;
-      this.me_comment = /^.*("""|\*\/\r)\s*$/;
-      this.tailcomment = /[\/\/#][^"'(){}<>,;:\\]*\r$/; // 尾部註解
+      this.ms_comment = /^\s*(\/\*|""")/; // 區域註解開頭
+      this.me_comment = /\s*(\*\/|""")\r$/; // 區域註解結尾
+      this.tailcomment = /[\/\/#][^"',:;?]*\r$/; // 尾部單行註解
+      this.area_comment = /^[\s]*("""){1}|(\/\*){1}.*?(?=\*\/\r)|.*?(?=""")\r/ // 單行的區域註解
 
       this.java = ["js", ".ts", "mjs", ".cjs", "java", ".coffee"];
       this.python = [".py", ".pyw"];
 
       this.output_box = [];
       this.processed_box = [];
+
+      /* 回傳 (前段/後段) 匹配狀態 */
+      this.SC = (data) => {return this.ms_comment.test(data)}
+      this.EC = (data) => {return this.me_comment.test(data)}
+      /* 打印所有狀態值 (前匹配, 前標記, 後匹配, 後標記) */
+      this.PD = (type, data, index) => {
+        console.log("\x1b[32m%s\x1b[0m", `[Type ${type}][${index}](${this.SC(data)}|${this.s_mark}, ${this.EC(data)}|${this.e_mark}) : ${data}`)
+      }
+
+      /* 簡單的清理註解 */
+      this.SimpleClean = (data) => {return this.comment.test(data) || this.area_comment.test(data) || this.space.test(data)}
+      /* 回傳尾部註解 與 空格 清理 */
+      this.TailClean = (data) => {return data.replace(this.tailcomment, "").replace(this.tailspace, "")}
+
+      /* 傳入值保存到 output_box */
+      this.OP = (data) => {this.output_box.push(data)};
     }
 
-    Advanced_analysis(data) {
-      if (this.s_advanced && this.e_advanced) {
-        this.e_advanced = this.me_comment.test(data) ? false : true;
+    /* 進階處理邏輯 (待開發) */
+    AdvancedClean(data, index) {
+      if (this.s_mark && this.e_mark) {
+        this.debug ? this.PD("A", data, index) : null;
+        this.e_mark = this.EC(data) ? false : true;
 
-      } else if (this.ms_comment.test(data) && !this.s_advanced) {
-        this.s_advanced = true;
+      } else if (this.SC(data) && !this.s_mark) {
+        this.debug ? this.PD("B", data, index) : null;
+        this.s_mark = true;
 
-      } else if (this.me_comment.test(data) && this.e_advanced) {
-        this.e_advanced = false;
+      } else if (this.EC(data) && this.e_mark) {
+        this.debug ? this.PD("C", data, index) : null;
+        this.e_mark = false;
 
-      } else if (this.ms_comment.test(data) && this.me_comment.test(data)) {
+      } else if (this.SC(data) && this.EC(data)) {
+        this.debug ? this.PD("D", data, index) : null;
+
         if (this.java.includes(this.extname)) {
-          this.s_advanced && this.e_advanced ? this.output_box.push(data) : null; // JS
+          this.s_mark && this.e_mark ? this.OP(data) : null; // JS
         } else if (this.python.includes(this.extname)) {
-          this.s_advanced && !this.e_advanced ? this.output_box.push(data) : null; // Python
+          this.s_mark && !this.e_mark ? this.OP(data) : null; // Python
         }
       } else {
-        this.output_box.push(data);
+        this.OP(data);
       }
     }
 
+    /* 讀取數據 */
     Read_data() {
       open.readFile(this.input, "utf-8", (err, data) => {
         if (err) {console.error(err);return;}
@@ -65,22 +90,25 @@ class LoadData {
 
         this.extname = path.extname(this.input);
 
+        let index = 0;
         for (const line of this.processed_box) {
-          if (this.comment.test(line) || this.space.test(line)) {
+          if (this.SimpleClean(line)) {
             continue;
           } else {
-            this.Advanced_analysis(line);
+            this.AdvancedClean(line, ++index);
           }
         }
 
-        this.Output_Data(
-          this.output_box.map(
-            line => line.replace(this.tailcomment, "").replace(this.tailspace, "")
-          ).join("\n")
-        );
+        const merge = this.output_box.map(line => this.TailClean(line)).join("\n");
+        if (!this.debug) {
+          this.Output_Data(merge);
+        } else {
+          console.log("\n\x1b[36m\x1b[1m%s\x1b[0m", merge);
+        }
       });
     }
 
+    /* 輸出數據 */
     Output_Data(data) {
       try {
         if (open.existsSync(path.dirname(this.output))) {
@@ -95,8 +123,8 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "輸入",
-  "輸出"
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerDownloader.js",
+  "R:/test.js", true
 );
 
 Load.Read_data();
