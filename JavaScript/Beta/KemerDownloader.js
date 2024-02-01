@@ -16,6 +16,7 @@
 // @match        *://coomer.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
+// @connect      *
 // @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @license      MIT

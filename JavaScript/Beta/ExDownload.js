@@ -16,6 +16,7 @@
 
 // @match        https://e-hentai.org/*
 // @match        https://exhentai.org/*
+// @connect      *
 // @icon         https://e-hentai.org/favicon.ico
 
 // @license      MIT
