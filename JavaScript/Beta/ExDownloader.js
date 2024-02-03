@@ -36,11 +36,11 @@
 
 /* 需新開發功能
 
-1. 非進階版的下載功能
-
 設置菜單
 
-設置下載延遲
+設置主頁數據獲取延遲
+設置圖片數據獲取延遲
+設置下載線程數
 設置檔名格式
 設置壓縮級別
 設置圖片名格式
@@ -51,12 +51,12 @@
     var language, OriginalTitle, CompressMode, ModeDisplay
     lock = false, url = document.URL.split("?p=")[0];
 
-    // 請求延遲 (單位:ms)
     const Config = {
-        Home: 100, // 獲取連結數據
-        Image: 30, // 獲取圖片數據
-        Download: 300, // 下載圖片
-        DeBug: true,
+        Home: 100, // 獲取連結數據延遲 (單位:ms)
+        Image: 30, // 獲取圖片數據延遲 (單位:ms)
+        ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        Reload: 1000, // 下載錯誤重試的延遲 (單位:ms)
+        DeBug: false,
     }
 
     class Main {
@@ -74,6 +74,7 @@
         async Match() {
             if (this.Ran(url)) {
                 language = display_language(navigator.language);
+                OriginalTitle = document.title;
                 this.ButtonCreation();
                 GM_registerMenuCommand(language.MN_01, ()=> {this.__DownloadModeSwitch()});
             }
@@ -135,7 +136,6 @@
                 download_button.disabled = lock ? true : false;
                 download_button.addEventListener("click", () => {
                     lock = true;
-                    OriginalTitle = document.title;
                     download_button.disabled = true;
                     download_button.textContent = language.DS_01;
                     download.HomeData(download_button);
@@ -155,6 +155,11 @@
 
     class Download {
         constructor() {
+            this.MAX_CONCURRENCY = 16; // 最大併發數
+            this.MIN_CONCURRENCY = 5; // 最小併發數
+            this.TIME_THRESHOLD = 300; // 響應時間閥值
+            this.MAX_Delay = 2000; // 最大延遲
+            this.MIN_Delay = 300; // 最小延遲
             this.parser = new DOMParser();
             /* 取得總頁數 */
             this.Total = (page) => {return Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20)}
@@ -174,8 +179,22 @@
                 let blob = new Blob([code], {type: "application/javascript"});
                 return new Worker(URL.createObjectURL(blob));
             }
+            /* 動態調整 */
+            this.Dynamic = (time, delay, thread) => {
+                let ResponseTime = (Date.now() - time), d, t;
+                if (ResponseTime > this.TIME_THRESHOLD) {
+                    d = Math.min((delay + ResponseTime) / 2, this.MAX_Delay);
+                    t = Math.floor(Math.max(thread - (ResponseTime / this.TIME_THRESHOLD), this.MIN_CONCURRENCY));
+                } else if (ResponseTime < (this.TIME_THRESHOLD / 2)) {
+                    d = Math.max((delay - ResponseTime) / 2, this.MIN_Delay); 
+                    t = Math.floor(Math.min(thread + (ResponseTime / this.TIME_THRESHOLD), this.MAX_CONCURRENCY));
+                }
+                return [d, t];
+            }
             /* 用於下載時 不被變更下載模式 */
             this.DownloadMode;
+            /* 壓縮下載的等級 */
+            this.CompressionLevel = 5;
             /* 圖片檔名前的 0 填充數 */
             this.Fill = 4;
         }
@@ -267,10 +286,7 @@
                         homebox.push(...homepage.get(i));
                     }
                     if (Config.DeBug) {
-                        console.groupCollapsed("Home Page Data");
-                        console.log(`[Title] : ${title}`);
-                        console.log(homebox);
-                        console.groupEnd();
+                        log("Home Page Data", `[Title] : ${title}\n${homebox}`);
                     }
                     this.__ImageData(button, title, homebox);
                 }
@@ -279,8 +295,7 @@
 
         /* 漫畫連結處理 */
         async __ImageData(button, title, link) {
-            let Advanced, imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0;
-            Advanced = pages > 100 ? true : false; // 大於 100 張的使用進階模式
+            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0;
 
             const worker = this.WorkerCreation(`
                 let queue = [], processing = false;
@@ -339,166 +354,154 @@
 
             // 獲取連結
             async function GetLink(index, data) {
-                if (Advanced) {
-                    imgbox.set(index, data.src || data.href);
-                    document.title = `[${DC}/${pages}]`;
-                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
-                    DC++; // 顯示效正
-                    task++; // 任務進度
-
-                } else {
-                    let obj = [index, data.src || data.href, pages];
-                    self.DownloadMode?
-                    self.__ZipDownload(button, title, obj, Advanced):
-                    self.__ImageDownload(button, title, obj, Advanced);
-                }
+                imgbox.set(index, data.src || data.href);
+                document.title = `[${DC}/${pages}]`;
+                button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
+                DC++; // 顯示效正
+                task++; // 任務進度
             }
 
-            if (Advanced) {
-                // 等待完成
-                let interval = setInterval(() => {
-                    if (task === pages) {
-                        clearInterval(interval);
-                        worker.terminate();
-                        if (Config.DeBug) {
-                            console.groupCollapsed("Img Link Data");
-                            console.log(imgbox);
-                            console.groupEnd();
-                        }
-                        this.__DownloadTrigger(button, title, imgbox);
+            // 等待完成
+            let interval = setInterval(() => {
+                if (task === pages) {
+                    clearInterval(interval);
+                    worker.terminate();
+                    if (Config.DeBug) {
+                        log("Img Link Data", imgbox);
                     }
-                }, 500);
-            }
+                    this.__DownloadTrigger(button, title, imgbox);
+                }
+            }, 500);
         }
 
         /* 下載觸發器 */
         async __DownloadTrigger(button, title, link) {
             this.DownloadMode?
-            this.__ZipDownload(button, title, link, true):
-            this.__ImageDownload(button, title, link, true);
+            this.__ZipDownload(button, title, link):
+            this.__ImageDownload(button, title, link);
         }
 
         /* 壓縮下載 */
-        async __ZipDownload(Button, Folder, ImgData, Advanced) {
-            if (Advanced) {
-                const Data = new JSZip(),
-                Total = ImgData.size,
-                promises = [],
-                self = this;
-                
-                let progress = 1, count = 0,
-                link, mantissa, extension;
-
-                async function Request(index, retry) {
-                    link = ImgData.get(index);
-                    extension = self.Extension(link);
-                    return new Promise((resolve, reject) => {
-                        if (typeof link !== "undefined") {
-                            GM_xmlhttpRequest({
-                                method: "GET",
-                                url: link,
-                                responseType: "blob",
-                                headers : {"user-agent": navigator.userAgent},
-                                onload: response => {
-                                    if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                                        mantissa = (index + 1).toString().padStart(self.Fill, "0");
-                                        Data.file(`${Folder}/${mantissa}.${extension}`, response.response);
-                                        document.title = `[${progress}/${Total}]`;
-                                        Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
-                                        progress++;
-                                        resolve();
-                                    } else {
-                                        if (retry > 0) {
-                                            if (Config.DeBug) {console.log(`Request Retry : [${retry}]`)}
-                                            Request(index, retry-1);
-                                            resolve();
-                                        } else {
-                                            reject(new Error("Request error"));
-                                        }
-                                    }
-                                },
-                                onerror: error => {
-                                    if (retry > 0) {
-                                        if (Config.DeBug) {console.log(`Request Retry : [${retry}]`)}
-                                        Request(index, retry-1);
-                                        resolve();
-                                    } else {
-                                        console.groupCollapsed("Request Error");
-                                        console.log(`[Request Error] : ${link}`);
-                                        console.groupEnd();
-                                        reject(error);
-                                    }
-                                }
-                            })
-                        } else {reject(new Error("undefined url"))}
-                    });
-                }
-                for (let i = 0; i < Total; i++) {
-                    promises.push(Request(i, 10));
-                    count++;
-                    if (count === 5) {
-                        count = 0;
-                        await new Promise(resolve => setTimeout(resolve, Config.Download));
-                    }
-                }
-                await Promise.allSettled(promises);
-                this.__Compression(Data, Folder, Button);
-
-            } else {
-                const [index, link, Total] = ImgData;
-                console.log(link);
-            }
-        }
-
-        /* 單圖下載 */
-        async __ImageDownload(Button, Folder, ImgData, Advanced) {
-            if (Advanced) {
-                const Total = ImgData.size, promises = [], self = this;
-                let progress = 1, link, extension;
-                async function Request(index, retry) {
-                    link = ImgData.get(index);
-                    extension = self.Extension(link);
-                    return new Promise((resolve, reject) => {
-                        if (typeof link !== "undefined") {
-                            GM_download({
-                                url: link,
-                                name: `${Folder} ${(index + 1).toString().padStart(self.Fill, "0")}.${extension}`,
-                                headers : {"user-agent": navigator.userAgent},
-                                onload: () => {
+        async __ZipDownload(Button, Folder, ImgData) {
+            const Data = new JSZip(), self = this, Total = ImgData.size;
+            let progress = 1, thread = 5, delay = 500,
+            startTime, link, mantissa, extension;
+            async function Request(index, retry) {
+                startTime = Date.now();
+                link = ImgData.get(index);
+                extension = self.Extension(link);
+                return new Promise((resolve, reject) => {
+                    if (typeof link !== "undefined") {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: link,
+                            responseType: "blob",
+                            headers : {"user-agent": navigator.userAgent},
+                            onload: response => {
+                                if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                                    mantissa = (index + 1).toString().padStart(self.Fill, "0");
+                                    Data.file(`${Folder}/${mantissa}.${extension}`, response.response);
                                     document.title = `[${progress}/${Total}]`;
                                     Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
                                     progress++;
                                     resolve();
-                                },
-                                onerror: () => {
+                                    [ delay, thread ] = self.Dynamic(startTime, delay, thread);
+                                } else {
                                     if (retry > 0) {
-                                        if (Config.DeBug) {console.log(`Request Retry : [${retry}]`)}
-                                        Request(index, retry-1);
-                                        resolve();
+                                        if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                        setTimeout(() => {
+                                            Request(index, retry-1);
+                                            resolve();
+                                        }, Config.Reload);
+                                        [ delay, thread ] = self.Dynamic(startTime, delay, thread);
                                     } else {
                                         reject(new Error("Request error"));
                                     }
                                 }
-                            })
-                        } else {reject(new Error("undefined url"))}
-                    });
-                }
-                for (let i = 0; i < Total; i++) {
-                    promises.push(Request(i));
-                    await new Promise(resolve => setTimeout(resolve, Config.Download));
-                }
-                await Promise.allSettled(promises);
-                ResetButton();
-                Button.textContent = language.DS_08;
-                setTimeout(() => {
-                    Button.textContent = `✓ ${ModeDisplay}`;
-                    document.title = `✓ ${OriginalTitle}`;
-                    Button.disabled = false;
-                }, 3000);
-
-            } else {
-
+                            },
+                            onerror: error => {
+                                if (retry > 0) {
+                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    setTimeout(() => {
+                                        Request(index, retry-1);
+                                        resolve();
+                                    }, Config.Reload);
+                                    [ delay, thread ] = self.Dynamic(startTime, delay, thread);
+                                } else {
+                                    log("Request Error", `(Error Link) : [${link}]`, "error");
+                                    reject(error);
+                                }
+                            }
+                        })
+                    } else {reject(new Error("undefined url"))}
+                });
             }
+            let count = 0, promises = [];
+            for (let i = 0; i < Total; i++) {
+                promises.push(Request(i, Config.ReTry));
+                count++;
+                if (count === thread) {
+                    count = 0;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            await Promise.allSettled(promises);
+            this.__Compression(Data, Folder, Button);
+        }
+
+        /* 單圖下載 */
+        async __ImageDownload(Button, Folder, ImgData) {
+            const Total = ImgData.size, self = this;
+            let progress = 1, thread = 5, delay = 500,
+            startTime, link, extension;
+            async function Request(index, retry) {
+                startTime = Date.now();
+                link = ImgData.get(index);
+                extension = self.Extension(link);
+                return new Promise((resolve, reject) => {
+                    if (typeof link !== "undefined") {
+                        GM_download({
+                            url: link,
+                            name: `${Folder} ${(index + 1).toString().padStart(self.Fill, "0")}.${extension}`,
+                            headers : {"user-agent": navigator.userAgent},
+                            onload: () => {
+                                document.title = `[${progress}/${Total}]`;
+                                Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                                progress++;
+                                resolve();
+                                [ delay, thread ] = self.Dynamic(startTime, delay, thread);
+                            },
+                            onerror: () => {
+                                if (retry > 0) {
+                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    setTimeout(() => {
+                                        Request(index, retry-1);
+                                        resolve();
+                                    }, Config.Reload);
+                                    [ delay, thread ] = self.Dynamic(startTime, delay, thread);
+                                } else {
+                                    reject(new Error("Request error"));
+                                }
+                            }
+                        })
+                    } else {reject(new Error("undefined url"))}
+                });
+            }
+            let count = 0, promises = [];
+            for (let i = 0; i < Total; i++) {
+                promises.push(Request(i, Config.ReTry));
+                count++;
+                if (count === thread) {
+                    count = 0;
+                    await new Promise(resolve => setTimeout(resolve, delay));
+                }
+            }
+            await Promise.allSettled(promises);
+            Button.textContent = language.DS_08;
+            setTimeout(() => {
+                document.title = `✓ ${OriginalTitle}`;
+                ResetButton();
+            }, 3000);
         }
 
         /* 壓縮處理 */
@@ -507,19 +510,17 @@
                 type: "blob",
                 compression: "DEFLATE",
                 compressionOptions: {
-                    level: 5
+                    level: this.CompressionLevel
                 }
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
                 Button.textContent = `${language.DS_05}: ${progress.percent.toFixed(1)} %`;
             }).then(async zip => {
                 await saveAs(zip, `${Folder}.zip`);
-                ResetButton();
                 Button.textContent = language.DS_06;
                 document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
-                    Button.textContent = `✓ ${ModeDisplay}`;
-                    Button.disabled = false;
+                    ResetButton();
                 }, 3000);
             }).catch(result => {
                 Button.textContent = language.DS_07;
@@ -543,8 +544,9 @@
     /* 按鈕重置 */
     async function ResetButton() {
         lock = false;
-        $$("#ExDB").remove();
-        main.ButtonCreation();
+        let Button = $$("#ExDB");
+        Button.disabled = false;
+        Button.textContent = `✓ ${ModeDisplay}`;
     }
 
     /* 樣式添加 */
@@ -570,6 +572,24 @@
                 case ".": return Source.getElementsByClassName(slice)[0];
                 default: return Source.getElementsByTagName(Selector)[0];
             }
+        }
+    }
+
+    /* 打印 */
+    function log(group=null, label="print", type="log") {
+        const template = {
+            log: label=> console.log(label),
+            warn: label=> console.warn(label),
+            error: label=> console.error(label),
+            count: label=> console.count(label),
+        }
+        type = typeof type === "string" && template[type] ? type : type = "log";
+        if (group == null) {
+            template[type](label);
+        } else {
+            console.groupCollapsed(group);
+            template[type](label);
+            console.groupEnd();
         }
     }
 
