@@ -26,7 +26,7 @@ class LoadData {
       this.comment = /^\s*(\/\/|#).+\r$/; // 單行註解
       this.ms_comment = /^\s*(\/\*|""")/; // 區域註解開頭
       this.me_comment = /\s*(\*\/|""")\r$/; // 區域註解結尾
-      this.tailcomment = /[\/\/#][^"',:;?]*\r$/; // 尾部單行註解
+      this.tailcomment = /[\/\/#][^"',:;?)}]*\r$/; // 尾部單行註解
       this.area_comment = /^[\s]*("""){1}|(\/\*){1}.*?(?=\*\/\r)|.*?(?=""")\r/ // 單行的區域註解
 
       this.java = ["js", ".ts", "mjs", ".cjs", "java", ".coffee"];
@@ -93,6 +93,7 @@ class LoadData {
         let index = 0;
         for (const line of this.processed_box) {
           if (this.SimpleClean(line)) {
+            this.debug ? this.PD("Simple", line, ++index) : null;
             continue;
           } else {
             this.AdvancedClean(line, ++index);
@@ -123,8 +124,8 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerDownloader.js",
-  "R:/test.js", true
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/ExDownloader.js",
+  "R:/test.js", false
 );
 
 Load.Read_data();
