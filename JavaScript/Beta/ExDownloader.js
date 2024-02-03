@@ -48,7 +48,7 @@
 */
 
 (function() {
-    var language, OriginalTitle, CompressMode, ModeDisplay
+    var language, OriginalTitle, CompressMode, ModeDisplay,
     lock = false, url = document.URL.split("?p=")[0];
 
     const Config = {
@@ -155,11 +155,11 @@
 
     class Download {
         constructor() {
-            this.MAX_CONCURRENCY = 16; // 最大併發數
+            this.MAX_CONCURRENCY = 15; // 最大併發數
             this.MIN_CONCURRENCY = 5; // 最小併發數
             this.TIME_THRESHOLD = 300; // 響應時間閥值
             this.MAX_Delay = 2000; // 最大延遲
-            this.MIN_Delay = 300; // 最小延遲
+            this.MIN_Delay = 100; // 最小延遲
             this.parser = new DOMParser();
             /* 取得總頁數 */
             this.Total = (page) => {return Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20)}
@@ -185,8 +185,8 @@
                 if (ResponseTime > this.TIME_THRESHOLD) {
                     d = Math.min((delay + ResponseTime) / 2, this.MAX_Delay);
                     t = Math.floor(Math.max(thread - (ResponseTime / this.TIME_THRESHOLD), this.MIN_CONCURRENCY));
-                } else if (ResponseTime < (this.TIME_THRESHOLD / 2)) {
-                    d = Math.max((delay - ResponseTime) / 2, this.MIN_Delay); 
+                } else if (ResponseTime < this.TIME_THRESHOLD) {
+                    d = Math.max((delay - ResponseTime) / 2, this.MIN_Delay);
                     t = Math.floor(Math.min(thread + (ResponseTime / this.TIME_THRESHOLD), this.MAX_CONCURRENCY));
                 }
                 return [d, t];
