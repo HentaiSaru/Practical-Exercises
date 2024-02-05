@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentaiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -33,13 +33,11 @@
 // @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
-
 (function() {
     var language, OriginalTitle, CompressMode, ModeDisplay,
     lock = false, url = document.URL.split("?p=")[0];
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        Reload: 1000, // 下載錯誤重試的延遲 (單位:ms)
         DeBug: false,
     }
     class Main {
@@ -131,16 +129,21 @@
     }
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 15;
-            this.MIN_CONCURRENCY = 5;
-            this.TIME_THRESHOLD = 250;
-            this.MAX_Delay = 3000;
-            this.MIN_Delay = 30;
-            this.CompressionLevel = 5;
+            this.MAX_CONCURRENCY = 12;
+            this.MIN_CONCURRENCY = 3;
+            this.TIME_THRESHOLD = 300;
+            this.MAX_Delay = 2000;
+            this.Home_ID = 120;
+            this.Home_ND = 80;
+            this.Image_ID = 50;
+            this.Image_ND = 20;
+            this.Download_IT = 5;
+            this.Download_ID = 350;
+            this.Download_ND = 250;
+            this.Compr_Level = 5;
             this.DownloadMode;
-            this.Fill = 4;
         }
-        Dynamic(Time, Delay, Thread=null) {
+        Dynamic(Time, Delay, Thread=null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.min((Delay + ResponseTime) / 2, this.MAX_Delay);
@@ -149,7 +152,7 @@
                     return [delay, thread];
                 } else {return delay}
             } else {
-                delay = Math.max((Delay - ResponseTime) / 2, this.MIN_Delay);
+                delay = Math.max((Delay - ResponseTime) / 2, MIN_Delay);
                 if (Thread != null) {
                     thread = Math.floor(Math.min(Thread + (ResponseTime / this.TIME_THRESHOLD), this.MAX_CONCURRENCY));
                     return [delay, thread];
@@ -176,7 +179,7 @@
             }
         }
         async HomeData(button) {
-            let homepage = new Map(), self = this, task = 0, DC = 1, Home_Delay = 60, pages = this.Total($$("#gdd td.gdt2", true)),
+            let homepage = new Map(), self = this, task = 0, DC = 1, HomeD = this.Home_ID, pages = this.Total($$("#gdd td.gdt2", true)),
             title = this.Filter($$("#gj").textContent.trim() || $$("#gn").textContent.trim());
             this.DownloadMode = CompressMode;
             const worker = this.WorkerCreation(`
@@ -206,13 +209,13 @@
                     }
                 }
             `)
-            worker.postMessage({index: 0, url: url, time: Date.now(), delay: Home_Delay});
+            worker.postMessage({index: 0, url: url, time: Date.now(), delay: HomeD});
             for (let index = 1; index < pages; index++) {
-                worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: Home_Delay});
+                worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: HomeD});
             }
             worker.onmessage = (e) => {
                 const {index, html, time, delay, error} = e.data;
-                Home_Delay = this.Dynamic(time, delay);
+                HomeD = this.Dynamic(time, delay, null, this.Home_ND);
                 error ? FetchRequest(index, html, 10):
                 GetLink(index, this.Dom(html));
             }
@@ -231,14 +234,18 @@
             }
             async function GetLink(index, data) {
                 const homebox = [];
-                $$("#gdt a", true, data).forEach(link => {
-                    homebox.push(link.href)
-                });
-                homepage.set(index, homebox);
-                document.title = `[${DC}/${pages}]`;
-                button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
-                DC++;
-                task++;
+                try {
+                    $$("#gdt a", true, data).forEach(link => {
+                        homebox.push(link.href)
+                    });
+                    homepage.set(index, homebox);
+                    document.title = `[${DC}/${pages}]`;
+                    button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
+                    DC++;
+                    task++;
+                } catch {
+                    alert("Your IP is temporarily banned");
+                }
             }
             let interval = setInterval(() => {
                 if (task === pages) {
@@ -256,7 +263,7 @@
             }, 500);
         }
         async __ImageData(button, title, link) {
-            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0, Image_Delay = 18;
+            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0, ImageD = this.Image_ID;
             const worker = this.WorkerCreation(`
                 let queue = [], processing = false;
                 onmessage = function(e) {
@@ -285,11 +292,11 @@
                 }
             `)
             for (let index = 0; index < pages; index++) {
-                worker.postMessage({index, url: link[index], time: Date.now(), delay: Image_Delay});
+                worker.postMessage({index, url: link[index], time: Date.now(), delay: ImageD});
             }
             worker.onmessage = (e) => {
                 const {index, html, time, delay, error} = e.data;
-                Image_Delay = this.Dynamic(time, delay);
+                ImageD = this.Dynamic(time, delay, null, this.Image_ND);
                 error ? FetchRequest(index, html, 10) :
                 GetLink(index, $$("#img", false, this.Dom(html)));
             }
@@ -307,11 +314,15 @@
                 }
             }
             async function GetLink(index, data) {
-                imgbox.set(index, data.src || data.href);
-                document.title = `[${DC}/${pages}]`;
-                button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
-                DC++;
-                task++;
+                try {
+                    imgbox.set(index, data.src || data.href);
+                    document.title = `[${DC}/${pages}]`;
+                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
+                    DC++;
+                    task++;
+                } catch {
+                    alert("Your IP is temporarily banned");
+                }
             }
             let interval = setInterval(() => {
                 if (task === pages) {
@@ -331,8 +342,8 @@
         }
         async __ZipDownload(Button, Folder, ImgData) {
             const Data = new JSZip(), self = this, Total = ImgData.size;
-            let progress = 1, thread = 5, delay = 300,
-            time, link, mantissa, extension;
+            let progress = 1, thread = this.Download_IT, delay = this.Download_ID, Fill = Total.toString().length;
+            let time, link, mantissa, extension;
             async function Request(index, retry) {
                 time = Date.now();
                 link = ImgData.get(index);
@@ -346,21 +357,21 @@
                             headers : {"user-agent": navigator.userAgent},
                             onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                                    mantissa = (index + 1).toString().padStart(self.Fill, "0");
+                                    mantissa = (index + 1).toString().padStart(Fill, "0");
                                     Data.file(`${Folder}/${mantissa}.${extension}`, response.response);
                                     document.title = `[${progress}/${Total}]`;
                                     Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                     progress++;
                                     resolve();
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
                                 } else {
                                     if (retry > 0) {
-                                        if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                        [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                        Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                         setTimeout(() => {
                                             Request(index, retry-1);
                                             resolve();
-                                        }, Config.Reload);
-                                        [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                        }, delay);
                                     } else {
                                         reject(new Error("Request error"));
                                     }
@@ -368,12 +379,12 @@
                             },
                             onerror: error => {
                                 if (retry > 0) {
-                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, Config.Reload);
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                    }, delay);
                                 } else {
                                     log("Request Error", `(Error Link) : [${link}]`, "error");
                                     reject(error);
@@ -397,8 +408,8 @@
         }
         async __ImageDownload(Button, Folder, ImgData) {
             const Total = ImgData.size, self = this;
-            let progress = 1, thread = 5, delay = 300,
-            time, link, extension;
+            let progress = 1, thread = this.Download_IT, delay = this.Download_ID, Fill = Total.toString().length;
+            let time, link, extension;
             async function Request(index, retry) {
                 time = Date.now();
                 link = ImgData.get(index);
@@ -407,23 +418,23 @@
                     if (typeof link !== "undefined") {
                         GM_download({
                             url: link,
-                            name: `${Folder} ${(index + 1).toString().padStart(self.Fill, "0")}.${extension}`,
+                            name: `${Folder} ${(index + 1).toString().padStart(Fill, "0")}.${extension}`,
                             headers : {"user-agent": navigator.userAgent},
                             onload: () => {
                                 document.title = `[${progress}/${Total}]`;
                                 Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
                                 progress++;
+                                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 resolve();
-                                [ delay, thread ] = self.Dynamic(time, delay, thread);
                             },
                             onerror: () => {
                                 if (retry > 0) {
-                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, Config.Reload);
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                    }, delay);
                                 } else {
                                     reject(new Error("Request error"));
                                 }
@@ -453,7 +464,7 @@
                 type: "blob",
                 compression: "DEFLATE",
                 compressionOptions: {
-                    level: this.CompressionLevel
+                    level: this.Compr_Level
                 }
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
