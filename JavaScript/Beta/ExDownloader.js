@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.12
+// @version      0.0.13
 // @author       HentaiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -51,7 +51,6 @@
 
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        Reload: 1000, // 下載錯誤重試的延遲 (單位:ms)
         DeBug: false,
     }
 
@@ -151,22 +150,27 @@
 
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 15; // 最大併發數
-            this.MIN_CONCURRENCY = 5; // 最小併發數
-            this.TIME_THRESHOLD = 250; // 響應時間閥值
-            this.MAX_Delay = 3000; // 最大延遲
-            this.MIN_Delay = 30; // 最小延遲
+            this.MAX_CONCURRENCY = 12; // 最大併發數
+            this.MIN_CONCURRENCY = 3;  // 最小併發數
+            this.TIME_THRESHOLD = 300; // 響應時間閥值
+
+            this.MAX_Delay = 2000;     // 最大延遲
+            this.Home_ID = 120;        // 主頁初始延遲
+            this.Home_ND = 80;         // 主頁最小延遲
+            this.Image_ID = 50;        // 圖頁初始延遲
+            this.Image_ND = 20;        // 圖頁最小延遲
+            this.Download_IT = 5;      // 下載初始線程
+            this.Download_ID = 350;    // 下載初始延遲
+            this.Download_ND = 250;    // 下載最小延遲
 
             /* 壓縮下載的等級 */
-            this.CompressionLevel = 5;
+            this.Compr_Level = 5;
             /* 用於下載時 不被變更下載模式 */
             this.DownloadMode;
-            /* 圖片檔名前的 0 填充數 */
-            this.Fill = 4;
         }
 
         /* 動態調整 */
-        Dynamic(Time, Delay, Thread=null) {
+        Dynamic(Time, Delay, Thread=null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.min((Delay + ResponseTime) / 2, this.MAX_Delay);
@@ -175,7 +179,7 @@
                     return [delay, thread];
                 } else {return delay}
             } else {
-                delay = Math.max((Delay - ResponseTime) / 2, this.MIN_Delay);
+                delay = Math.max((Delay - ResponseTime) / 2, MIN_Delay);
                 if (Thread != null) {
                     thread = Math.floor(Math.min(Thread + (ResponseTime / this.TIME_THRESHOLD), this.MAX_CONCURRENCY));
                     return [delay, thread];
@@ -211,7 +215,7 @@
         /* 主頁數據處理 */
         async HomeData(button) {
             // 當異步函數內又有異步函數, 且他需要調用, 構建函數時不能直接使用 this 正確指向, 因此需要 self = this
-            let homepage = new Map(), self = this, task = 0, DC = 1, Home_Delay = 60, pages = this.Total($$("#gdd td.gdt2", true)),
+            let homepage = new Map(), self = this, task = 0, DC = 1, HomeD = this.Home_ID, pages = this.Total($$("#gdd td.gdt2", true)),
             title = this.Filter($$("#gj").textContent.trim() || $$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
             this.DownloadMode = CompressMode;
 
@@ -244,15 +248,15 @@
             `)
 
             // 傳遞訊息
-            worker.postMessage({index: 0, url: url, time: Date.now(), delay: Home_Delay});
+            worker.postMessage({index: 0, url: url, time: Date.now(), delay: HomeD});
             for (let index = 1; index < pages; index++) {
-                worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: Home_Delay});
+                worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: HomeD});
             }
 
             // 接受訊息
             worker.onmessage = (e) => {
                 const {index, html, time, delay, error} = e.data;
-                Home_Delay = this.Dynamic(time, delay);
+                HomeD = this.Dynamic(time, delay, null, this.Home_ND);
                 error ? FetchRequest(index, html, 10):
                 GetLink(index, this.Dom(html));
             }
@@ -275,14 +279,18 @@
             // 獲取連結
             async function GetLink(index, data) {
                 const homebox = [];
-                $$("#gdt a", true, data).forEach(link => {
-                    homebox.push(link.href)
-                });
-                homepage.set(index, homebox);
-                document.title = `[${DC}/${pages}]`;
-                button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
-                DC++; // 顯示效正
-                task++; // 任務進度
+                try {
+                    $$("#gdt a", true, data).forEach(link => {
+                        homebox.push(link.href)
+                    });
+                    homepage.set(index, homebox);
+                    document.title = `[${DC}/${pages}]`;
+                    button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
+                    DC++; // 顯示效正
+                    task++; // 任務進度
+                } catch {
+                    alert("Your IP is temporarily banned");
+                }
             }
 
             // 等待全部處理完成 (雖然會吃資源, 但是比較能避免例外)
@@ -304,7 +312,7 @@
 
         /* 漫畫連結處理 */
         async __ImageData(button, title, link) {
-            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0, Image_Delay = 18;
+            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0, ImageD = this.Image_ID;
 
             const worker = this.WorkerCreation(`
                 let queue = [], processing = false;
@@ -336,13 +344,13 @@
 
             // 傳遞訊息
             for (let index = 0; index < pages; index++) {
-                worker.postMessage({index, url: link[index], time: Date.now(), delay: Image_Delay});
+                worker.postMessage({index, url: link[index], time: Date.now(), delay: ImageD});
             }
 
             // 接收回傳
             worker.onmessage = (e) => {
                 const {index, html, time, delay, error} = e.data;
-                Image_Delay = this.Dynamic(time, delay);
+                ImageD = this.Dynamic(time, delay, null, this.Image_ND);
                 error ? FetchRequest(index, html, 10) :
                 GetLink(index, $$("#img", false, this.Dom(html)));
             }
@@ -364,11 +372,15 @@
 
             // 獲取連結
             async function GetLink(index, data) {
-                imgbox.set(index, data.src || data.href);
-                document.title = `[${DC}/${pages}]`;
-                button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
-                DC++; // 顯示效正
-                task++; // 任務進度
+                try {
+                    imgbox.set(index, data.src || data.href);
+                    document.title = `[${DC}/${pages}]`;
+                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
+                    DC++; // 顯示效正
+                    task++; // 任務進度
+                } catch {
+                    alert("Your IP is temporarily banned");
+                }
             }
 
             // 等待完成
@@ -394,8 +406,8 @@
         /* 壓縮下載 */
         async __ZipDownload(Button, Folder, ImgData) {
             const Data = new JSZip(), self = this, Total = ImgData.size;
-            let progress = 1, thread = 5, delay = 300,
-            time, link, mantissa, extension;
+            let progress = 1, thread = this.Download_IT, delay = this.Download_ID, Fill = Total.toString().length;
+            let time, link, mantissa, extension;
             async function Request(index, retry) {
                 time = Date.now();
                 link = ImgData.get(index);
@@ -409,21 +421,21 @@
                             headers : {"user-agent": navigator.userAgent},
                             onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                                    mantissa = (index + 1).toString().padStart(self.Fill, "0");
+                                    mantissa = (index + 1).toString().padStart(Fill, "0");
                                     Data.file(`${Folder}/${mantissa}.${extension}`, response.response);
                                     document.title = `[${progress}/${Total}]`;
                                     Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                     progress++;
                                     resolve();
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
                                 } else {
                                     if (retry > 0) {
-                                        if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                        [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                        Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                         setTimeout(() => {
                                             Request(index, retry-1);
                                             resolve();
-                                        }, Config.Reload);
-                                        [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                        }, delay);
                                     } else {
                                         reject(new Error("Request error"));
                                     }
@@ -431,12 +443,12 @@
                             },
                             onerror: error => {
                                 if (retry > 0) {
-                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, Config.Reload);
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                    }, delay);
                                 } else {
                                     log("Request Error", `(Error Link) : [${link}]`, "error");
                                     reject(error);
@@ -462,8 +474,8 @@
         /* 單圖下載 */
         async __ImageDownload(Button, Folder, ImgData) {
             const Total = ImgData.size, self = this;
-            let progress = 1, thread = 5, delay = 300,
-            time, link, extension;
+            let progress = 1, thread = this.Download_IT, delay = this.Download_ID, Fill = Total.toString().length;
+            let time, link, extension;
             async function Request(index, retry) {
                 time = Date.now();
                 link = ImgData.get(index);
@@ -472,23 +484,23 @@
                     if (typeof link !== "undefined") {
                         GM_download({
                             url: link,
-                            name: `${Folder} ${(index + 1).toString().padStart(self.Fill, "0")}.${extension}`,
+                            name: `${Folder} ${(index + 1).toString().padStart(Fill, "0")}.${extension}`,
                             headers : {"user-agent": navigator.userAgent},
                             onload: () => {
                                 document.title = `[${progress}/${Total}]`;
                                 Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
                                 progress++;
+                                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 resolve();
-                                [ delay, thread ] = self.Dynamic(time, delay, thread);
                             },
                             onerror: () => {
                                 if (retry > 0) {
-                                    if (Config.DeBug) {log(null, `Download Retry(${retry}) : [${link}]`, "error")}
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, Config.Reload);
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread);
+                                    }, delay);
                                 } else {
                                     reject(new Error("Request error"));
                                 }
@@ -520,7 +532,7 @@
                 type: "blob",
                 compression: "DEFLATE",
                 compressionOptions: {
-                    level: this.CompressionLevel
+                    level: this.Compr_Level
                 }
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
