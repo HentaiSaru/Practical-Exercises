@@ -290,6 +290,7 @@
                     task++; // 任務進度
                 } catch {
                     alert("Your IP is temporarily banned");
+                    location.reload();
                 }
             }
 
@@ -380,6 +381,7 @@
                     task++; // 任務進度
                 } catch {
                     alert("Your IP is temporarily banned");
+                    location.reload();
                 }
             }
 
