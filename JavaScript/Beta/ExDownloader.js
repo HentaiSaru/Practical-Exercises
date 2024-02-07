@@ -150,18 +150,18 @@
 
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 12; // 最大併發數
-            this.MIN_CONCURRENCY = 3;  // 最小併發數
-            this.TIME_THRESHOLD = 300; // 響應時間閥值
+            this.MAX_CONCURRENCY = 16; // 最大併發數
+            this.MIN_CONCURRENCY = 5;  // 最小併發數
+            this.TIME_THRESHOLD = 250; // 響應時間閥值
 
-            this.MAX_Delay = 2000;     // 最大延遲
-            this.Home_ID = 120;        // 主頁初始延遲
+            this.MAX_Delay = 1500;     // 最大延遲
+            this.Home_ID = 100;        // 主頁初始延遲
             this.Home_ND = 80;         // 主頁最小延遲
-            this.Image_ID = 50;        // 圖頁初始延遲
-            this.Image_ND = 20;        // 圖頁最小延遲
+            this.Image_ID = 30;        // 圖頁初始延遲
+            this.Image_ND = 24;        // 圖頁最小延遲
             this.Download_IT = 5;      // 下載初始線程
-            this.Download_ID = 350;    // 下載初始延遲
-            this.Download_ND = 250;    // 下載最小延遲
+            this.Download_ID = 300;    // 下載初始延遲
+            this.Download_ND = 240;    // 下載最小延遲
 
             /* 壓縮下載的等級 */
             this.Compr_Level = 5;
@@ -423,11 +423,11 @@
                             headers : {"user-agent": navigator.userAgent},
                             onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
+                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                     mantissa = (index + 1).toString().padStart(Fill, "0");
                                     Data.file(`${Folder}/${mantissa}.${extension}`, response.response);
                                     document.title = `[${progress}/${Total}]`;
                                     Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                     progress++;
                                     resolve();
                                 } else {
@@ -489,10 +489,10 @@
                             name: `${Folder} ${(index + 1).toString().padStart(Fill, "0")}.${extension}`,
                             headers : {"user-agent": navigator.userAgent},
                             onload: () => {
+                                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 document.title = `[${progress}/${Total}]`;
                                 Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
                                 progress++;
-                                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 resolve();
                             },
                             onerror: () => {
