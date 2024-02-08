@@ -57,9 +57,8 @@
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     };
-    Main();
+    Load_Basic_Dependencies();
     async function Main() {
-        Load_Basic_Dependencies();
         const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
             PostsPage: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/,
@@ -91,7 +90,7 @@
             w.forEach(([func, set]) => R[func](set));
             GM_registerMenuCommand(Language.RM_01, function () {Menu()});
         }
-    }
+    }Main();
     async function Beautify() {
         addstyle(`
             .global-sidebar {
@@ -244,36 +243,37 @@
                 })
                 )
             };
+            function Replace(index) {
+                if (index == thumbnail.length) {return}
+                const object = thumbnail[index];
+                object.classList.remove("post__thumbnail");
+                a = $$("a", false, object);
+                img = $$("img", false, a);
+                Object.assign(img, {
+                    className: "img-style",
+                    src: a.href.split("?f=")[0],
+                });
+                img.removeAttribute("data-src");
+                a.id = `IMG-${index}`
+                a.removeAttribute("href");
+                a.removeAttribute("download");
+                img.onload = function() {Replace(++index)};
+            };
+            const observer = new IntersectionObserver(observed => {
+                observed.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        const object = entry.target;
+                        observer.unobserve(object);
+                        ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: $$("a", false, object) }), object);
+                        object.classList.remove("post__thumbnail");
+                    }
+                });
+            }, { threshold: 0.8 });
             switch (Mode) {
                 case 2:
                     Replace(0);
-                    function Replace(index) {
-                        if (index == thumbnail.length) {return}
-                        const object = thumbnail[index];
-                        object.classList.remove("post__thumbnail");
-                        a = $$("a", false, object);
-                        img = $$("img", false, a);
-                        Object.assign(img, {
-                            className: "img-style",
-                            src: a.href.split("?f=")[0],
-                        });
-                        img.removeAttribute("data-src");
-                        a.id = `IMG-${index}`
-                        a.removeAttribute("href");
-                        a.removeAttribute("download");
-                        img.onload = function() {Replace(++index)};
-                    };break;
+                    break;
                 case 3:
-                    const observer = new IntersectionObserver(observed => {
-                        observed.forEach(entry => {
-                            if (entry.isIntersecting) {
-                                const object = entry.target;
-                                observer.unobserve(object);
-                                ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: $$("a", false, object) }), object);
-                                object.classList.remove("post__thumbnail");
-                            }
-                        });
-                    }, { threshold: 0.8 });
                     thumbnail.forEach((object, index) => {
                         object.alt = `IMG-${index}`;
                         observer.observe(object);
@@ -379,7 +379,7 @@
         const URL_Format = /(?:https?:\/\/[^\s]+|.*\.com\/[^\s]+)/g, Protocol_format = /^(?!https?:\/\/).*/g;
         async function Analysis(father, text) {
             father.innerHTML = text.replace(URL_Format, url => {
-                link = Protocol_format.test(url) ? `https://${url}` : url;
+                const link = Protocol_format.test(url) ? `https://${url}` : url;
                 return `<a href="${link}" target="_blank">${url}</a>`;
             });
         }
