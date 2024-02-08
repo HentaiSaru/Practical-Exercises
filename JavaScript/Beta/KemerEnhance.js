@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.41
+// @version      0.0.42
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -45,9 +45,8 @@
  */
 
 (function () {
-    var img_rule, language, set, xhr = new XMLHttpRequest(),
-    Url = document.URL, parser = new DOMParser(),
-    buffer = document.createDocumentFragment();
+    var Language, ImgRules, GetSet, Set,
+    parser = new DOMParser(), buffer = document.createDocumentFragment();
 
     /* 功能選擇 (0 = false | 1 = true) */
     const Config = {
@@ -64,31 +63,13 @@
         VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
-    }
 
-    /* ==================== API ==================== */
-
-    /* 獲取設定 (預設值) */
-    const GetSet = {
-        MenuSet: () => {
-            const data = GM_getValue("MenuSet", null) || [{
-                "MT": "2vh",
-                "ML": "50vw",
-            }]; return data[0];
-        },
-        ImgSet: () => {
-            const data = GM_getValue("ImgSet", null) || [{
-                "img_h": "auto",
-                "img_w": "auto",
-                "img_mw": "100%",
-                "img_gap": "0px",
-            }]; return data[0];
-        },
-    }
+    };
 
     /* 主程式調用 */
     Main();
     async function Main() {
+        Load_Basic_Dependencies();
         const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
             PostsPage: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/,
@@ -111,48 +92,20 @@
             VideoBeautify: s => R.U(s, VideoBeautify),
             CommentFormat: s => R.U(s, CommentFormat),
             ExtraButton: s => R.U(s, ExtraButton),
-        }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 13)];
+        }, Url = document.URL, a = Object.entries(Config),
+        [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 13)];
 
         /* 調用數據 (設置範圍加速遍歷) */
         g.forEach(([func, set]) => R[func](set)); // 整體框架優化
         if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))} // 瀏覽帖子優化
         else if (M.M1(Url)) { // 帖子觀看優化
-            language = display_language(GM_getValue("language", null));
+            Language = language(GM_getValue("language", null));
             w.forEach(([func, set]) => R[func](set));
-            GM_registerMenuCommand(language.RM_01, function () {Menu()});
+            GM_registerMenuCommand(Language.RM_01, function () {Menu()});
         }
     }
 
-    /* ==================== 功能 API ==================== */
-
-    /* 效果樣式添加 */
-    addstyle(`
-        ${GM_getResourceText("font-awesome")}
-        .gif-overlay {
-            top: 45%;
-            left: 50%;
-            width: 60%;
-            height: 60%;
-            opacity: 0.5;
-            z-index: 9999;
-            position: absolute;
-            border-radius: 50%;
-            background-size: contain;
-            background-position: center;
-            background-repeat: no-repeat;
-            transform: translate(-50%, -50%);
-            background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
-        }
-        .card-list__items {
-            gap: 0.5em;
-            display: flex;
-            grid-gap: 0.5em;
-            position: relative;
-            flex-flow: var(--local-flex-flow);
-            justify-content: var(--local-justify);
-            align-items: var(--local-align);
-        }
-    `, "Effects");
+    /* ==================== 整體框架 ==================== */
 
     /* 美化介面 */
     async function Beautify() {
@@ -213,7 +166,7 @@
         `, "ADB");
     }
 
-    /* ==================== 帖子預覽 ==================== */
+    /* ==================== 帖子預覽頁面 ==================== */
 
     /* 帖子預覽卡大小 */
     async function CardSize() {
@@ -305,22 +258,12 @@
         });
     }
 
-    /* ==================== 帖子觀看 ==================== */
+    /* ==================== 帖子查看頁面 ==================== */
 
     /* 載入原圖 */
     async function OriginalImage(Mode) {
+        Load_Menu_Dependencies();
         let href, a, img;
-        MenuDependent();
-        set = GetSet.ImgSet();
-        addstyle(`
-            .img-style {
-                display: block;
-                width: ${set.img_w};
-                height: ${set.img_h};
-                margin: ${set.img_gap} auto;
-                max-width: ${set.img_mw};
-            }
-        `);
         WaitElem("div.post__thumbnail", true, 5, thumbnail => {
             function ImgRendering({ ID, href }) {
                 return React.createElement("a", {
@@ -511,6 +454,7 @@
                 max-width: 25rem;
                 border-radius: 10px;
                 flex-basis: calc(35%);
+                word-break: break-all;
                 border: 0.125em solid var(--colour1-secondary);
             }
         `, "Effects");
@@ -563,47 +507,49 @@
 
     /* 切換頁面 */
     async function AjexReplace(url, old_main) {
-        xhr.onreadystatechange = function () {
-            if (xhr.readyState === 4 && xhr.status === 200) {
-                let New_data = parser.parseFromString(xhr.responseText, "text/html");
-                let New_main = $$("main", false, New_data);
+        let New_data, New_main;
+        GM_xmlhttpRequest({
+            method: "GET",
+            url: url,
+            nocache: false,
+            onload: response => {
+                New_data = parser.parseFromString(response.responseText, "text/html");
+                New_main = $$("main", false, New_data);
                 ReactDOM.render(React.createElement(ReactRendering, { content: New_main.innerHTML }), old_main);
                 history.pushState(null, null, url);
                 setTimeout(Initialization(), 500);
             }
-        };
-        xhr.open("GET", url, true);
-        xhr.send();
+        });
     }
 
-    /* ==================== 菜單 UI / 文本顯示 - 依賴項目 ==================== */
+    /* ==================== 菜單 UI ==================== */
 
     /* 及時設置響應 */
     const styleRules = {
-        img_h: value => img_rule[0].style.height = value,
-        img_w: value => img_rule[0].style.width = value,
-        img_mw: value => img_rule[0].style.maxWidth = value,
-        img_gap: value => img_rule[0].style.margin = `${value} auto`,
-        MT: value => img_rule[2].style.top = value,
-        ML: value => img_rule[2].style.left = value
-    };
+        img_h: value => ImgRules[0].style.height = value,
+        img_w: value => ImgRules[0].style.width = value,
+        img_mw: value => ImgRules[0].style.maxWidth = value,
+        img_gap: value => ImgRules[0].style.margin = `${value} auto`,
+        MT: value => ImgRules[2].style.top = value,
+        ML: value => ImgRules[2].style.left = value
+    }
     /* 創建菜單 */
     async function Menu() {
-        img_rule = $$("#Add-Style").sheet.cssRules;
-        set = GetSet.ImgSet();
+        ImgRules = $$("#Add-Style").sheet.cssRules;
+        Set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
-        const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
+        const img_data = [Set.img_h, Set.img_w, Set.img_mw, Set.img_gap];
         const menu = `
             <div class="modal-background">
                 <div class="modal-interface">
                     <table class="modal-box">
                         <tr>
                             <td class="menu">
-                                <h2 class="menu-text">${language.MT_01}</h2>
+                                <h2 class="menu-text">${Language.MT_01}</h2>
                                 <ul>
                                     <li>
                                         <a class="toggle-menu" href="#image-settings-show">
-                                            <button class="menu-options" id="image-settings">${language.MO_01}</button>
+                                            <button class="menu-options" id="image-settings">${Language.MO_01}</button>
                                         </a>
                                     <li>
                                     <li>
@@ -619,19 +565,19 @@
                                         <td class="content" id="set-content">
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
-                                                    <h2 class="narrative">${language.MIS_01}：</h2>
+                                                    <h2 class="narrative">${Language.MIS_01}：</h2>
                                                     <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${language.MIS_02}：</h2>
+                                                    <h2 class="narrative">${Language.MIS_02}：</h2>
                                                     <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${language.MIS_03}：</h2>
+                                                    <h2 class="narrative">${Language.MIS_03}：</h2>
                                                     <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${language.MIS_04}：</h2>
+                                                    <h2 class="narrative">${Language.MIS_04}：</h2>
                                                     <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                             </div>
@@ -640,17 +586,17 @@
                                     <tr>
                                         <td class="button-area">
                                             <select id="language">
-                                                <option value="" disabled selected>${language.ML_01}</option>
-                                                <option value="en">${language.ML_02}</option>
-                                                <option value="zh-TW">${language.ML_03}</option>
-                                                <option value="zh-CN">${language.ML_04}</option>
-                                                <option value="ja">${language.ML_05}</option>
+                                                <option value="" disabled selected>${Language.ML_01}</option>
+                                                <option value="en">${Language.ML_02}</option>
+                                                <option value="zh-TW">${Language.ML_03}</option>
+                                                <option value="zh-CN">${Language.ML_04}</option>
+                                                <option value="ja">${Language.ML_05}</option>
                                             </select>
-                                            <button id="readsettings" class="button-options" disabled>${language.MB_01}</button>
+                                            <button id="readsettings" class="button-options" disabled>${Language.MB_01}</button>
                                             <span class="button-space"></span>
-                                            <button id="closure" class="button-options">${language.MB_02}</button>
+                                            <button id="closure" class="button-options">${Language.MB_02}</button>
                                             <span class="button-space"></span>
-                                            <button id="application" class="button-options">${language.MB_03}</button>
+                                            <button id="application" class="button-options">${Language.MB_03}</button>
                                         </td>
                                     </tr>
                                 </table>
@@ -694,7 +640,7 @@
         $on("#language", "input change", function (event) {
             event.stopPropagation();
             const value = $(this).val();
-            language = display_language(value);
+            Language = language(value);
             GM_setValue("language", value);
             $("#language").off("input change");
             $(".modal-background").remove();
@@ -775,8 +721,71 @@
         });
     }
 
-    /* 菜單依賴項目 */
-    async function MenuDependent() {
+    /* ==================== 依賴設定與樣式 ==================== */
+
+    /* 載入基本依賴 */
+    async function Load_Basic_Dependencies() {
+        /* 獲取設定 */
+        GetSet = {
+            MenuSet: () => {
+                const data = GM_getValue("MenuSet", null) || [{
+                    "MT": "2vh",
+                    "ML": "50vw",
+                }]; return data[0];
+            },
+            ImgSet: () => {
+                const data = GM_getValue("ImgSet", null) || [{
+                    "img_h": "auto",
+                    "img_w": "auto",
+                    "img_mw": "100%",
+                    "img_gap": "0px",
+                }]; return data[0];
+            },
+        }
+
+        /* 效果樣式添加 */
+        addstyle(`
+            ${GM_getResourceText("font-awesome")}
+            .gif-overlay {
+                top: 45%;
+                left: 50%;
+                width: 60%;
+                height: 60%;
+                opacity: 0.5;
+                z-index: 9999;
+                position: absolute;
+                border-radius: 50%;
+                background-size: contain;
+                background-position: center;
+                background-repeat: no-repeat;
+                transform: translate(-50%, -50%);
+                background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+            }
+            .card-list__items {
+                gap: 0.5em;
+                display: flex;
+                grid-gap: 0.5em;
+                position: relative;
+                flex-flow: var(--local-flex-flow);
+                justify-content: var(--local-justify);
+                align-items: var(--local-align);
+            }
+        `, "Effects");
+    }
+
+    /* 載入菜單依賴 */
+    async function Load_Menu_Dependencies() {
+        Set = GetSet.ImgSet(); // 載入圖片設定
+        addstyle(`
+            /* 原圖樣式 */
+            .img-style {
+                display: block;
+                width: ${Set.img_w};
+                height: ${Set.img_h};
+                margin: ${Set.img_gap} auto;
+                max-width: ${Set.img_mw};
+            }
+        `);
         addscript(`
             function check(value) {
                 if (value.toString().length > 4 || value > 1000) {
@@ -787,7 +796,7 @@
                 return value || 0;
             }
         `);
-        set = GetSet.MenuSet();
+        Set = GetSet.MenuSet(); // 載入菜單設定
         addstyle(`
             .modal-background {
                 top: 0;
@@ -802,8 +811,8 @@
             }
             /* 模態介面 */
             .modal-interface {
-                top: ${set.MT};
-                left: ${set.ML};
+                top: ${Set.MT};
+                left: ${Set.ML};
                 margin: 0;
                 display: flex;
                 overflow: auto;
@@ -949,37 +958,11 @@
         `);
     }
 
-    /* ==================== 語法簡化 API ==================== */
+    /* ==================== 通用 API ==================== */
 
-    /* React 區域渲染 */
+    /* React 渲染 */
     function ReactRendering({ content }) {
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
-    }
-
-    /* 仿 jquery 查找元素 (改版) */
-    function $$(Selector, All=false, Source=document) {
-        if (All) {return Source.querySelectorAll(Selector)}
-        else {
-            const slice = Selector.slice(1);
-            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
-            switch (analyze) {
-                case "#": return Source.getElementById(slice);
-                case " ": return Source.querySelector(Selector);
-                case ".": return Source.getElementsByClassName(slice)[0];
-                default: return Source.getElementsByTagName(Selector)[0];
-            }
-        }
-    }
-
-    /* 樣式添加 */
-    async function addstyle(Rule, ID="Add-Style") {
-        let new_style = $$(`#${ID}`);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-        }
-        new_style.appendChild(document.createTextNode(Rule));
     }
 
     /* 腳本添加 */
@@ -993,14 +976,40 @@
         new_script.appendChild(document.createTextNode(Rule));
     }
 
-    /* 添加監聽 (簡化) */
-    async function addlistener(element, type, listener, add={}) {
-        element.addEventListener(type, listener, add);
+    /* 樣式添加 */
+    async function addstyle(Rule, ID="Add-Style") {
+        let new_style = $$(`#${ID}`);
+        if (!new_style) {
+            new_style = document.createElement("style");
+            new_style.id = ID;
+            document.head.appendChild(new_style);
+        }
+        new_style.appendChild(document.createTextNode(Rule));
     }
 
     /* 添加監聽 (jquery) */
     async function $on(element, type, listener) {
         $(element).on(type, listener);
+    }
+
+    /* 添加監聽 (簡化) */
+    async function addlistener(element, type, listener, add={}) {
+        element.addEventListener(type, listener, add);
+    }
+
+    /* 查找元素 */
+    function $$(Selector, All=false, Source=document) {
+        if (All) {return Source.querySelectorAll(Selector)}
+        else {
+            const slice = Selector.slice(1);
+            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+            switch (analyze) {
+                case "#": return Source.getElementById(slice);
+                case " ": return Source.querySelector(Selector);
+                case ".": return Source.getElementsByClassName(slice)[0];
+                default: return Source.getElementsByTagName(Selector)[0];
+            }
+        }
     }
 
     /* 等待元素 */
@@ -1021,78 +1030,38 @@
         }, 1000 * timeout);
     }
 
-    function display_language(language) {
+    /* 語言文本 */
+    function language(language) {
         let display = {
             "zh-TW": [{
-                "RM_01" : "📝 設置選單",
-                "MT_01" : "設置菜單",
-                "MO_01" : "圖像設置",
-                "MB_01" : "讀取設定",
-                "MB_02" : "關閉離開",
-                "MB_03" : "保存應用",
-                "ML_01" : "語言",
-                "ML_02" : "英文",
-                "ML_03" : "繁體",
-                "ML_04" : "簡體",
-                "ML_05" : "日文",
-                "MIS_01" : "圖片高度",
-                "MIS_02" : "圖片寬度",
-                "MIS_03" : "圖片最大寬度",
-                "MIS_04" : "圖片間隔高度"
+                "RM_01":"📝 設置選單",
+                "MT_01":"設置菜單", "MO_01":"圖像設置",
+                "MB_01":"讀取設定", "MB_02":"關閉離開", "MB_03":"保存應用",
+                "ML_01":"語言", "ML_02":"英文", "ML_03":"繁體", "ML_04":"簡體", "ML_05":"日文",
+                "MIS_01":"圖片高度", "MIS_02":"圖片寬度", "MIS_03":"圖片最大寬度", "MIS_04":"圖片間隔高度"
             }],
             "zh-CN": [{
-                "RM_01" : "📝 设置菜单",
-                "MT_01" : "设置菜单",
-                "MO_01" : "图像设置",
-                "MB_01" : "读取设置",
-                "MB_02" : "关闭退出",
-                "MB_03" : "保存应用",
-                "ML_01" : "语言",
-                "ML_02" : "英文",
-                "ML_03" : "繁体",
-                "ML_04" : "简体",
-                "ML_05" : "日文",
-                "MIS_01" : "图片高度",
-                "MIS_02" : "图片宽度",
-                "MIS_03" : "图片最大宽度",
-                "MIS_04" : "图片间隔高度"
+                "RM_01":"📝 设置菜单",
+                "MT_01":"设置菜单", "MO_01":"图像设置",
+                "MB_01":"读取设置", "MB_02":"关闭退出", "MB_03":"保存应用",
+                "ML_01":"语言", "ML_02":"英文", "ML_03":"繁体", "ML_04":"简体", "ML_05":"日文",
+                "MIS_01":"图片高度", "MIS_02":"图片宽度", "MIS_03":"图片最大宽度", "MIS_04":"图片间隔高度"
             }],
             "ja": [{
-                "RM_01" : "📝 設定メニュー",
-                "MT_01" : "設定メニュー",
-                "MO_01" : "画像設定",
-                "MB_01" : "設定の読み込み",
-                "MB_02" : "閉じて終了する",
-                "MB_03" : "保存して適用する",
-                "ML_01" : "言語",
-                "ML_02" : "英語",
-                "ML_03" : "繁体字",
-                "ML_04" : "簡体字",
-                "ML_05" : "日本語",
-                "MIS_01" : "画像の高さ",
-                "MIS_02" : "画像の幅",
-                "MIS_03" : "画像の最大幅",
-                "MIS_04": "画像の間隔の高さ"
+                "RM_01":"📝 設定メニュー",
+                "MT_01":"設定メニュー", "MO_01":"画像設定",
+                "MB_01":"設定の読み込み", "MB_02":"閉じて終了する", "MB_03":"保存して適用する",
+                "ML_01":"言語", "ML_02":"英語", "ML_03":"繁体字", "ML_04":"簡体字", "ML_05":"日本語",
+                "MIS_01":"画像の高さ", "MIS_02":"画像の幅", "MIS_03":"画像の最大幅", "MIS_04":"画像の間隔の高さ"
             }],
             "en-US": [{
-                "RM_01" : "📝 Settings Menu",
-                "MT_01" : "Settings Menu",
-                "MO_01" : "Image Settings",
-                "MB_01" : "Load Settings",
-                "MB_02" : "Close and Exit",
-                "MB_03" : "Save and Apply",
-                "ML_01" : "Language",
-                "ML_02" : "English",
-                "ML_03" : "Traditional Chinese",
-                "ML_04" : "Simplified Chinese",
-                "ML_05" : "Japanese",
-                "MIS_01" :"Image Height",
-                "MIS_02" : "Image Width",
-                "MIS_03" : "Maximum Image Width",
-                "MIS_04" : "Image Spacing Height"
+                "RM_01":"📝 Settings Menu",
+                "MT_01":"Settings Menu", "MO_01":"Image Settings",
+                "MB_01":"Load Settings", "MB_02":"Close and Exit", "MB_03":"Save and Apply",
+                "ML_01":"Language", "ML_02":"English", "ML_03":"Traditional Chinese", "ML_04":"Simplified Chinese", "ML_05":"Japanese",
+                "MIS_01":"Image Height", "MIS_02":"Image Width", "MIS_03":"Maximum Image Width", "MIS_04":"Image Spacing Height"
             }],
         };
-
         return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
