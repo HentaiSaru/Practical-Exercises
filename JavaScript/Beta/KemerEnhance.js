@@ -38,16 +38,9 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
-
-/**
- * 開發設想
- * 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
- */
-
 (function () {
     var Language, ImgRules, GetSet, Set,
     parser = new DOMParser(), buffer = document.createDocumentFragment();
-
     /* 功能選擇 (0 = false | 1 = true) */
     const Config = {
         Beautify: 1,        // 側邊攔收縮美化
@@ -63,10 +56,7 @@
         VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
-
     };
-
-    /* 主程式調用 */
     Main();
     async function Main() {
         Load_Basic_Dependencies();
@@ -94,20 +84,14 @@
             ExtraButton: s => R.U(s, ExtraButton),
         }, Url = document.URL, a = Object.entries(Config),
         [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 13)];
-
-        /* 調用數據 (設置範圍加速遍歷) */
-        g.forEach(([func, set]) => R[func](set)); // 整體框架優化
-        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))} // 瀏覽帖子優化
-        else if (M.M1(Url)) { // 帖子觀看優化
+        g.forEach(([func, set]) => R[func](set));
+        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))}
+        else if (M.M1(Url)) {
             Language = language(GM_getValue("language", null));
             w.forEach(([func, set]) => R[func](set));
             GM_registerMenuCommand(Language.RM_01, function () {Menu()});
         }
     }
-
-    /* ==================== 整體框架 ==================== */
-
-    /* 美化介面 */
     async function Beautify() {
         addstyle(`
             .global-sidebar {
@@ -135,14 +119,10 @@
             }
         `, "Effects");
     }
-
-    /* 刪除網站公告條 */
     async function RemoveNotice() {
         const announce = $$("body > div.content-wrapper.shifted > a");
         if (announce) {announce.remove()}
     }
-
-    /* 完整廣告攔截消除 */
     async function Ad_Block() {
         GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
         addscript(`
@@ -159,23 +139,16 @@
                     XMLRequest.apply(this, arguments);
                 };
             });
-
             try {
                 Ad_observer.observe(document.body, {childList: true, subtree: true});
             } catch {}
         `, "ADB");
     }
-
-    /* ==================== 帖子預覽頁面 ==================== */
-
-    /* 帖子預覽卡大小 */
     async function CardSize() {
         addstyle(`
             * { --card-size: 12vw; }
         `, "Effects");
     }
-
-    /* 帖子說明文字淡化 */
     async function PostCardFade(Mode) {
         switch (Mode) {
             case 2:
@@ -215,8 +188,6 @@
             `, "Effects");
         }
     }
-
-    /* 將瀏覽帖子頁面都變成開新分頁 */
     async function NewTabOpens() {
         WaitElem("article a", true, 8, article => {
             article.forEach(link => {
@@ -227,8 +198,6 @@
             })
         });
     }
-
-    /* 帖子快速切換 */
     async function QuickPostToggle() {
         let Old_data, New_data, item;
         async function Request(link) {
@@ -257,10 +226,6 @@
             })
         });
     }
-
-    /* ==================== 帖子查看頁面 ==================== */
-
-    /* 載入原圖 */
     async function OriginalImage(Mode) {
         Load_Menu_Dependencies();
         let href, a, img;
@@ -298,7 +263,6 @@
                         a.removeAttribute("download");
                         img.onload = function() {Replace(++index)};
                     };break;
-
                 case 3:
                     const observer = new IntersectionObserver(observed => {
                         observed.forEach(entry => {
@@ -314,7 +278,6 @@
                         object.alt = `IMG-${index}`;
                         observer.observe(object);
                     });break;
-
                 default:
                     thumbnail.forEach((object, index) => {
                         object.classList.remove("post__thumbnail");
@@ -335,7 +298,6 @@
             }
         });
     }
-    /* 載入原圖 (死圖重試) */
     async function Reload(ID, retry) {
         if (retry > 0) {
             setTimeout(() => {
@@ -352,8 +314,6 @@
             }, 1500);
         }
     }
-
-    /* 轉換下載連結參數 */
     async function LinkOriented() {
         WaitElem("a.post__attachment-link", true, 5, post => {
             post.forEach(link => {
@@ -363,8 +323,6 @@
             });
         });
     }
-
-    /* 影片美化 */
     async function VideoBeautify(Mode) {
         addstyle(`
             .video-title {
@@ -417,9 +375,7 @@
             });
         });
     }
-
-    /* 轉換內容文本中網址字串 */
-    async function LinkAnalysis() {// 當出現特別格式的字串就需要修改 這兩個正則
+    async function LinkAnalysis() {
         const URL_Format = /(?:https?:\/\/[^\s]+|.*\.com\/[^\s]+)/g, Protocol_format = /^(?!https?:\/\/).*/g;
         async function Analysis(father, text) {
             father.innerHTML = text.replace(URL_Format, url => {
@@ -428,18 +384,16 @@
             });
         }
         WaitElem("div.post__content", false, 8, content => {
-            let data = $$("pre", false, content); // 單一個 Pre 標籤的狀態
+            let data = $$("pre", false, content);
             if (data) {
                 Analysis(data, data.textContent);
             } else {
-                $$("p", true, content).forEach(p => { // 含有多個 P 標籤的狀態
+                $$("p", true, content).forEach(p => {
                     Analysis(p, p.textContent);
                 });
             }
         });
     }
-
-    /* 評論區重新排版 */
     async function CommentFormat() {
         addstyle(`
             .post__comments {
@@ -459,8 +413,6 @@
             }
         `, "Effects");
     }
-
-    /* Ajex換頁的初始化 */
     async function Initialization() {
         OriginalImage();
         LinkAnalysis();
@@ -471,10 +423,8 @@
         if ($$(".post__content img", true).length > 2) {
             $$(".post__content").remove();
         }
-        $$("h1.post__title").scrollIntoView(); // 滾動到上方
+        $$("h1.post__title").scrollIntoView();
     }
-
-    /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
         WaitElem("h2.site-section__subheading", false, 8, comments => {
             const prev = $$("a.post__nav-link.prev");
@@ -487,9 +437,9 @@
             span.appendChild(next.cloneNode(true));
             svg.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                    <style>svg{fill: ${color}}</style>
-                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
-                </svg>
+                    <style>svg{fill: ${color}}<
+                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"><
+                <
             `
             buffer.appendChild(svg);
             buffer.appendChild(span);
@@ -504,8 +454,6 @@
             }, { capture: true, once: true });
         });
     }
-
-    /* 切換頁面 */
     async function AjexReplace(url, old_main) {
         let New_data, New_main;
         GM_xmlhttpRequest({
@@ -521,10 +469,6 @@
             }
         });
     }
-
-    /* ==================== 菜單 UI ==================== */
-
-    /* 及時設置響應 */
     const styleRules = {
         img_h: value => ImgRules[0].style.height = value,
         img_w: value => ImgRules[0].style.width = value,
@@ -533,7 +477,6 @@
         MT: value => ImgRules[2].style.top = value,
         ML: value => ImgRules[2].style.left = value
     }
-    /* 創建菜單 */
     async function Menu() {
         ImgRules = $$("#Add-Style").sheet.cssRules;
         Set = GetSet.ImgSet();
@@ -545,81 +488,80 @@
                     <table class="modal-box">
                         <tr>
                             <td class="menu">
-                                <h2 class="menu-text">${Language.MT_01}</h2>
+                                <h2 class="menu-text">${Language.MT_01}<
                                 <ul>
                                     <li>
                                         <a class="toggle-menu" href="#image-settings-show">
-                                            <button class="menu-options" id="image-settings">${Language.MO_01}</button>
-                                        </a>
+                                            <button class="menu-options" id="image-settings">${Language.MO_01}<
+                                        <
                                     <li>
                                     <li>
                                         <a class="toggle-menu" href="#">
-                                            <button class="menu-options" disabled>null</button>
-                                        </a>
+                                            <button class="menu-options" disabled>null<
+                                        <
                                     <li>
-                                </ul>
-                            </td>
+                                <
+                            <
                             <td>
                                 <table>
                                     <tr>
                                         <td class="content" id="set-content">
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
-                                                    <h2 class="narrative">${Language.MIS_01}：</h2>
-                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                </div>
+                                                    <h2 class="narrative">${Language.MIS_01}：<
+                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"><
+                                                <
                                                 <div>
-                                                    <h2 class="narrative">${Language.MIS_02}：</h2>
-                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                </div>
+                                                    <h2 class="narrative">${Language.MIS_02}：<
+                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"><
+                                                <
                                                 <div>
-                                                    <h2 class="narrative">${Language.MIS_03}：</h2>
-                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                </div>
+                                                    <h2 class="narrative">${Language.MIS_03}：<
+                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"><
+                                                <
                                                 <div>
-                                                    <h2 class="narrative">${Language.MIS_04}：</h2>
-                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                </div>
-                                            </div>
-                                        </td>
-                                    </tr>
+                                                    <h2 class="narrative">${Language.MIS_04}：<
+                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"><
+                                                <
+                                            <
+                                        <
+                                    <
                                     <tr>
                                         <td class="button-area">
                                             <select id="language">
-                                                <option value="" disabled selected>${Language.ML_01}</option>
-                                                <option value="en">${Language.ML_02}</option>
-                                                <option value="zh-TW">${Language.ML_03}</option>
-                                                <option value="zh-CN">${Language.ML_04}</option>
-                                                <option value="ja">${Language.ML_05}</option>
-                                            </select>
-                                            <button id="readsettings" class="button-options" disabled>${Language.MB_01}</button>
-                                            <span class="button-space"></span>
-                                            <button id="closure" class="button-options">${Language.MB_02}</button>
-                                            <span class="button-space"></span>
-                                            <button id="application" class="button-options">${Language.MB_03}</button>
-                                        </td>
-                                    </tr>
-                                </table>
-                            </td>
-                        </tr>
-                    </table>
-                </div>
-            </div>
+                                                <option value="" disabled selected>${Language.ML_01}<
+                                                <option value="en">${Language.ML_02}<
+                                                <option value="zh-TW">${Language.ML_03}<
+                                                <option value="zh-CN">${Language.ML_04}<
+                                                <option value="ja">${Language.ML_05}<
+                                            <
+                                            <button id="readsettings" class="button-options" disabled>${Language.MB_01}<
+                                            <span class="button-space"><
+                                            <button id="closure" class="button-options">${Language.MB_02}<
+                                            <span class="button-space"><
+                                            <button id="application" class="button-options">${Language.MB_03}<
+                                        <
+                                    <
+                                <
+                            <
+                        <
+                    <
+                <
+            <
         `
         const UnitOptions = `
             <select class="Image-input-settings" style="margin-left: 1rem;">
-                <option value="px" selected>px</option>
-                <option value="%">%</option>
-                <option value="rem">rem</option>
-                <option value="vh">vh</option>
-                <option value="vw">vw</option>
-                <option value="auto">auto</option>
-            </select>
+                <option value="px" selected>px<
+                <option value="%">%<
+                <option value="rem">rem<
+                <option value="vh">vh<
+                <option value="vw">vw<
+                <option value="auto">auto<
+            <
         `
         $(document.body).append(menu);
         $(".modal-interface").draggable({ cursor: "grabbing" });
         $(".modal-interface").tabs();
-        // 菜單選擇
         $on("#image-settings", "click", () => {
             const img_set = $("#image-settings-show");
             if (img_set.css("opacity") === "0") {
@@ -635,7 +577,6 @@
                 PictureSettings();
             }
         })
-        // 語言選擇
         $("#language").val(GM_getValue("language", null) || "")
         $on("#language", "input change", function (event) {
             event.stopPropagation();
@@ -646,7 +587,6 @@
             $(".modal-background").remove();
             Menu();
         });
-        // 圖片設置
         async function PictureSettings() {
             $on(".Image-input-settings", "input change", function (event) {
                 event.stopPropagation();
@@ -667,13 +607,11 @@
                 }
             });
         }
-        // 讀取保存
         $on("#readsettings", "click", () => {
             const img_set = $("#image-settings-show").find("p");
             img_data.forEach((read, index) => {
                 img_input = img_set.eq(index).find("input");
                 img_select = img_set.eq(index).find("select");
-
                 if (read === "auto") {
                     img_input.prop("disabled", true);
                     img_select.val(read);
@@ -684,7 +622,6 @@
                 }
             })
         });
-        // 應用保存
         let save = {};
         $on("#application", "click", () => {
             const img_set = $("#image-settings-show").find("p");
@@ -700,8 +637,6 @@
                 }
             })
             GM_setValue("ImgSet", [save]);
-
-            // 菜單位置資訊
             save = {};
             const menu_location = $(".modal-interface");
             const top = menu_location.css("top");
@@ -709,23 +644,15 @@
             save["MT"] = top;
             save["ML"] = left;
             GM_setValue("MenuSet", [save]);
-
             styleRules["MT"](top);
             styleRules["ML"](left);
             $(".modal-background").remove();
         });
-
-        // 關閉菜單
         $on("#closure", "click", () => {
             $(".modal-background").remove();
         });
     }
-
-    /* ==================== 依賴設定與樣式 ==================== */
-
-    /* 載入基本依賴 */
     async function Load_Basic_Dependencies() {
-        /* 獲取設定 */
         GetSet = {
             MenuSet: () => {
                 const data = GM_getValue("MenuSet", null) || [{
@@ -742,8 +669,6 @@
                 }]; return data[0];
             },
         }
-
-        /* 效果樣式添加 */
         addstyle(`
             ${GM_getResourceText("font-awesome")}
             .gif-overlay {
@@ -772,12 +697,9 @@
             }
         `, "Effects");
     }
-
-    /* 載入菜單依賴 */
     async function Load_Menu_Dependencies() {
-        Set = GetSet.ImgSet(); // 載入圖片設定
+        Set = GetSet.ImgSet();
         addstyle(`
-            /* 原圖樣式 */
             .img-style {
                 display: block;
                 width: ${Set.img_w};
@@ -796,7 +718,7 @@
                 return value || 0;
             }
         `);
-        Set = GetSet.MenuSet(); // 載入菜單設定
+        Set = GetSet.MenuSet();
         addstyle(`
             .modal-background {
                 top: 0;
@@ -809,7 +731,6 @@
                 position: fixed;
                 pointer-events: none;
             }
-            /* 模態介面 */
             .modal-interface {
                 top: ${Set.MT};
                 left: ${Set.ML};
@@ -822,13 +743,11 @@
                 background-color: #2C2E3E;
                 border: 3px solid #EE2B47;
             }
-            /* 模態內容盒 */
             .modal-box {
                 padding: 0.5rem;
                 height: 50vh;
                 width: 32vw;
             }
-            /* 菜單框架 */
             .menu {
                 width: 5.5vw;
                 overflow: auto;
@@ -837,7 +756,6 @@
                 border-radius: 2px;
                 border: 2px solid #F6F6F6;
             }
-            /* 菜單文字標題 */
             .menu-text {
                 color: #EE2B47;
                 cursor: default;
@@ -849,7 +767,6 @@
                 border: 4px solid #f05d73;
                 background-color: #1f202c;
             }
-            /* 菜單選項按鈕 */
             .menu-options {
                 cursor: pointer;
                 font-size: 1.4rem;
@@ -871,7 +788,6 @@
                 background-color: #c5c5c5;
                 border: 5px inset #faa5b2;
             }
-            /* 設置內容框架 */
             .content {
                 height: 48vh;
                 width: 28vw;
@@ -896,7 +812,6 @@
                 border: 3px inset #faa5b2;
                 background-color: #5a5a5a;
             }
-            /* 底部按鈕框架 */
             .button-area {
                 display: flex;
                 padding: 0.3rem;
@@ -911,7 +826,6 @@
                 border: 3px inset #EE2B47;
                 background-color: #6e7292;
             }
-            /* 底部選項 */
             .button-options {
                 color: #F6F6F6;
                 cursor: pointer;
@@ -941,7 +855,6 @@
                 padding: 0;
                 margin: 0;
             }
-            /* 整體框線 */
             table, td {
                 margin: 0px;
                 padding: 0px;
@@ -957,15 +870,9 @@
             }
         `);
     }
-
-    /* ==================== 通用 API ==================== */
-
-    /* React 渲染 */
     function ReactRendering({ content }) {
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
     }
-
-    /* 腳本添加 */
     async function addscript(Rule, ID="Add-script") {
         let new_script = $$(`#${ID}`);
         if (!new_script) {
@@ -975,8 +882,6 @@
         }
         new_script.appendChild(document.createTextNode(Rule));
     }
-
-    /* 樣式添加 */
     async function addstyle(Rule, ID="Add-Style") {
         let new_style = $$(`#${ID}`);
         if (!new_style) {
@@ -986,18 +891,12 @@
         }
         new_style.appendChild(document.createTextNode(Rule));
     }
-
-    /* 添加監聽 (jquery) */
     async function $on(element, type, listener) {
         $(element).on(type, listener);
     }
-
-    /* 添加監聽 (簡化) */
     async function addlistener(element, type, listener, add={}) {
         element.addEventListener(type, listener, add);
     }
-
-    /* 查找元素 */
     function $$(Selector, All=false, Source=document) {
         if (All) {return Source.querySelectorAll(Selector)}
         else {
@@ -1011,8 +910,6 @@
             }
         }
     }
-
-    /* 等待元素 */
     async function WaitElem(selector, all, timeout, callback) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
@@ -1029,8 +926,6 @@
             observer.disconnect();
         }, 1000 * timeout);
     }
-
-    /* 語言文本 */
     function language(language) {
         let display = {
             "zh-TW": [{
