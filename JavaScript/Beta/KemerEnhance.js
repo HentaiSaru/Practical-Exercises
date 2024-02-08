@@ -41,7 +41,7 @@
 
 /**
  * 開發設想
- * 3. 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
+ * 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
  */
 
 (function () {
@@ -59,7 +59,8 @@
         NewTabOpens: 1,     // 自動新分頁
         QuickPostToggle: 1, // 快速切換帖子
         OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察觸
-        LinkOriented: 1,    // 連結轉換
+        LinkAnalysis: 1,    // 文本連結字串解析
+        LinkOriented: 1,    // 下載連結轉換
         VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
@@ -105,16 +106,17 @@
             NewTabOpens: s => R.U(s, NewTabOpens),
             QuickPostToggle: s => R.U(s, QuickPostToggle),
             OriginalImage: s => R.U(s, OriginalImage),
+            LinkAnalysis: s => R.U(s, LinkAnalysis),
             LinkOriented: s => R.U(s, LinkOriented),
             VideoBeautify: s => R.U(s, VideoBeautify),
             CommentFormat: s => R.U(s, CommentFormat),
             ExtraButton: s => R.U(s, ExtraButton),
-        }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 12)];
+        }, a = Object.entries(Config), [g, p, w] = [a.slice(0, 3), a.slice(3, 7), a.slice(7, 13)];
 
         /* 調用數據 (設置範圍加速遍歷) */
-        g.forEach(([func, set]) => R[func](set));
-        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))}
-        else if (M.M1(Url)) {
+        g.forEach(([func, set]) => R[func](set)); // 整體框架優化
+        if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))} // 瀏覽帖子優化
+        else if (M.M1(Url)) { // 帖子觀看優化
             language = display_language(GM_getValue("language", null));
             w.forEach(([func, set]) => R[func](set));
             GM_registerMenuCommand(language.RM_01, function () {Menu()});
@@ -473,6 +475,27 @@
         });
     }
 
+    /* 轉換內容文本中網址字串 */
+    async function LinkAnalysis() {// 當出現特別格式的字串就需要修改 這兩個正則
+        const URL_Format = /(?:https?:\/\/[^\s]+|.*\.com\/[^\s]+)/g, Protocol_format = /^(?!https?:\/\/).*/g;
+        async function Analysis(father, text) {
+            father.innerHTML = text.replace(URL_Format, url => {
+                link = Protocol_format.test(url) ? `https://${url}` : url;
+                return `<a href="${link}" target="_blank">${url}</a>`;
+            });
+        }
+        WaitElem("div.post__content", false, 8, content => {
+            let data = $$("pre", false, content); // 單一個 Pre 標籤的狀態
+            if (data) {
+                Analysis(data, data.textContent);
+            } else {
+                $$("p", true, content).forEach(p => { // 含有多個 P 標籤的狀態
+                    Analysis(p, p.textContent);
+                });
+            }
+        });
+    }
+
     /* 評論區重新排版 */
     async function CommentFormat() {
         addstyle(`
@@ -495,9 +518,12 @@
 
     /* Ajex換頁的初始化 */
     async function Initialization() {
-        ExtraButton();
         OriginalImage();
+        LinkAnalysis();
+        LinkOriented();
         VideoBeautify();
+        CommentFormat();
+        ExtraButton();
         if ($$(".post__content img", true).length > 2) {
             $$(".post__content").remove();
         }
