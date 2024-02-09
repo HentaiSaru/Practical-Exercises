@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.42
+// @version      0.0.43
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -39,8 +39,7 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 (function () {
-    var Language, ImgRules, GetSet, Set,
-    parser = new DOMParser(), buffer = document.createDocumentFragment();
+    var Language, ImgRules, GetSet, Set, buffer, parser = new DOMParser();
     /* 功能選擇 (0 = false | 1 = true) */
     const Config = {
         Beautify: 1,        // 側邊攔收縮美化
@@ -57,7 +56,6 @@
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
     };
-    Load_Basic_Dependencies();
     async function Main() {
         const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
@@ -86,8 +84,9 @@
         g.forEach(([func, set]) => R[func](set));
         if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))}
         else if (M.M1(Url)) {
-            Language = language(GM_getValue("language", null));
             w.forEach(([func, set]) => R[func](set));
+            Load_Dependencies("Menu");
+            Language = language(GM_getValue("language", null));
             GM_registerMenuCommand(Language.RM_01, function () {Menu()});
         }
     }Main();
@@ -123,7 +122,7 @@
         if (announce) {announce.remove()}
     }
     async function Ad_Block() {
-        GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
+        addstyle(`.ad-container, .root--ujvuu {display: none}`, "Ad-blocking-style");
         addscript(`
             const Ad_observer = new MutationObserver(() => {
                 try {
@@ -141,7 +140,7 @@
             try {
                 Ad_observer.observe(document.body, {childList: true, subtree: true});
             } catch {}
-        `, "ADB");
+        `, "Ad-blocking-script");
     }
     async function CardSize() {
         addstyle(`
@@ -198,6 +197,7 @@
         });
     }
     async function QuickPostToggle() {
+        Load_Dependencies("Preview");
         let Old_data, New_data, item;
         async function Request(link) {
             Old_data = $$("section");
@@ -226,7 +226,7 @@
         });
     }
     async function OriginalImage(Mode) {
-        Load_Menu_Dependencies();
+        Load_Dependencies("Postview");
         let href, a, img;
         WaitElem("div.post__thumbnail", true, 5, thumbnail => {
             function ImgRendering({ ID, href }) {
@@ -426,6 +426,7 @@
         $$("h1.post__title").scrollIntoView();
     }
     async function ExtraButton() {
+        Load_Dependencies("Awesome");
         WaitElem("h2.site-section__subheading", false, 8, comments => {
             const prev = $$("a.post__nav-link.prev");
             const next = $$("a.post__nav-link.next");
@@ -437,21 +438,22 @@
             span.appendChild(next.cloneNode(true));
             svg.innerHTML = `
                 <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                    <style>svg{fill: ${color}}<
-                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"><
-                <
+                    <style>svg{fill: ${color}}</style>
+                    <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
+                </svg>
             `
             buffer.appendChild(svg);
             buffer.appendChild(span);
-            comments.appendChild(buffer);
             addlistener(svg, "click", () => {
                 $$("header").scrollIntoView();
             }, { capture: true, passive: true })
-            const main = $$("main");
-            addlistener($$("#next_box a"), "click", event => {
-                event.preventDefault();
-                AjexReplace(next.href, main);
-            }, { capture: true, once: true });
+            setTimeout(() => {
+                comments.appendChild(buffer);
+                addlistener($$("#next_box a"), "click", event => {
+                    event.preventDefault();
+                    AjexReplace(next.href, $$("main"));
+                }, { capture: true, once: true });
+            }, 1300);
         });
     }
     async function AjexReplace(url, old_main) {
@@ -478,7 +480,7 @@
         ML: value => ImgRules[2].style.left = value
     }
     async function Menu() {
-        ImgRules = $$("#Add-Style").sheet.cssRules;
+        ImgRules = $$("#Custom-style").sheet.cssRules;
         Set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
         const img_data = [Set.img_h, Set.img_w, Set.img_mw, Set.img_gap];
@@ -652,223 +654,228 @@
             $(".modal-background").remove();
         });
     }
-    async function Load_Basic_Dependencies() {
-        GetSet = {
-            MenuSet: () => {
-                const data = GM_getValue("MenuSet", null) || [{
-                    "MT": "2vh",
-                    "ML": "50vw",
-                }]; return data[0];
-            },
-            ImgSet: () => {
-                const data = GM_getValue("ImgSet", null) || [{
-                    "img_h": "auto",
-                    "img_w": "auto",
-                    "img_mw": "100%",
-                    "img_gap": "0px",
-                }]; return data[0];
-            },
-        }
-        addstyle(`
-            ${GM_getResourceText("font-awesome")}
-            .gif-overlay {
-                top: 45%;
-                left: 50%;
-                width: 60%;
-                height: 60%;
-                opacity: 0.5;
-                z-index: 9999;
-                position: absolute;
-                border-radius: 50%;
-                background-size: contain;
-                background-position: center;
-                background-repeat: no-repeat;
-                transform: translate(-50%, -50%);
-                background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
-            }
-            .card-list__items {
-                gap: 0.5em;
-                display: flex;
-                grid-gap: 0.5em;
-                position: relative;
-                flex-flow: var(--local-flex-flow);
-                justify-content: var(--local-justify);
-                align-items: var(--local-align);
-            }
-        `, "Effects");
-    }
-    async function Load_Menu_Dependencies() {
-        Set = GetSet.ImgSet();
-        addstyle(`
-            .img-style {
-                display: block;
-                width: ${Set.img_w};
-                height: ${Set.img_h};
-                margin: ${Set.img_gap} auto;
-                max-width: ${Set.img_mw};
-            }
-        `);
-        addscript(`
-            function check(value) {
-                if (value.toString().length > 4 || value > 1000) {
-                    value = 1000;
-                } else if (value < 0) {
-                    value = 0;
+    function Load_Dependencies(type) {
+        switch (type) {
+            case "Preview":
+                addstyle(`
+                    .gif-overlay {
+                        top: 45%;
+                        left: 50%;
+                        width: 60%;
+                        height: 60%;
+                        opacity: 0.5;
+                        z-index: 9999;
+                        position: absolute;
+                        border-radius: 50%;
+                        background-size: contain;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        transform: translate(-50%, -50%);
+                        background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+                    }
+                    .card-list__items {
+                        gap: 0.5em;
+                        display: flex;
+                        grid-gap: 0.5em;
+                        position: relative;
+                        flex-flow: var(--local-flex-flow);
+                        justify-content: var(--local-justify);
+                        align-items: var(--local-align);
+                    }
+                `, "Effects");break;
+            case "Postview":
+                buffer = document.createDocumentFragment();
+                GetSet = {
+                    MenuSet: () => {
+                        const data = GM_getValue("MenuSet", null) || [{
+                            "MT": "2vh",
+                            "ML": "50vw",
+                        }]; return data[0];
+                    },
+                    ImgSet: () => {
+                        const data = GM_getValue("ImgSet", null) || [{
+                            "img_h": "auto",
+                            "img_w": "auto",
+                            "img_mw": "100%",
+                            "img_gap": "0px",
+                        }]; return data[0];
+                    },
                 }
-                return value || 0;
-            }
-        `);
-        Set = GetSet.MenuSet();
-        addstyle(`
-            .modal-background {
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                display: flex;
-                z-index: 9999;
-                overflow: auto;
-                position: fixed;
-                pointer-events: none;
-            }
-            .modal-interface {
-                top: ${Set.MT};
-                left: ${Set.ML};
-                margin: 0;
-                display: flex;
-                overflow: auto;
-                position: fixed;
-                border-radius: 5px;
-                pointer-events: auto;
-                background-color: #2C2E3E;
-                border: 3px solid #EE2B47;
-            }
-            .modal-box {
-                padding: 0.5rem;
-                height: 50vh;
-                width: 32vw;
-            }
-            .menu {
-                width: 5.5vw;
-                overflow: auto;
-                text-align: center;
-                vertical-align: top;
-                border-radius: 2px;
-                border: 2px solid #F6F6F6;
-            }
-            .menu-text {
-                color: #EE2B47;
-                cursor: default;
-                padding: 0.2rem;
-                margin: 0.3rem;
-                margin-bottom: 1.5rem;
-                white-space: nowrap;
-                border-radius: 10px;
-                border: 4px solid #f05d73;
-                background-color: #1f202c;
-            }
-            .menu-options {
-                cursor: pointer;
-                font-size: 1.4rem;
-                color: #F6F6F6;
-                font-weight: bold;
-                border-radius: 5px;
-                margin-bottom: 1.2rem;
-                border: 5px inset #EE2B47;
-                background-color: #6e7292;
-                transition: color 0.8s, background-color 0.8s;
-            }
-            .menu-options:hover {
-                color: #EE2B47;
-                background-color: #F6F6F6;
-            }
-            .menu-options:disabled {
-                color: #6e7292;
-                cursor: default;
-                background-color: #c5c5c5;
-                border: 5px inset #faa5b2;
-            }
-            .content {
-                height: 48vh;
-                width: 28vw;
-                overflow: auto;
-                padding: 0px 1rem;
-                border-radius: 2px;
-                vertical-align: top;
-                border-top: 2px solid #F6F6F6;
-                border-right: 2px solid #F6F6F6;
-            }
-            .narrative { color: #EE2B47; }
-            .Image-input-settings {
-                width: 8rem;
-                color: #F6F6F6;
-                text-align: center;
-                font-size: 1.5rem;
-                border-radius: 15px;
-                border: 3px inset #EE2B47;
-                background-color: #202127;
-            }
-            .Image-input-settings:disabled {
-                border: 3px inset #faa5b2;
-                background-color: #5a5a5a;
-            }
-            .button-area {
-                display: flex;
-                padding: 0.3rem;
-                border-left: none;
-                border-radius: 2px;
-                border: 2px solid #F6F6F6;
-                justify-content: space-between;
-            }
-            .button-area select {
-                color: #F6F6F6;
-                margin-right: 1.5rem;
-                border: 3px inset #EE2B47;
-                background-color: #6e7292;
-            }
-            .button-options {
-                color: #F6F6F6;
-                cursor: pointer;
-                font-size: 0.8rem;
-                font-weight: bold;
-                border-radius: 10px;
-                white-space: nowrap;
-                background-color: #6e7292;
-                border: 3px inset #EE2B47;
-                transition: color 0.5s, background-color 0.5s;
-            }
-            .button-options:hover {
-                color: #EE2B47;
-                background-color: #F6F6F6;
-            }
-            .button-space { margin: 0 0.6rem; }
-            .form-hidden {
-                opacity: 0;
-                height: 0;
-                width: 0;
-                overflow: hidden;
-                transition: opacity 0.8s, height 0.8s, width 0.8s;
-            }
-            .toggle-menu {
-                height: 0;
-                width: 0;
-                padding: 0;
-                margin: 0;
-            }
-            table, td {
-                margin: 0px;
-                padding: 0px;
-                overflow: auto;
-                border-spacing: 0px;
-            }
-            p { display: flex; flex-wrap: nowrap; }
-            option { color: #F6F6F6; }
-            ul {
-                list-style: none;
-                padding: 0px;
-                margin: 0px;
-            }
-        `);
+                Set = GetSet.ImgSet();
+                addstyle(`
+                    .img-style {
+                        display: block;
+                        width: ${Set.img_w};
+                        height: ${Set.img_h};
+                        margin: ${Set.img_gap} auto;
+                        max-width: ${Set.img_mw};
+                    }
+                `, "Custom-style");break;
+            case "Awesome":
+                addstyle(GM_getResourceText("font-awesome"), "font-awesome");break;
+            case "Menu":
+                Set = GetSet.MenuSet();
+                addscript(`
+                    function check(value) {
+                        if (value.toString().length > 4 || value > 1000) {
+                            value = 1000;
+                        } else if (value < 0) {
+                            value = 0;
+                        }
+                        return value || 0;
+                    }
+                `);
+                addstyle(`
+                    .modal-background {
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        z-index: 9999;
+                        overflow: auto;
+                        position: fixed;
+                        pointer-events: none;
+                    }
+                    .modal-interface {
+                        top: ${Set.MT};
+                        left: ${Set.ML};
+                        margin: 0;
+                        display: flex;
+                        overflow: auto;
+                        position: fixed;
+                        border-radius: 5px;
+                        pointer-events: auto;
+                        background-color: #2C2E3E;
+                        border: 3px solid #EE2B47;
+                    }
+                    .modal-box {
+                        padding: 0.5rem;
+                        height: 50vh;
+                        width: 32vw;
+                    }
+                    .menu {
+                        width: 5.5vw;
+                        overflow: auto;
+                        text-align: center;
+                        vertical-align: top;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                    }
+                    .menu-text {
+                        color: #EE2B47;
+                        cursor: default;
+                        padding: 0.2rem;
+                        margin: 0.3rem;
+                        margin-bottom: 1.5rem;
+                        white-space: nowrap;
+                        border-radius: 10px;
+                        border: 4px solid #f05d73;
+                        background-color: #1f202c;
+                    }
+                    .menu-options {
+                        cursor: pointer;
+                        font-size: 1.4rem;
+                        color: #F6F6F6;
+                        font-weight: bold;
+                        border-radius: 5px;
+                        margin-bottom: 1.2rem;
+                        border: 5px inset #EE2B47;
+                        background-color: #6e7292;
+                        transition: color 0.8s, background-color 0.8s;
+                    }
+                    .menu-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .menu-options:disabled {
+                        color: #6e7292;
+                        cursor: default;
+                        background-color: #c5c5c5;
+                        border: 5px inset #faa5b2;
+                    }
+                    .content {
+                        height: 48vh;
+                        width: 28vw;
+                        overflow: auto;
+                        padding: 0px 1rem;
+                        border-radius: 2px;
+                        vertical-align: top;
+                        border-top: 2px solid #F6F6F6;
+                        border-right: 2px solid #F6F6F6;
+                    }
+                    .narrative { color: #EE2B47; }
+                    .Image-input-settings {
+                        width: 8rem;
+                        color: #F6F6F6;
+                        text-align: center;
+                        font-size: 1.5rem;
+                        border-radius: 15px;
+                        border: 3px inset #EE2B47;
+                        background-color: #202127;
+                    }
+                    .Image-input-settings:disabled {
+                        border: 3px inset #faa5b2;
+                        background-color: #5a5a5a;
+                    }
+                    .button-area {
+                        display: flex;
+                        padding: 0.3rem;
+                        border-left: none;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                        justify-content: space-between;
+                    }
+                    .button-area select {
+                        color: #F6F6F6;
+                        margin-right: 1.5rem;
+                        border: 3px inset #EE2B47;
+                        background-color: #6e7292;
+                    }
+                    .button-options {
+                        color: #F6F6F6;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        white-space: nowrap;
+                        background-color: #6e7292;
+                        border: 3px inset #EE2B47;
+                        transition: color 0.5s, background-color 0.5s;
+                    }
+                    .button-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .button-space { margin: 0 0.6rem; }
+                    .form-hidden {
+                        opacity: 0;
+                        height: 0;
+                        width: 0;
+                        overflow: hidden;
+                        transition: opacity 0.8s, height 0.8s, width 0.8s;
+                    }
+                    .toggle-menu {
+                        height: 0;
+                        width: 0;
+                        padding: 0;
+                        margin: 0;
+                    }
+                    table, td {
+                        margin: 0px;
+                        padding: 0px;
+                        overflow: auto;
+                        border-spacing: 0px;
+                    }
+                    p { display: flex; flex-wrap: nowrap; }
+                    option { color: #F6F6F6; }
+                    ul {
+                        list-style: none;
+                        padding: 0px;
+                        margin: 0px;
+                    }
+                `, "Custom-style");break;
+        }
     }
     function ReactRendering({ content }) {
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
@@ -913,7 +920,7 @@
     async function WaitElem(selector, all, timeout, callback) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
-            element = all ? $$(selector, true) : $$(selector);
+            element = all ? document.querySelectorAll(selector, true) : document.querySelector(selector);
             result = all ? element.length > 0 : element;
             if (result) {
                 observer.disconnect();
