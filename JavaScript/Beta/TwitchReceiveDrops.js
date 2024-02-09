@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.8
+// @version             0.0.9
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -26,100 +26,123 @@
 // ==/UserScript==
 
 (function() {
-    var Withdraw, title, state, use=true, NumberBox=[];
-    /* 配置設定 */
-    let config = {
-        RestartLive: true, // 重新啟用直播
-        ProgressDisplay: true, // 在選項卡展示進度
+    const Config = {
+        RestartLive: true, // 使用重啟直播
+        RestartLiveMute: true, // 重啟的直播靜音
+        ProgressDisplay: true, // 於標題展示掉寶進度
 
-        RestartTime: 5, // 重啟直播相差時間 (Minute) [設置太短可能勿檢測]
-        DetectionDelay: 1, // 延遲開始檢測時間 (seconds) [提高可降低性能消耗, 過高會找不到元素]
-        CheckInterval: 120, // 檢查間隔 (seconds)
+        InjectDelay: 1, // (seconds) 開始注入檢測的延遲 [提高降低性能消耗, 但太高會找不到]
+        UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
+        JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 直播查找標籤, 只要有包含該字串即可
-        ProgressBar: "p.CoreText-sc-1txzju1-0.mLvNZ span.CoreText-sc-1txzju1-0", // 掉寶進度
-        getbutton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
+        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
+        ProgressBar: "p.CoreText-sc-1txzju1-0.mLvNZ span.CoreText-sc-1txzju1-0", // 掉寶進度數據
+        ReceiveDropsButton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
 
-    }, observer = new MutationObserver(() => {
-        title = document.querySelectorAll(config.ProgressBar); // 會有特殊類型, 因此使用較繁瑣的處理 =>
-        title = title.length > 0 && use ? (use = false, title.forEach(progress=> NumberBox.push(+progress.textContent)), ProgressParse(NumberBox)) : false;
-        state = config.ProgressDisplay && title != false ? (ShowTitle(`${title}%`), true) : false;
+        TagType: ".ScTruncateText-sc-i3kjgq-0.ickTbV span", // 頻道 Tag 標籤
+        LiveLink: "[data-a-target='preview-card-image-link']", // 直播連結
+        LiveChannel: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 直播頻道列表
+    }
 
-        if (config.RestartLive && state) {
-            config.RestartLive = false;
+    /* 檢測邏輯 */
+    class Detection {
+        #ProgressParse; // 宣告私有變數
+        #ShowTitle;
 
-            const time = new Date(), record = GM_getValue("record", null) || [time.getTime(), title],
-            [Timestamp, Progress] = record, conversion = (time - Timestamp) / (1000 * 60);
+        constructor() {
+            this.config = Config;
 
-            if (conversion >= config.RestartTime && title === Progress) {
-                AutoRestartLive();
-                GM_setValue("record", [time.getTime(), title]);
-            } else if (conversion === 0 || title !== Progress) {
-                GM_setValue("record", [time.getTime(), title]);
+            /* 解析進度(找到 < 100 的最大值) */
+            this.#ProgressParse = progress => {
+                progress.sort((a, b) => b - a);
+                return progress.find(number => number < 100);
             }
-        }
 
-        Withdraw = document.querySelector(config.getbutton);
-        Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
-    });
-
-    setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * config.DetectionDelay);
-
-    /* 解析進度(找到 < 100 的最大值) */
-    function ProgressParse(progress) {
-        progress.sort((a, b) => b - a);
-        return progress.find(number => number < 100);
-    }
-
-    /* 展示進度於標題 */
-    async function ShowTitle(display) {
-        config.ProgressDisplay = false;
-        const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續10秒)
-            document.title !== display ? document.title = display : null;
-        }, 300);
-        setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 10);
-    }
-
-    /* 自動重啟直播 */
-    async function AutoRestartLive() {
-        let article;
-        const choose = {
-            Mute: true, // 重啟後的直播靜音(測試功能)
-            channel: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 相關頻道
-            TagType: ".ScTruncateText-sc-i3kjgq-0.ickTbV span", // 頻道 Tag 類型
-            LiveLink: "[data-a-target='preview-card-image-link']", // 直播連結按鈕
-
-        }, channel = document.querySelector(choose.channel);
-        if (channel) {
-            const NewWindow = window.open(channel.href),
-            Interval = setInterval(() => {
-                article = NewWindow.document.getElementsByTagName("article");
-                if (article.length > 20) {
-                    clearInterval(Interval);
-                    const index = Array.from(article).findIndex(element => {
-                        const tag = element.querySelector(choose.TagType).textContent.toLowerCase();
-                        return config.FindTag.some(match=> tag.includes(match.toLowerCase()));
-                    });
-                    article[index].querySelector(choose.LiveLink).click();
-                    choose.Mute ? VideoMute(NewWindow) : null;
-                }
-            }, 1000);
-        }
-    }
-
-    /* 重啟直播的影片靜音(持續執行5秒) */
-    async function VideoMute(window) {
-        const Interval = setInterval(() => {
-            let video = window.document.querySelector("video");
-            if (video) {
-                clearInterval(Interval);
-                const SilentInterval = setInterval(() => {
-                    video.muted = true;
+            /* 展示進度於標題 */
+            this.#ShowTitle = async display => {
+                this.config.ProgressDisplay = false;
+                const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續 8 秒)
+                    document.title !== display ? document.title = display : null;
                 }, 300);
-                setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 5);
+                setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 8);
             }
-        }, 1000);
+        }
+
+        /* 主要運行 */
+        static async Ran() {
+            let Withdraw, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            data=[], use=true, dynamic = new Detection(), self = dynamic.config;
+            const observer = new MutationObserver(() => {
+                title = document.querySelectorAll(self.ProgressBar); // 這邊會有各種特殊類型, 所以這樣處理, 取得所有進度值, 再取找到小於 100 的最大值
+                title = title.length > 0 && use ? (use = false, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : false;
+                state = self.ProgressDisplay && title != false ? (dynamic.#ShowTitle(`${title}%`), true) : false;
+
+                if (self.RestartLive && state) {
+                    self.RestartLive = false;
+
+                    const time = new Date(), // 格式為 = 時間戳, 進度值
+                    [Timestamp, Progress] = GM_getValue("record", null) || [time.getTime(), title], conversion = (time - Timestamp) / (1000 * 60);
+
+                    if (conversion >= self.JudgmentInterval && title === Progress) { // 當時間戳轉換大於檢測間隔, 並且標題與進度值相同, 代表需要重啟
+                        Restart.Ran();
+                        GM_setValue("record", [time.getTime(), title]);
+                    } else if (conversion === 0 || title !== Progress) {
+                        GM_setValue("record", [time.getTime(), title]);
+                    }
+                }
+
+                Withdraw = document.querySelector(self.ReceiveDropsButton);
+                Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
+            });
+            /* 延遲注入 */
+            setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * self.InjectDelay);
+        }
     }
 
-    setTimeout(()=> {location.reload()}, 1000 * config.CheckInterval);
+    /* 重啟邏輯 */
+    class RestartLive {
+        #VideoMute;
+
+        constructor() {
+            this.config = Config;
+
+            /* 重啟直播的影片靜音(持續執行 8 秒) */
+            this.#VideoMute = async window => {
+                const Interval = setInterval(() => {
+                    let video = window.document.querySelector("video");
+                    if (video) {
+                        clearInterval(Interval);
+                        const SilentInterval = setInterval(() => {video.muted = true}, 500);
+                        setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 8);
+                    }
+                }, 1000);
+            }
+        }
+
+        async Ran() {
+            let NewWindow, article, channel, self = this.config;
+            channel = document.querySelector(self.LiveChannel);
+            if (channel) { // 使用標籤 "LiveWindow" 找到先前開啟的直播, 嘗試將其關閉
+                window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
+                NewWindow = window.open(channel.href, "LiveWindow");
+                const Interval = setInterval(() => {
+                    article = NewWindow.document.getElementsByTagName("article");
+                    if (article.length > 20) { // 找到大於 20 個頻道
+                        clearInterval(Interval);
+                        const index = Array.from(article).findIndex(element => {
+                            const tag = element.querySelector(self.TagType).textContent.toLowerCase();
+                            return self.FindTag.some(match=> tag.includes(match.toLowerCase()));
+                        });
+                        article[index].querySelector(self.LiveLink).click();
+                        self.RestartLiveMute ? this.#VideoMute(NewWindow) : null;
+                    }
+                }, 500);
+            }
+        }
+    }
+
+    /* 主運行調用 */
+    const Restart = new RestartLive();
+    Detection.Ran();
+    setTimeout(()=> {location.reload()}, 1000 * Config.UpdateInterval);
 })();
