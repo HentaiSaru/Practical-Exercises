@@ -25,12 +25,13 @@ class LoadData {
       this.tailspace = /\s+$/; // 尾部空白區
       this.comment = /^\s*(\/\/|#).+\r$/; // 單行註解
       this.ms_comment = /^\s*(\/\*|""")/; // 區域註解開頭
+      this.mm_comment = /\s*\*/; // 區域註解中段
       this.me_comment = /\s*(\*\/|""")\r$/; // 區域註解結尾
       this.tailcomment = /[\/\/#][^"',:;?)}]*\r$/; // 尾部單行註解
       this.area_comment = /^[\s]*("""){1}|(\/\*){1}.*?(?=\*\/\r)|.*?(?=""")\r/ // 單行的區域註解
 
-      this.java = ["js", ".ts", "mjs", ".cjs", "java", ".coffee"];
-      this.python = [".py", ".pyw"];
+      this.java = ["js", "ts", "mjs", "cjs", "java", "coffee"];
+      this.python = ["py", "pyw"];
 
       this.output_box = [];
       this.processed_box = [];
