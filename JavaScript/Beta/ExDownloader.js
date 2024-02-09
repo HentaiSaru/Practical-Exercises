@@ -150,10 +150,10 @@
 
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 16; // 最大併發數
-            this.MIN_CONCURRENCY = 5;  // 最小併發數
-            this.TIME_THRESHOLD = 250; // 響應時間閥值
-
+            this.MAX_CONCURRENCY = 9; // 最大併發數
+            this.MIN_CONCURRENCY = 3;  // 最小併發數
+            this.TIME_THRESHOLD = 300; // 響應時間閥值
+    
             this.MAX_Delay = 1500;     // 最大延遲
             this.Home_ID = 100;        // 主頁初始延遲
             this.Home_ND = 80;         // 主頁最小延遲
@@ -162,26 +162,26 @@
             this.Download_IT = 5;      // 下載初始線程
             this.Download_ID = 300;    // 下載初始延遲
             this.Download_ND = 240;    // 下載最小延遲
-
+    
             /* 壓縮下載的等級 */
             this.Compr_Level = 5;
             /* 用於下載時 不被變更下載模式 */
             this.DownloadMode;
         }
-
+    
         /* 動態調整 */
         Dynamic(Time, Delay, Thread=null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
-                delay = Math.min((Delay + ResponseTime) / 2, this.MAX_Delay);
+                delay = Math.floor(Math.min(Delay * 1.1, this.MAX_Delay));
                 if (Thread != null) {
-                    thread = Math.floor(Math.max(Thread - (ResponseTime / this.TIME_THRESHOLD), this.MIN_CONCURRENCY));
+                    thread = Math.floor(Math.max(Thread * (this.TIME_THRESHOLD / ResponseTime), this.MIN_CONCURRENCY));
                     return [delay, thread];
                 } else {return delay}
             } else {
-                delay = Math.max((Delay - ResponseTime) / 2, MIN_Delay);
+                delay = Math.ceil(Math.max(Delay * 0.9, MIN_Delay));
                 if (Thread != null) {
-                    thread = Math.floor(Math.min(Thread + (ResponseTime / this.TIME_THRESHOLD), this.MAX_CONCURRENCY));
+                    thread = Math.ceil(Math.min(Thread * 1.2, this.MAX_CONCURRENCY));
                     return [delay, thread];
                 } else {return delay}
             }
