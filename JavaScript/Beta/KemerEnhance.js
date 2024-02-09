@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.42
+// @version      0.0.43
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -25,7 +25,6 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
@@ -45,8 +44,7 @@
  */
 
 (function () {
-    var Language, ImgRules, GetSet, Set,
-    parser = new DOMParser(), buffer = document.createDocumentFragment();
+    var Language, ImgRules, GetSet, Set, buffer, parser = new DOMParser();
 
     /* 功能選擇 (0 = false | 1 = true) */
     const Config = {
@@ -67,7 +65,6 @@
     };
 
     /* 主程式調用 */
-    Load_Basic_Dependencies();
     async function Main() {
         const M = {
             DmsPage: /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/,
@@ -98,8 +95,9 @@
         g.forEach(([func, set]) => R[func](set)); // 整體框架優化
         if (M.M3(Url)) {p.forEach(([func, set]) => R[func](set))} // 瀏覽帖子優化
         else if (M.M1(Url)) { // 帖子觀看優化
-            Language = language(GM_getValue("language", null));
             w.forEach(([func, set]) => R[func](set));
+            Load_Dependencies("Menu");
+            Language = language(GM_getValue("language", null));
             GM_registerMenuCommand(Language.RM_01, function () {Menu()});
         }
     }Main();
@@ -143,7 +141,7 @@
 
     /* 完整廣告攔截消除 */
     async function Ad_Block() {
-        GM_addStyle(`.ad-container, .root--ujvuu {display: none}`);
+        addstyle(`.ad-container, .root--ujvuu {display: none}`, "Ad-blocking-style");
         addscript(`
             const Ad_observer = new MutationObserver(() => {
                 try {
@@ -162,7 +160,7 @@
             try {
                 Ad_observer.observe(document.body, {childList: true, subtree: true});
             } catch {}
-        `, "ADB");
+        `, "Ad-blocking-script");
     }
 
     /* ==================== 帖子預覽頁面 ==================== */
@@ -229,6 +227,7 @@
 
     /* 帖子快速切換 */
     async function QuickPostToggle() {
+        Load_Dependencies("Preview");
         let Old_data, New_data, item;
         async function Request(link) {
             Old_data = $$("section");
@@ -261,7 +260,7 @@
 
     /* 載入原圖 */
     async function OriginalImage(Mode) {
-        Load_Menu_Dependencies();
+        Load_Dependencies("Postview");
         let href, a, img;
         WaitElem("div.post__thumbnail", true, 5, thumbnail => {
             function ImgRendering({ ID, href }) {
@@ -477,6 +476,7 @@
 
     /* 底部按鈕創建, 監聽快捷Ajex換頁 */
     async function ExtraButton() {
+        Load_Dependencies("Awesome");
         WaitElem("h2.site-section__subheading", false, 8, comments => {
             const prev = $$("a.post__nav-link.prev");
             const next = $$("a.post__nav-link.next");
@@ -494,15 +494,16 @@
             `
             buffer.appendChild(svg);
             buffer.appendChild(span);
-            comments.appendChild(buffer);
             addlistener(svg, "click", () => {
                 $$("header").scrollIntoView();
             }, { capture: true, passive: true })
-            const main = $$("main");
-            addlistener($$("#next_box a"), "click", event => {
-                event.preventDefault();
-                AjexReplace(next.href, main);
-            }, { capture: true, once: true });
+            setTimeout(() => {
+                comments.appendChild(buffer);
+                addlistener($$("#next_box a"), "click", event => {
+                    event.preventDefault();
+                    AjexReplace(next.href, $$("main"));
+                }, { capture: true, once: true });
+            }, 1300);
         });
     }
 
@@ -536,7 +537,7 @@
     }
     /* 創建菜單 */
     async function Menu() {
-        ImgRules = $$("#Add-Style").sheet.cssRules;
+        ImgRules = $$("#Custom-style").sheet.cssRules;
         Set = GetSet.ImgSet();
         let parent, child, img_input, img_select, analyze;
         const img_data = [Set.img_h, Set.img_w, Set.img_mw, Set.img_gap];
@@ -722,241 +723,256 @@
         });
     }
 
-    /* ==================== 依賴設定與樣式 ==================== */
+    /* ==================== 依賴與樣式 ==================== */
 
-    /* 載入基本依賴 */
-    async function Load_Basic_Dependencies() {
-        /* 獲取設定 */
-        GetSet = {
-            MenuSet: () => {
-                const data = GM_getValue("MenuSet", null) || [{
-                    "MT": "2vh",
-                    "ML": "50vw",
-                }]; return data[0];
-            },
-            ImgSet: () => {
-                const data = GM_getValue("ImgSet", null) || [{
-                    "img_h": "auto",
-                    "img_w": "auto",
-                    "img_mw": "100%",
-                    "img_gap": "0px",
-                }]; return data[0];
-            },
-        }
+    /**
+     ** { 載入依賴 }
+     * @param {string} type - 要載入的類型
+     * @example
+     * "Preview" - 帖子預覽頁所需
+     * "Postview" - 觀看帖子頁所需
+     * "Awesome" - 觀看帖子頁圖示
+     * "Menu" - 創建菜單時所需
+     */
+    function Load_Dependencies(type) {
+        switch (type) {
+            case "Preview":
+                /* 效果樣式添加 */
+                addstyle(`
+                    .gif-overlay {
+                        top: 45%;
+                        left: 50%;
+                        width: 60%;
+                        height: 60%;
+                        opacity: 0.5;
+                        z-index: 9999;
+                        position: absolute;
+                        border-radius: 50%;
+                        background-size: contain;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        transform: translate(-50%, -50%);
+                        background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+                    }
+                    .card-list__items {
+                        gap: 0.5em;
+                        display: flex;
+                        grid-gap: 0.5em;
+                        position: relative;
+                        flex-flow: var(--local-flex-flow);
+                        justify-content: var(--local-justify);
+                        align-items: var(--local-align);
+                    }
+                `, "Effects");break;
 
-        /* 效果樣式添加 */
-        addstyle(`
-            ${GM_getResourceText("font-awesome")}
-            .gif-overlay {
-                top: 45%;
-                left: 50%;
-                width: 60%;
-                height: 60%;
-                opacity: 0.5;
-                z-index: 9999;
-                position: absolute;
-                border-radius: 50%;
-                background-size: contain;
-                background-position: center;
-                background-repeat: no-repeat;
-                transform: translate(-50%, -50%);
-                background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
-            }
-            .card-list__items {
-                gap: 0.5em;
-                display: flex;
-                grid-gap: 0.5em;
-                position: relative;
-                flex-flow: var(--local-flex-flow);
-                justify-content: var(--local-justify);
-                align-items: var(--local-align);
-            }
-        `, "Effects");
-    }
-
-    /* 載入菜單依賴 */
-    async function Load_Menu_Dependencies() {
-        Set = GetSet.ImgSet(); // 載入圖片設定
-        addstyle(`
-            /* 原圖樣式 */
-            .img-style {
-                display: block;
-                width: ${Set.img_w};
-                height: ${Set.img_h};
-                margin: ${Set.img_gap} auto;
-                max-width: ${Set.img_mw};
-            }
-        `);
-        addscript(`
-            function check(value) {
-                if (value.toString().length > 4 || value > 1000) {
-                    value = 1000;
-                } else if (value < 0) {
-                    value = 0;
+            case "Postview":
+                /* 創建DOM 緩衝區 (宣告) */
+                buffer = document.createDocumentFragment();
+                /* 獲取設定 (宣告) */
+                GetSet = {
+                    MenuSet: () => {
+                        const data = GM_getValue("MenuSet", null) || [{
+                            "MT": "2vh",
+                            "ML": "50vw",
+                        }]; return data[0];
+                    },
+                    ImgSet: () => {
+                        const data = GM_getValue("ImgSet", null) || [{
+                            "img_h": "auto",
+                            "img_w": "auto",
+                            "img_mw": "100%",
+                            "img_gap": "0px",
+                        }]; return data[0];
+                    },
                 }
-                return value || 0;
-            }
-        `);
-        Set = GetSet.MenuSet(); // 載入菜單設定
-        addstyle(`
-            .modal-background {
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                display: flex;
-                z-index: 9999;
-                overflow: auto;
-                position: fixed;
-                pointer-events: none;
-            }
-            /* 模態介面 */
-            .modal-interface {
-                top: ${Set.MT};
-                left: ${Set.ML};
-                margin: 0;
-                display: flex;
-                overflow: auto;
-                position: fixed;
-                border-radius: 5px;
-                pointer-events: auto;
-                background-color: #2C2E3E;
-                border: 3px solid #EE2B47;
-            }
-            /* 模態內容盒 */
-            .modal-box {
-                padding: 0.5rem;
-                height: 50vh;
-                width: 32vw;
-            }
-            /* 菜單框架 */
-            .menu {
-                width: 5.5vw;
-                overflow: auto;
-                text-align: center;
-                vertical-align: top;
-                border-radius: 2px;
-                border: 2px solid #F6F6F6;
-            }
-            /* 菜單文字標題 */
-            .menu-text {
-                color: #EE2B47;
-                cursor: default;
-                padding: 0.2rem;
-                margin: 0.3rem;
-                margin-bottom: 1.5rem;
-                white-space: nowrap;
-                border-radius: 10px;
-                border: 4px solid #f05d73;
-                background-color: #1f202c;
-            }
-            /* 菜單選項按鈕 */
-            .menu-options {
-                cursor: pointer;
-                font-size: 1.4rem;
-                color: #F6F6F6;
-                font-weight: bold;
-                border-radius: 5px;
-                margin-bottom: 1.2rem;
-                border: 5px inset #EE2B47;
-                background-color: #6e7292;
-                transition: color 0.8s, background-color 0.8s;
-            }
-            .menu-options:hover {
-                color: #EE2B47;
-                background-color: #F6F6F6;
-            }
-            .menu-options:disabled {
-                color: #6e7292;
-                cursor: default;
-                background-color: #c5c5c5;
-                border: 5px inset #faa5b2;
-            }
-            /* 設置內容框架 */
-            .content {
-                height: 48vh;
-                width: 28vw;
-                overflow: auto;
-                padding: 0px 1rem;
-                border-radius: 2px;
-                vertical-align: top;
-                border-top: 2px solid #F6F6F6;
-                border-right: 2px solid #F6F6F6;
-            }
-            .narrative { color: #EE2B47; }
-            .Image-input-settings {
-                width: 8rem;
-                color: #F6F6F6;
-                text-align: center;
-                font-size: 1.5rem;
-                border-radius: 15px;
-                border: 3px inset #EE2B47;
-                background-color: #202127;
-            }
-            .Image-input-settings:disabled {
-                border: 3px inset #faa5b2;
-                background-color: #5a5a5a;
-            }
-            /* 底部按鈕框架 */
-            .button-area {
-                display: flex;
-                padding: 0.3rem;
-                border-left: none;
-                border-radius: 2px;
-                border: 2px solid #F6F6F6;
-                justify-content: space-between;
-            }
-            .button-area select {
-                color: #F6F6F6;
-                margin-right: 1.5rem;
-                border: 3px inset #EE2B47;
-                background-color: #6e7292;
-            }
-            /* 底部選項 */
-            .button-options {
-                color: #F6F6F6;
-                cursor: pointer;
-                font-size: 0.8rem;
-                font-weight: bold;
-                border-radius: 10px;
-                white-space: nowrap;
-                background-color: #6e7292;
-                border: 3px inset #EE2B47;
-                transition: color 0.5s, background-color 0.5s;
-            }
-            .button-options:hover {
-                color: #EE2B47;
-                background-color: #F6F6F6;
-            }
-            .button-space { margin: 0 0.6rem; }
-            .form-hidden {
-                opacity: 0;
-                height: 0;
-                width: 0;
-                overflow: hidden;
-                transition: opacity 0.8s, height 0.8s, width 0.8s;
-            }
-            .toggle-menu {
-                height: 0;
-                width: 0;
-                padding: 0;
-                margin: 0;
-            }
-            /* 整體框線 */
-            table, td {
-                margin: 0px;
-                padding: 0px;
-                overflow: auto;
-                border-spacing: 0px;
-            }
-            p { display: flex; flex-wrap: nowrap; }
-            option { color: #F6F6F6; }
-            ul {
-                list-style: none;
-                padding: 0px;
-                margin: 0px;
-            }
-        `);
+                /* 載入原圖樣式 */
+                Set = GetSet.ImgSet();
+                addstyle(`
+                    .img-style {
+                        display: block;
+                        width: ${Set.img_w};
+                        height: ${Set.img_h};
+                        margin: ${Set.img_gap} auto;
+                        max-width: ${Set.img_mw};
+                    }
+                `, "Custom-style");break;
+
+            case "Awesome":
+                addstyle(GM_getResourceText("font-awesome"), "font-awesome");break;
+
+            case "Menu":
+                /* 載入菜單樣式 */
+                Set = GetSet.MenuSet();
+                addscript(`
+                    function check(value) {
+                        if (value.toString().length > 4 || value > 1000) {
+                            value = 1000;
+                        } else if (value < 0) {
+                            value = 0;
+                        }
+                        return value || 0;
+                    }
+                `);
+                addstyle(`
+                    .modal-background {
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        z-index: 9999;
+                        overflow: auto;
+                        position: fixed;
+                        pointer-events: none;
+                    }
+                    /* 模態介面 */
+                    .modal-interface {
+                        top: ${Set.MT};
+                        left: ${Set.ML};
+                        margin: 0;
+                        display: flex;
+                        overflow: auto;
+                        position: fixed;
+                        border-radius: 5px;
+                        pointer-events: auto;
+                        background-color: #2C2E3E;
+                        border: 3px solid #EE2B47;
+                    }
+                    /* 模態內容盒 */
+                    .modal-box {
+                        padding: 0.5rem;
+                        height: 50vh;
+                        width: 32vw;
+                    }
+                    /* 菜單框架 */
+                    .menu {
+                        width: 5.5vw;
+                        overflow: auto;
+                        text-align: center;
+                        vertical-align: top;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                    }
+                    /* 菜單文字標題 */
+                    .menu-text {
+                        color: #EE2B47;
+                        cursor: default;
+                        padding: 0.2rem;
+                        margin: 0.3rem;
+                        margin-bottom: 1.5rem;
+                        white-space: nowrap;
+                        border-radius: 10px;
+                        border: 4px solid #f05d73;
+                        background-color: #1f202c;
+                    }
+                    /* 菜單選項按鈕 */
+                    .menu-options {
+                        cursor: pointer;
+                        font-size: 1.4rem;
+                        color: #F6F6F6;
+                        font-weight: bold;
+                        border-radius: 5px;
+                        margin-bottom: 1.2rem;
+                        border: 5px inset #EE2B47;
+                        background-color: #6e7292;
+                        transition: color 0.8s, background-color 0.8s;
+                    }
+                    .menu-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .menu-options:disabled {
+                        color: #6e7292;
+                        cursor: default;
+                        background-color: #c5c5c5;
+                        border: 5px inset #faa5b2;
+                    }
+                    /* 設置內容框架 */
+                    .content {
+                        height: 48vh;
+                        width: 28vw;
+                        overflow: auto;
+                        padding: 0px 1rem;
+                        border-radius: 2px;
+                        vertical-align: top;
+                        border-top: 2px solid #F6F6F6;
+                        border-right: 2px solid #F6F6F6;
+                    }
+                    .narrative { color: #EE2B47; }
+                    .Image-input-settings {
+                        width: 8rem;
+                        color: #F6F6F6;
+                        text-align: center;
+                        font-size: 1.5rem;
+                        border-radius: 15px;
+                        border: 3px inset #EE2B47;
+                        background-color: #202127;
+                    }
+                    .Image-input-settings:disabled {
+                        border: 3px inset #faa5b2;
+                        background-color: #5a5a5a;
+                    }
+                    /* 底部按鈕框架 */
+                    .button-area {
+                        display: flex;
+                        padding: 0.3rem;
+                        border-left: none;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                        justify-content: space-between;
+                    }
+                    .button-area select {
+                        color: #F6F6F6;
+                        margin-right: 1.5rem;
+                        border: 3px inset #EE2B47;
+                        background-color: #6e7292;
+                    }
+                    /* 底部選項 */
+                    .button-options {
+                        color: #F6F6F6;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        white-space: nowrap;
+                        background-color: #6e7292;
+                        border: 3px inset #EE2B47;
+                        transition: color 0.5s, background-color 0.5s;
+                    }
+                    .button-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .button-space { margin: 0 0.6rem; }
+                    .form-hidden {
+                        opacity: 0;
+                        height: 0;
+                        width: 0;
+                        overflow: hidden;
+                        transition: opacity 0.8s, height 0.8s, width 0.8s;
+                    }
+                    .toggle-menu {
+                        height: 0;
+                        width: 0;
+                        padding: 0;
+                        margin: 0;
+                    }
+                    /* 整體框線 */
+                    table, td {
+                        margin: 0px;
+                        padding: 0px;
+                        overflow: auto;
+                        border-spacing: 0px;
+                    }
+                    p { display: flex; flex-wrap: nowrap; }
+                    option { color: #F6F6F6; }
+                    ul {
+                        list-style: none;
+                        padding: 0px;
+                        margin: 0px;
+                    }
+                `, "Custom-style");break;
+        }
     }
 
     /* ==================== 通用 API ==================== */
@@ -966,7 +982,18 @@
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
     }
 
-    /* 腳本添加 */
+    /**
+    ** { 添加 Script 腳本 API }
+    * 
+    * @param {string} Rule - Js 語法
+    * @param {string} ID   - 創建 ID
+    * 
+    * @example
+    * addscript(`
+    *      var a = 0;
+    *      console.log(a);
+    * `, "ID")
+    */
     async function addscript(Rule, ID="Add-script") {
         let new_script = $$(`#${ID}`);
         if (!new_script) {
@@ -977,7 +1004,19 @@
         new_script.appendChild(document.createTextNode(Rule));
     }
 
-    /* 樣式添加 */
+    /**
+    ** { 添加 Css 樣式表 API }
+    * 
+    * @param {string} Rule - Css 樣式規則
+    * @param {string} ID   - 創建 ID
+    * 
+    * @example
+    * addstyle(`
+    *      . class {
+    *          樣式
+    *      }
+    * `, "ID")
+    */
     async function addstyle(Rule, ID="Add-Style") {
         let new_style = $$(`#${ID}`);
         if (!new_style) {
@@ -993,12 +1032,34 @@
         $(element).on(type, listener);
     }
 
-    /* 添加監聽 (簡化) */
+    /**
+    ** { 添加 監聽器 API (簡化版) }
+    * 
+    * @param {string} element  - 添加元素
+    * @param {string} type     - 監聽器類型
+    * @param {*} listener      - 監聽後操作
+    * @param {object} add      - 附加功能
+    * 
+    * @example
+    * addlistener("元素", "click", e => {
+    *      操作
+    * })
+    */
     async function addlistener(element, type, listener, add={}) {
         element.addEventListener(type, listener, add);
     }
 
-    /* 查找元素 */
+    /**
+    ** { 簡化查找 DOM 的 API [並非最高效率的寫法] }
+    * 
+    * @param {string} Selector - 查找元素
+    * @param {boolean} All     - 是否查找全部
+    * @param {element} Source  - 查找的源頭
+    * @returns {element}       - DOM 元素
+    * 
+    * @example
+    * 獲取 = $$("要找的DOM", 使否查找所有, 查找的來源)
+    */
     function $$(Selector, All=false, Source=document) {
         if (All) {return Source.querySelectorAll(Selector)}
         else {
@@ -1013,11 +1074,24 @@
         }
     }
 
-    /* 等待元素 */
+    /**
+    ** { 等待元素出現的 API }
+    * 
+    * @param {string} selector     - 等待元素
+    * @param {boolean} all         - 是否多選
+    * @param {number} timeout      - 等待超時 (秒數)
+    * @param {function} callback   - 回條函式
+    * 
+    * @example
+    * WaitElem("元素", false, 1, call => {
+    *      後續操作...
+    *      console.log(call);
+    * })
+    */
     async function WaitElem(selector, all, timeout, callback) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
-            element = all ? $$(selector, true) : $$(selector);
+            element = all ? document.querySelectorAll(selector, true) : document.querySelector(selector);
             result = all ? element.length > 0 : element;
             if (result) {
                 observer.disconnect();
