@@ -44,8 +44,8 @@
     let jsonmode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}, genmode = true;
     const pattern = /^(https?:\/\/)?(www\.)?.+\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
 
-    const UserSet = {
-        DeBug: true,                    // 顯示請求資訊, 與錯誤資訊
+    const Config = {
+        DeBug: false,                   // 顯示請求資訊, 與錯誤資訊
         NotiFication: true,             // 操作時 系統通知
         CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
@@ -67,7 +67,7 @@
     /* ==================== 按鈕創建 (入口點) ==================== */
 
     const observer = new MutationObserver(() => {
-        pattern.test(document.URL) && !$("#DBExist") ? ButtonCreation() : null;
+        pattern.test(document.URL) && !$$("#DBExist") ? ButtonCreation() : null;
     });
     pattern.test(document.URL) ? observer.observe(document.head, {childList: true, subtree: true}) : null;
 
@@ -76,10 +76,15 @@
     Menu({
         [language.RM_01]: ()=> DownloadModeSwitch(),
         [language.RM_02]: ()=> {
-            const section = $("section");
+            const section = $$("section");
             if (section) {
                 JsonDict = {};
-                Pages = +$(".pagination-button-disabled b").textContent;
+                // 避免出現意外, 遍歷所有的找到可以轉成數字的值
+                for (const p of $$(".pagination-button-disabled b", true)) {
+                    const number = Number(p.textContent);
+                    if (number) {Pages = number; break;}
+                    else {Pages = 1;}
+                }
                 GetPageData(section);
             }
         },
@@ -141,7 +146,7 @@
     /* 按鈕創建 */
     async function ButtonCreation() {
         let img_button;
-        const Files = $("div.post__body h2", true);
+        const Files = $$("div.post__body h2", true);
         CompressMode = GM_getValue("Compression", []);
         ModeDisplay = CompressMode ? language.DS_01 : language.DS_02;
 
@@ -174,18 +179,18 @@
     function DownloadTrigger(button) {
         let data = new Map(), link;
         let interval = setInterval(() => {
-            let imgdata = $("div.post__files a", true);
-            let title = $("h1.post__title").textContent.trim();
-            let user = $("a.post__user-name").textContent.trim();
+            let imgdata = $$("div.post__files a", true);
+            let title = $$("h1.post__title").textContent.trim();
+            let user = $$("a.post__user-name").textContent.trim();
             if (imgdata.length > 0 && title && user) {
                 clearInterval(interval); // 等到找到所有下載元素後觸發下載
                 button.textContent = language.DS_03;
                 button.disabled = true;
                 imgdata.forEach((files, index) => {
-                    link = files.href || $_(files, "img").src;
+                    link = files.href || $$("img", false, files).src;
                     data.set(index, link.split("?f=")[0]);
                 });
-                if (UserSet.DeBug) {
+                if (Config.DeBug) {
                     console.groupCollapsed("Get Data");
                     console.log(`[${user}] ${title}`);
                     console.log(data);
@@ -221,7 +226,7 @@
                 if (queue.length > 0) {
                     const {index, url, retry} = queue.shift();
                     xmlRequest(index, url, retry);
-                    setTimeout(processQueue, ${UserSet.ExperimentalDownloadDelay});
+                    setTimeout(processQueue, ${Config.ExperimentalDownloadDelay});
                 }
             }
 
@@ -267,7 +272,7 @@
         worker.onmessage = function (e) {
             const { blob, index, url, error } = e.data;
             if (!error) {
-                if (UserSet.DeBug) {console.log("Download Successful")}
+                if (Config.DeBug) {console.log("Download Successful")}
                 mantissa = (index + 1).toString().padStart(3, "0");
                 Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
@@ -275,7 +280,7 @@
                 progress++;
                 task++;
             } else {
-                if (UserSet.DeBug) {console.log(`Request Failed Link : [${url}]`)}
+                if (Config.DeBug) {console.log(`Request Failed Link : [${url}]`)}
                 /* 最後的下載 */
                 async function Request(url, retry) {
                     GM_xmlhttpRequest({
@@ -350,7 +355,7 @@
                 setTimeout(() => {
                     Button.disabled = false;
                     Button.textContent = `✓ ${ModeDisplay}`;
-                    if (UserSet.CompleteClose) {window.close()}
+                    if (Config.CompleteClose) {window.close()}
                 }, 3000);
             }
         }, 1000);
@@ -379,7 +384,7 @@
             await saveAs(zip, `${Folder}.zip`);
             Button.textContent = language.DS_08;
             setTimeout(() => {
-                if (UserSet.CompleteClose) {window.close()}
+                if (Config.CompleteClose) {window.close()}
                 Button.textContent = `✓ ${ModeDisplay}`;
                 Button.disabled = false;
             }, 3000);
@@ -397,7 +402,7 @@
     async function DownloadModeSwitch() {
         if (GM_getValue("Compression", [])){
             GM_setValue("Compression", false);
-            if (UserSet.NotiFication) {
+            if (Config.NotiFication) {
                 GM_notification({
                     title: language.NF_01,
                     text: language.DM_02,
@@ -406,7 +411,7 @@
             }
         } else {
             GM_setValue("Compression", true);
-            if (UserSet.NotiFication) {
+            if (Config.NotiFication) {
                 GM_notification({
                     title: language.NF_01,
                     text: language.DM_01,
@@ -424,11 +429,11 @@
     /* 獲取主頁元素 */
     async function GetPageData(section) {
         let title, link, promises = [];
-        const menu = $_(section, "a.pagination-button-after-current");
-        const item = $_(section, ".card-list__items article", true);
+        const menu = $$("a.pagination-button-after-current", false, section);
+        const item = $$(".card-list__items article", true, section);
 
         progress = 0;
-        if (UserSet.NotiFication) {
+        if (Config.NotiFication) {
             GM_notification({
                 title: language.NF_02,
                 text: `${language.NF_03} : ${Pages}`,
@@ -439,12 +444,12 @@
 
         // 遍歷數據
         for (const card of item) {
-            title = $_(card, ".post-card__header").textContent.trim();
-            link = $_(card, "a").href;
+            title = $$(".post-card__header", false, card).textContent.trim();
+            link = $$("a", false, card).href;
 
-            if (UserSet.ExperimentalDownload) {
+            if (Config.ExperimentalDownload) {
                 promises.push(DataClassification(title, link, Pages));
-                await new Promise(resolve => setTimeout(resolve, UserSet.ExperimentalDownloadDelay));
+                await new Promise(resolve => setTimeout(resolve, Config.ExperimentalDownloadDelay));
             } else {
                 JsonDict[`${link}`] = title;
             }
@@ -452,10 +457,7 @@
         // 等待所有請求完成
         await Promise.allSettled(promises);
         Pages++;
-
-        try { // 請求下一頁
-            await GetNextPage(menu.href);
-        } catch {ToJson()}
+        menu ? GetNextPage(menu.href) : ToJson();
     }
 
     /* 獲取下一頁數據 */
@@ -467,7 +469,7 @@
             ontimeout: 8000,
             onload: response => {
                 const DOM = parser.parseFromString(response.responseText, "text/html");
-                GetPageData($_(DOM, "section"));
+                GetPageData($$("section", false, DOM));
             }
         });
     }
@@ -516,10 +518,10 @@
                     const DOM = parser.parseFromString(response.responseText, "text/html");
 
                     const original_link = url;
-                    const pictures_number = $_(DOM, "div.post__thumbnail", true).length;
-                    const video_number = $_(DOM, 'ul[style*="text-align: center;list-style-type: none;"] li', true).length;
-                    const mega_link = $_(DOM, "div.post__content strong", true);
-                    $_(DOM, "a.post__attachment-link", true).forEach(link => {
+                    const pictures_number = $$("div.post__thumbnail", true, DOM).length;
+                    const video_number = $$('ul[style*="text-align: center;list-style-type: none;"] li', true, DOM).length;
+                    const mega_link = $$("div.post__content strong", true, DOM);
+                    $$("a.post__attachment-link", true, DOM).forEach(link => {
                         const analyze = decodeURIComponent(link.href).split("?f=");
                         const download_link = analyze[0];
                         const download_name = analyze[1];
@@ -538,7 +540,7 @@
                         JsonDict[title] = Box;
                     }
 
-                    if (UserSet.DeBug) {console.log(JsonDict)}
+                    if (Config.DeBug) {console.log(JsonDict)}
                     document.title = `（${page} - ${++progress}）`;
                     resolve();
                 },
@@ -559,7 +561,7 @@
             json.download = `${author}.json`;
             json.click();
             json.remove();
-            if (UserSet.NotiFication) {
+            if (Config.NotiFication) {
                 GM_notification({
                     title: language.NF_04,
                     text: language.NF_05,
@@ -569,6 +571,16 @@
             }
             document.title = TitleCache;
         } catch {alert(language.NF_06)}
+    }
+
+    function GetTime() {
+        const date = new Date();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const hour = String(date.getHours()).padStart(2, "0");
+        const minute = String(date.getMinutes()).padStart(2, "0");
+        return `${year}-${month}-${day}-${hour}-${minute}`;
     }
 
     /**
@@ -605,7 +617,7 @@
     /* 一鍵開啟當前所有帖子 */
     async function OpenData() {
         try {
-            const card = $("article.post-card a", true);
+            const card = $$("article.post-card a", true);
             if (card.length == 0) {throw new Error("No links found")}
             for (const link of card) {
                 GM_openInTab(link.href, {
@@ -613,7 +625,7 @@
                     insert: false,
                     setParent: false
                 });
-                await new Promise(resolve => setTimeout(resolve, UserSet.BatchOpenDelay));
+                await new Promise(resolve => setTimeout(resolve, Config.BatchOpenDelay));
             }
         } catch {
             alert(language.NF_07);
@@ -635,27 +647,18 @@
     }
 
     /* 簡化元素查找 */
-    function $(element, all=false) {
-        if (!all) {
-            const slice = element.slice(1),
-            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
-            return analyze == " " ? document.querySelector(element)
-            : analyze == "#" ? document.getElementById(element.slice(1))
-            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-            : document.getElementsByTagName(element)[0];
-        } else {return document.querySelectorAll(element)}
-    }
-
-    /* 改版 API */
-    function $_(document, element, all=false) {
-        if (!all) {
-            const slice = element.slice(1),
-            analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : element[0];
-            return analyze == " " ? document.querySelector(element)
-            : analyze == "#" ? document.getElementById(element.slice(1))
-            : analyze == "." ? document.getElementsByClassName(element.slice(1))[0]
-            : document.getElementsByTagName(element)[0];
-        } else {return document.querySelectorAll(element)}
+    function $$(Selector, All=false, Source=document) {
+        if (All) {return Source.querySelectorAll(Selector)}
+        else {
+            const slice = Selector.slice(1);
+            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
+            switch (analyze) {
+                case "#": return Source.getElementById(slice);
+                case " ": return Source.querySelector(Selector);
+                case ".": return Source.getElementsByClassName(slice)[0];
+                default: return Source.getElementsByTagName(Selector)[0];
+            }
+        }
     }
 
     /* (簡化版) 監聽器添加 */
@@ -827,11 +830,6 @@
                 "NF_07" : "Wrong page to open"
             }]
         };
-
-        if (display.hasOwnProperty(language)) {
-            return display[language][0];
-        } else {
-            return display["en-US"][0];
-        }
+        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
 })();
