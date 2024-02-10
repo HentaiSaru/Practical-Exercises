@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.43
+// @version      0.0.44
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -22,10 +22,9 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-body
+// @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
@@ -480,179 +479,183 @@
         ML: value => ImgRules[2].style.left = value
     }
     async function Menu() {
-        ImgRules = $$("#Custom-style").sheet.cssRules;
-        Set = GetSet.ImgSet();
-        let parent, child, img_input, img_select, analyze;
-        const img_data = [Set.img_h, Set.img_w, Set.img_mw, Set.img_gap];
-        const menu = `
-            <div class="modal-background">
-                <div class="modal-interface">
-                    <table class="modal-box">
-                        <tr>
-                            <td class="menu">
-                                <h2 class="menu-text">${Language.MT_01}<
-                                <ul>
-                                    <li>
-                                        <a class="toggle-menu" href="#image-settings-show">
-                                            <button class="menu-options" id="image-settings">${Language.MO_01}<
-                                        <
-                                    <li>
-                                    <li>
-                                        <a class="toggle-menu" href="#">
-                                            <button class="menu-options" disabled>null<
-                                        <
-                                    <li>
-                                <
-                            <
-                            <td>
-                                <table>
-                                    <tr>
-                                        <td class="content" id="set-content">
-                                            <div id="image-settings-show" class="form-hidden">
-                                                <div>
-                                                    <h2 class="narrative">${Language.MIS_01}：<
-                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"><
-                                                <
-                                                <div>
-                                                    <h2 class="narrative">${Language.MIS_02}：<
-                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"><
-                                                <
-                                                <div>
-                                                    <h2 class="narrative">${Language.MIS_03}：<
-                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"><
-                                                <
-                                                <div>
-                                                    <h2 class="narrative">${Language.MIS_04}：<
-                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"><
-                                                <
-                                            <
-                                        <
-                                    <
-                                    <tr>
-                                        <td class="button-area">
-                                            <select id="language">
-                                                <option value="" disabled selected>${Language.ML_01}<
-                                                <option value="en">${Language.ML_02}<
-                                                <option value="zh-TW">${Language.ML_03}<
-                                                <option value="zh-CN">${Language.ML_04}<
-                                                <option value="ja">${Language.ML_05}<
-                                            <
-                                            <button id="readsettings" class="button-options" disabled>${Language.MB_01}<
-                                            <span class="button-space"><
-                                            <button id="closure" class="button-options">${Language.MB_02}<
-                                            <span class="button-space"><
-                                            <button id="application" class="button-options">${Language.MB_03}<
-                                        <
-                                    <
-                                <
-                            <
-                        <
-                    <
-                <
-            <
-        `
-        const UnitOptions = `
-            <select class="Image-input-settings" style="margin-left: 1rem;">
-                <option value="px" selected>px<
-                <option value="%">%<
-                <option value="rem">rem<
-                <option value="vh">vh<
-                <option value="vw">vw<
-                <option value="auto">auto<
-            <
-        `
-        $(document.body).append(menu);
-        $(".modal-interface").draggable({ cursor: "grabbing" });
-        $(".modal-interface").tabs();
-        $on("#image-settings", "click", () => {
-            const img_set = $("#image-settings-show");
-            if (img_set.css("opacity") === "0") {
-                img_set.find("p").each(function() {
-                    $(this).append(UnitOptions);
-                });
-                img_set.css({
-                    "height": "auto",
-                    "width": "auto",
-                    "opacity": 1
-                });
-                $("#readsettings").prop("disabled", false);
-                PictureSettings();
-            }
-        })
-        $("#language").val(GM_getValue("language", null) || "")
-        $on("#language", "input change", function (event) {
-            event.stopPropagation();
-            const value = $(this).val();
-            Language = language(value);
-            GM_setValue("language", value);
-            $("#language").off("input change");
-            $(".modal-background").remove();
-            Menu();
-        });
-        async function PictureSettings() {
-            $on(".Image-input-settings", "input change", function (event) {
-                event.stopPropagation();
-                const target = $(this), value = target.val(), id = target.attr("id");
-                parent = target.closest("div");
-                if (isNaN(value)) {
-                    child = parent.find("input");
-                    if (value === "auto") {
-                        child.prop("disabled", true);
-                        styleRules[child.attr("id")](value);
-                    } else {
-                        child.prop("disabled", false);
-                        styleRules[child.attr("id")](`${child.val()}${value}`);
-                    }
-                } else {
-                    child = parent.find("select");
-                    styleRules[id](`${value}${child.val()}`);
+        if (!$$(".modal-background")) {
+            ImgRules = $$("#Custom-style").sheet.cssRules;
+            Set = GetSet.ImgSet();
+            let parent, child, img_input, img_select, analyze;
+            const img_data = [Set.img_h, Set.img_w, Set.img_mw, Set.img_gap];
+            const menu = `
+                <div class="modal-background">
+                    <div class="modal-interface">
+                        <table class="modal-box">
+                            <tr>
+                                <td class="menu">
+                                    <h2 class="menu-text">${Language.MT_01}</h2>
+                                    <ul>
+                                        <li>
+                                            <a class="toggle-menu" href="#image-settings-show">
+                                                <button class="menu-options" id="image-settings">${Language.MO_01}</button>
+                                            </a>
+                                        <li>
+                                        <li>
+                                            <a class="toggle-menu" href="#">
+                                                <button class="menu-options" disabled>null</button>
+                                            </a>
+                                        <li>
+                                    </ul>
+                                </td>
+                                <td>
+                                    <table>
+                                        <tr>
+                                            <td class="content" id="set-content">
+                                                <div id="image-settings-show" class="form-hidden">
+                                                    <div>
+                                                        <h2 class="narrative">${Language.MIS_01}：</h2>
+                                                        <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    </div>
+                                                    <div>
+                                                        <h2 class="narrative">${Language.MIS_02}：</h2>
+                                                        <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    </div>
+                                                    <div>
+                                                        <h2 class="narrative">${Language.MIS_03}：</h2>
+                                                        <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    </div>
+                                                    <div>
+                                                        <h2 class="narrative">${Language.MIS_04}：</h2>
+                                                        <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    </div>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td class="button-area">
+                                                <select id="language">
+                                                    <option value="" disabled selected>${Language.ML_01}</option>
+                                                    <option value="en">${Language.ML_02}</option>
+                                                    <option value="zh-TW">${Language.ML_03}</option>
+                                                    <option value="zh-CN">${Language.ML_04}</option>
+                                                    <option value="ja">${Language.ML_05}</option>
+                                                </select>
+                                                <button id="readsettings" class="button-options" disabled>${Language.MB_01}</button>
+                                                <span class="button-space"></span>
+                                                <button id="closure" class="button-options">${Language.MB_02}</button>
+                                                <span class="button-space"></span>
+                                                <button id="application" class="button-options">${Language.MB_03}</button>
+                                            </td>
+                                        </tr>
+                                    </table>
+                                </td>
+                            </tr>
+                        </table>
+                    </div>
+                </div>
+            `
+            const UnitOptions = `
+                <select class="Image-input-settings" style="margin-left: 1rem;">
+                    <option value="px" selected>px</option>
+                    <option value="%">%</option>
+                    <option value="rem">rem</option>
+                    <option value="vh">vh</option>
+                    <option value="vw">vw</option>
+                    <option value="auto">auto</option>
+                </select>
+            `
+            $(document.body).append(menu);
+            $(".modal-interface").draggable({ cursor: "grabbing" });
+            $(".modal-interface").tabs();
+            $on("#image-settings", "click", () => {
+                const img_set = $("#image-settings-show");
+                if (img_set.css("opacity") === "0") {
+                    img_set.find("p").each(function() {
+                        $(this).append(UnitOptions);
+                    });
+                    img_set.css({
+                        "height": "auto",
+                        "width": "auto",
+                        "opacity": 1
+                    });
+                    $("#readsettings").prop("disabled", false);
+                    PictureSettings();
                 }
+            })
+            $("#language").val(GM_getValue("language", null) || "")
+            $on("#language", "input change", function (event) {
+                event.stopPropagation();
+                const value = $(this).val();
+                Language = language(value);
+                GM_setValue("language", value);
+                $("#language").off("input change");
+                $(".modal-background").remove();
+                Menu();
+            });
+            async function PictureSettings() {
+                $on(".Image-input-settings", "input change", function (event) {
+                    event.stopPropagation();
+                    const target = $(this), value = target.val(), id = target.attr("id");
+                    parent = target.closest("div");
+                    if (isNaN(value)) {
+                        child = parent.find("input");
+                        if (value === "auto") {
+                            child.prop("disabled", true);
+                            styleRules[child.attr("id")](value);
+                        } else {
+                            child.prop("disabled", false);
+                            styleRules[child.attr("id")](`${child.val()}${value}`);
+                        }
+                    } else {
+                        child = parent.find("select");
+                        styleRules[id](`${value}${child.val()}`);
+                    }
+                });
+            }
+            $on("#readsettings", "click", () => {
+                const img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+
+                    if (read === "auto") {
+                        img_input.prop("disabled", true);
+                        img_select.val(read);
+                    } else {
+                        analyze = read.match(/^(\d+)(\D+)$/);
+                        img_input.val(analyze[1]);
+                        img_select.val(analyze[2]);
+                    }
+                })
+            });
+            let save = {};
+            $on("#application", "click", () => {
+                const img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+                    if (img_select.val() === "auto") {
+                        save[img_input.attr("id")] = "auto";
+                    } else if (img_input.val() === "") {
+                        save[img_input.attr("id")] = read;
+                    } else {
+                        save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
+                    }
+                })
+                GM_setValue("ImgSet", [save]);
+                save = {};
+                const menu_location = $(".modal-interface");
+                const top = menu_location.css("top");
+                const left = menu_location.css("left");
+                save["MT"] = top;
+                save["ML"] = left;
+                GM_setValue("MenuSet", [save]);
+
+                styleRules["MT"](top);
+                styleRules["ML"](left);
+                $(".modal-background").remove();
+            });
+            $on("#closure", "click", () => {
+                $(".modal-background").remove();
             });
         }
-        $on("#readsettings", "click", () => {
-            const img_set = $("#image-settings-show").find("p");
-            img_data.forEach((read, index) => {
-                img_input = img_set.eq(index).find("input");
-                img_select = img_set.eq(index).find("select");
-                if (read === "auto") {
-                    img_input.prop("disabled", true);
-                    img_select.val(read);
-                } else {
-                    analyze = read.match(/^(\d+)(\D+)$/);
-                    img_input.val(analyze[1]);
-                    img_select.val(analyze[2]);
-                }
-            })
-        });
-        let save = {};
-        $on("#application", "click", () => {
-            const img_set = $("#image-settings-show").find("p");
-            img_data.forEach((read, index) => {
-                img_input = img_set.eq(index).find("input");
-                img_select = img_set.eq(index).find("select");
-                if (img_select.val() === "auto") {
-                    save[img_input.attr("id")] = "auto";
-                } else if (img_input.val() === "") {
-                    save[img_input.attr("id")] = read;
-                } else {
-                    save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
-                }
-            })
-            GM_setValue("ImgSet", [save]);
-            save = {};
-            const menu_location = $(".modal-interface");
-            const top = menu_location.css("top");
-            const left = menu_location.css("left");
-            save["MT"] = top;
-            save["ML"] = left;
-            GM_setValue("MenuSet", [save]);
-            styleRules["MT"](top);
-            styleRules["ML"](left);
-            $(".modal-background").remove();
-        });
-        $on("#closure", "click", () => {
-            $(".modal-background").remove();
-        });
     }
     function Load_Dependencies(type) {
         switch (type) {
