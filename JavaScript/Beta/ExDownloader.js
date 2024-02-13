@@ -150,11 +150,11 @@
 
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 9; // 最大併發數
-            this.MIN_CONCURRENCY = 3;  // 最小併發數
-            this.TIME_THRESHOLD = 300; // 響應時間閥值
+            this.MAX_CONCURRENCY = 12; // 最大併發數
+            this.MIN_CONCURRENCY = 4;  // 最小併發數
+            this.TIME_THRESHOLD = 350; // 響應時間閥值
     
-            this.MAX_Delay = 1500;     // 最大延遲
+            this.MAX_Delay = 3500;     // 最大延遲
             this.Home_ID = 100;        // 主頁初始延遲
             this.Home_ND = 80;         // 主頁最小延遲
             this.Image_ID = 30;        // 圖頁初始延遲
