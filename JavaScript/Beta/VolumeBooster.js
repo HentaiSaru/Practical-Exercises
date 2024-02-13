@@ -5,7 +5,6 @@
 // @description  增強影片音量上限，最高增幅至 10 倍，尚未測試是否所有網域都可使用，當影片無聲時，禁止該腳本在該網域上運行。
 
 // @match        *://*/*
-// @exclude      *://video.eyny.com/*
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
 
 // @license      MIT
@@ -97,20 +96,20 @@
                 }
             }
 
-            /* 監聽使用 */
+            /* 監聽注入 */
             async Injection() {
                 let Video;
                 const observer = new MutationObserver(() => {
                     Video = this.$$("video");
                     if (Video && !Video.hasAttribute("Video-Audio-Booster")) {
-                        this.FindVideo(Video);
+                        this.VideoBooster(Video);
                     }
                 });
                 observer.observe(document.head, { childList: true, subtree: true });
             }
 
-            /* 查找 Video 元素 */
-            async FindVideo(video) {
+            /* 找到 Video 元素後進行操作 */
+            async VideoBooster(video) {
                 try {
                     this.Increase = this.EnabledStatus ? this.store("get", this.Domain) || 1.0 : 1.0;
                     this.Booster = this.BoosterLogic(video, this.Increase);
@@ -174,7 +173,7 @@
 
             /* 音量增量邏輯 */
             BoosterLogic(video, increase) {
-                const AudioContext = new window.AudioContext;
+                const AudioContext = new (window.AudioContext || window.webkitAudioContext)();
                 const SourceNode = AudioContext.createMediaElementSource(video); // 音頻來源
                 const GainNode = AudioContext.createGain(); // 增益節點
                 const LowFilterNode = AudioContext.createBiquadFilter(); // 低音慮波器
@@ -211,10 +210,11 @@
                 CompressorNode.connect(AudioContext.destination);
                 // 節點創建標記
                 video.setAttribute("Video-Audio-Booster", true);
+
                 return {
                     // 設置音量
-                    setVolume: function(increase) {
-                        GainNode.gain.value = increase * increase;
+                    setVolume: increase => {
+                        GainNode.gain.value = increase ** 2;
                         this.Increase = increase;
                     }
                 }
