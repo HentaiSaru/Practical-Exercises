@@ -388,7 +388,12 @@
                 Analysis(data, data.textContent);
             } else {
                 $$("p", true, content).forEach(p => {
-                    Analysis(p, p.textContent);
+                    const a = $$("a", false, p);
+                    if (a) {
+                        Analysis(a, a.href);
+                    } else {
+                        Analysis(p, p.textContent);
+                    }
                 });
             }
         });
