@@ -432,8 +432,13 @@
             if (data) {
                 Analysis(data, data.textContent);
             } else {
-                $$("p", true, content).forEach(p => { // 含有多個 P 標籤的狀態
-                    Analysis(p, p.textContent);
+                $$("p", true, content).forEach(p => {
+                    const a = $$("a", false, p);
+                    if (a) { // 含有 a 標籤的狀態
+                        Analysis(a, a.href);
+                    } else { // 只含有 P 標籤的狀態
+                        Analysis(p, p.textContent);
+                    }
                 });
             }
         });
