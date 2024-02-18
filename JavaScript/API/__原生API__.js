@@ -237,7 +237,7 @@ function $$(Selector, All=false, Source=document) {
  *      }
  * `, "ID")
  */
-async function AddStyle(Rule, ID="Add-Style") {
+async function AddStyle(Rule, ID="New-Style") {
     let new_style = document.getElementById(ID);
     if (!new_style) {
         new_style = document.createElement("style");
@@ -261,7 +261,7 @@ async function AddStyle(Rule, ID="Add-Style") {
  *      console.log(a);
  * `, "ID")
  */
-async function AddScript(Rule, ID="Add-script") {
+async function AddScript(Rule, ID="New-Script") {
     let new_script = document.getElementById(ID);
     if (!new_script) {
         new_script = document.createElement("script");
@@ -298,7 +298,7 @@ async function AddListener(element, type, listener, add={}) {
     }
 }
 /* 簡化版 */
-async function addlistener(element, type, listener, add={}) {
+async function AddListener(element, type, listener, add={}) {
     element.addEventListener(type, listener, add);
 }
 
@@ -370,10 +370,10 @@ async function WaitElem(selector, all, timeout, callback) {
  *      const [元素1, 元素2, 元素3] = call;
  * })
  */
-async function WaitElem(selectors, timeout, callback) {
+async function WaitMap(selectors, timeout, callback) {
     let timer, elements;
     const observer = new MutationObserver(() => {
-        elements = selectors.map(selector => document.getElementById(selector))
+        elements = selectors.map(selector => document.querySelector(selector))
         if (elements.every(element => element)) {
             observer.disconnect();
             clearTimeout(timer);
@@ -446,6 +446,33 @@ async function log(label, type="log") {
     console.groupCollapsed("%c___ 開發除錯 ___", style.group);
     template[type](label);
     console.groupEnd();
+}
+
+/**
+ ** {控制台打印 API (無樣式, 增強版)}
+ *
+ * @param {*} group     - 打印的標籤
+ * @param {*} label     - 打印的數據
+ * @param {string} type - 要打印的類型
+ * 
+ * @example
+ * log("標籤", "打印文字", "打印類型")
+ */
+async function log(group=null, label="print", type="log") {
+    const template = {
+        log: label=> console.log(label),
+        warn: label=> console.warn(label),
+        error: label=> console.error(label),
+        count: label=> console.count(label),
+    }
+    type = typeof type === "string" && template[type] ? type : type = "log";
+    if (group == null) {
+        template[type](label);
+    } else {
+        console.groupCollapsed(group);
+        template[type](label);
+        console.groupEnd();
+    }
 }
 
 /* ==================================================== */
