@@ -212,17 +212,14 @@ class Collection {
  * 獲取 = $$("要找的DOM", 使否查找所有, 查找的來源)
  */
 function $$(Selector, All=false, Source=document) {
-    if (All) {return Source.querySelectorAll(Selector)}
-    else {
-        const slice = Selector.slice(1);
-        const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
-        switch (analyze) {
-            case "#": return Source.getElementById(slice);
-            case " ": return Source.querySelector(Selector);
-            case ".": return Source.getElementsByClassName(slice)[0];
-            default: return Source.getElementsByTagName(Selector)[0];
-        }
+    const slice = Selector.slice(1), analyze = [" ", ".", "#", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
+    switch (analyze) {
+        case "#": return Source.getElementById(slice);
+        case " ": return All ? Source.querySelectorAll(Selector) : Source.querySelector(Selector);
+        case ".": Selector = Source.getElementsByClassName(slice);break;
+        default: Selector = Source.getElementsByTagName(Selector);
     }
+    return All ? Array.from(Selector) : Selector[0];
 }
 
 /* ==================================================== */
@@ -234,13 +231,13 @@ function $$(Selector, All=false, Source=document) {
  * @param {string} ID   - 創建 ID
  * 
  * @example
- * addstyle(`
+ * AddStyle(`
  *      . class {
  *          樣式
  *      }
  * `, "ID")
  */
-async function addstyle(Rule, ID="Add-Style") {
+async function AddStyle(Rule, ID="Add-Style") {
     let new_style = document.getElementById(ID);
     if (!new_style) {
         new_style = document.createElement("style");
@@ -259,12 +256,12 @@ async function addstyle(Rule, ID="Add-Style") {
  * @param {string} ID   - 創建 ID
  * 
  * @example
- * addscript(`
+ * AddScript(`
  *      var a = 0;
  *      console.log(a);
  * `, "ID")
  */
-async function addscript(Rule, ID="Add-script") {
+async function AddScript(Rule, ID="Add-script") {
     let new_script = document.getElementById(ID);
     if (!new_script) {
         new_script = document.createElement("script");
@@ -287,11 +284,11 @@ let ListenerRecord = new Map(), listen;
  * @param {object} add      - 附加功能
  * 
  * @example
- * addlistener("元素", "click", (e) => {
+ * AddListener("元素", "click", (e) => {
  *      操作
- * })
+ * }, {})
  */
-async function addlistener(element, type, listener, add={}) {
+async function AddListener(element, type, listener, add={}) {
     if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
         element.addEventListener(type, listener, add);
         if (!ListenerRecord.has(element)) {
@@ -313,9 +310,9 @@ async function addlistener(element, type, listener, add={}) {
  * 
  * @example
  * 會自動從紀錄的 ListenerRecord 取出數據進行監聽器的刪除
- * removlistener("元素", "click")
+ * RemovListener("元素", "click")
  */
-async function removlistener(element, type) {
+async function RemovListener(element, type) {
     if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
         listen = ListenerRecord.get(element).get(type);
         element.removeEventListener(type, listen);
@@ -435,7 +432,7 @@ function WorkerCreation(code) {
  * log("打印文字")
  * log("打印錯誤", "error")
  */
-function log(label, type="log") {
+async function log(label, type="log") {
     const style = {
         group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
         text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;`
