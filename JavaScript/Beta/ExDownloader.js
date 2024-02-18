@@ -30,7 +30,8 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
 
-// @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
+// @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
+// @require      https://update.greasyfork.org/scripts/487601/1329268/SimplifiedSyntax.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
@@ -47,11 +48,11 @@
 
 (function() {
     var language, OriginalTitle, CompressMode, ModeDisplay,
-    lock = false, url = document.URL.split("?p=")[0];
+    lock = false, api = new API(), url = document.URL.split("?p=")[0];
 
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: false,
+        DeBug: true,
     }
 
     class Main {
@@ -61,7 +62,7 @@
             this.Ran = (u) => {return this.E.test(u) || this.Ex.test(u)}
             this.Css = (a, e, ex) => {
                 let css = location.hostname != "exhentai.org" ? e : ex;
-                addstyle(`${a}${css}`, "button-style");
+                api.AddStyle(`${a}${css}`, "button-style");
             }
         }
 
@@ -71,13 +72,13 @@
                 language = display_language(navigator.language);
                 OriginalTitle = document.title;
                 this.ButtonCreation();
-                GM_registerMenuCommand(language.MN_01, ()=> {this.__DownloadModeSwitch()});
+                api.Menu({[language.MN_01]: ()=> this.__DownloadModeSwitch()})
             }
         }
 
         /* 按鈕創建 */
         async ButtonCreation() {
-            CompressMode = GM_getValue("CompressedMode", []);
+            CompressMode = api.store("get", "CompressedMode", []);
             ModeDisplay = CompressMode ? language.DM_01 : language.DM_02;
             this.Css(`
                 .Download_Button {
@@ -123,13 +124,13 @@
                 }
             `);
             try {
-                let download_button = GM_addElement($$("#gd2"), "button", {
+                let download_button = GM_addElement(api.$$("#gd2"), "button", {
                     id: "ExDB",
                     class: "Download_Button"
                 });
                 download_button.textContent = lock ? language.DM_03 : ModeDisplay;
                 download_button.disabled = lock ? true : false;
-                download_button.addEventListener("click", () => {
+                api.AddListener(download_button, "click", () => {
                     lock = true;
                     download_button.disabled = true;
                     download_button.textContent = language.DS_01;
@@ -141,9 +142,9 @@
         /* 下載模式切換 */
         async __DownloadModeSwitch() {
             CompressMode?
-            GM_setValue("CompressedMode", false):
-            GM_setValue("CompressedMode", true);
-            $$("#ExDB").remove();
+            api.store("set", "CompressedMode", false):
+            api.store("set", "CompressedMode", true);
+            api.$$("#ExDB").remove();
             this.ButtonCreation();
         }
     }
@@ -194,22 +195,6 @@
             this.parser = new DOMParser();
             /* 取得總頁數 */
             this.Total = (page) => {return Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20)}
-            /* 獲取解析的 DOM 元素 */
-            this.Dom = (html) => {return this.parser.parseFromString(html, "text/html")}
-            /* 排除非法字元 */
-            this.Filter = (name) => {return name.replace(/[\/\?<>\\:\*\|":]/g, '')}
-            /* 獲取擴展名 */
-            this.Extension = (link) => {
-                try {
-                    const match = link.match(/\.([^.]+)$/);
-                    return match[1].toLowerCase() || "png";
-                } catch {return "png"}
-            }
-            /* work創建 */
-            this.WorkerCreation = (code) => {
-                let blob = new Blob([code], {type: "application/javascript"});
-                return new Worker(URL.createObjectURL(blob));
-            }
             /* 取得填充值(最少填充 2 個 0) */
             this.FillValue = (page) => {
                 return Math.max(2, `${page}`.length);
@@ -223,11 +208,11 @@
         /* 主頁數據處理 */
         async HomeData(button) {
             // 當異步函數內又有異步函數, 且他需要調用, 構建函數時不能直接使用 this 正確指向, 因此需要 self = this
-            let homepage = new Map(), self = this, task = 0, DC = 1, HomeD = this.Home_ID, pages = this.Total($$("#gdd td.gdt2", true)),
-            title = this.Filter($$("#gj").textContent.trim() || $$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
+            let homepage = new Map(), task = 0, DC = 1, HomeD = this.Home_ID, pages = this.Total(api.$$("#gdd td.gdt2", true)),
+            title = api.IllegalCharacters(api.$$("#gj").textContent.trim() || api.$$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
             this.DownloadMode = CompressMode;
 
-            const worker = this.WorkerCreation(`
+            const worker = api.WorkerCreation(`
                 let queue = [], processing = false;
                 onmessage = function(e) {
                     const {index, url, time, delay} = e.data;
@@ -266,7 +251,7 @@
                 const {index, html, time, delay, error} = e.data;
                 HomeD = this.Dynamic(time, delay, null, this.Home_ND);
                 error ? FetchRequest(index, html, 10):
-                GetLink(index, this.Dom(html));
+                GetLink(index, api.DomParse(html));
             }
 
             // 數據試錯請求
@@ -274,7 +259,7 @@
                 try {
                     const response = await fetch(url);
                     const html = await response.text();
-                    await GetLink(index, self.Dom(html));
+                    await GetLink(index, api.DomParse(html));
                 } catch {
                     if (retry > 0) {
                         await FetchRequest(index, url, retry-1);
@@ -288,7 +273,7 @@
             async function GetLink(index, data) {
                 const homebox = [];
                 try {
-                    $$("#gdt a", true, data).forEach(link => {
+                    api.$$("#gdt a", true, data).forEach(link => {
                         homebox.push(link.href)
                     });
                     homepage.set(index, homebox);
@@ -312,7 +297,7 @@
                         homebox.push(...homepage.get(i));
                     }
                     if (Config.DeBug) {
-                        log("Home Page Data", `[Title] : ${title}\n${homebox}`);
+                        api.log("Home Page Data", `[Title] : ${title}\n${homebox}`);
                     }
                     this.__ImageData(button, title, homebox);
                 }
@@ -321,9 +306,9 @@
 
         /* 漫畫連結處理 */
         async __ImageData(button, title, link) {
-            let imgbox = new Map(), pages = link.length, self = this, DC = 1, task = 0, ImageD = this.Image_ID;
+            let imgbox = new Map(), pages = link.length, DC = 1, task = 0, ImageD = this.Image_ID;
 
-            const worker = this.WorkerCreation(`
+            const worker = api.WorkerCreation(`
                 let queue = [], processing = false;
                 onmessage = function(e) {
                     const {index, url, time, delay} = e.data;
@@ -361,7 +346,7 @@
                 const {index, html, time, delay, error} = e.data;
                 ImageD = this.Dynamic(time, delay, null, this.Image_ND);
                 error ? FetchRequest(index, html, 10) :
-                GetLink(index, $$("#img", false, this.Dom(html)));
+                GetLink(index, api.$$("#img", false, api.DomParse(html)));
             }
 
             // 數據試錯請求
@@ -369,7 +354,7 @@
                 try {
                     const response = await fetch(url);
                     const html = await response.text();
-                    await GetLink(index, $$("#img", false, self.Dom(html)));
+                    await GetLink(index, api.$$("#img", false, api.DomParse(html)));
                 } catch {
                     if (retry > 0) {
                         await FetchRequest(index, url, retry-1);
@@ -399,7 +384,7 @@
                     clearInterval(interval);
                     worker.terminate();
                     if (Config.DeBug) {
-                        log("Img Link Data", imgbox);
+                        api.log("Img Link Data", imgbox);
                     }
                     this.__DownloadTrigger(button, title, imgbox);
                 }
@@ -429,7 +414,7 @@
                             onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                     [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${self.Extension(link)}`, response.response);
+                                    Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, response.response);
                                     document.title = `[${progress}/${Total}]`;
                                     Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
                                     progress++;
@@ -437,7 +422,7 @@
                                 } else {
                                     if (retry > 0) {
                                         [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                        Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
+                                        Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                         setTimeout(() => {
                                             Request(index, retry-1);
                                             resolve();
@@ -450,13 +435,13 @@
                             onerror: error => {
                                 if (retry > 0) {
                                     [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
+                                    Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
                                     }, delay * 2);
                                 } else {
-                                    log("Request Error", `(Error Link) : [${link}]`, "error");
+                                    api.log("Request Error", `(Error Link) : [${link}]`, "error");
                                     reject(error);
                                 }
                             }
@@ -488,7 +473,7 @@
                     if (typeof link !== "undefined") {
                         GM_download({
                             url: link,
-                            name: `${Folder}-${self.Mantissa(index, Fill)}.${self.Extension(link)}`,
+                            name: `${Folder}-${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`,
                             onload: () => {
                                 [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 document.title = `[${progress}/${Total}]`;
@@ -499,7 +484,7 @@
                             onerror: () => {
                                 if (retry > 0) {
                                     [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Config.DeBug ? log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
+                                    Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
@@ -540,8 +525,8 @@
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
                 Button.textContent = `${language.DS_05}: ${progress.percent.toFixed(1)} %`;
-            }).then(async zip => {
-                await saveAs(zip, `${Folder}.zip`);
+            }).then(zip => {
+                saveAs(zip, `${Folder}.zip`);
                 Button.textContent = language.DS_06;
                 document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
@@ -569,53 +554,9 @@
     /* 按鈕重置 */
     async function ResetButton() {
         lock = false;
-        let Button = $$("#ExDB");
+        let Button = api.$$("#ExDB");
         Button.disabled = false;
         Button.textContent = `✓ ${ModeDisplay}`;
-    }
-
-    /* 樣式添加 */
-    async function addstyle(Rule, ID="Add-Style") {
-        let new_style = $$(`#${ID}`);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-            new_style.appendChild(document.createTextNode(Rule));
-        }
-    }
-
-    /* 元素查找 */
-    function $$(Selector, All=false, Source=document) {
-        if (All) {return Source.querySelectorAll(Selector)}
-        else {
-            const slice = Selector.slice(1);
-            const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
-            switch (analyze) {
-                case "#": return Source.getElementById(slice);
-                case " ": return Source.querySelector(Selector);
-                case ".": return Source.getElementsByClassName(slice)[0];
-                default: return Source.getElementsByTagName(Selector)[0];
-            }
-        }
-    }
-
-    /* 打印 */
-    async function log(group=null, label="print", type="log") {
-        const template = {
-            log: label=> console.log(label),
-            warn: label=> console.warn(label),
-            error: label=> console.error(label),
-            count: label=> console.count(label),
-        }
-        type = typeof type === "string" && template[type] ? type : type = "log";
-        if (group == null) {
-            template[type](label);
-        } else {
-            console.groupCollapsed(group);
-            template[type](label);
-            console.groupEnd();
-        }
     }
 
     function display_language(language) {
