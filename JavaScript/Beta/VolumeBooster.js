@@ -2,7 +2,10 @@
 // @name         影片音量增強器
 // @version      0.0.30
 // @author       HentaiSaru
-// @description  增強影片音量上限，最高增幅至 10 倍，尚未測試是否所有網域都可使用，當影片無聲時，禁止該腳本在該網域上運行。
+// @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
+// @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
+// @description:zh-CN 增强影片音量上限，最高增幅至 20 倍。有些不支援的网站，影片会没声音，禁用增幅即可。命令选单有时有 BUG 会多创建一个，但不影响原功能使用。
+// @description:en Enhance the upper limit of video volume, boosting up to 20 times. For unsupported websites where videos have no sound, disabling the boost is sufficient. Occasionally, there may be a bug in the command menu causing duplication, but it does not affect the original functionality.
 
 // @match        *://*/*
 // @icon         https://cdn-icons-png.flaticon.com/512/8298/8298181.png
@@ -15,80 +18,42 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
+// @require      https://update.greasyfork.org/scripts/487608/1329278/GrammarSimplified.js
 // ==/UserScript==
 
 (function() {
     const Support = /^(http|https):\/\/(?!chrome\/|about\/).*$/i;
     if (Support.test(document.URL)) {
-        class API {
-            constructor() {
-                /* 添加監聽(簡化) */
-                this.addlistener = async(element, type, listener, add={}) => {
-                    element.addEventListener(type, listener, add);
-                }
-
-                /* 註冊菜單 API */
-                this.Menu = async(item) => {
-                    for (const [name, call] of Object.entries(item)) {
-                        GM_registerMenuCommand(name, ()=> {call()});
-                    }
-                }
-            }
-
-            /* 查找元素 */
-            $$(Selector, All=false, Source=document) {
-                if (All) {return Source.querySelectorAll(Selector)}
-                else {
-                    const slice = Selector.slice(1);
-                    const analyze = (slice.includes(" ") || slice.includes(".") || slice.includes("#")) ? " " : Selector[0];
-                    switch (analyze) {
-                        case "#": return Source.getElementById(slice);
-                        case " ": return Source.querySelector(Selector);
-                        case ".": return Source.getElementsByClassName(slice)[0];
-                        default: return Source.getElementsByTagName(Selector)[0];
-                    }
-                }
-            }
-
-            /* 數據保存讀取 API */
-            store(operate, key, orig=null){
-                return {
-                    __verify: val => val !== undefined ? val : null,
-                    set: function(val, put) {return GM_setValue(val, put)},
-                    get: function(val, call) {return this.__verify(GM_getValue(val, call))},
-                    setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
-                    getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
-                }[operate](key, orig);
-            }
-        }
-
         class Main extends API {
             constructor() {
                 super();
                 this.Booster = null;
                 this.Increase = null;
                 this.Domain = location.hostname;
-                this.EnabledDomains = this.store("get", "啟用網域", []);
-                this.EnabledStatus = this.EnabledDomains.includes(this.Domain);
+                this.Display = this.Language(navigator.language);
+                this.BannedDomains = this.store("get", "BannedDomains", []);
+                this.ExcludeStatus = this.BannedDomains.includes(this.Domain);
 
-                /* 使用自動增幅 */
-                this.Useboost = async(domain) => {
-                    if (this.EnabledStatus) {
-                        this.EnabledDomains = this.EnabledDomains.filter(value => { // 從已啟用列表中移除當前網域
-                            return value !== domain;
-                        });
-                        alert("❌ 禁用自動增幅");
+                /* 禁止網域 */
+                this.BannedDomain = async(domain) => {
+                    if (this.ExcludeStatus) {
+                        // 從排除列表刪除網域
+                        this.BannedDomains = this.BannedDomains.filter(d => {return d != domain});
                     } else {
-                        this.EnabledDomains.push(domain); // 添加當前網域到已啟用列表
-                        alert("✅ 啟用自動增幅");
+                        // 添加網域到排除列表
+                        this.BannedDomains.push(domain);
                     }
-                    this.store("set", "啟用網域", this.EnabledDomains);
+                    this.store("set", "BannedDomains", this.BannedDomains);
                     location.reload();
                 }
 
+                this.StatusMenu = async(name) => {
+                    this.Menu({[name]: ()=> this.BannedDomain(this.Domain)});
+                }
+
                 /* 註冊快捷鍵(開啟菜單) */
-                this.MenuHotkey = () => {
-                    this.addlistener(document, "keydown", event => {
+                this.MenuHotkey = async() => {
+                    this.AddListener(document, "keydown", event => {
                         if (event.altKey && event.key === "b") {
                             this.IncrementalSetting();
                         }
@@ -96,24 +61,30 @@
                 }
             }
 
-            /* 監聽注入 */
-            async Injection() {
-                let Video;
-                const observer = new MutationObserver(() => {
-                    Video = this.$$("video");
-                    if (Video && !Video.hasAttribute("Video-Audio-Booster")) {
-                        this.VideoBooster(Video);
-                    }
-                });
-                observer.observe(document.head, { childList: true, subtree: true });
+            /* 監聽注入 (注意所有的 this 都要改 self) */
+            static async Injection() {
+                let Video, self = new Main();
+
+                if (!self.ExcludeStatus) {
+                    const observer = new MutationObserver(() => {
+                        Video = Video == undefined ? self.$$("video") : Video;
+                        if (Video && !Video.hasAttribute("Video-Audio-Booster")) {
+                            self.VideoBooster(Video);
+                        }
+                    });
+                    observer.observe(document.head, { childList: true, subtree: true });
+                    self.StatusMenu(self.Display.MD);
+                } else {
+                    self.StatusMenu(self.Display.MS);
+                }
             }
 
             /* 找到 Video 元素後進行操作 */
             async VideoBooster(video) {
                 try {
-                    this.Increase = this.EnabledStatus ? this.store("get", this.Domain) || 1.0 : 1.0;
+                    this.Increase = this.store("get", this.Domain) || 1.0;
                     this.Booster = this.BoosterLogic(video, this.Increase);
-                    GM_addStyle(`
+                    this.AddStyle(`
                         .Booster-Modal-Background {
                             top: 0;
                             left: 0;
@@ -132,6 +103,7 @@
                             color: #d877ff;
                             font-size: 16px;
                             font-weight: bold;
+                            padding: 0 0.3rem;
                             border-radius: 3px;
                             background-color: #ffebfa;
                             border: 1px solid rgb(124, 183, 252);
@@ -162,12 +134,11 @@
                         .Booster-Slider {width: 350px;}
                         div input {cursor: pointer;}
                     `);
-                    this.MenuHotkey();
                     this.Menu({
-                        "🔊 [開關] 自動增幅": ()=> this.Useboost(this.Domain),
-                        "🛠️ 設置增幅": ()=> this.IncrementalSetting(),
-                        "📜 菜單熱鍵": ()=> alert("熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)"),
-                    })
+                        [this.Display.MK]: ()=> alert(this.Display.MKT),
+                        [this.Display.MM]: ()=> this.IncrementalSetting()
+                    });
+                    this.MenuHotkey();
                 } catch {}
             }
 
@@ -183,7 +154,7 @@
                 // 將預設音量調整至 100% (有可能被其他腳本調整)
                 video.volume = 1;
                 // 設置增量
-                GainNode.gain.value = increase * increase;
+                GainNode.gain.value = increase ** 2;
 
                 // 設置動態壓縮器的參數(通用性測試!!)
                 CompressorNode.ratio.value = 6; // 壓縮率
@@ -227,16 +198,16 @@
                     modal.innerHTML = `
                         <div class="Booster-Modal-Background">
                             <div class="Booster-Modal-Content">
-                                <h2 style="color: #3754f8;">音量增強</h2>
+                                <h2 style="color: #3754f8;">${this.Display.ST}</h2>
                                 <div style="margin:1rem auto 1rem auto;">
                                     <div class="Booster-Multiplier">
-                                        <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">增強倍數 </span><span id="CurrentValue">${this.Increase}</span><span> 倍</span>
+                                        <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">${this.Display.S1}</span><span id="CurrentValue">${this.Increase}</span><span>${this.Display.S2}</span>
                                     </div>
-                                    <input type="range" id="sound-amplification" class="Booster-Slider" min="0" max="10.0" value="${this.Increase}" step="0.1"><br>
+                                    <input type="range" id="sound-amplification" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
                                 </div>
                                 <div style="text-align: right;">
-                                    <button class="Booster-Modal-Button" id="sound-save">保存設置</button>
-                                    <button class="Booster-Modal-Button" id="sound-close">退出選單</button>
+                                    <button class="Booster-Modal-Button" id="sound-save">${this.Display.SS}</button>
+                                    <button class="Booster-Modal-Button" id="sound-close">${this.Display.SC}</button>
                                 </div>
                             </div>
                         </div>
@@ -247,31 +218,56 @@
                     const slider = this.$$("#sound-amplification");
 
                     // 監聽設定拉條
-                    this.addlistener(slider, "input", event => {
+                    this.AddListener(slider, "input", event => {
                         const Current = event.target.value;
                         CurrentValue.textContent = Current;
                         this.Booster.setVolume(Current);
                     }, { passive: true, capture: true });
 
                     // 監聽保存關閉
-                    this.addlistener(this.$$(".Booster-Modal-Background"), "click", click => {
+                    this.AddListener(this.$$(".Booster-Modal-Background"), "click", click => {
                         click.stopPropagation();
                         const target = click.target;
                         if (target.id === "sound-save") {
-                            if (this.EnabledStatus) {
-                                const value = parseFloat(slider.value);
-                                this.Increase = value;
-                                this.store("set", this.Domain, value);
-                                this.$$(".Booster-Modal-Background").remove();
-                            } else {alert("需啟用自動增幅才可保存")}
+                            const value = parseFloat(slider.value);
+                            this.Increase = value;
+                            this.store("set", this.Domain, value);
+                            this.$$(".Booster-Modal-Background").remove();
                         } else if (target.className === "Booster-Modal-Background" || target.id === "sound-close") {
                             this.$$(".Booster-Modal-Background").remove();
                         }
                     }, { capture: true });
                 }
             }
+
+            /* 語言 */
+            Language(language) {
+                const display = {
+                    "zh-TW": [{
+                        "MS": "✅ 啟用增幅", "MD": "❌ 禁用增幅",
+                        "MK": "📜 菜單熱鍵", "MM": "🛠️ 調整菜單",
+                        "MKT": "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)",
+                        "ST": "音量增強", "S1": "增強倍數 ", "S2": " 倍",
+                        "SS": "保存設置", "SC": "退出選單",
+                    }],
+                    "zh-CN": [{
+                        "MS": "✅ 启用增幅", "MD": "❌ 禁用增幅",
+                        "MK": "📜 菜单热键", "MM": "🛠️ 调整菜单",
+                        "MKT": "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)",
+                        "ST": "音量增强", "S1": "增强倍数 ", "S2": " 倍",
+                        "SS": "保存设置", "SC": "退出菜单",
+                    }],
+                    "en-US": [{
+                        "MS": "✅ Enable Boost", "MD": "❌ Disable Boost",
+                        "MK": "📜 Menu Hotkey", "MM": "🛠️ Adjust Menu",
+                        "MKT": "Hotkey to Call Menu Adjustments!!\n\nShortcut: (Alt + B)",
+                        "ST": "Volume Boost", "S1": "Boost Level ", "S2": " X",
+                        "SS": "Save Settings", "SC": "Exit Menu",
+                    }],
+                }
+                return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
+            }
         }
-        const main = new Main();
-        main.Injection();
+        Main.Injection();
     }
 })();
