@@ -125,7 +125,7 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerEnhance.js",
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/ExDownloader.js",
   "R:/test.js", false
 );
 
