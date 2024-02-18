@@ -40,7 +40,7 @@
     lock = false, api = new API(), url = document.URL.split("?p=")[0];
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: true,
+        DeBug: false,
     }
     class Main {
         constructor() {
