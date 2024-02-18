@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.13
+// @version      0.0.14
 // @author       HentaiSaru
 // @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
 // @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
@@ -31,7 +31,7 @@
 // @grant        GM_registerMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487601/1329268/SimplifiedSyntax.js
+// @require      https://update.greasyfork.org/scripts/487608/1329278/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
