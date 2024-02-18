@@ -426,7 +426,6 @@
                             method: "GET",
                             url: link,
                             responseType: "blob",
-                            headers : {"user-agent": navigator.userAgent},
                             onload: response => {
                                 if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                     [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
@@ -442,7 +441,7 @@
                                         setTimeout(() => {
                                             Request(index, retry-1);
                                             resolve();
-                                        }, delay);
+                                        }, delay * 2);
                                     } else {
                                         reject(new Error("Request error"));
                                     }
@@ -455,7 +454,7 @@
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, delay);
+                                    }, delay * 2);
                                 } else {
                                     log("Request Error", `(Error Link) : [${link}]`, "error");
                                     reject(error);
@@ -504,7 +503,7 @@
                                     setTimeout(() => {
                                         Request(index, retry-1);
                                         resolve();
-                                    }, delay);
+                                    }, delay * 2);
                                 } else {
                                     reject(new Error("Request error"));
                                 }
@@ -602,7 +601,7 @@
     }
 
     /* 打印 */
-    function log(group=null, label="print", type="log") {
+    async function log(group=null, label="print", type="log") {
         const template = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
