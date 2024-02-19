@@ -50,17 +50,23 @@
                 }
 
                 /* 開始註冊選單 */
-                this.StatusMenu = async(name) => {
+                this.StatusMenu = (name) => {
                     this.Menu({[name]: ()=> this.BannedDomain(this.Domain)});
                 }
 
                 /* 註冊快捷鍵(開啟菜單) */
-                this.MenuHotkey = async() => {
-                    this.AddListener(document, "keydown", event => {
-                        if (event.altKey && event.key === "b") {
-                            this.IncrementalSetting();
-                        }
-                    }, { passive: true, capture: true });
+                this.MenuHotkey = () => {
+                    // this.AddListener(document, "keydown", event => {
+                        // if (event.altKey && event.key === "b") {
+                            // this.IncrementalSetting();
+                        // }
+                    // }, { passive: true, capture: true });
+
+                    this.Listen(document, "keydown", event => {
+                        if (event.altKey && event.key === "b") {this.IncrementalSetting()}
+                    }, { passive: true, capture: true }, state => {
+                        state ? this.log(null, "菜單快捷註冊成功") : this.log(null, "菜單快捷註冊失敗");
+                    });
                 }
 
                 /* 驗證最終添加狀態 */
@@ -205,11 +211,11 @@
                     }
 
                     // 完成後創建菜單
-                    this.MenuHotkey();
                     this.Menu({
                         [this.Display.MK]: ()=> alert(this.Display.MKT),
                         [this.Display.MM]: ()=> this.IncrementalSetting()
                     });
+                    this.MenuHotkey();
 
                     // 顯示完成添加
                     this.log(
