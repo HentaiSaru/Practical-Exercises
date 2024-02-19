@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         影片音量增強器
-// @version      0.0.30
+// @version      0.0.31
 // @author       HentaiSaru
 // @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音 或是 沒有效果，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
@@ -14,6 +14,7 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-start
+// @grant        unsafeWindow
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -47,6 +48,7 @@
                     location.reload();
                 }
 
+                /* 開始註冊選單 */
                 this.StatusMenu = async(name) => {
                     this.Menu({[name]: ()=> this.BannedDomain(this.Domain)});
                 }
@@ -59,17 +61,23 @@
                         }
                     }, { passive: true, capture: true });
                 }
+
+                /* 驗證最終添加狀態 */
+                this.Verify = () => {
+                    const media = this.$$("video, audio");
+                    return media && media.hasAttribute("Media-Audio-Booster") ? true : false;
+                }
             }
 
             /* 監聽注入 (注意所有的 this 都要改 self) */
             static async Injection() {
-                let Video, self = new Main();
+                let media, self = new Main();
 
                 if (!self.ExcludeStatus) {
                     const observer = new MutationObserver(() => {
-                        Video = Video == undefined ? self.$$("video, audio") : Video;
-                        if (Video && !Video.hasAttribute("Video-Audio-Booster")) {
-                            self.VideoBooster(Video);
+                        media = media == undefined ? self.$$("video, audio") : media;
+                        if (media && !media.hasAttribute("Media-Audio-Booster")) {
+                            self.Trigger(media, performance.now());
                         }
                     });
                     observer.observe(document.head, { childList: true, subtree: true });
@@ -79,11 +87,11 @@
                 }
             }
 
-            /* 找到 Video 元素後進行操作 */
-            async VideoBooster(video) {
+            /* 找到元素後觸發操作 */
+            async Trigger(media, time) {
                 try {
                     this.Increase = this.store("get", this.Domain) || 1.0;
-                    this.Booster = this.BoosterLogic(video, this.Increase);
+                    this.Booster = this.BoosterLogic(media, this.Increase, time);
                     this.AddStyle(`
                         .Booster-Modal-Background {
                             top: 0;
@@ -134,58 +142,85 @@
                         .Booster-Slider {width: 350px;}
                         div input {cursor: pointer;}
                     `);
-                    this.Menu({
-                        [this.Display.MK]: ()=> alert(this.Display.MKT),
-                        [this.Display.MM]: ()=> this.IncrementalSetting()
-                    });
-                    this.MenuHotkey();
                 } catch {}
             }
 
             /* 音量增量邏輯 */
-            BoosterLogic(video, increase) {
-                const AudioContext = new (window.AudioContext || window.webkitAudioContext)();
-                const SourceNode = AudioContext.createMediaElementSource(video); // 音頻來源
-                const GainNode = AudioContext.createGain(); // 增益節點
-                const LowFilterNode = AudioContext.createBiquadFilter(); // 低音慮波器
-                const HighFilterNode = AudioContext.createBiquadFilter(); // 高音濾波器
-                const CompressorNode = AudioContext.createDynamicsCompressor(); // 動態壓縮節點
+            BoosterLogic(media, increase, time) {
+                const Support = window.AudioContext || window.oAudioContext;
 
-                // 將預設音量調整至 100% (有可能被其他腳本調整)
-                video.volume = 1;
-                // 設置增量
-                GainNode.gain.value = increase ** 2;
+                try {
 
-                // 設置動態壓縮器的參數(通用性測試!!)
-                CompressorNode.ratio.value = 6; // 壓縮率
-                CompressorNode.knee.value = 0.5; // 壓縮過渡反應時間(越小越快)
-                CompressorNode.threshold.value = -14; // 壓縮閾值
-                CompressorNode.attack.value = 0.020; // 開始壓縮的速度
-                CompressorNode.release.value = 0.40; // 釋放壓縮的速度
-
-                // 低音慮波增強
-                LowFilterNode.frequency.value = 250;
-                LowFilterNode.type = "lowshelf";
-                LowFilterNode.gain.value = 2.2;
-
-                // 高音慮波增強
-                HighFilterNode.frequency.value = 10000;
-                HighFilterNode.type = "highshelf";
-                HighFilterNode.gain.value = 1.8;
-
-                // 進行節點連結
-                SourceNode.connect(GainNode).connect(LowFilterNode).connect(HighFilterNode);
-                GainNode.connect(CompressorNode).connect(AudioContext.destination);
-
-                // 節點創建標記
-                video.setAttribute("Video-Audio-Booster", true);
-
-                return {
-                    // 設置音量
-                    setVolume: increase => {
-                        GainNode.gain.value = increase ** 2;
-                        this.Increase = increase;
+                    if (!Support) {
+                        throw this.Display.BT1;
                     }
+
+                    const AudioContext = new Support();
+                    const SourceNode = AudioContext.createMediaElementSource(media); // 音頻來源
+                    const GainNode = AudioContext.createGain(); // 增益節點
+                    const LowFilterNode = AudioContext.createBiquadFilter(); // 低音慮波器
+                    const HighFilterNode = AudioContext.createBiquadFilter(); // 高音濾波器
+                    const CompressorNode = AudioContext.createDynamicsCompressor(); // 動態壓縮節點
+
+                    // 將預設音量調整至 100% (有可能被其他腳本調整)
+                    media.volume = 1;
+                    // 設置增量
+                    GainNode.gain.value = increase ** 2;
+
+                    // 設置動態壓縮器的參數(通用性測試!!)
+                    CompressorNode.ratio.value = 6; // 壓縮率
+                    CompressorNode.knee.value = 0.5; // 壓縮過渡反應時間(越小越快)
+                    CompressorNode.threshold.value = -14; // 壓縮閾值
+                    CompressorNode.attack.value = 0.020; // 開始壓縮的速度
+                    CompressorNode.release.value = 0.40; // 釋放壓縮的速度
+
+                    // 低音慮波增強
+                    LowFilterNode.frequency.value = 250;
+                    LowFilterNode.type = "lowshelf";
+                    LowFilterNode.gain.value = 2.2;
+
+                    // 高音慮波增強
+                    HighFilterNode.frequency.value = 10000;
+                    HighFilterNode.type = "highshelf";
+                    HighFilterNode.gain.value = 1.8;
+
+                    // 進行節點連結
+                    SourceNode.connect(GainNode).connect(LowFilterNode).connect(HighFilterNode);
+                    GainNode.connect(CompressorNode).connect(AudioContext.destination);
+
+                    // 節點創建標記
+                    media.setAttribute("Media-Audio-Booster", true);
+
+                    if (!this.Verify()) {
+                        throw this.Display.BT2;
+                    }
+
+                    // 完成後創建菜單
+                    this.MenuHotkey();
+                    this.Menu({
+                        [this.Display.MK]: ()=> alert(this.Display.MKT),
+                        [this.Display.MM]: ()=> this.IncrementalSetting()
+                    });
+
+                    // 顯示完成添加
+                    this.log(
+                        this.Display.BT3,
+                        {
+                            "Booster Media : ": media,
+                            "Elapsed Time : ": `${(performance.now() - time).toFixed(2)}ms`
+                        }
+                    );
+
+                    return {
+                        // 設置音量
+                        setVolume: increase => {
+                            GainNode.gain.value = increase ** 2;
+                            this.Increase = increase;
+                        }
+                    }
+
+                } catch (error) {
+                    this.log(this.Display.BT4, error);
                 }
             }
 
@@ -245,6 +280,8 @@
                         "MS": "✅ 啟用增幅", "MD": "❌ 禁用增幅",
                         "MK": "📜 菜單熱鍵", "MM": "🛠️ 調整菜單",
                         "MKT": "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)",
+                        "BT1": "不支援音頻增強節點", "BT2": "添加增強節點失敗",
+                        "BT3": "添加增強節點成功", "BT4": "增強失敗",
                         "ST": "音量增強", "S1": "增強倍數 ", "S2": " 倍",
                         "SS": "保存設置", "SC": "退出選單",
                     }],
@@ -252,6 +289,8 @@
                         "MS": "✅ 启用增幅", "MD": "❌ 禁用增幅",
                         "MK": "📜 菜单热键", "MM": "🛠️ 调整菜单",
                         "MKT": "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)",
+                        "BT1": "不支援音频增强节点", "BT2": "添加增强节点失败",
+                        "BT3": "添加增强节点成功", "BT4": "增强失败",
                         "ST": "音量增强", "S1": "增强倍数 ", "S2": " 倍",
                         "SS": "保存设置", "SC": "退出菜单",
                     }],
@@ -259,6 +298,8 @@
                         "MS": "✅ Enable Boost", "MD": "❌ Disable Boost",
                         "MK": "📜 Menu Hotkey", "MM": "🛠️ Adjust Menu",
                         "MKT": "Hotkey to Call Menu Adjustments!!\n\nShortcut: (Alt + B)",
+                        "BT1": "Audio enhancement node not supported", "BT2": "Failed to add enhancement node",
+                        "BT3": "Enhancement node added successfully", "BT4": "Enhancement failed",
                         "ST": "Volume Boost", "S1": "Boost Level ", "S2": " X",
                         "SS": "Save Settings", "SC": "Exit Menu",
                     }],
