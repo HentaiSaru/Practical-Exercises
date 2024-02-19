@@ -4,6 +4,7 @@
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
+// @match        *://*/*
 // ==/UserScript==
 
 /**
