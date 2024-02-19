@@ -30,6 +30,7 @@
                 super();
                 this.Booster = null;
                 this.Increase = null;
+                this.StyleTag = false;
                 this.Domain = location.hostname;
                 this.Display = this.Language(navigator.language);
                 this.BannedDomains = this.store("get", "BannedDomains", []);
@@ -75,7 +76,9 @@
 
                 if (!self.ExcludeStatus) {
                     const observer = new MutationObserver(() => {
-                        media = media == undefined ? self.$$("video") : media;
+                        /* 雖說這樣可以節省性能, 但是無法找到新的元素 */
+                        // media = media == undefined ? self.$$("video") : media;
+                        media = self.$$("video") // 比較消耗性能的寫法
                         if (media && !media.hasAttribute("Media-Audio-Booster")) {
                             self.Trigger(media, performance.now());
                         }
@@ -90,9 +93,12 @@
             /* 找到元素後觸發操作 */
             async Trigger(media, time) {
                 try {
-                    this.Increase = this.store("get", this.Domain) || 1.0;
-                    this.Booster = this.BoosterLogic(media, this.Increase, time);
-                    this.AddStyle(`
+                    this.Increase = this.store("get", this.Domain) || 1.0; // 重製增量
+                    this.Booster = this.BoosterLogic(media, this.Increase, time); // 重新添加節點
+
+                    if (!this.StyleTag) {
+                        this.StyleTag = true;
+                        this.AddStyle(`
                         .Booster-Modal-Background {
                             top: 0;
                             left: 0;
@@ -141,8 +147,11 @@
                         }
                         .Booster-Slider {width: 350px;}
                         div input {cursor: pointer;}
-                    `);
-                } catch {}
+                        `);
+                    }
+                } catch (error) {
+                    this.log("Trigger Error : ", error, "error");
+                }
             }
 
             /* 音量增量邏輯 */
@@ -270,6 +279,7 @@
                             this.$$(".Booster-Modal-Background").remove();
                         }
                     }, { capture: true });
+
                 }
             }
 
