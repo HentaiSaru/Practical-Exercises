@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         影片音量增強器
-// @version      0.0.31
+// @version      0.0.32
 // @author       HentaiSaru
 // @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音 或是 沒有效果，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
@@ -19,7 +19,7 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @require      https://update.greasyfork.org/scripts/487608/1329278/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -50,22 +50,17 @@
                 }
 
                 /* 開始註冊選單 */
-                this.StatusMenu = (name) => {
+                this.StatusMenu = async(name) => {
                     this.Menu({[name]: ()=> this.BannedDomain(this.Domain)});
                 }
 
                 /* 註冊快捷鍵(開啟菜單) */
-                this.MenuHotkey = () => {
-                    // this.AddListener(document, "keydown", event => {
-                        // if (event.altKey && event.key === "b") {
-                            // this.IncrementalSetting();
-                        // }
-                    // }, { passive: true, capture: true });
-
+                this.MenuHotkey = async(time) => {
                     this.Listen(document, "keydown", event => {
-                        if (event.altKey && event.key === "b") {this.IncrementalSetting()}
+                        if (event.altKey && event.key.toUpperCase() == "B") {this.IncrementalSetting()}
                     }, { passive: true, capture: true }, state => {
-                        state ? this.log(null, "菜單快捷註冊成功") : this.log(null, "菜單快捷註冊失敗");
+                        const Elapsed = `${(performance.now() - time).toFixed(2)}ms`;
+                        state ? this.log("Hotkey Success", Elapsed) : this.log("Hotkey Failed", Elapsed);
                     });
                 }
 
@@ -215,7 +210,7 @@
                         [this.Display.MK]: ()=> alert(this.Display.MKT),
                         [this.Display.MM]: ()=> this.IncrementalSetting()
                     });
-                    this.MenuHotkey();
+                    this.MenuHotkey(time);
 
                     // 顯示完成添加
                     this.log(
