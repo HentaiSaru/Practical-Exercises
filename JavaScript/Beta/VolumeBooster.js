@@ -64,7 +64,7 @@
 
                 /* 驗證最終添加狀態 */
                 this.Verify = () => {
-                    const media = this.$$("video, audio");
+                    const media = this.$$("video");
                     return media && media.hasAttribute("Media-Audio-Booster") ? true : false;
                 }
             }
@@ -75,7 +75,7 @@
 
                 if (!self.ExcludeStatus) {
                     const observer = new MutationObserver(() => {
-                        media = media == undefined ? self.$$("video, audio") : media;
+                        media = media == undefined ? self.$$("video") : media;
                         if (media && !media.hasAttribute("Media-Audio-Booster")) {
                             self.Trigger(media, performance.now());
                         }
