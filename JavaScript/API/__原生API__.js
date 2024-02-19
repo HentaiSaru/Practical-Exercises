@@ -297,9 +297,27 @@ async function AddListener(element, type, listener, add={}) {
         ListenerRecord.get(element).set(type, listener);
     }
 }
-/* 簡化版 */
-async function AddListener(element, type, listener, add={}) {
-    element.addEventListener(type, listener, add);
+
+/**
+ ** { 簡化版監聽器 (不可刪除) }
+ * @param {string} element - 添加元素
+ * @param {string} type    - 監聽器類型
+ * @param {*} listener     - 監聽後操作
+ * @param {object} add     - 附加功能
+ * @returns {boolean}      - 回傳添加狀態
+ * 
+ * @example
+ * Listen("監聽元素", "監聽類型", 觸發 => {
+ *      觸發... 其他操作
+ * }, {once: true, capture: true, passive: true}, 接收註冊狀態 => {
+ *      console.log(註冊狀態)
+ * })
+ */
+async function Listen(element, type, listener, add={}, callback) {
+    try {
+        element.addEventListener(type, listener, add);
+        callback(true);
+    } catch {callback(false)}
 }
 
 /**
