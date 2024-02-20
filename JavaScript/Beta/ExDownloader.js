@@ -53,7 +53,7 @@
 
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: true,
+        DeBug: false,
     }
 
     class Main {
@@ -362,7 +362,8 @@
         /* 壓縮下載 */
         async ZipDownload(Button, Folder, ImgData) {
             const self=this, Data=new JSZip(), force = GM_registerMenuCommand("📥強制壓縮", ()=> ForceDownload());
-            let time, blob, count=0, progress=0,
+            let time, blob, count=0, progress=0, clean=false,
+            ReTry=Config.ReTry,
             Total=ImgData.size,
             delay=self.Download_ID,
             thread=self.Download_IT,
@@ -387,16 +388,17 @@
 
                 if (progress == Total) {
                     Total = ImgData.size;
-                    if (Total == 0) {
-                        self.Compression(Data, Folder, Button, force);
-                        self.Storage(`[${Folder} - Blob Cache]`, BlobCache);
-                    } else {
-                        progress = 0;
-                        self.Show = "失敗重試...";
-                        document.title = self.Show;
-                        Button.textContent = self.Show;
-                        await self.sleep(3000);
-                        await StartDownload();
+                    if (Total == 0) {self.Compression(Data, Folder, Button, force)}
+                    else {
+                        ReTry -= 1; // 超過重試次數就直接壓縮
+                        if (ReTry != 0) {
+                            progress = 0;
+                            self.Show = "等待失敗重載...";
+                            document.title = self.Show;
+                            Button.textContent = self.Show;
+                            await self.sleep(3000);
+                            await StartDownload(true);
+                        } else {self.Compression(Data, Folder, Button, force)}
                     }
                 }
             }
@@ -423,13 +425,25 @@
                             analysis(index, link, null, true);
                         }
                     })
-                } else {progress++}
+                } else {
+                    if (!clean) {
+                        clean = true;
+                        sessionStorage.clear();
+                        api.log("清理警告", "下載數據不完整將清除緩存, 建議刷新頁面後重載", "warn");
+                    }
+                    progress++;
+                }
             }
 
-            StartDownload()
-            async function StartDownload() {
+            // 啟動下載
+            StartDownload();
+            async function StartDownload(restart=false) {
                 for (const [index, link] of ImgData.entries()) {
                     if (self.Enforce) {break}
+                    else if (restart) {
+                        Request(index, link, Request_Analysis);
+                        await self.sleep(1500);
+                    }
                     else {
                         Request(index, link, Request_Analysis);
                         if (++count === thread) {
