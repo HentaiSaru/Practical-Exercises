@@ -29,6 +29,7 @@
 // @grant        GM_addElement
 // @grant        GM_xmlhttpRequest
 // @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
 // @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
@@ -170,6 +171,8 @@
             this.Enforce = false;
             /* 用於下載時 不被變更下載模式 */
             this.DownloadMode;
+            /* 下載時的展示字串 */
+            this.Show = "";
         }
 
         /* 動態調整 */
@@ -204,194 +207,147 @@
             this.Mantissa = (str, fill) => {
                 return `${++str}`.padStart(fill, "0");
             }
+            /* 存取 Session 數據 */
+            this.Storage = (key, value=null) => {
+                let data, result;
+                if (value) { // 存數據
+                    sessionStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
+                    result = true;
+                } else { // 取數據
+                    data = sessionStorage.getItem(key);
+                    result = data ? new Map(JSON.parse(data)) : false;
+                }
+                return result;
+            }
             /* 異步函數暫停 */
             this.sleep = (delay) => {
                 return new Promise(resolve => setTimeout(resolve, delay));
             }
-        }
-
-        /* 主頁數據處理 */
-        async HomeData(button) {
-            // 當異步函數內又有異步函數, 且他需要調用, 構建函數時不能直接使用 this 正確指向, 因此需要 self = this
-            let homepage = new Map(), task = 0, DC = 1, HomeD = this.Home_ID, pages = this.Total(api.$$("#gdd td.gdt2", true)),
-            title = api.IllegalCharacters(api.$$("#gj").textContent.trim() || api.$$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
-            this.DownloadMode = CompressMode;
-
-            const worker = api.WorkerCreation(`
+            /* 後台請求工作 */
+            this.worker = api.WorkerCreation(`
                 let queue = [], processing = false;
                 onmessage = function(e) {
-                    const {index, url, time, delay} = e.data;
-                    queue.push({index, url, time, delay});
-                    if (!processing) {
-                        processQueue();
-                        processing = true;
-                    }
+                    queue.push(e.data);
+                    !processing ? (processing = true, processQueue()) : null;
                 }
                 async function processQueue() {
                     if (queue.length > 0) {
                         const {index, url, time, delay} = queue.shift();
                         FetchRequest(index, url, time, delay);
                         setTimeout(processQueue, delay);
-                    }
+                    } else {processing = false}
                 }
                 async function FetchRequest(index, url, time, delay) {
                     try {
                         const response = await fetch(url);
                         const html = await response.text();
-                        postMessage({index, html, time, delay, error: false});
+                        postMessage({index, url, html, time, delay, error: false});
                     } catch {
-                        postMessage({index, url, time, delay, error: true});
+                        postMessage({index, url, html, time, delay, error: true});
                     }
                 }
             `)
+        }
 
-            // 傳遞訊息
-            worker.postMessage({index: 0, url: url, time: Date.now(), delay: HomeD});
-            for (let index = 1; index < pages; index++) {
-                worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: HomeD});
-            }
+        /* 主頁數據處理 */
+        async HomeData(button) {
+            const self = this, homepage = new Map();
+            let task = 0, DC = 0, HomeD = self.Home_ID, pages = self.Total(api.$$("#gdd td.gdt2", true)),
+            title = api.IllegalCharacters(api.$$("#gj").textContent.trim() || api.$$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
+            self.DownloadMode = CompressMode;
 
-            // 接受訊息
-            worker.onmessage = (e) => {
-                const {index, html, time, delay, error} = e.data;
-                HomeD = this.Dynamic(time, delay, null, this.Home_ND);
-                error ? FetchRequest(index, html, 10):
-                GetLink(index, api.DomParse(html));
-            }
+            const olddata = self.Storage(`[${title} - Download Cache]`);
 
-            // 數據試錯請求
-            async function FetchRequest(index, url, retry) {
-                try {
-                    const response = await fetch(url);
-                    const html = await response.text();
-                    await GetLink(index, api.DomParse(html));
-                } catch {
-                    if (retry > 0) {
-                        await FetchRequest(index, url, retry-1);
-                    } else {
-                        task++;
-                    }
-                }
+            if (olddata) { // 當存在緩存時不用重新請求
+                self.DownloadTrigger(button, title, olddata);
+                return;
             }
 
             // 獲取連結
             async function GetLink(index, data) {
                 const homebox = [];
                 try {
-                    api.$$("#gdt a", true, data).forEach(link => {
-                        homebox.push(link.href)
-                    });
+                    api.$$("#gdt a", true, data).forEach(link => {homebox.push(link.href)});
                     homepage.set(index, homebox);
-                    document.title = `[${DC}/${pages}]`;
-                    button.textContent = `${Language.DS_02}: [${DC}/${pages}]`;
-                    DC++; // 顯示效正
+
+                    self.Show = `[${++DC}/${pages}]`;
+                    document.title = self.Show;
+                    button.textContent = `${Language.DS_02}: ${self.Show}`;
+
                     task++; // 任務進度
-                } catch {
+                } catch (error) {
                     alert("Request Error Reload");
                     location.reload();
                 }
             }
 
+            // 傳遞訊息
+            self.worker.postMessage({index: 0, url: url, time: Date.now(), delay: HomeD});
+            for (let index = 1; index < pages; index++) {
+                self.worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: HomeD});
+            }
+
+            // 接受訊息
+            self.worker.onmessage = (e) => {
+                const {index, url, html, time, delay, error} = e.data;
+                HomeD = self.Dynamic(time, delay, null, self.Home_ND);
+                error ? self.worker.postMessage({index: index, url: url, time: time, delay: delay}) : GetLink(index, api.DomParse(html));
+            }
+
             // 等待全部處理完成 (雖然會吃資源, 但是比較能避免例外)
-            let interval = setInterval(() => {
+            const interval = setInterval(() => {
                 if (task === pages) {
                     clearInterval(interval);
-                    worker.terminate();
                     const homebox = [];
-                    for (let i = 0; i < homepage.size; i++) {
-                        homebox.push(...homepage.get(i));
-                    }
-                    if (Config.DeBug) {
-                        api.log("Home Page Data", `[Title] : ${title}\n${homebox}`);
-                    }
-                    this.ImageData(button, title, homebox);
+                    for (let i = 0; i < homepage.size; i++) {homebox.push(...homepage.get(i))}
+                    Config.DeBug ? api.log("Home Page Data", `[Title] : ${title}\n${homebox}`) : null;
+                    self.ImageData(button, title, homebox);
                 }
             }, 500);
         }
 
         /* 漫畫連結處理 */
         async ImageData(button, title, link) {
-            let imgbox = new Map(), pages = link.length, DC = 1, task = 0, ImageD = this.Image_ID;
+            const self = this, imgbox = new Map();
+            let pages = link.length, ImageD = self.Image_ID, DC = 0, task = 0;
 
-            const worker = api.WorkerCreation(`
-                let queue = [], processing = false;
-                onmessage = function(e) {
-                    const {index, url, time, delay} = e.data;
-                    queue.push({index, url, time, delay});
-                    if (!processing) {
-                        processQueue();
-                        processing = true;
+            // 獲取連結
+            async function GetLink(index, img) {
+                try {
+                    if (img) {
+                        imgbox.set(index, img.src || img.href);
+                        self.Show = `[${++DC}/${pages}]`;
+                        document.title = self.Show;
+                        button.textContent = `${Language.DS_03}: ${self.Show}`;
+                        task++; // 任務進度
+                    } else {
+                        throw "No Picture Element";
                     }
+                } catch (error) {
+                    api.log("Request Error", error);
+                    task++;
                 }
-                async function processQueue() {
-                    if (queue.length > 0) {
-                        const {index, url, time, delay} = queue.shift();
-                        FetchRequest(index, url, time, delay);
-                        setTimeout(processQueue, delay);
-                    }
-                }
-                async function FetchRequest(index, url, time, delay) {
-                    try {
-                        const response = await fetch(url);
-                        const html = await response.text();
-                        postMessage({index, html, time, delay, error: false});
-                    } catch {
-                        postMessage({index, html, time, delay, error: true});
-                    }
-                }
-            `)
+            }
 
             // 傳遞訊息
             for (let index = 0; index < pages; index++) {
-                worker.postMessage({index, url: link[index], time: Date.now(), delay: ImageD});
+                self.worker.postMessage({index, url: link[index], time: Date.now(), delay: ImageD});
             }
 
             // 接收回傳
-            worker.onmessage = (e) => {
-                const {index, html, time, delay, error} = e.data;
-                ImageD = this.Dynamic(time, delay, null, this.Image_ND);
-                error ? FetchRequest(index, html, 10) :
-                GetLink(index, api.$$("#img", false, api.DomParse(html)));
-            }
-
-            // 數據試錯請求
-            async function FetchRequest(index, url, retry) {
-                try {
-                    const response = await fetch(url);
-                    const html = await response.text();
-                    await GetLink(index, api.$$("#img", false, api.DomParse(html)));
-                } catch {
-                    if (retry > 0) {
-                        await FetchRequest(index, url, retry-1);
-                    } else {
-                        task++;
-                    }
-                }
-            }
-
-            // 獲取連結
-            async function GetLink(index, data) {
-                try {
-                    imgbox.set(index, data.src || data.href);
-                    document.title = `[${DC}/${pages}]`;
-                    button.textContent = `${Language.DS_03}: [${DC}/${pages}]`;
-                    DC++; // 顯示效正
-                    task++; // 任務進度
-                } catch {
-                    alert("Request Error Reload");
-                    location.reload();
-                }
+            self.worker.onmessage = (e) => {
+                const {index, url, html, time, delay, error} = e.data;
+                ImageD = self.Dynamic(time, delay, null, self.Image_ND);
+                error ? self.worker.postMessage({index: index, url: url, time: time, delay: delay}) : GetLink(index, api.$$("#img", false, api.DomParse(html)));
             }
 
             // 等待完成
             let interval = setInterval(() => {
                 if (task === pages) {
                     clearInterval(interval);
-                    worker.terminate();
-                    if (Config.DeBug) {
-                        api.log("Img Link Data", imgbox);
-                    }
-                    this.DownloadTrigger(button, title, imgbox);
+                    Config.DeBug ? api.log("Img Link Data", imgbox) : null;
+                    self.DownloadTrigger(button, title, imgbox);
+                    self.Storage(`[${title} - Download Cache]`, imgbox);
                 }
             }, 500);
         }
@@ -405,74 +361,81 @@
 
         /* 壓縮下載 */
         async ZipDownload(Button, Folder, ImgData) {
-            const self=this, Data=new JSZip();
-            let time, link, blob, show,
-            progress=0,
+            const self=this, Data=new JSZip(), force = GM_registerMenuCommand("📥強制壓縮", ()=> ForceDownload());
+            let time, blob, count=0, progress=0,
             Total=ImgData.size,
             delay=self.Download_ID,
             thread=self.Download_IT,
             Fill=self.FillValue(Total);
 
-            // 分析請求狀態
-            async function Request_Analysis(index, blob, retry=false) {
-                ImgData.delete(index);
-                show = `[${++progress}/${Total}]`;
-                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                retry ? ImgData.set(index, blob) : Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, blob);
+            // 強制下載
+            async function ForceDownload() {
+                self.Enforce = true;
+                self.Compression(Data, Folder, Button, force);
+            }
 
-                document.title = show;
-                Button.textContent = `${Language.DS_04}: ${show}`;
+            // 分析請求狀態
+            async function Request_Analysis(index, link, blob, retry=false) {
+                if (self.Enforce) {return}
+                ImgData.delete(index);
+                self.Show = `[${++progress}/${Total}]`;
+                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                retry ? ImgData.set(index, link) : Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, blob);
+
+                document.title = self.Show;
+                Button.textContent = `${Language.DS_04}: ${self.Show}`;
 
                 if (progress == Total) {
                     Total = ImgData.size;
                     if (Total == 0) {
-                        self.Compression(Data, Folder, Button);
+                        self.Compression(Data, Folder, Button, force);
+                        self.Storage(`[${Folder} - Blob Cache]`, BlobCache);
                     } else {
                         progress = 0;
-                        show = "準備重新下載"
-                        document.title = show;
-                        Button.textContent = show;
-                        await self.sleep(1500);
-                        Button.textContent = "後續開發"
+                        self.Show = "失敗重試...";
+                        document.title = self.Show;
+                        Button.textContent = self.Show;
+                        await self.sleep(3000);
+                        await StartDownload();
                     }
                 }
             }
 
-            // 請求
-            async function Request(index, analysis) {
+            // 請求數據
+            async function Request(index, link, analysis) {
                 time = Date.now();
-                link = ImgData.get(index);
-                if (typeof link !== "undefined") {
+                if (self.Enforce) {return}
+                else if (typeof link !== "undefined") {
                     GM_xmlhttpRequest({
                         url: link,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
                             blob = response.response;
-                            if (blob instanceof Blob && blob.size > 0) {analysis(index, blob)}
+                            if (blob instanceof Blob && blob.size > 0) {analysis(index, link, blob)}
                             else {
-                                Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]\nLink:${link}`, "error") : null;
-                                analysis(index, link, true);
+                                Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]\nLink:${link}]`, "error") : null;
+                                analysis(index, link, null, true);
                             }
                         },
                         onerror: error => {
-                            Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}\nError:${error}`, "error") : null;
-                            analysis(index, link, true);
+                            Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]`, "error") : null;
+                            analysis(index, link, null, true);
                         }
                     })
-                }
+                } else {progress++}
             }
 
-            let count = 0;
-            for (let i = 0; i < Total; i++) {
-                if (self.Enforce) {
-                    self.Compression(Data, Folder, Button);
-                    break;
-                } else {
-                    Request(i, Request_Analysis);
-                    if (++count === thread) {
-                        count = 0;
-                        await self.sleep(delay);
+            StartDownload()
+            async function StartDownload() {
+                for (const [index, link] of ImgData.entries()) {
+                    if (self.Enforce) {break}
+                    else {
+                        Request(index, link, Request_Analysis);
+                        if (++count === thread) {
+                            count = 0;
+                            await self.sleep(delay);
+                        }
                     }
                 }
             }
@@ -492,8 +455,9 @@
                             name: `${Folder}-${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`,
                             onload: () => {
                                 [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                document.title = `[${progress}/${Total}]`;
-                                Button.textContent = `${Language.DS_04}: [${progress}/${Total}]`;
+                                self.Show = `[${progress}/${Total}]`
+                                document.title = self.Show;
+                                Button.textContent = `${Language.DS_04}: ${self.Show}`;
                                 progress++;
                                 resolve();
                             },
@@ -531,7 +495,8 @@
         }
 
         /* 壓縮處理 */
-        async Compression(Data, Folder, Button) {
+        async Compression(Data, Folder, Button, Menu) {
+            GM_unregisterMenuCommand(Menu); // 註銷強制下載按鈕
             Data.generateAsync({
                 type: "blob",
                 compression: "DEFLATE",
