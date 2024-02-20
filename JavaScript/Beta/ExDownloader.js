@@ -31,7 +31,7 @@
 // @grant        GM_registerMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1329278/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
@@ -47,12 +47,12 @@
 */
 
 (function() {
-    var language, OriginalTitle, CompressMode, ModeDisplay,
+    var Language, OriginalTitle, CompressMode, ModeDisplay,
     lock = false, api = new API(), url = document.URL.split("?p=")[0];
 
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: false,
+        DeBug: true,
     }
 
     class Main {
@@ -67,19 +67,20 @@
         }
 
         /* 啟動匹配 */
-        async Match() {
-            if (this.Ran(url)) {
-                language = display_language(navigator.language);
+        static async Match() {
+            const self = new Main();
+            if (self.Ran(url)) {
+                Language = display_language(navigator.language);
                 OriginalTitle = document.title;
-                this.ButtonCreation();
-                api.Menu({[language.MN_01]: ()=> this.__DownloadModeSwitch()})
+                self.ButtonCreation();
+                api.Menu({[Language.MN_01]: ()=> self.DownloadModeSwitch()})
             }
         }
 
         /* 按鈕創建 */
         async ButtonCreation() {
             CompressMode = api.store("get", "CompressedMode", []);
-            ModeDisplay = CompressMode ? language.DM_01 : language.DM_02;
+            ModeDisplay = CompressMode ? Language.DM_01 : Language.DM_02;
             this.Css(`
                 .Download_Button {
                     float: right;
@@ -125,22 +126,21 @@
             `);
             try {
                 let download_button = GM_addElement(api.$$("#gd2"), "button", {
-                    id: "ExDB",
-                    class: "Download_Button"
+                    id: "ExDB", class: "Download_Button"
                 });
-                download_button.textContent = lock ? language.DM_03 : ModeDisplay;
+                download_button.textContent = lock ? Language.DM_03 : ModeDisplay;
                 download_button.disabled = lock ? true : false;
                 api.AddListener(download_button, "click", () => {
                     lock = true;
                     download_button.disabled = true;
-                    download_button.textContent = language.DS_01;
+                    download_button.textContent = Language.DS_01;
                     download.HomeData(download_button);
                 }, {capture: true, passive: true});
             } catch {}
         }
 
         /* 下載模式切換 */
-        async __DownloadModeSwitch() {
+        async DownloadModeSwitch() {
             CompressMode?
             api.store("set", "CompressedMode", false):
             api.store("set", "CompressedMode", true);
@@ -166,10 +166,12 @@
     
             /* 壓縮下載的等級 */
             this.Compr_Level = 5;
+            /* 判斷強制下載狀態 */
+            this.Enforce = false;
             /* 用於下載時 不被變更下載模式 */
             this.DownloadMode;
         }
-    
+
         /* 動態調整 */
         Dynamic(Time, Delay, Thread=null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
@@ -192,7 +194,6 @@
     class Download extends Settings {
         constructor() {
             super();
-            this.parser = new DOMParser();
             /* 取得總頁數 */
             this.Total = (page) => {return Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20)}
             /* 取得填充值(最少填充 2 個 0) */
@@ -202,6 +203,10 @@
             /* 取得尾數(使用 0 填充) */
             this.Mantissa = (str, fill) => {
                 return `${++str}`.padStart(fill, "0");
+            }
+            /* 異步函數暫停 */
+            this.sleep = (delay) => {
+                return new Promise(resolve => setTimeout(resolve, delay));
             }
         }
 
@@ -278,11 +283,11 @@
                     });
                     homepage.set(index, homebox);
                     document.title = `[${DC}/${pages}]`;
-                    button.textContent = `${language.DS_02}: [${DC}/${pages}]`;
+                    button.textContent = `${Language.DS_02}: [${DC}/${pages}]`;
                     DC++; // 顯示效正
                     task++; // 任務進度
                 } catch {
-                    alert("Your IP is temporarily banned");
+                    alert("Request Error Reload");
                     location.reload();
                 }
             }
@@ -299,13 +304,13 @@
                     if (Config.DeBug) {
                         api.log("Home Page Data", `[Title] : ${title}\n${homebox}`);
                     }
-                    this.__ImageData(button, title, homebox);
+                    this.ImageData(button, title, homebox);
                 }
             }, 500);
         }
 
         /* 漫畫連結處理 */
-        async __ImageData(button, title, link) {
+        async ImageData(button, title, link) {
             let imgbox = new Map(), pages = link.length, DC = 1, task = 0, ImageD = this.Image_ID;
 
             const worker = api.WorkerCreation(`
@@ -369,11 +374,11 @@
                 try {
                     imgbox.set(index, data.src || data.href);
                     document.title = `[${DC}/${pages}]`;
-                    button.textContent = `${language.DS_03}: [${DC}/${pages}]`;
+                    button.textContent = `${Language.DS_03}: [${DC}/${pages}]`;
                     DC++; // 顯示效正
                     task++; // 任務進度
                 } catch {
-                    alert("Your IP is temporarily banned");
+                    alert("Request Error Reload");
                     location.reload();
                 }
             }
@@ -386,84 +391,95 @@
                     if (Config.DeBug) {
                         api.log("Img Link Data", imgbox);
                     }
-                    this.__DownloadTrigger(button, title, imgbox);
+                    this.DownloadTrigger(button, title, imgbox);
                 }
             }, 500);
         }
 
         /* 下載觸發器 */
-        async __DownloadTrigger(button, title, link) {
+        async DownloadTrigger(button, title, link) {
             this.DownloadMode?
-            this.__ZipDownload(button, title, link):
-            this.__ImageDownload(button, title, link);
+            this.ZipDownload(button, title, link):
+            this.ImageDownload(button, title, link);
         }
 
         /* 壓縮下載 */
-        async __ZipDownload(Button, Folder, ImgData) {
-            const Data = new JSZip(), self = this, Total = ImgData.size;
-            let time, link, progress = 1, thread = self.Download_IT, delay = self.Download_ID, Fill = self.FillValue(Total);
-            async function Request(index, retry) {
-                time = Date.now();
-                link = ImgData.get(index);
-                return new Promise((resolve, reject) => {
-                    if (typeof link !== "undefined") {
-                        GM_xmlhttpRequest({
-                            method: "GET",
-                            url: link,
-                            responseType: "blob",
-                            onload: response => {
-                                if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, response.response);
-                                    document.title = `[${progress}/${Total}]`;
-                                    Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
-                                    progress++;
-                                    resolve();
-                                } else {
-                                    if (retry > 0) {
-                                        [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                        Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
-                                        setTimeout(() => {
-                                            Request(index, retry-1);
-                                            resolve();
-                                        }, delay * 2);
-                                    } else {
-                                        reject(new Error("Request error"));
-                                    }
-                                }
-                            },
-                            onerror: error => {
-                                if (retry > 0) {
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
-                                    setTimeout(() => {
-                                        Request(index, retry-1);
-                                        resolve();
-                                    }, delay * 2);
-                                } else {
-                                    api.log("Request Error", `(Error Link) : [${link}]`, "error");
-                                    reject(error);
-                                }
-                            }
-                        })
-                    } else {reject(new Error("undefined url"))}
-                });
-            }
-            let count = 0, promises = [];
-            for (let i = 0; i < Total; i++) {
-                promises.push(Request(i, Config.ReTry));
-                count++;
-                if (count === thread) {
-                    count = 0;
-                    await new Promise(resolve => setTimeout(resolve, delay));
+        async ZipDownload(Button, Folder, ImgData) {
+            const self=this, Data=new JSZip();
+            let time, link, blob, show,
+            progress=0,
+            Total=ImgData.size,
+            delay=self.Download_ID,
+            thread=self.Download_IT,
+            Fill=self.FillValue(Total);
+
+            // 分析請求狀態
+            async function Request_Analysis(index, blob, retry=false) {
+                ImgData.delete(index);
+                show = `[${++progress}/${Total}]`;
+                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
+                retry ? ImgData.set(index, blob) : Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, blob);
+
+                document.title = show;
+                Button.textContent = `${Language.DS_04}: ${show}`;
+
+                if (progress == Total) {
+                    Total = ImgData.size;
+                    if (Total == 0) {
+                        self.Compression(Data, Folder, Button);
+                    } else {
+                        progress = 0;
+                        show = "準備重新下載"
+                        document.title = show;
+                        Button.textContent = show;
+                        await self.sleep(1500);
+                        Button.textContent = "後續開發"
+                    }
                 }
             }
-            await Promise.allSettled(promises);
-            this.__Compression(Data, Folder, Button);
+
+            // 請求
+            async function Request(index, analysis) {
+                time = Date.now();
+                link = ImgData.get(index);
+                if (typeof link !== "undefined") {
+                    GM_xmlhttpRequest({
+                        url: link,
+                        method: "GET",
+                        responseType: "blob",
+                        onload: response => {
+                            blob = response.response;
+                            if (blob instanceof Blob && blob.size > 0) {analysis(index, blob)}
+                            else {
+                                Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]\nLink:${link}`, "error") : null;
+                                analysis(index, link, true);
+                            }
+                        },
+                        onerror: error => {
+                            Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}\nError:${error}`, "error") : null;
+                            analysis(index, link, true);
+                        }
+                    })
+                }
+            }
+
+            let count = 0;
+            for (let i = 0; i < Total; i++) {
+                if (self.Enforce) {
+                    self.Compression(Data, Folder, Button);
+                    break;
+                } else {
+                    Request(i, Request_Analysis);
+                    if (++count === thread) {
+                        count = 0;
+                        await self.sleep(delay);
+                    }
+                }
+            }
         }
 
         /* 單圖下載 */
-        async __ImageDownload(Button, Folder, ImgData) {
+        async ImageDownload(Button, Folder, ImgData) {
             const Total = ImgData.size, self = this;
             let time, link, progress = 1, thread = self.Download_IT, delay = self.Download_ID, Fill = self.FillValue(Total);
             async function Request(index, retry) {
@@ -477,7 +493,7 @@
                             onload: () => {
                                 [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
                                 document.title = `[${progress}/${Total}]`;
-                                Button.textContent = `${language.DS_04}: [${progress}/${Total}]`;
+                                Button.textContent = `${Language.DS_04}: [${progress}/${Total}]`;
                                 progress++;
                                 resolve();
                             },
@@ -507,7 +523,7 @@
                 }
             }
             await Promise.allSettled(promises);
-            Button.textContent = language.DS_08;
+            Button.textContent = Language.DS_08;
             setTimeout(() => {
                 document.title = `✓ ${OriginalTitle}`;
                 ResetButton();
@@ -515,29 +531,27 @@
         }
 
         /* 壓縮處理 */
-        async __Compression(Data, Folder, Button) {
+        async Compression(Data, Folder, Button) {
             Data.generateAsync({
                 type: "blob",
                 compression: "DEFLATE",
-                compressionOptions: {
-                    level: this.Compr_Level
-                }
+                compressionOptions: { level: this.Compr_Level }
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
-                Button.textContent = `${language.DS_05}: ${progress.percent.toFixed(1)} %`;
+                Button.textContent = `${Language.DS_05}: ${progress.percent.toFixed(1)} %`;
             }).then(zip => {
                 saveAs(zip, `${Folder}.zip`);
-                Button.textContent = language.DS_06;
+                self.Enforce = false;
+                Button.textContent = Language.DS_06;
                 document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
                     ResetButton();
                 }, 3000);
             }).catch(result => {
-                Button.textContent = language.DS_07;
+                Button.textContent = Language.DS_07;
                 document.title = OriginalTitle;
                 setTimeout(() => {
-                    Button.textContent = ModeDisplay;
-                    Button.disabled = false;
+                    ResetButton();
                 }, 6000);
             })
         }
@@ -546,8 +560,7 @@
     /* ============ 實例運行 ============ */
 
     const download = new Download();
-    const main = new Main();
-    main.Match();
+    Main.Match();
 
     /* ============ 全域 API ============ */
 
