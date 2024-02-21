@@ -428,17 +428,15 @@
             });
         }
         WaitElem("div.post__content", false, 8, content => {
-            let data = $$("pre", false, content); // 單一個 Pre 標籤的狀態
-            if (data) {
-                Analysis(data, data.textContent);
-            } else {
+            const pre = $$("pre", false, content);
+            if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
+            else {
                 $$("p", true, content).forEach(p => {
                     const a = $$("a", false, p);
-                    if (a) { // 含有 a 標籤的狀態
-                        Analysis(a, a.href);
-                    } else { // 只含有 P 標籤的狀態
-                        Analysis(p, p.textContent);
-                    }
+                    const strong = $$("strong", false, p);
+                    if (strong) {Analysis(p, strong.textContent)} // 含有 strong 標籤的狀態
+                    else if (a) {Analysis(a, a.href)} // 含有 a 標籤的狀態
+                    else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
                 });
             }
         });
