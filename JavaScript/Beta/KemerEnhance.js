@@ -433,18 +433,24 @@
             clone.removeChild($$("a", false, clone))
             return clone.textContent.trim();
         }
-        WaitElem("div.post__content", false, 8, content => {
-            const pre = $$("pre", false, content);
-            if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
-            else {
-                $$("p", true, content).forEach(p => {
-                    const a = $$("a", false, p);
-                    if (a) {
-                        const href = a.href, text = Advanced(a);
-                        text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
-                    } // 含有 a 標籤的狀態
-                    else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
-                });
+        WaitElem("div.post__body", false, 8, body => {
+            const content = $$("div.post__content", false, body);
+            const article = $$("article", false, body);
+            if (article) {
+                $$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
+            } else if (content) {
+                const pre = $$("pre", false, content);
+                if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
+                else {
+                    $$("p", true, content).forEach(p => {
+                        const a = $$("a", false, p);
+                        if (a) {
+                            const href = a.href, text = Advanced(a); // (有 A 標籤 & 他的父元素 除去 A 還有其餘文字) | (只有 A 元素)
+                            text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
+                        } // 含有 a 標籤的狀態
+                        else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
+                    });
+                }
             }
         });
     }
