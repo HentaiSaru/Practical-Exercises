@@ -34,7 +34,8 @@
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 
-// @require      https://greasyfork.org/scripts/473358-jszip/code/JSZip.js?version=1237031
+// @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
+// @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -573,6 +574,7 @@
         } catch {alert(language.NF_06)}
     }
 
+    /* 獲取當前時間 (西元年-月-日-時-分) */
     function GetTime() {
         const date = new Date();
         const year = date.getFullYear();
