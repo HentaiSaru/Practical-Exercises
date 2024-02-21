@@ -401,7 +401,7 @@
                         post.forEach(link => {
                             if (link.textContent.includes(title.textContent)) {
                                 switch (Mode) {
-                                    case 2:
+                                    case 2: // 因為移動節點, 需要刪除再去複製, 因此不使用 break
                                         link.parentNode.remove();
                                         title = link;
                                     default:
@@ -427,15 +427,22 @@
                 return `<a href="${link}" target="_blank">${url}</a>`;
             });
         }
+        function Advanced(element) {
+            const parent = element.parentNode;
+            const clone = parent.cloneNode(true);
+            clone.removeChild($$("a", false, clone))
+            return clone.textContent.trim();
+        }
         WaitElem("div.post__content", false, 8, content => {
             const pre = $$("pre", false, content);
             if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
             else {
                 $$("p", true, content).forEach(p => {
                     const a = $$("a", false, p);
-                    const strong = $$("strong", false, p);
-                    if (strong) {Analysis(p, strong.textContent)} // 含有 strong 標籤的狀態
-                    else if (a) {Analysis(a, a.href)} // 含有 a 標籤的狀態
+                    if (a) {
+                        const href = a.href, text = Advanced(a);
+                        text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
+                    } // 含有 a 標籤的狀態
                     else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
                 });
             }
