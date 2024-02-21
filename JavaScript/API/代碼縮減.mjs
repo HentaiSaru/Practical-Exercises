@@ -1,17 +1,22 @@
 import path from "path";
 import open from "fs";
 
-/* 代碼縮短程式 [陣列排除版] v1.0.1
+/* 代碼縮短程式 [陣列排除版] v1.0.2
 
   開發環境
   Node.js: v21.6.1
   Npm: 9.8.1
 
-  目前只寫 Python 和 JavaScript 的邏輯, 其他語言應該是不適用
+  目前只寫 Python 和 JavaScript 的邏輯, 其他語言應該是不適用 (目前是有 BUG 的, 畢竟不是用語法分析)
   填寫輸入代碼路徑 與 輸出代碼路徑, 自動刪除代碼中(註解, 縮排, 多餘的空格)
 */
 
 class LoadData {
+    /**
+     * @param {string} input  - 載入的文件路徑
+     * @param {string} output - 輸出的文件路徑(不要加附檔名)
+     * @param {boolean} debug - 顯示除錯資訊, 除錯狀態下不會輸出文件
+     */
     constructor(input, output, debug=false) {
       this.input = input;
       this.output = output;
@@ -51,6 +56,11 @@ class LoadData {
 
       /* 傳入值保存到 output_box */
       this.OP = (data) => {this.output_box.push(data)};
+      /* 取得附檔名 */
+      this.Extension = (name) => {
+        const match = name.match(/\.([^.]+)$/);
+        return `.${match[1]}` || ".js";
+      }
     }
 
     /* 進階處理邏輯 (待開發) */
@@ -81,7 +91,7 @@ class LoadData {
     }
 
     /* 讀取數據 */
-    Read_data() {
+    async Read_data() {
       open.readFile(this.input, "utf-8", (err, data) => {
         if (err) {console.error(err);return;}
 
@@ -111,10 +121,10 @@ class LoadData {
     }
 
     /* 輸出數據 */
-    Output_Data(data) {
+    async Output_Data(data) {
       try {
         if (open.existsSync(path.dirname(this.output))) {
-          open.writeFile(this.output, data, err => {
+          open.writeFile(`${this.output}${this.Extension(this.input)}`, data, err => {
             err ? console.log("輸出失敗") : console.log("輸出成功");
           });
         } else {
@@ -125,8 +135,7 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/ExDownloader.js",
-  "R:/test.js", false
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/ExDownloader.js", "R:/Simplify", false
 );
 
 Load.Read_data();
