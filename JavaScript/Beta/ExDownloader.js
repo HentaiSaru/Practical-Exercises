@@ -5,24 +5,24 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.14
+// @version      0.0.15
 // @author       HentaiSaru
-// @description         在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
-// @description:zh-TW   在 E 和 Ex 的漫畫頁面, 創建下載按鈕, 可使用[壓縮下載/單圖下載], 自動獲取圖片下載
-// @description:zh-CN   在 E 和 Ex 的漫画页面, 创建下载按钮, 可使用[压缩下载/单图下载], 自动获取图片下载
-// @description:ja      EとExの漫画ページで、ダウンロードボタンを作成し、[圧縮ダウンロード/単一画像ダウンロード]を使用して、自動的に画像をダウンロードします。
-// @description:ko      E 및 Ex의 만화 페이지에서 다운로드 버튼을 만들고, [압축 다운로드/단일 이미지 다운로드]를 사용하여 이미지를 자동으로 다운로드합니다.
-// @description:en      On the comic pages of E and Ex, create a download button that can use [compressed download/single image download] to automatically download images.
+// @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
+// @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
+// @description:zh-CN   漫画页面创建下载按钮, 可切换 (压缩下载 | 单图下载), 无须复杂设置一键点击下载, 自动获取(非原图)进行下载
+// @description:ja      マンガページにダウンロードボタンを作成し、（圧缩ダウンロード | シングルイメージダウンロード）を切り替えることができ、复雑な设定は必要なく、ワンクリックでダウンロードできます。自动的に（オリジナルではない）画像を取得してダウンロードします
+// @description:ko      만화 페이지에 다운로드 버튼을 만들어 (압축 다운로드 | 단일 이미지 다운로드)를 전환할 수 있으며, 복잡한 설정이 필요하지 않고, 원클릭 다운로드 기능으로 (원본이 아닌) 이미지를 자동으로 가져와 다운로드합니다
+// @description:en      Create download buttons on manga pages, switchable between (compressed download | single image download), without the need for complex settings, one-click download capability, automatically fetches (non-original) images for downloading
 
 // @connect      *
-// @match        https://e-hentai.org/*
-// @match        https://exhentai.org/*
+// @match        *://e-hentai.org/g/*
+// @match        *://exhentai.org/g/*
 // @icon         https://e-hentai.org/favicon.ico
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
@@ -53,7 +53,7 @@
 
     const Config = {
         ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: false,
+        DeBug: true,
     }
 
     class Main {
@@ -153,9 +153,9 @@
     class Settings {
         constructor() {
             this.MAX_CONCURRENCY = 12; // 最大併發數
-            this.MIN_CONCURRENCY = 4;  // 最小併發數
+            this.MIN_CONCURRENCY = 3;  // 最小併發數
             this.TIME_THRESHOLD = 350; // 響應時間閥值
-    
+
             this.MAX_Delay = 3500;     // 最大延遲
             this.Home_ID = 100;        // 主頁初始延遲
             this.Home_ND = 80;         // 主頁最小延遲
@@ -164,7 +164,7 @@
             this.Download_IT = 5;      // 下載初始線程
             this.Download_ID = 300;    // 下載初始延遲
             this.Download_ND = 240;    // 下載最小延遲
-    
+
             /* 壓縮下載的等級 */
             this.Compr_Level = 5;
             /* 判斷強制下載狀態 */
@@ -276,7 +276,7 @@
 
                     task++; // 任務進度
                 } catch (error) {
-                    alert("Request Error Reload");
+                    alert(Language.DE_01);
                     location.reload();
                 }
             }
@@ -300,7 +300,7 @@
                     clearInterval(interval);
                     const homebox = [];
                     for (let i = 0; i < homepage.size; i++) {homebox.push(...homepage.get(i))}
-                    Config.DeBug ? api.log("Home Page Data", `[Title] : ${title}\n${homebox}`) : null;
+                    Config.DeBug ? api.log(Language.Dev_01, `[Title] : ${title}\n${homebox}`) : null;
                     self.ImageData(button, title, homebox);
                 }
             }, 500);
@@ -321,10 +321,11 @@
                         button.textContent = `${Language.DS_03}: ${self.Show}`;
                         task++; // 任務進度
                     } else {
-                        throw "No Picture Element";
+                        imgbox.set(index, undefined);
+                        throw Language.DE_02;
                     }
                 } catch (error) {
-                    api.log("Request Error", error);
+                    api.log(null, error, "error");
                     task++;
                 }
             }
@@ -345,7 +346,7 @@
             let interval = setInterval(() => {
                 if (task === pages) {
                     clearInterval(interval);
-                    Config.DeBug ? api.log("Img Link Data", imgbox) : null;
+                    Config.DeBug ? api.log(Language.Dev_02, imgbox) : null;
                     self.DownloadTrigger(button, title, imgbox);
                     self.Storage(`[${title} - Download Cache]`, imgbox);
                 }
@@ -361,18 +362,33 @@
 
         /* 壓縮下載 */
         async ZipDownload(Button, Folder, ImgData) {
-            const self=this, Data=new JSZip(), force = GM_registerMenuCommand("📥強制壓縮", ()=> ForceDownload());
+            const self=this, Data=new JSZip(), force = GM_registerMenuCommand(Language.MN_02, ()=> ForceDownload());
             let time, blob, count=0, progress=0, clean=false,
-            ReTry=Config.ReTry,
-            Total=ImgData.size,
-            delay=self.Download_ID,
-            thread=self.Download_IT,
-            Fill=self.FillValue(Total);
+            ReTry=Config.ReTry, Total=ImgData.size, delay=self.Download_ID,
+            thread=self.Download_IT, Fill=self.FillValue(Total);
 
             // 強制下載
             async function ForceDownload() {
-                self.Enforce = true;
                 self.Compression(Data, Folder, Button, force);
+            }
+
+            // 重載調用
+            async function Retry_on_error() {
+                if (self.Enforce) {return}
+                else if (ReTry-- > 0) {
+                    progress = 0;
+                    self.Show = Language.DS_09;
+
+                    document.title = self.Show;
+                    Button.textContent = self.Show;
+
+                    api.log(Language.DE_03, ReTry);
+                    await self.sleep(2500);
+                    setTimeout(() => {StartDownload(true)}, 2000);
+                } else {
+                    self.Compression(Data, Folder, Button, force);
+                    api.log(Language.DE_04, ImgData);
+                }
             }
 
             // 分析請求狀態
@@ -389,17 +405,7 @@
                 if (progress == Total) {
                     Total = ImgData.size;
                     if (Total == 0) {self.Compression(Data, Folder, Button, force)}
-                    else {
-                        ReTry -= 1; // 超過重試次數就直接壓縮
-                        if (ReTry != 0) {
-                            progress = 0;
-                            self.Show = "等待失敗重載...";
-                            document.title = self.Show;
-                            Button.textContent = self.Show;
-                            await self.sleep(3000);
-                            await StartDownload(true);
-                        } else {self.Compression(Data, Folder, Button, force)}
-                    }
+                    else {Retry_on_error()}
                 }
             }
 
@@ -416,12 +422,12 @@
                             blob = response.response;
                             if (blob instanceof Blob && blob.size > 0) {analysis(index, link, blob)}
                             else {
-                                Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]\nLink:${link}]`, "error") : null;
+                                Config.DeBug ? api.log(`[Delay:${delay}|Thread:${thread}]`, link, "error") : null;
                                 analysis(index, link, null, true);
                             }
                         },
                         onerror: error => {
-                            Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}]`, "error") : null;
+                            Config.DeBug ? api.log(`[Delay:${delay}|Thread:${thread}]`, link, "error") : null;
                             analysis(index, link, null, true);
                         }
                     })
@@ -429,20 +435,19 @@
                     if (!clean) {
                         clean = true;
                         sessionStorage.clear();
-                        api.log("清理警告", "下載數據不完整將清除緩存, 建議刷新頁面後重載", "warn");
+                        api.log(Language.DW_01, Language.DW_02, "warn");
                     }
                     progress++;
                 }
             }
 
-            // 啟動下載
-            StartDownload();
+            StartDownload(); // 啟動下載
             async function StartDownload(restart=false) {
                 for (const [index, link] of ImgData.entries()) {
                     if (self.Enforce) {break}
                     else if (restart) {
-                        Request(index, link, Request_Analysis);
-                        await self.sleep(1500);
+                        await Request(index, link, Request_Analysis);
+                        await self.sleep(500);
                     }
                     else {
                         Request(index, link, Request_Analysis);
@@ -457,8 +462,9 @@
 
         /* 單圖下載 */
         async ImageDownload(Button, Folder, ImgData) {
-            const Total = ImgData.size, self = this;
-            let time, link, progress = 1, thread = self.Download_IT, delay = self.Download_ID, Fill = self.FillValue(Total);
+            const Total=ImgData.size, self=this;
+            let time, link, progress=1, clean=false,
+            thread=self.Download_IT, delay=self.Download_ID, Fill=self.FillValue(Total);
             async function Request(index, retry) {
                 time = Date.now();
                 link = ImgData.get(index);
@@ -488,16 +494,22 @@
                                 }
                             }
                         })
-                    } else {reject(new Error("undefined url"))}
+                    } else {
+                        if (!clean) {
+                            clean = true;
+                            sessionStorage.clear();
+                            api.log(Language.DW_01, Language.DW_02, "warn");
+                        }
+                        reject(new Error("undefined url"))
+                    }
                 });
             }
             let count = 0, promises = [];
             for (let i = 0; i < Total; i++) {
                 promises.push(Request(i, Config.ReTry));
-                count++;
-                if (count === thread) {
+                if (++count === thread) {
                     count = 0;
-                    await new Promise(resolve => setTimeout(resolve, delay));
+                    await self.sleep(delay);
                 }
             }
             await Promise.allSettled(promises);
@@ -510,6 +522,7 @@
 
         /* 壓縮處理 */
         async Compression(Data, Folder, Button, Menu) {
+            this.Enforce = true;
             GM_unregisterMenuCommand(Menu); // 註銷強制下載按鈕
             Data.generateAsync({
                 type: "blob",
@@ -520,7 +533,7 @@
                 Button.textContent = `${Language.DS_05}: ${progress.percent.toFixed(1)} %`;
             }).then(zip => {
                 saveAs(zip, `${Folder}.zip`);
-                self.Enforce = false;
+                this.Enforce = false;
                 Button.textContent = Language.DS_06;
                 document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
@@ -554,34 +567,44 @@
     function display_language(language) {
         let display = {
             "zh-TW": [{
-                "MN_01" : "🔁 切換下載模式",
+                "MN_01" : "🔁 切換下載模式", "MN_02" : "📥 強制壓縮下載",
                 "DM_01" : "壓縮下載", "DM_02" : "單圖下載", "DM_03" : "下載中鎖定",
                 "DS_01" : "開始下載", "DS_02" : "獲取頁面", "DS_03" : "獲取連結", "DS_04" : "下載進度",
-                "DS_05" : "壓縮封裝", "DS_06" : "壓縮完成", "DS_07" : "壓縮失敗", "DS_08" : "下載完成"
+                "DS_05" : "壓縮封裝", "DS_06" : "壓縮完成", "DS_07" : "壓縮失敗", "DS_08" : "下載完成",
+                "DS_09" : "等待失敗重試...", "DE_01" : "請求錯誤重新加載頁面", "DE_02" : "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試",
+                "DE_03" : "剩餘重載次數", "DE_04" : "下載失敗數據", "Dev_01" : "內頁跳轉數據", "Dev_02" : "圖片連結數據", "DW_01" : "清理警告", "DW_02" : "下載數據不完整將清除緩存, 建議刷新頁面後重載"
             }],
             "zh-CN": [{
-                "MN_01" : "🔁 切换下载模式",
+                "MN_01" : "🔁 切换下载模式", "MN_02" : "📥 强制压缩下载",
                 "DM_01" : "压缩下载", "DM_02" : "单图下载", "DM_03" : "下载中锁定",
                 "DS_01" : "开始下载", "DS_02" : "获取页面", "DS_03" : "获取链接", "DS_04" : "下载进度",
-                "DS_05" : "压缩封装", "DS_06" : "压缩完成", "DS_07" : "压缩失败", "DS_08" : "下载完成"
+                "DS_05" : "压缩封装", "DS_06" : "压缩完成", "DS_07" : "压缩失败", "DS_08" : "下载完成",
+                "DS_09" : "等待失败重试...", "DE_01" : "请求错误重新加载页面", "DE_02" : "找不到图片元素，你的 IP 可能被禁止了，请刷新页面重试",
+                "DE_03" : "剩余重载次数", "DE_04" : "下载失败数据", "Dev_01" : "内页跳转数据", "Dev_02" : "图片链接数据", "DW_01" : "清理警告", "DW_02" : "下载数据不完整将清除缓存，建议刷新页面后重载"
             }],
             "ja": [{
-                "MN_01" : "🔁 ダウンロードモードの切り替え",
-                "DM_01" : "圧縮ダウンロード", "DM_02" : "単一画像ダウンロード", "DM_03" : "ダウンロード中にロックされました",
-                "DS_01" : "ダウンロード開始", "DS_02" : "ページを取得する", "DS_03" : "リンクを取得する", "DS_04" : "ダウンロードの進捗状況",
-                "DS_05" : "圧縮パッケージング", "DS_06" : "圧縮完了", "DS_07" : "圧縮に失敗しました", "DS_08" : "ダウンロードが完了しました"
+                "MN_01" : "🔁 ダウンロードモードの切り替え", "MN_02" : "📥 强制圧缩ダウンロード",
+                "DM_01" : "圧缩ダウンロード", "DM_02" : "単一画像のダウンロード", "DM_03" : "ダウンロード中ロック",
+                "DS_01" : "ダウンロードを开始", "DS_02" : "ページを取得中", "DS_03" : "リンクを取得中", "DS_04" : "ダウンロードの进捗",
+                "DS_05" : "圧缩パッケージング", "DS_06" : "圧缩完了", "DS_07" : "圧缩失败", "DS_08" : "ダウンロード完了",
+                "DS_09" : "再试行を待机中...", "DE_01" : "要求エラー、ページを再読み込みしてください", "DE_02" : "画像要素が见つかりません、お使いの IP がブロックされている可能性があります。ページを更新して再试行してください",
+                "DE_03" : "残りの再読み込み回数", "DE_04" : "ダウンロード失败データ", "Dev_01" : "内部ページリダイレクトデータ", "Dev_02" : "画像リンクデータ", "DW_01" : "警告をクリア", "DW_02" : "ダウンロードデータが不完全な场合はキャッシュがクリアされます。ページをリフレッシュしてから再読み込みしてください"
             }],
             "en-US": [{
-                "MN_01" : "🔁 Switch download mode",
-                "DM_01" : "Compressed download", "DM_02" : "Single image download", "DM_03" : "Downloading Locked",
-                "DS_01" : "Start download", "DS_02" : "Get page", "DS_03" : "Get link", "DS_04" : "Download progress",
-                "DS_05" : "Compressed packaging", "DS_06" : "Compression complete", "DS_07" : "Compression failed", "DS_08" : "Download complete"
+                "MN_01" : "🔁 Switch Download Mode", "MN_02" : "📥 Force Compression Download",
+                "DM_01" : "Compression Download", "DM_02" : "Single Image Download", "DM_03" : "Downloading Lock",
+                "DS_01" : "Start Downloading", "DS_02" : "Getting Page", "DS_03" : "Getting Links", "DS_04" : "Download Progress",
+                "DS_05" : "Compression Packaging", "DS_06" : "Compression Completed", "DS_07" : "Compression Failed", "DS_08" : "Download Completed",
+                "DS_09" : "Waiting for Retry...", "DE_01" : "Request Error, Reload Page", "DE_02" : "Cannot find image elements, your IP may be blocked, please refresh the page and try again",
+                "DE_03" : "Remaining Reload Times", "DE_04" : "Download Failed Data", "Dev_01" : "Inner Page Redirect Data", "Dev_02" : "Image Link Data", "DW_01" : "Clearing Warning", "DW_02" : "Incomplete download data will clear cache, suggest refresh page and reload"
             }],
             "ko": [{
-                "MN_01" : "🔁 다운로드 모드 전환",
-                "DM_01" : "압축 다운로드", "DM_02" : "단일 이미지 다운로드", "DM_03" : "다운로드 중 잠김",
-                "DS_01" : "다운로드 시작", "DS_02" : "페이지 가져오기", "DS_03" : "링크 가져오기", "DS_04" : "다운로드 진행 상황",
-                "DS_05" : "압축 포장", "DS_06" : "압축 완료", "DS_07" : "압축 실패", "DS_08" : "다운로드 완료"
+                "MN_01" : "🔁 다운로드 모드 전환", "MN_02" : "📥 강제 압축 다운로드",
+                "DM_01" : "압축 다운로드", "DM_02" : "단일 이미지 다운로드", "DM_03" : "다운로드 중 잠금",
+                "DS_01" : "다운로드 시작", "DS_02" : "페이지 가져 오기", "DS_03" : "링크 가져 오기", "DS_04" : "다운로드 진행률",
+                "DS_05" : "압축 포장", "DS_06" : "압축 완료", "DS_07" : "압축 실패", "DS_08" : "다운로드 완료",
+                "DS_09" : "재시도 대기 중...", "DE_01" : "요청 오류, 페이지 다시로드", "DE_02" : "이미지 요소를 찾을 수 없습니다. IP가 차단 될 수 있습니다. 페이지를 새로 고쳐 다시 시도하십시오",
+                "DE_03" : "남은 다시로드 횟수", "DE_04" : "다운로드 실패 데이터", "Dev_01" : "내부 페이지 리디렉션 데이터", "Dev_02" : "이미지 링크 데이터", "DW_01" : "경고 지우기", "DW_02" : "다운로드 데이터가 완전하지 않으면 캐시가 지워집니다. 페이지 새로 고침 및 다시로드 권장"
             }]
         };
 
