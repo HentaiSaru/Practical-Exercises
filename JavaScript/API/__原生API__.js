@@ -150,7 +150,7 @@ class Collection {
  */
 
 /**_________________________
- ** { Array 陣列}
+ ** { Array 陣列 }
  *
  * Array.push(新元素) [添加新元素到陣列末端]
  * Array.unshift(新元素) [添加新元素到陣列前端]
@@ -177,6 +177,42 @@ class Collection {
  * Array.some(參數 => 判斷) [只要有一個符合判斷, 回傳 True 反之 False]
  */
 
+ /**_________________________
+  ** { String 字串 }
+  * 
+  * 字串的處理:
+  * String.length [獲取字串長度, 不包含 0 有幾個字就是多少]
+  * String.charAt() [獲取字串中指定索引值]
+  * String.at() [功能與上面差不多]
+  * String.charCodeAt() [獲取字串中指定索引值 的 UTF-16 code]
+  * String.split(分割字串) [以分割字串為分割點, 將一個字串分割成陣列]
+  * String.slice() [進行字串切片, 可提供兩個索引值, 也可是負數, 邏輯與 Python 的切片差不多]
+  * String.substring() [只回傳指定索引之間的字串, 其餘的將被排除]
+  * String.toUpperCase() [字串都轉大寫]
+  * String.toLowerCase() [字串都轉小寫]
+  * String.concat(A, B) [用於字串的連結] (用 + 或 `` 模板比較方便吧 w)
+  * String.trim() [刪除前後空格]
+  * String.trimStart() [只刪除前空格]
+  * String.trimEnd() [只刪除後空格]
+  * String.padStart(填充數, 填充值) [重前面開始填充, 直到該字串的長度, 與填充數相同, 只有小於填充數的才會運行]
+  * String.padEnd(填充數, 填充值) [基本同上, 但重後面來]
+  * String.repeat(重複數) [用同一個字串, 根據重複數, 進行累加填充]
+  * String.replace(指定字串, 替換的字串) [將字串中的指定字串, 替換成其他字串, 可用正則]
+  * String.replaceAll() [基本同上, 但 replace 只會改第一個找到的指定字串, 後續不會變更, 但是使用正則的 /g 就會和 replaceAll 相同]
+  * 
+  * 字串的查找 (查找都可用正則):
+  * String.indexOf("查找字串") [查找字串第一次出現的索引位置, 沒找到就回傳 -1]
+  * String.search("查找字串") [同上一樣是查找字串, 但不允許添加第二參數, 也就是查找的起始位置, 另外兩個可以]
+  * String.lastIndexOf("查找字串") [同上, 但重後面開始找]
+  * String.match() [回傳匹配成功的字串]
+  * String.matchAll() [回傳 iterator]
+  * 
+  * 字串的判斷:
+  * String.startsWith() [是否已指定字串開頭]
+  * String.endsWith() [是否已指定字串結尾]
+  * String.includes() [是否包含指定字串]
+  */
+
 /**_________________________
  ** { JSON API }
  * 
@@ -196,6 +232,13 @@ class Collection {
  *  運行方法...
  *  console.timeEnd("運行計算")
  */
+
+/**_________________________
+ ** { 正則尾部匹配標誌 }
+ * 
+ * /一個正則/i [不區分大小寫]
+ * /一個正則/g [全域匹配]
+ */
 }
 
 /* ==================================================== */
@@ -212,10 +255,10 @@ class Collection {
  * 獲取 = $$("要找的DOM", 使否查找所有, 查找的來源)
  */
 function $$(Selector, All=false, Source=document) {
-    const slice = Selector.slice(1), analyze = [" ", ".", "#", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
+    const slice = Selector.slice(1), analyze = [".", "#", " ", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
     switch (analyze) {
         case "#": return Source.getElementById(slice);
-        case " ": return All ? Source.querySelectorAll(Selector) : Source.querySelector(Selector);
+        case " ": return All ? Source.querySelectorAll(Selector):Source.querySelector(Selector);
         case ".": Selector = Source.getElementsByClassName(slice);break;
         default: Selector = Source.getElementsByTagName(Selector);
     }
