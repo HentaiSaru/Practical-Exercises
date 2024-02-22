@@ -49,10 +49,10 @@ class API {
      * @returns {element}       - DOM 元素
      */
     $$(Selector, All=false, Source=document) {
-        const slice = Selector.slice(1), analyze = [" ", ".", "#", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
+        const slice = Selector.slice(1), analyze = [".", "#", " ", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
         switch (analyze) {
             case "#": return Source.getElementById(slice);
-            case " ": return All ? Source.querySelectorAll(Selector) : Source.querySelector(Selector);
+            case " ": return All ? Source.querySelectorAll(Selector):Source.querySelector(Selector);
             case ".": Selector = Source.getElementsByClassName(slice);break;
             default: Selector = Source.getElementsByTagName(Selector);
         }
