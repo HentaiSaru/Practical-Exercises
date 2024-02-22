@@ -129,8 +129,8 @@
                 let download_button = GM_addElement(api.$$("#gd2"), "button", {
                     id: "ExDB", class: "Download_Button"
                 });
-                download_button.textContent = lock ? Language.DM_03 : ModeDisplay;
                 download_button.disabled = lock ? true : false;
+                download_button.textContent = lock ? Language.DM_03 : ModeDisplay;
                 api.AddListener(download_button, "click", () => {
                     lock = true;
                     download_button.disabled = true;
@@ -252,7 +252,7 @@
         /* 主頁數據處理 */
         async HomeData(button) {
             const self = this, homepage = new Map();
-            let task = 0, DC = 0, HomeD = self.Home_ID, pages = self.Total(api.$$("#gdd td.gdt2", true)),
+            let task = (DC = 0), HomeD = self.Home_ID, pages = self.Total(api.$$("#gdd td.gdt2", true)),
             title = api.IllegalCharacters(api.$$("#gj").textContent.trim() || api.$$("#gn").textContent.trim()); //! 由這邊寫修改檔名邏輯
             self.DownloadMode = CompressMode;
 
@@ -309,7 +309,7 @@
         /* 漫畫連結處理 */
         async ImageData(button, title, link) {
             const self = this, imgbox = new Map();
-            let pages = link.length, ImageD = self.Image_ID, DC = 0, task = 0;
+            let pages = link.length, ImageD = self.Image_ID, task = (DC = 0);
 
             // 獲取連結
             async function GetLink(index, img) {
@@ -363,7 +363,7 @@
         /* 壓縮下載 */
         async ZipDownload(Button, Folder, ImgData) {
             const self=this, Data=new JSZip(), force = GM_registerMenuCommand(Language.MN_02, ()=> ForceDownload());
-            let time, blob, count=0, progress=0, clean=false,
+            let time, blob, count=(progress=0), clean=false,
             ReTry=Config.ReTry, Total=ImgData.size, delay=self.Download_ID,
             thread=self.Download_IT, Fill=self.FillValue(Total);
 
