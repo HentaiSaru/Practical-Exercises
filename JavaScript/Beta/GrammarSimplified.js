@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/02/20
+// @version      2024/02/23
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -174,11 +174,11 @@ class API {
      *      console.log(註冊狀態)
      * })
      */
-    async Listen(element, type, listener, add={}, callback) {
+    async Listen(element, type, listener, add={}, callback=null) {
         try {
             element.addEventListener(type, listener, add);
-            callback(true);
-        } catch {callback(false)}
+            callback ? callback(true) : null;
+        } catch {callback ? callback(true) : null}
     }
 
     /**
@@ -207,9 +207,7 @@ class API {
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-        }, (1000 * timeout));
+        timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
 
     /**
@@ -236,9 +234,7 @@ class API {
             }
         });
         observer.observe(document.body, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-        }, (1000 * timeout));
+        timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
 
     /**
@@ -249,9 +245,8 @@ class API {
      */
     async log(group=null, label="print", type="log") {
         type = typeof type === "string" && this.Template[type] ? type : type = "log";
-        if (group == null) {
-            this.Template[type](label);
-        } else {
+        if (group == null) {this.Template[type](label)}
+        else {
             console.groupCollapsed(group);
             this.Template[type](label);
             console.groupEnd();
