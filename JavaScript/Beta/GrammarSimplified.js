@@ -177,8 +177,8 @@ class API {
     async Listen(element, type, listener, add={}, callback=null) {
         try {
             element.addEventListener(type, listener, add);
-            callback ? callback(true) : null;
-        } catch {callback ? callback(true) : null}
+            if (callback) {callback(true)}
+        } catch {if (callback) {callback(false)}}
     }
 
     /**
