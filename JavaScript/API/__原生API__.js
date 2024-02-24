@@ -537,3 +537,19 @@ async function log(group=null, label="print", type="log") {
 }
 
 /* ==================================================== */
+
+/**
+ ** { 監聽對象, 並呼叫函數 }
+ *
+ * @param {string} Mark      - 監聽標記, 避免重複創建
+ * @param {element} Target   - 觸發的監聽對象
+ * @param {function} Trigger - 觸發的函數
+ */
+const ObservreMark = new Map();
+async function Observer(Mark, Target, Trigger) {
+    if (!ObservreMark.has(Mark)) {
+        ObservreMark.set(Mark, true);
+        const observer = new MutationObserver(() => {Trigger()});
+        observer.observe(Target, { childList: true, subtree: true });
+    }
+}
