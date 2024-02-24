@@ -100,6 +100,15 @@ class API {
     }
 
     /**
+     * * { 暫停異步函數 }
+     * @param {Integer} delay - 延遲的秒數
+     * @returns { Promise }
+     */
+    sleep (delay) {
+        return new Promise(resolve => setTimeout(resolve, delay * 1000));
+    }
+
+    /**
      * * { 添加樣式表到 head }
      * @param {string} Rule - 樣式表
      * @param {string} ID   - 創建 ID
@@ -199,7 +208,9 @@ class API {
         let timer, element, result;
         const observer = new MutationObserver(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-            result = all ? element.length > 0 : element;
+            result = all ? element.length > 0 && Array.from(element).every(item=> {
+                return item !== null && typeof item !== "undefined";
+            }) : element;
             if (result) {
                 observer.disconnect();
                 clearTimeout(timer);
@@ -227,7 +238,7 @@ class API {
         let timer, elements;
         const observer = new MutationObserver(() => {
             elements = selectors.map(selector => document.querySelector(selector))
-            if (elements.every(element => element)) {
+            if (elements.every(element => {return element !== null && typeof "undefined"})) {
                 observer.disconnect();
                 clearTimeout(timer);
                 callback(elements);
