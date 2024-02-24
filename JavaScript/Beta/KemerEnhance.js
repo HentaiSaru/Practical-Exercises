@@ -38,11 +38,6 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
-/**
- * 開發設想
- * 黑名單功能 [加入黑名單按鈕 和移除按鈕 進行隱藏 或 淡化]
- */
-
 (function () {
     var Language, ImgRules, GetSet, Set, buffer, parser = new DOMParser();
 
@@ -61,7 +56,6 @@
         VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         CommentFormat: 1,   // 修改評論區排版
         ExtraButton: 1,     // 額外的下方按鈕
-
     };
 
     /* 主程式調用 */
@@ -424,7 +418,7 @@
         async function Analysis(father, text) {
             father.innerHTML = text.replace(URL_Format, url => {
                 const link = Protocol_format.test(url) ? `https://${url}` : url;
-                return `<a href="${link}" target="_blank">${url}</a>`;
+                return `<a href="${link}" target="_blank">${decodeURIComponent(url)}</a>`;
             });
         }
         function Advanced(element) {
