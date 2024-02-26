@@ -366,7 +366,7 @@
                             ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
                         });
                         // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                        api.Listen(document, "click", event => {
+                        api.AddListener(document, "click", event => {
                             const target = event.target.matches(".image-link img");
                             if (target && target.alt == "Loading Failed") {
                                 img.src = img.src;
