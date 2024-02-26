@@ -7,8 +7,9 @@ import open from "fs";
   Node.js: v21.6.1
   Npm: 9.8.1
 
-  目前只寫 Python 和 JavaScript 的邏輯, 其他語言應該是不適用 (目前是有 BUG 的, 畢竟不是用語法分析)
-  填寫輸入代碼路徑 與 輸出代碼路徑, 自動刪除代碼中(註解, 縮排, 多餘的空格)
+  目前只寫 Python 和 JavaScript 的邏輯,
+  主要是處理 JavaScript  其他語言應該是不適用 (目前是有 BUG 的, 畢竟不是用語法分析)
+  最後自動刪除代碼中(註解, 縮排, 多餘的空格)
 */
 
 class LoadData {
@@ -32,8 +33,8 @@ class LoadData {
       this.ms_comment = /^\s*(\/\*|""")/; // 區域註解開頭
       this.mm_comment = /\s*\*/; // 區域註解中段
       this.me_comment = /\s*(\*\/|""")\r$/; // 區域註解結尾
-      this.tailcomment = /[\/\/#][^"',:;?)}]*\r$/; // 尾部單行註解
-      this.area_comment = /^[\s]*("""){1}|(\/\*){1}.*?(?=\*\/\r)|.*?(?=""")\r/ // 單行的區域註解
+      this.tailcomment = /[\/\/#][^"',:;?>)}]*\r$/; // 尾部單行註解
+      this.area_comment = /((""")|(\/\*))([\s\S]*?)(\*\/|""")/g // 單行的區域註解
 
       this.java = ["js", "ts", "mjs", "cjs", "java", "coffee"];
       this.python = ["py", "pyw"];
@@ -46,16 +47,40 @@ class LoadData {
       this.EC = (data) => {return this.me_comment.test(data)}
       /* 打印所有狀態值 (前匹配, 前標記, 後匹配, 後標記) */
       this.PD = (type, data, index) => {
-        console.log("\x1b[32m%s\x1b[0m", `[Type ${type}][${index}](${this.SC(data)}|${this.s_mark}, ${this.EC(data)}|${this.e_mark}) : ${data}`)
+        console.log("\x1b[32m%s\x1b[0m", `[${type}][${index}](${this.SC(data)}|${this.s_mark}, ${this.EC(data)}|${this.e_mark}) : ${data}`);
       }
 
       /* 簡單的清理註解 */
-      this.SimpleClean = (data) => {return this.comment.test(data) || this.area_comment.test(data) || this.space.test(data)}
-      /* 回傳尾部註解 與 空格 清理 */
-      this.TailClean = (data) => {return data.replace(this.tailcomment, "").replace(this.tailspace, "")}
+      this.SimpleClean = (data, index) => {
+        let State=false;
+        if (this.comment.test(data)) { // 單行註解
+          State = true;
+          this.debug ? this.PD(`SimpleClean-A`, data, index) : null;
+        }
+        if (this.area_comment.test(data)) { // 單行的區域註解
+          State = true;
+          this.OP(data.replace(this.area_comment, ""));
+          this.debug ? this.PD(`SimpleClean-B`, data, index) : null;
+        }
+        if (this.space.test(data)) { // 空白區
+          State = true;
+          this.debug ? this.PD(`SimpleClean-C`, data, index) : null;
+        }
+        return State;
+      }
+
+      /* 尾部 註解和空格 清理 */
+      this.TailClean = (data) => {
+        if (this.tailcomment.test(data)) {
+          this.debug ? this.PD(`TailClean`, data, null) : null;
+          data.replace(this.tailcomment, "")
+        }
+        return data.replace(this.tailspace, "");
+      }
 
       /* 傳入值保存到 output_box */
       this.OP = (data) => {this.output_box.push(data)};
+
       /* 取得附檔名 */
       this.Extension = (name) => {
         const match = name.match(/\.([^.]+)$/);
@@ -66,19 +91,19 @@ class LoadData {
     /* 進階處理邏輯 (待開發) */
     AdvancedClean(data, index) {
       if (this.s_mark && this.e_mark) {
-        this.debug ? this.PD("A", data, index) : null;
+        this.debug ? this.PD("AdvancedClean-A", data, index) : null;
         this.e_mark = this.EC(data) ? false : true;
 
       } else if (this.SC(data) && !this.s_mark) {
-        this.debug ? this.PD("B", data, index) : null;
+        this.debug ? this.PD("AdvancedClean-B", data, index) : null;
         this.s_mark = true;
 
       } else if (this.EC(data) && this.e_mark) {
-        this.debug ? this.PD("C", data, index) : null;
+        this.debug ? this.PD("AdvancedClean-C", data, index) : null;
         this.e_mark = false;
 
       } else if (this.SC(data) && this.EC(data)) {
-        this.debug ? this.PD("D", data, index) : null;
+        this.debug ? this.PD("AdvancedClean-D", data, index) : null;
 
         if (this.java.includes(this.extname)) {
           this.s_mark && this.e_mark ? this.OP(data) : null; // JS
@@ -103,11 +128,11 @@ class LoadData {
 
         let index = 0;
         for (const line of this.processed_box) {
-          if (this.SimpleClean(line)) {
-            this.debug ? this.PD("Simple", line, ++index) : null;
+          ++index;
+          if (this.SimpleClean(line, index)) {
             continue;
           } else {
-            this.AdvancedClean(line, ++index);
+            this.AdvancedClean(line, index);
           }
         }
 
@@ -135,7 +160,7 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/ExDownloader.js", "R:/Simplify", false
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerEnhance.js", "R:/Simplify", true
 );
 
 Load.Read_data();
