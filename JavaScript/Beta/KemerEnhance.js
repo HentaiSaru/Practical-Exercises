@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.44
+// @version      0.0.45
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -44,7 +44,7 @@
     const Global={ /* 全域功能 */
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
-        BlockAds: 1         // 封鎖廣告
+        BlockAds: 1,        // 封鎖廣告
     }, Preview={ /* 預覽帖子頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
@@ -129,28 +129,28 @@
                         New_data = api.$$("section", false, api.DomParse(response.responseText));
                         ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
                         history.pushState(null, null, link);
-                        PF.QuickPostToggle();
-                        PF.NewTabOpens();
                     },
                     onerror: error => {Request(link)}
                 });
             }
-            api.$$("menu a", true).forEach(m => {
-                api.Listen(m, "click", event => {
+            api.Listen(document, "click", event => {
+                const target = event.target.closest("menu a");
+                if (target) {
                     event.preventDefault();
-                    Request(m.href);
-                }, { capture: true, once: true })
-            })
+                    Request(target.href);
+                }
+            }, {capture: true})
         }
 
         /* 將預覽頁面都變成開新分頁 */
         async NewTabOpens() {
-            api.$$("article a", true).forEach(link => {
-                api.Listen(link, "click", event => {
+            api.Listen(document, "click", event => {
+                const target = event.target.closest("article a");
+                if (target) {
                     event.preventDefault();
-                    GM_openInTab(link.href, { active: false, insert: true });
-                }, { capture: true })
-            })
+                    GM_openInTab(target.href, { active: false, insert: true });
+                }
+            }, {capture: true})
         }
 
         /* 帖子說明文字淡化 */
@@ -208,7 +208,7 @@
 
         /* 連結文本轉換成超連結 */
         async TextToLink() {
-            const URL_F = /(?:https?:\/\/[^\s]+|.*\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
+            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
             async function Analysis(father, text) {
                 father.innerHTML = text.replace(URL_F, url => {
                     const link = Protocol_F.test(url) ? `https://${url}` : url;
@@ -223,8 +223,8 @@
                 return clone.textContent.trim();
             }
             api.WaitElem("div.post__body", false, 8, body => {
-                const content = api.$$("div.post__content", false, body);
                 const article = api.$$("article", false, body);
+                const content = api.$$("div.post__content", false, body);
                 if (article) {
                     api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
                 } else if (content) {
@@ -317,9 +317,7 @@
                         key: "img",
                         src: href.href.split("?f=")[0],
                         className: "img-style",
-                        onError: function () {
-                            Reload(ID, 15);
-                        }
+                        onError: function () {Reload(ID, 10)}
                     })
                     )
                 };
@@ -346,7 +344,7 @@
                         if (entry.isIntersecting) {
                             const object = entry.target;
                             observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: $$("a", false, object) }), object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
                             object.classList.remove("post__thumbnail");
                         }
                     });
@@ -367,17 +365,13 @@
                             href = api.$$("a", false, object);
                             ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
                         });
-                        api.$$("a.image-link", true).forEach(link => {
-                            const handleClick = () => {
-                                img = api.$$("img", false, link);
-                                if (!img.complete) {
-                                    img.src = img.src;
-                                } else {
-                                    link.removeEventListener("click", handleClick);
-                                }
+                        // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
+                        api.Listen(document, "click", event => {
+                            const target = event.target.matches(".image-link img");
+                            if (target && target.alt == "Loading Failed") {
+                                img.src = img.src;
                             }
-                            link.addEventListener("click", handleClick);
-                        })
+                        }, {capture: true, passive: true})
                 }
             });
 
@@ -388,7 +382,7 @@
                         let object = api.$$(`#${ID}`), old = api.$$("img", false, object), img = document.createElement("img");
                         Object.assign(img, {
                             src: old.src,
-                            alt: "Reload",
+                            alt: "Loading Failed",
                             className: "img-style"
                         });
                         img.onerror = function () { Reload(ID, retry) };
@@ -503,34 +497,32 @@
             switch (type) {
                 case "Preview":
                     /* 快速預覽樣式添加 */
-                    if (!api.$$("#Preview-Effects")) {
-                        api.AddStyle(`
-                            .gif-overlay {
-                                top: 45%;
-                                left: 50%;
-                                width: 60%;
-                                height: 60%;
-                                opacity: 0.5;
-                                z-index: 9999;
-                                position: absolute;
-                                border-radius: 50%;
-                                background-size: contain;
-                                background-position: center;
-                                background-repeat: no-repeat;
-                                transform: translate(-50%, -50%);
-                                background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
-                            }
-                            .card-list__items {
-                                gap: 0.5em;
-                                display: flex;
-                                grid-gap: 0.5em;
-                                position: relative;
-                                flex-flow: var(--local-flex-flow);
-                                justify-content: var(--local-justify);
-                                align-items: var(--local-align);
-                            }
-                        `, "Preview-Effects");
-                    }break;
+                    api.AddStyle(`
+                        .gif-overlay {
+                            top: 45%;
+                            left: 50%;
+                            width: 60%;
+                            height: 60%;
+                            opacity: 0.5;
+                            z-index: 9999;
+                            position: absolute;
+                            border-radius: 50%;
+                            background-size: contain;
+                            background-position: center;
+                            background-repeat: no-repeat;
+                            transform: translate(-50%, -50%);
+                            background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+                        }
+                        .card-list__items {
+                            gap: 0.5em;
+                            display: flex;
+                            grid-gap: 0.5em;
+                            position: relative;
+                            flex-flow: var(--local-flex-flow);
+                            justify-content: var(--local-justify);
+                            align-items: var(--local-align);
+                        }
+                    `, "Preview-Effects");break;
 
                 case "Postview":
                     /* 創建DOM 緩衝區 (宣告) */
@@ -747,8 +739,9 @@
             if (!api.$$(".modal-background")) {
                 DM.ImgRules = api.$$("#Custom-style").sheet.cssRules;
                 DM.Set = DM.GetSet.ImgSet();
-                let parent, child, img_input, img_select, analyze;
+                let parent, child, img_input, img_select, img_set, analyze;
                 const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
+
                 const menu = `
                     <div class="modal-background">
                         <div class="modal-interface">
@@ -829,34 +822,9 @@
                 $(document.body).append(menu);
                 $(".modal-interface").draggable({ cursor: "grabbing" });
                 $(".modal-interface").tabs();
-                // 菜單選擇
-                $on("#image-settings", "click", () => {
-                    const img_set = $("#image-settings-show");
-                    if (img_set.css("opacity") === "0") {
-                        img_set.find("p").each(function() {
-                            $(this).append(UnitOptions);
-                        });
-                        img_set.css({
-                            "height": "auto",
-                            "width": "auto",
-                            "opacity": 1
-                        });
-                        $("#readsettings").prop("disabled", false);
-                        PictureSettings();
-                    }
-                })
-                // 語言選擇
-                $("#language").val(api.store("get", "language") || "")
-                $on("#language", "input change", function (event) {
-                    event.stopPropagation();
-                    const value = $(this).val();
-                    Language = DM.language(value);
-                    GM_setValue("language", value);
-                    $("#language").off("input change");
-                    $(".modal-background").remove();
-                    DM.Menu();
-                });
-                // 圖片設置
+                // 關閉菜單
+                function Menu_Close() {$(".modal-background").remove()}
+                // 圖片設置菜單
                 async function PictureSettings() {
                     $on(".Image-input-settings", "input change", function (event) {
                         event.stopPropagation();
@@ -877,58 +845,83 @@
                         }
                     });
                 }
-                // 讀取保存
-                $on("#readsettings", "click", () => {
-                    const img_set = $("#image-settings-show").find("p");
-                    img_data.forEach((read, index) => {
-                        img_input = img_set.eq(index).find("input");
-                        img_select = img_set.eq(index).find("select");
+                // 語言選擇
+                $("#language").val(api.store("get", "language") || "")
+                $on("#language", "input change", function (event) {
+                    event.stopPropagation();
+                    const value = $(this).val();
+                    Language = DM.language(value);
+                    GM_setValue("language", value);
+                    $("#language").off("input change");
+                    Menu_Close();
+                    DM.Menu();
+                });
+                // 監聽菜單的點擊事件
+                let save = {}, set_value;
+                $on(".modal-interface", "click", function (event) {
+                    const id = $(event.target).attr("id");
 
-                        if (read === "auto") {
-                            img_input.prop("disabled", true);
-                            img_select.val(read);
-                        } else {
-                            analyze = read.match(/^(\d+)(\D+)$/);
-                            img_input.val(analyze[1]);
-                            img_select.val(analyze[2]);
+                    // 菜單功能選擇
+                    if (id == "image-settings") {
+                        img_set = $("#image-settings-show");
+                        if (img_set.css("opacity") === "0") {
+                            img_set.find("p").each(function() {
+                                $(this).append(UnitOptions);
+                            });
+                            img_set.css({
+                                "height": "auto",
+                                "width": "auto",
+                                "opacity": 1
+                            });
+                            $("#readsettings").prop("disabled", false);
+                            PictureSettings();
                         }
-                    })
-                });
-                // 應用保存
-                let save = {};
-                $on("#application", "click", () => {
-                    const img_set = $("#image-settings-show").find("p");
-                    img_data.forEach((read, index) => {
-                        img_input = img_set.eq(index).find("input");
-                        img_select = img_set.eq(index).find("select");
-                        if (img_select.val() === "auto") {
-                            save[img_input.attr("id")] = "auto";
-                        } else if (img_input.val() === "") {
-                            save[img_input.attr("id")] = read;
-                        } else {
-                            save[img_input.attr("id")] = `${img_input.val()}${img_select.val()}`;
-                        }
-                    })
-                    GM_setValue("ImgSet", [save]);
 
-                    // 菜單位置資訊
-                    save = {};
-                    const menu_location = $(".modal-interface");
-                    const top = menu_location.css("top");
-                    const left = menu_location.css("left");
-                    save["MT"] = top;
-                    save["ML"] = left;
-                    GM_setValue("MenuSet", [save]);
+                    // 讀取保存設置
+                    } else if (id == "readsettings") {
+                        img_set = $("#image-settings-show").find("p");
+                        img_data.forEach((read, index) => {
+                            img_input = img_set.eq(index).find("input");
+                            img_select = img_set.eq(index).find("select");
 
-                    DM.styleRules["MT"](top);
-                    DM.styleRules["ML"](left);
-                    $(".modal-background").remove();
-                });
+                            if (read == "auto") {
+                                img_input.prop("disabled", true);
+                                img_select.val(read);
+                            } else {
+                                analyze = read.match(/^(\d+)(\D+)$/);
+                                img_input.val(analyze[1]);
+                                img_select.val(analyze[2]);
+                            }
+                        })
+                    
+                    // 應用保存
+                    } else if (id == "application") {
+                        img_set = $("#image-settings-show").find("p");
+                        img_data.forEach((read, index) => {
+                            img_input = img_set.eq(index).find("input");
+                            img_select = img_set.eq(index).find("select");
+                            if (img_select.val() == "auto") {set_value = "auto"}
+                            else if (img_input.val() == "") {set_value = read}
+                            else {set_value = `${img_input.val()}${img_select.val()}`}
+                            save[img_input.attr("id")] = set_value;
+                        })
+                        GM_setValue("ImgSet", [save]);
 
-                // 關閉菜單
-                $on("#closure", "click", () => {
-                    $(".modal-background").remove();
-                });
+                        // 保存菜單位置資訊
+                        save = {};
+                        const menu_location = $(".modal-interface");
+                        const top = menu_location.css("top");
+                        const left = menu_location.css("left");
+                        save["MT"] = top; save["ML"] = left;
+                        GM_setValue("MenuSet", [save]);
+                        // 設置到樣式表內 不用重整可以直接改變
+                        DM.styleRules["MT"](top);
+                        DM.styleRules["ML"](left);
+                        Menu_Close();
+
+                    // 關閉菜單
+                    } else if (id == "closure") {Menu_Close()}
+                })
             }
         }
 
@@ -998,16 +991,13 @@
                 VideoBeautify: s=> this.USE(s, CF.VideoBeautify),
                 CommentFormat: s=> this.USE(s, CF.CommentFormat),
                 ExtraButton: s=> this.USE(s, CF.ExtraButton)
-            }
 
-            Object.entries(Global).forEach(([func, set]) => Call[func](set));
-            if (this.M3()) {
-                PF = new Preview_Function();
-                Object.entries(Preview).forEach(([func, set]) => Call[func](set));
-            }
+            }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call[func](set))}
+
+            Start(Global);
+            if (this.M3()) {PF = new Preview_Function(); Start(Preview)}
             else if (this.M1()) {
-                CF = new Content_Function();
-                Object.entries(Content).forEach(([func, set]) => Call[func](set));
+                CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
                 Language = DM.language(api.store("get", "language"));
                 api.Menu({[Language.RM_01]: ()=> DM.Menu()})
@@ -1028,7 +1018,5 @@
     }
 
     /* 添加監聽 (jquery) */
-    async function $on(element, type, listener) {
-        $(element).on(type, listener);
-    }
+    async function $on(element, type, listener) {$(element).on(type, listener)}
 })();
