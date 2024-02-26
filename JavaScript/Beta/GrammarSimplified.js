@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/02/23
+// @version      2024/02/26
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -139,7 +139,7 @@ class API {
     }
 
     /**
-     * * { 添加監聽器 (可刪除版) }
+     * * { 添加監聽器 (可刪除, 且會檢測是否重複添加) }
      * @param {string} element - 添加元素
      * @param {string} type    - 監聽器類型
      * @param {*} listener     - 監聽後操作
@@ -169,7 +169,7 @@ class API {
     }
 
     /**
-     * * { 簡化版監聽器 (不可刪除) }
+     * * { 簡化版監聽器 (不可刪除, 且不檢測是否重複添加, 但會回傳註冊狀態) }
      * @param {string} element - 添加元素
      * @param {string} type    - 監聽器類型
      * @param {*} listener     - 監聽後操作
