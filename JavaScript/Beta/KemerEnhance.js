@@ -287,7 +287,7 @@
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
                                     switch (Mode) {
-                                        case 2: // 因為移動節點, 需要刪除再去複製, 因此不使用 break
+                                        case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
                                             link.parentNode.remove();
                                             title = link;
                                         default:
