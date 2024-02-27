@@ -23,7 +23,6 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
