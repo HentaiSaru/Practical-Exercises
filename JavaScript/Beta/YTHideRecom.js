@@ -1,30 +1,18 @@
 // ==UserScript==
-// @name         Youtube Hide Tool
-// @name:zh-TW   Youtube 隱藏工具
-// @name:zh-CN   Youtube 隐藏工具
-// @name:ja      Youtube 非表示ツール
+// @name         YouTube Hide Tool
+// @name:zh-TW   YouTube 隱藏工具
+// @name:zh-CN   YouTube 隐藏工具
+// @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @name:de      Youtube Versteckwerkzeug
-// @name:pt      Ferramenta de Ocultação do Youtube
-// @name:es      Herramienta de Ocultación de Youtube
-// @name:fr      Outil de Masquage de Youtube
-// @name:hi      यूट्यूब छुपाने का उपकरण
-// @name:id      Alat Sembunyikan Youtube
-// @version      0.0.25
+// @version      0.0.26
 // @author       HentaiSaru
-// @description         快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
-// @description:zh-TW   快捷隱藏 YouTube 留言區、相關推薦、影片結尾推薦和設置選單
-// @description:zh-CN   快捷隐藏 YouTube 评论区、相关推荐、视频结尾推荐和设置菜单
-// @description:ja      YouTubeのコメント欄、関連おすすめ、動画の最後のおすすめ、設定メニューを素早く非表示にする
-// @description:ko      빠른 YouTube 댓글 영역, 관련 추천, 비디오 끝 추천 및 설정 메뉴 숨기기
-// @description:en      Quickly hide YouTube comments, related recommendations, video end recommendations, and settings menu
-// @description:de      Schnell verstecken YouTube Kommentare, verwandte Empfehlungen, Video-Ende-Empfehlungen und Einstellungsmenü
-// @description:pt      Ocultar rapidamente comentários do YouTube, recomendações relacionadas, recomendações de final de vídeo e menu de configurações
-// @description:es      Ocultar rápidamente comentarios de YouTube, recomendaciones relacionadas, recomendaciones de final de video y menú de configuración
-// @description:fr      Masquer rapidement les commentaires de YouTube, les recommandations connexes, les recommandations de fin de vidéo et le menu des paramètres
-// @description:hi      यूट्यूब टिप्पणियाँ, संबंधित सिफारिशें, वीडियो के अंत की सिफारिशें और सेटिंग्स मेनू को त्वरित रूप से छुपाएं
-// @description:id      Sembunyikan cepat komentar YouTube, rekomendasi terkait, rekomendasi akhir video, dan menu pengaturan
+// @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
+// @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
+// @description:zh-CN   该脚本能够自动隐藏 YouTube 视频结尾的推荐卡，在鼠标悬停于视频上方时，推荐卡会恢复显示。并额外提供快捷键切换功能，可隐藏评论区、视频推荐、功能列表，并切换至极简模式。设置会自动保存，并在下次打开视频时自动应用。
+// @description:ja      このスクリプトは、YouTube动画の终わりに表示される推奨カードを自动的に非表示にし、マウスがビデオ上にホバーされると、推奨カードが再表示されます。さらに、ショートカットキーでコメントセクション、动画の推奨、机能リストを非表示に切り替える机能が追加されており、シンプルモードに切り替えることもできます。设定は自动的に保存され、次回ビデオを开くと自动的に适用されます。
+// @description:ko      이 스크립트는 YouTube 동영상 끝에 나오는 추천 카드를 자동으로 숨기고, 마우스가 비디오 위에 머무를 때 추천 카드가 다시 나타납니다. 또한, 댓글 섹션, 비디오 추천, 기능 목록을 숨기고 최소 모드로 전환하는 단축키를 제공합니다. 설정은 자동으로 저장되며, 다음 비디오를 열 때 자동으로 적용됩니다.
+// @description:en      This script automatically hides the recommended cards at the end of YouTube videos. When the mouse hovers over the video, the recommended cards will reappear. Additionally, it provides shortcut keys to toggle the comment section, video recommendations, feature list, and switch to a minimalist mode. Settings are automatically saved and applied the next time the video is opened.
 
 // @match        *://www.youtube.com/*
 // @icon         https://cdn-icons-png.flaticon.com/512/1383/1383260.png
@@ -43,12 +31,11 @@
 
 (function() {
     const HotKey = {
-        RecomCard: event => event.shiftKey, // 影片結尾推薦卡
-        MinimaList: event => event.ctrlKey && event.key == "z", // 極簡化
-        RecomViewing: event => event.altKey && event.key == "1", // 推薦觀看
-        Comment: event => event.altKey && event.key == "2", // 留言區
-        FunctionBar: event => event.altKey && event.key == "3", // 功能區
-        ListDesc: event => event.altKey && event.key == "4" // 播放清單資訊
+        MinimaList: k => k.ctrlKey && k.key == "z", // 極簡化
+        RecomViewing: k => k.altKey && k.key == "1", // 推薦觀看
+        Comment: k => k.altKey && k.key == "2", // 留言區
+        FunctionBar: k => k.altKey && k.key == "3", // 功能區
+        ListDesc: k => k.altKey && k.key == "4" // 播放清單資訊
     }
 
     class Tool extends API {
@@ -64,24 +51,30 @@
             this.Transform = false;
 
             /* 觸發設置 */
-            this.SetTrigger = async element => {
-                element.style.display = "none";
+            this.SetTrigger = async Element => {
+                Element.style.display = "none";
                 return new Promise(resolve => {
-                    element.style.display == "none" ? resolve(true) : resolve(false);
+                    Element.style.display == "none" ? resolve(true) : resolve(false);
                 });
             }
 
             /* 判斷設置 */
-            this.HideJudgment = async(element, gm=null) => {
-                if (element.style.display === "none" || this.Transform) {
-                    element.style.display = "block";
-                    gm != null ? GM_setValue(gm, false) : null;
+            this.HideJudgment = async (Element, setValue=null) => {
+                if (Element.style.display == "none" || this.Transform) {
+                    Element.style.display = "block";
+                    setValue ? GM_setValue(setValue, false) : null;
                 } else {
-                    element.style.display = "none";
-                    gm != null ? GM_setValue(gm, true) : null;
+                    Element.style.display = "none";
+                    setValue ? GM_setValue(setValue, true) : null;
                 }
             }
 
+            /* 快速切換樣式 */
+            this.StyleSwitch = async (Element, Type) => {
+                Element.forEach(e =>{e.style.display = Type});
+            }
+
+            /* 設置標籤 */
             this.SetAttri = async(label, state) => {
                 document.body.setAttribute(label, state);
             }
@@ -100,35 +93,23 @@
                     if (!this.$$("#Video-Tool-Hide")) {
                         this.AddStyle(`
                             .ytp-ce-element{
-                                opacity: 0.1 !important;
+                                opacity: 0 !important;
                             }
-                            .ytp-ce-element:hover{
+                            #player.ytd-watch-flexy:hover .ytp-ce-element {
                                 opacity: 1 !important;
-                                transition: opacity 0.3s ease;
+                                transition: 0.6s;
                             }
                         `, "Video-Tool-Hide");
                     }
 
                     // 等待影片頁面需隱藏的數據
                     this.WaitMap([
-                        "#end",
-                        "#below",
-                        "#secondary",
-                        "#secondary-inner",
-                        "#related",
-                        "#chat-container",
-                        "#comments",
-                        "#actions"
+                        "#end", "#below",
+                        "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
+                        "#related", "#comments", "#actions"
                     ], 10, element => {
-                        const [
-                            end,
-                            below,
-                            secondary,
-                            inner,
-                            related,
-                            chat,
-                            comments,
-                            actions
+                        let [
+                            end, below, secondary, inner, related, comments, actions
                         ] = element;
 
                         // 極簡化
@@ -136,11 +117,10 @@
                             Promise.all([this.SetTrigger(end), this.SetTrigger(below), this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
                                 results.every(result => result) && this.Dev ? this.log("極簡化", true) : null;
                             });
-
                         } else {
                             // 推薦播放隱藏
                             if (this.store("get", "RecomViewing")) {
-                                Promise.all([this.SetTrigger(chat), this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
+                                Promise.all([this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
                                     results.every(result => result) && this.Dev ? this.log("隱藏推薦觀看", true) : null;
                                 });
                             }
@@ -160,32 +140,19 @@
                             if (this.HK.MinimaList(event)) {
                                 event.preventDefault();
                                 if (this.store("get", "Minimalist")) {
-                                    end.style.display = "block";
-                                    below.style.display = "block";
-                                    secondary.style.display = "block";
-                                    related.style.display = "block";
                                     GM_setValue("Minimalist", false);
+                                    this.StyleSwitch([end, below, secondary, related], "block");
                                 } else {
-                                    end.style.display = "none";
-                                    below.style.display = "none";
-                                    secondary.style.display = "none";
-                                    related.style.display = "none";
                                     GM_setValue("Minimalist", true);
+                                    this.StyleSwitch([end, below, secondary, related], "none");
                                 }
-                            } else if (this.HK.RecomCard(event)) {
-                                event.preventDefault();
-                                this.$$(".ytp-ce-element, .ytp-ce-covering", true).forEach(element => {
-                                    this.HideJudgment(element);
-                                });
                             } else if (this.HK.RecomViewing(event)) {
                                 event.preventDefault();
                                 if (inner.childElementCount > 1) {
-                                    this.HideJudgment(chat);
                                     this.HideJudgment(secondary);
                                     this.HideJudgment(related, "RecomViewing");
                                     this.Transform = false;
                                 } else {
-                                    this.HideJudgment(chat);
                                     this.HideJudgment(related, "RecomViewing");
                                     this.Transform = true;
                                 }
@@ -203,7 +170,7 @@
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
-                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 8, playlist=> {
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 10, playlist=> {
                         // 播放清單資訊
                         if (this.store("get", "ListDesc")) {
                             this.SetTrigger(playlist).then(() => {this.Dev ? this.log("隱藏播放清單資訊", true) : null});
@@ -218,7 +185,10 @@
                     })
                 }
             });
-            observer.observe(document.head, {childList: true, subtree: true});
+            this.AddListener(document, "DOMContentLoaded", ()=> {
+                this.RemovListener(document, "DOMContentLoaded");
+                observer.observe(document.head, {childList: true, subtree: true}); 
+            });
         }
     }
 
@@ -227,46 +197,51 @@
 
     function language(language) {
         let display = {
-            "zh-TW": ["📜 設置快捷", `@ 功能失效時 [請重新整理] =>
+            "zh-TW": ["📜 預設熱鍵",
+                `@ 功能失效時 [請重新整理] =>
 
-    (Shift) : 完全隱藏影片尾部推薦
-    (Alt + 1) : 隱藏右側影片推薦
-    (Alt + 2) : 隱藏留言區
-    (Alt + 3) : 隱藏功能選項
-    (Alt + 4) : 隱藏播放清單資訊
-    (Ctrl + Z) : 使用極簡化`],
+(Alt + 1) :  隱藏推薦播放
+(Alt + 2) :  隱藏留言區
+(Alt + 3) :  隱藏功能列表
+(Alt + 4) :  隱藏播放清單資訊
+(Ctrl + Z) : 使用極簡化`
+            ],
+            "zh-CN": ["📜 预设热键",
+                `@ 功能失效时 [请重新整理] =>
 
-        "zh-CN": ["📜 设置快捷", `@ 功能失效时 [请重新刷新] =>
-    (Shift) : 全部隐藏视频尾部推荐
-    (Alt + 1) : 隐藏右侧视频推荐
-    (Alt + 2) : 隐藏评论区
-    (Alt + 3) : 隐藏功能选项
-    (Alt + 4) : 隐藏播放列表信息
-    (Ctrl + Z) : 使用极简化`],
+(Alt + 1) :  隐藏推荐播放
+(Alt + 2) :  隐藏评论区
+(Alt + 3) :  隐藏功能列表
+(Alt + 4) :  隐藏播放清单资讯
+(Ctrl + Z) : 使用极简化`
+            ],
+            "ja": ["📜 デフォルトホットキー",
+                `@ 机能が无効になった场合 [ページを更新してください] =>
 
-        "ja": ["📜 設定ショートカット", `@ 機能が無効になった場合 [再読み込みしてください] =>
-    (Shift) : 動画の最後のおすすめを完全に非表示にする
-    (Alt + 1) : 右側の動画おすすめを非表示にする
-    (Alt + 2) : コメント欄を非表示にする
-    (Alt + 3) : 機能オプションを非表示にする
-    (Alt + 4) : プレイリスト情報を非表示にする
-    (Ctrl + Z) : 簡素化を使用する`],
+(Alt + 1)：おすすめ再生を非表示にする
+(Alt + 2)：コメントエリアを非表示にする
+(Alt + 3)：机能リストを非表示にする
+(Alt + 4)：プレイリスト情报を非表示にする
+(Ctrl + Z)：シンプル化を使用する`
+            ],
+            "en-US": ["📜 Default Hotkeys",
+                `@ If functionalities fail [Please refresh] =>
 
-        "en-US": ["📜 Settings Shortcut", `@ When function fails [Please refresh] =>
-    (Shift) : Fully hide video end recommendations
-    (Alt + 1) : Hide right side video recommendations
-    (Alt + 2) : Hide comments section
-    (Alt + 3) : Hide function options
-    (Alt + 4) : Hide playlist information
-    (Ctrl + Z) : Use minimalism`],
+(Alt + 1): Hide recommended playback
+(Alt + 2): Hide comments section
+(Alt + 3): Hide feature list
+(Alt + 4): Hide playlist info
+(Ctrl + Z): Use Simplification`
+            ],
+            "ko": ["📜 기본 단축키",
+                `@ 기능이 작동하지 않을 때 [새로 고침하세요] =>
 
-        "ko": ["📜 설정 바로 가기", `@ 기능이 실패하면 [새로 고침하세요] =>
-    (Shift) : 비디오 끝 추천을 완전히 숨기기
-    (Alt + 1) : 오른쪽 비디오 추천 숨기기
-    (Alt + 2) : 댓글 섹션 숨기기
-    (Alt + 3) : 기능 옵션 숨기기
-    (Alt + 4) : 재생 목록 정보 숨기기
-    (Ctrl + Z) : 미니멀리즘 사용하기`]};
+(Alt + 1) : 추천 재생 숨기기
+(Alt + 2) : 댓글 영역 숨기기
+(Alt + 3) : 기능 목록 숨기기
+(Alt + 4) : 재생 목록 정보 숨기기
+(Ctrl + Z) : 간소화 사용`
+            ]};
 
         return display[language] || display["en-US"];
     }
