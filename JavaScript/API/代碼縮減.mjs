@@ -18,12 +18,13 @@ class LoadData {
      * @param {string} output - 輸出的文件路徑(不要加附檔名)
      * @param {boolean} debug - 顯示除錯資訊, 除錯狀態下不會輸出文件
      */
-    constructor(input, output, debug=false) {
+    constructor(input, output, operate, debug=false) {
       this.input = input;
       this.output = output;
+      this.operate = operate;
+      this.debug = debug;
       this.extname = null;
 
-      this.debug = debug;
       this.s_mark = false;
       this.e_mark = true;
 
@@ -117,23 +118,40 @@ class LoadData {
 
     /* 讀取數據 */
     async Read_data() {
+      if (Object.keys(this.operate).length != 3) {
+        console.log("請設置正確的操作數量, operate 需要有三個操作參數");
+        return;
+      }
+
       open.readFile(this.input, "utf-8", (err, data) => {
         if (err) {console.error(err);return;}
 
+        // 將字串分割成 處理陣列
         for (const line of data.split("\n")) {
           this.processed_box.push(line);
         }
 
+        // 獲取輸出的副檔名
         this.extname = path.extname(this.input);
 
+        // 開始遍歷處理
         let index = 0;
-        for (const line of this.processed_box) {
+        for (const String of this.processed_box) {
           ++index;
-          if (this.SimpleClean(line, index)) {
-            continue;
-          } else {
-            this.AdvancedClean(line, index);
+
+          if (this.operate.CC) {
           }
+
+          if (this.operate.MC) {
+          }
+
+          if (this.operate.SC) {
+          }
+          // if (this.SimpleClean(line, index)) {
+            // continue;
+          // } else {
+            // this.AdvancedClean(line, index);
+          // }
         }
 
         const merge = this.output_box.map(line => this.TailClean(line)).join("\n");
@@ -160,7 +178,13 @@ class LoadData {
 }
 
 const Load = new LoadData(
-  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerEnhance.js", "R:/Simplify", true
+  "C:/GitHubProject/Practical Exercises/JavaScript/Beta/KemerEnhance.js", "R:/Simplify",
+  {
+    CC: true, // 單行註解
+    MC: true, // 區域註解
+    SC: true, // 空白區
+  },
+  true
 );
 
 Load.Read_data();
