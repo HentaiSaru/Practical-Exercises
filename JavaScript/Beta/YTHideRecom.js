@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.26
+// @version      0.0.27
 // @author       HentaiSaru
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -61,10 +61,10 @@
             this.HideJudgment = async (Element, setValue=null) => {
                 if (Element.style.display == "none" || this.Transform) {
                     Element.style.display = "block";
-                    setValue ? GM_setValue(setValue, false) : null;
+                    setValue && GM_setValue(setValue, false);
                 } else {
                     Element.style.display = "none";
-                    setValue ? GM_setValue(setValue, true) : null;
+                    setValue && GM_setValue(setValue, true);
                 }
             }
 
@@ -74,7 +74,7 @@
             }
 
             /* 設置標籤 */
-            this.SetAttri = async(label, state) => {
+            this.SetAttri = async (label, state) => {
                 document.body.setAttribute(label, state);
             }
         }
@@ -82,7 +82,7 @@
         async Injection() {
             const observer = new MutationObserver(() => {
                 const URL = document.URL;
-                if (this.Video.test(URL) && !document.body.hasAttribute("Video-Tool-Injection")) {
+                if (this.Video.test(URL) && !document.body.hasAttribute("Video-Tool-Injection") && this.$$("div#columns")) {
                     this.SetAttri("Video-Tool-Injection", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
@@ -114,22 +114,22 @@
                         // 極簡化
                         if (this.store("get", "Minimalist")) {
                             Promise.all([this.SetTrigger(end), this.SetTrigger(below), this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
-                                results.every(result => result) && this.Dev ? this.log("極簡化", true) : null;
+                                results.every(result => result) && this.Dev && this.log("極簡化", true);
                             });
                         } else {
                             // 推薦播放隱藏
                             if (this.store("get", "RecomViewing")) {
                                 Promise.all([this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
-                                    results.every(result => result) && this.Dev ? this.log("隱藏推薦觀看", true) : null;
+                                    results.every(result => result) && this.Dev && this.log("隱藏推薦觀看", true);
                                 });
                             }
                             // 評論區
                             if (this.store("get", "Comment")) {
-                                this.SetTrigger(comments).then(() => {this.Dev ? this.log("隱藏留言區", true) : null});
+                                this.SetTrigger(comments).then(() => {this.Dev && this.log("隱藏留言區", true)});
                             }
                             // 功能選項區
                             if (this.store("get", "FunctionBar")) {
-                                this.SetTrigger(actions).then(() => {this.Dev ? this.log("隱藏功能選項", true) : null});
+                                this.SetTrigger(actions).then(() => {this.Dev && this.log("隱藏功能選項", true)});
                             }
                         }
 
@@ -164,7 +164,7 @@
                             } 
                         });
                     });
-                } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection")) {
+                } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
                     this.SetAttri("Playlist-Tool-Injection", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
@@ -172,7 +172,7 @@
                     this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 10, playlist=> {
                         // 播放清單資訊
                         if (this.store("get", "ListDesc")) {
-                            this.SetTrigger(playlist).then(() => {this.Dev ? this.log("隱藏播放清單資訊", true) : null});
+                            this.SetTrigger(playlist).then(() => {this.Dev && this.log("隱藏播放清單資訊", true)});
                         }
                         this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
@@ -185,8 +185,8 @@
                 }
             });
             this.AddListener(document, "DOMContentLoaded", ()=> {
+                observer.observe(document.head, {childList: true, subtree: true});
                 this.RemovListener(document, "DOMContentLoaded");
-                observer.observe(document.head, {childList: true, subtree: true}); 
             });
         }
     }
