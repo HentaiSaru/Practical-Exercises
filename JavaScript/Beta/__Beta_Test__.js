@@ -1,12 +1,14 @@
 // ==UserScript==
-// @name         ColaManga 瀏覽優化
-// @name:zh-TW   ColaManga 瀏覽優化
-// @name:zh-CN   ColaManga 瀏覽優化
+// @name         ColaManga 瀏覽增強
+// @name:zh-TW   ColaManga 瀏覽增強
+// @name:zh-CN   ColaManga 瀏覽增強
+// @name:en      ColaManga 瀏覽增強
 // @version      0.0.1
 // @author       HentaiSaru
 // @description 正在開發中
 // @description:zh-TW 正在開發中
 // @description:zh-CN 正在開發中
+// @description:en 正在開發中
 
 // @match        *://www.colamanga.com/manga-*/*/*.html
 // @icon         https://www.colamanga.com/favicon.png
@@ -24,6 +26,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
 // ==/UserScript==
@@ -32,14 +35,19 @@
     /**
      * 開發功能
      * 
-     * 選單設置 背景色 圖片基本寬度 圖片最大寬度
+     * 選單設置
+     * 背景色
+     * 圖片基本寬度
+     * 圖片最大寬度
+     * 
      * 返回目錄按鈕 返回首頁按鈕
      * 
      * 開關功能
      * 
-     * 阻擋廣告
-     * 快捷換頁
-     * 自動下一頁
+     * 隱藏廣告
+     * 快捷翻頁
+     * 自動翻頁
+     * 自動滾動 => 速度設置
      */
     class Manga extends API {
         constructor() {
@@ -55,6 +63,8 @@
             this.BottomStrip = null;
 
             this.Interval = null;
+            this.Rotation_Up = null;
+            this.Rotation_Down = null;
             this.Observer_Next = null;
 
             /* 取得數據 */
@@ -67,6 +77,20 @@
                 this.PreviousPage = PageLink[0].href; // 上一頁連結
                 this.NextPage = PageLink[1].href; // 下一頁連結
                 return [this.ContentsPage, this.HomePage, this.PreviousPage, this.NextPage].every(Check => Check);
+            }
+
+            /* 註冊自動滾動 */
+            this.RegisterRotation = (target, move, interval) => {
+                target = setInterval(() => {
+                    window.scrollBy(0, move);
+                }, interval);
+                return target;
+            }
+
+            /* 清除自動滾動 */
+            this.CleanRotation = (target) => {
+                clearInterval(target);
+                return null;
             }
 
             /* 獲取樣式 */
@@ -100,7 +124,7 @@
 
         /* 背景樣式 */
         async BackgroundStyle() {
-            document.body.style.backgroundColor = this.ImgStyle.BG_Color;
+            $("body").css("background-color", this.ImgStyle.BG_Color);
 
             this.DEV && this.log("背景顏色注入", true);
         }
@@ -127,6 +151,16 @@
                     const key = event.key;
                     if (key == "ArrowLeft") {location.assign(this.PreviousPage)}
                     else if (key == "ArrowRight") {location.assign(this.NextPage)}
+                    else if (key == "ArrowUp") {
+                        this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
+                        this.Rotation_Up = !this.Rotation_Up ?
+                        this.RegisterRotation(this.Rotation_Up, -3, 6) : this.CleanRotation(this.Rotation_Up);
+                    }
+                    else if (key == "ArrowDown") {
+                        this.Rotation_Up = this.Rotation_Up && this.CleanRotation(this.Rotation_Up);
+                        this.Rotation_Down = !this.Rotation_Down ?
+                        this.RegisterRotation(this.Rotation_Down, 3, 6) : this.CleanRotation(this.Rotation_Down);
+                    }
                 }, {capture: true, passive: true});
 
                 this.DEV && this.log("換頁快捷注入", true);
@@ -154,20 +188,27 @@
             } else {this.DEV && this.log("無取得換頁數據", false)}
         }
 
+        /* 菜單樣式 */
+        async MenuStyle() {
+            this.AddStyle(`
+            `, "Inject_MenuStyle");
+        }
+
         /* 功能注入 */
         async Injection() {
-            this.BlockAds();
-            this.BackgroundStyle();
-            this.PictureStyle();
+            try {
+                this.BlockAds();
+                this.BackgroundStyle();
+                this.PictureStyle();
 
-            const GetStatus = this.Get_Data();
-            this.Hotkey_Switch(GetStatus);
-            this.Automatic_Next(GetStatus);
-            //this.SettingMenu(GetStatus);
+                const GetStatus = this.Get_Data();
+                this.Hotkey_Switch(GetStatus);
+                setTimeout(()=> {this.Automatic_Next(GetStatus)}, 1000 * 5);
+                //this.SettingMenu(GetStatus);
+            } catch {location.reload()}
         }
     }
 
     const Cola = new Manga();
     Cola.Injection();
-
 })();
