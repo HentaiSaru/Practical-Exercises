@@ -48,6 +48,7 @@
      * 
      * 返回目錄按鈕 返回首頁按鈕
      * 點選模態框關閉 並自動保存 (先隱藏 隔 1 秒刪除, 製作效果, 注意避免重複創建)
+     * 模態需要設置特別的標籤 , 要避免被廣告阻擋函數的樣式擋住
      */
     class Manga extends API {
         constructor() {
@@ -115,7 +116,7 @@
             }, 1000);
             this.AddStyle(`
                 body {pointer-events: none;}
-                body img, .mh_wrap {pointer-events: auto;}
+                body .mh_wrap {pointer-events: auto;}
             `, "Inject-Blocking-Ads");
 
             this.DEV && this.log("廣告阻擋注入", true);
@@ -130,7 +131,7 @@
 
         /* 圖片樣式 */
         async PictureStyle() {
-            this.WaitElem("#mangalist", false, 10, ()=> {
+            this.WaitElem("#mangalist", false, 10, list=> {
                 this.AddStyle(`
                     .mh_comicpic img {
                         vertical-align: top;cursor: pointer;display: block;margin: auto;
@@ -138,9 +139,22 @@
                         max-width: ${this.ImgStyle.Img_Mw};
                     }
                 `, "Inject-Image-Style");
+                this.AutoReload(list);
 
                 this.DEV && this.log("圖片樣式注入", true);
             })
+        }
+
+        /* 自動重新載入 */
+        async AutoReload(element) {
+            let btn, click = new MouseEvent("click", {bubbles: true, cancelable: true, view: window});
+            const observer = new MutationObserver(() => {
+                btn = this.$$("span.mh_btn:not(.contact)", true, element);
+                btn.length > 0 && btn.forEach(b=> {b.dispatchEvent(click)});
+            });
+            observer.observe(element, { childList: true, subtree: true });
+
+            this.DEV && this.log("自動重載注入", true);
         }
 
         /* 快捷切換上下頁 */
@@ -171,8 +185,13 @@
             if (state) {
                 const self = this;
                 self.Observer_Next = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {entry.isIntersecting && location.assign(self.NextPage)});
-                }, { threshold: 0.6 });
+                    observed.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const img = self.$$("#mangalist img", true), lest_img = img[(img.length - 8)].src;
+                            lest_img && location.assign(self.NextPage);
+                        }
+                    });
+                }, { threshold: 0.4 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
@@ -202,8 +221,8 @@
 
                 const GetStatus = this.Get_Data();
                 this.Hotkey_Switch(GetStatus);
-                setTimeout(()=> {this.Automatic_Next(GetStatus)}, 1000 * 5);
                 //this.SettingMenu(GetStatus);
+                setTimeout(()=> {this.Automatic_Next(GetStatus)}, 1000 * 10);
             } catch {location.reload()}
         }
     }
