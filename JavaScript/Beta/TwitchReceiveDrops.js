@@ -35,12 +35,12 @@
         UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
-        ProgressBar: "p.CoreText-sc-1txzju1-0.mLvNZ span.CoreText-sc-1txzju1-0", // 掉寶進度數據
+        ProgressBar: "p.mLvNZ span", // 掉寶進度數據
+        LiveLink: "[data-a-target='preview-card-image-link']", // 參與活動的直播連結
         ReceiveDropsButton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
 
-        TagType: ".ScTruncateText-sc-i3kjgq-0.ickTbV span", // 頻道 Tag 標籤
-        LiveLink: "[data-a-target='preview-card-image-link']", // 直播連結
+        TagType: "span", // 頻道 Tag 標籤
+        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
         LiveChannel: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 直播頻道列表
     }
 
@@ -127,7 +127,7 @@
                 NewWindow = window.open(channel.href, "LiveWindow");
                 const Interval = setInterval(() => {
                     article = NewWindow.document.getElementsByTagName("article");
-                    if (article.length > 20) { // 找到大於 20 個頻道
+                    if (article.length > 10) { // 找到大於 10 個頻道
                         clearInterval(Interval);
                         const index = Array.from(article).findIndex(element => {
                             const tag = element.querySelector(self.TagType).textContent.toLowerCase();
