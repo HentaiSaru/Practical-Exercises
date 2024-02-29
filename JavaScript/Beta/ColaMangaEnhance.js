@@ -184,11 +184,11 @@
                 self.Observer_Next = new IntersectionObserver(observed => {
                     observed.forEach(entry => {
                         if (entry.isIntersecting) {
-                            const img = self.$$("#mangalist img", true), lest_img = img[(img.length - 8)].src;
+                            const img = self.$$("#mangalist img", true), lest_img = img[Math.floor(img.length * 0.7)].src;
                             lest_img && location.assign(self.NextPage);
                         }
                     });
-                }, { threshold: 0.4 });
+                }, { threshold: 0.5 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
@@ -219,7 +219,7 @@
                 const GetStatus = this.Get_Data();
                 this.Hotkey_Switch(GetStatus);
                 //this.SettingMenu(GetStatus);
-                setTimeout(()=> {this.Automatic_Next(GetStatus)}, 1000 * 10);
+                this.Automatic_Next(GetStatus);
             } catch {location.reload()}
         }
     }
