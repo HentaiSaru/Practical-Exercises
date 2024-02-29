@@ -33,14 +33,11 @@
 
 (function() {
     /**
-     * 開發功能
-     * 
      * 選單設置
+     * 
      * 背景色
      * 圖片基本寬度
      * 圖片最大寬度
-     * 
-     * 返回目錄按鈕 返回首頁按鈕
      * 
      * 開關功能
      * 
@@ -48,6 +45,9 @@
      * 快捷翻頁
      * 自動翻頁
      * 自動滾動 => 速度設置
+     * 
+     * 返回目錄按鈕 返回首頁按鈕
+     * 點選模態框關閉 並自動保存 (先隱藏 隔 1 秒刪除, 製作效果, 注意避免重複創建)
      */
     class Manga extends API {
         constructor() {
@@ -109,10 +109,9 @@
 
         /* 阻擋廣告 */
         async BlockAds() {
-            // 雖然性能開銷比較高, 但不會跳一堆錯誤訊息
+            // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             this.Interval = setInterval(() => {
-                const iframe = this.$$("iframe");
-                iframe && iframe.remove();
+                const iframe = this.$$("iframe"); iframe && iframe.remove();
             }, 1000);
             this.AddStyle(`
                 body {pointer-events: none;}
@@ -173,7 +172,7 @@
                 const self = this;
                 self.Observer_Next = new IntersectionObserver(observed => {
                     observed.forEach(entry => {entry.isIntersecting && location.assign(self.NextPage)});
-                }, { threshold: 0.8 });
+                }, { threshold: 0.6 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
