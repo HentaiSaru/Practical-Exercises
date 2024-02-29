@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -142,12 +142,11 @@
         /* 自動重新載入 */
         async AutoReload(element) {
             try {
-                let btn, click = new MouseEvent("click", {bubbles: true, cancelable: true});
-                const observer = new MutationObserver(() => {
-                    btn = this.$$("span.mh_btn:not(.contact)", false, element);
-                    btn && btn.dispatchEvent(click);
-                });
-                observer.observe(element, { childList: true, subtree: true });
+                let click = new MouseEvent("click", {bubbles: true, cancelable: true});
+                const observer = new IntersectionObserver(observed => {
+                    observed.forEach(entry => {entry.isIntersecting && entry.target.dispatchEvent(click)});
+                }, { threshold: 1 });
+                this.$$("span.mh_btn:not(.contact)", true, element).forEach(b=> {observer.observe(b)});
                 this.DEV && this.log("自動重載注入", true);
             } catch {
                 this.DEV && this.log("自動重載注入失敗", false);
