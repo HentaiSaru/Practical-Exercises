@@ -36,12 +36,12 @@
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         ProgressBar: "p.mLvNZ span", // 掉寶進度數據
-        LiveLink: "[data-a-target='preview-card-image-link']", // 參與活動的直播連結
         ReceiveDropsButton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
+        ActivityLink: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 參與活動的頻道連結
 
         TagType: "span", // 頻道 Tag 標籤
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
-        LiveChannel: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 直播頻道列表
+        WatchLiveLink: "[data-a-target='preview-card-image-link']", // 觀看直播的連結
     }
 
     /* 檢測邏輯 */
@@ -61,9 +61,7 @@
             /* 展示進度於標題 */
             this.#ShowTitle = async display => {
                 this.config.ProgressDisplay = false;
-                const TitleDisplay = setInterval(()=>{ // 避免載入慢時的例外 (持續 8 秒)
-                    document.title !== display ? document.title = display : null;
-                }, 300);
+                const TitleDisplay = setInterval(()=>{document.title = display}, 500);
                 setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 8);
             }
         }
@@ -92,7 +90,7 @@
                 }
 
                 Withdraw = document.querySelector(self.ReceiveDropsButton);
-                Withdraw ? (observer.disconnect(), Withdraw.click()) : null;
+                Withdraw && observer.disconnect() && Withdraw.click();
             });
             /* 延遲注入 */
             setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * self.InjectDelay);
@@ -106,14 +104,14 @@
         constructor() {
             this.config = Config;
 
-            /* 重啟直播的影片靜音(持續執行 8 秒) */
+            /* 重啟直播的影片靜音(持續執行 15 秒) */
             this.#VideoMute = async window => {
                 const Interval = setInterval(() => {
                     let video = window.document.querySelector("video");
                     if (video) {
                         clearInterval(Interval);
                         const SilentInterval = setInterval(() => {video.muted = true}, 500);
-                        setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 8);
+                        setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 15);
                     }
                 }, 1000);
             }
@@ -121,20 +119,20 @@
 
         async Ran() {
             let NewWindow, article, channel, self = this.config;
-            channel = document.querySelector(self.LiveChannel);
+            channel = document.querySelector(self.ActivityLink);
             if (channel) { // 使用標籤 "LiveWindow" 找到先前開啟的直播, 嘗試將其關閉
                 window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
                 NewWindow = window.open(channel.href, "LiveWindow");
                 const Interval = setInterval(() => {
                     article = NewWindow.document.getElementsByTagName("article");
-                    if (article.length > 10) { // 找到大於 10 個頻道
+                    if (article.length > 20) { // 找到大於 20 個頻道
                         clearInterval(Interval);
                         const index = Array.from(article).findIndex(element => {
                             const tag = element.querySelector(self.TagType).textContent.toLowerCase();
                             return self.FindTag.some(match=> tag.includes(match.toLowerCase()));
                         });
-                        article[index].querySelector(self.LiveLink).click();
-                        self.RestartLiveMute ? this.#VideoMute(NewWindow) : null;
+                        article[index].querySelector(self.WatchLiveLink).click();
+                        self.RestartLiveMute && this.#VideoMute(NewWindow);
                     }
                 }, 500);
             }
