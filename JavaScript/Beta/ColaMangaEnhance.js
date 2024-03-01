@@ -26,7 +26,7 @@
 // @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
 // ==/UserScript==
 
-(function() {
+(function () {
     /**
      * 選單設置
      * 
@@ -67,7 +67,7 @@
 
             /* 取得數據 */
             this.Get_Data = async () => {
-                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element=> {
+                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element => {
                     let [HomeLink, PageLink, BottomStrip, MangaList] = element;
                     HomeLink = this.$$("a", true, HomeLink);
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
@@ -110,11 +110,11 @@
             /* 獲取樣式 */
             this.Get_Style = () => {
                 const Style = this.store("get", "Style") ||
-                [{
-                    "BG_Color": "#595959",
-                    "Img_Bw": "auto",
-                    "Img_Mw": "100%"
-                }]
+                    [{
+                        "BG_Color": "#595959",
+                        "Img_Bw": "auto",
+                        "Img_Mw": "100%"
+                    }]
                 return Style[0];
             }
 
@@ -126,23 +126,23 @@
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             this.Interval = setInterval(() => {
                 const iframe = this.$$("iframe"); iframe && iframe.remove();
-            }, 1000);
+            }, 500);
             this.AddStyle(`
                 body {pointer-events: none;}
-                body AdvertisingBezel, .mh_wrap, .modal-background {pointer-events: auto;}
-                #mangalist {position: relative;}
-                AdvertisingBezel {
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    display: flex;
-                    z-index: 9999;
-                    overflow: auto;
-                    position: absolute;
-                }
+                body .mh_wrap, .modal-background {pointer-events: auto;}
             `, "Inject-Blocking-Ads");
-            this.MangaList.appendChild(document.createElement("AdvertisingBezel"))
+            this.AddListener(window, "click", event => {
+                const target = event.target;
+                if (
+                    target.closest(".mh_readtitle")||
+                    target.closest(".mh_headpager")||
+                    target.closest(".mh_readend")||
+                    target.classList.contains("read_page_link")
+                ) {this.log("觸發對象", target)} else {
+                    event.preventDefault();
+                    event.stopPropagation();
+                }
+            })
             this.DEV && this.log("廣告阻擋注入", true);
         }
 
@@ -169,11 +169,11 @@
         /* 自動重新載入 */
         async AutoReload() {
             try {
-                let click = new MouseEvent("click", {bubbles: true, cancelable: true});
+                let click = new MouseEvent("click", { bubbles: true, cancelable: true });
                 const observer = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {entry.isIntersecting && entry.target.dispatchEvent(click)});
+                    observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
                 }, { threshold: 1 });
-                this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b=> {observer.observe(b)});
+                this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
                 this.DEV && this.log("自動重載注入", true);
             } catch {
                 this.DEV && this.log("自動重載注入失敗", false);
@@ -183,24 +183,24 @@
         /* 快捷切換上下頁 */
         async Hotkey_Switch() {
             if (this.GetStatus) {
-                this.AddListener(document, "keydown", event=> {
+                this.AddListener(document, "keydown", event => {
                     const key = event.key;
-                    if (key == "ArrowLeft") {location.assign(this.PreviousPage)}
-                    else if (key == "ArrowRight") {location.assign(this.NextPage)}
+                    if (key == "ArrowLeft") { location.assign(this.PreviousPage) }
+                    else if (key == "ArrowRight") { location.assign(this.NextPage) }
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
-                        this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
+                            this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
                     }
                     else if (key == "ArrowDown") {
                         this.Rotation_Up = this.Rotation_Up && this.CleanRotation(this.Rotation_Up);
                         this.Rotation_Down = !this.Rotation_Down ?
-                        this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
+                            this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
                     }
-                }, {capture: true, passive: true});
+                }, { capture: true, passive: true });
 
                 this.DEV && this.log("換頁快捷注入", true);
-            } else {this.DEV && this.log("無取得換頁數據", false)}
+            } else { this.DEV && this.log("無取得換頁數據", false) }
         }
 
         /* 自動切換下一頁 */
@@ -208,7 +208,7 @@
             if (this.GetStatus) {
                 const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * 0.7)];
                 self.Observer_Next = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {entry.isIntersecting && lest_img.src && location.assign(self.NextPage)});
+                    observed.forEach(entry => { entry.isIntersecting && lest_img.src && location.assign(self.NextPage) });
                 }, { threshold: 0.1 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
@@ -219,7 +219,7 @@
 
         /* 設定菜單 */
         async SettingMenu() {
-            if (this.GetStatus) {} else {this.DEV && this.log("無取得換頁數據", false)}
+            if (this.GetStatus) { } else { this.DEV && this.log("無取得換頁數據", false) }
         }
 
         /* 菜單樣式 */
@@ -234,7 +234,7 @@
                 this.Get_Data();
                 this.BackgroundStyle();
 
-                const waitResults = setInterval(()=> {
+                const waitResults = setInterval(() => {
                     if (this.GetStatus != null) {
                         clearInterval(waitResults);
                         this.BlockAds();
@@ -244,7 +244,7 @@
                         this.Automatic_Next();
                     }
                 }, 300);
-            } catch (error) {this.DEV && this.log(null, error)}
+            } catch (error) { this.DEV && this.log(null, error) }
         }
     }
 
