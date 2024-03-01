@@ -7,6 +7,7 @@
 // @name:ko      Pornhub 마우스 숨기기
 // @version      0.0.1
 // @author       HentaiSaru
+
 // @description         在觀看影片時，如果滑鼠停留在影片區域內一段時間，則隱藏滑鼠遊標和進度條，當滑鼠再次移動時將重新顯示。隱藏功能僅在滑鼠位於影片區域內時觸發。
 // @description:zh-TW   在觀看影片時，如果滑鼠停留在影片區域內一段時間，則隱藏滑鼠遊標和進度條，當滑鼠再次移動時將重新顯示。隱藏功能僅在滑鼠位於影片區域內時觸發。
 // @description:zh-CN   在观看视频时，如果鼠标停留在视频区域内一段时间，将隐藏鼠标游标和进度条，当鼠标再次移动时将重新显示。隐藏功能仅在鼠标位于视频区域内时触发。
@@ -16,6 +17,7 @@
 
 // @match        *://*.pornhub.com/view_video.php?viewkey=*
 // @match        *://*.pornhubpremium.com/view_video.php?viewkey=*
+// @icon         https://ei.phncdn.com/www-static/favicon.ico
 
 // @run-at       document-body
 
