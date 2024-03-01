@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.27
+// @version      0.0.28
 // @author       HentaiSaru
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -92,11 +92,10 @@
                     if (!this.$$("#Video-Tool-Hide")) {
                         this.AddStyle(`
                             .ytp-ce-element{
-                                opacity: 0 !important;
+                                display: none !important;
                             }
                             #player.ytd-watch-flexy:hover .ytp-ce-element {
-                                opacity: 1 !important;
-                                transition: 0.6s;
+                                display: block !important;
                             }
                         `, "Video-Tool-Hide");
                     }
