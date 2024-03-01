@@ -163,12 +163,12 @@
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
-                        this.RegisterRotation(this.Rotation_Up, -3, 6) : this.CleanRotation(this.Rotation_Up);
+                        this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
                     }
                     else if (key == "ArrowDown") {
                         this.Rotation_Up = this.Rotation_Up && this.CleanRotation(this.Rotation_Up);
                         this.Rotation_Down = !this.Rotation_Down ?
-                        this.RegisterRotation(this.Rotation_Down, 3, 6) : this.CleanRotation(this.Rotation_Down);
+                        this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
                     }
                 }, {capture: true, passive: true});
 
