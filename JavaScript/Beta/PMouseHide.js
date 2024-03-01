@@ -70,16 +70,14 @@
 
         static async HiddenInjection() {
             const self = new Pornhub_Hide();
-            self.WaitMap([self.Find.video_box, self.Find.progress_bar], 10, call=> {
+            self.WaitMap([self.Find.video_box, self.Find.progress_bar], 30, call=> {
                 let Mark = false, body = document.body;
                 const [target, bar] = call;
 
                 self.AddListener(target, "mouseover", ()=> { // 避免意外, 如要檢少性能消耗換成 mouseenter
-                    if (!Mark) {
-                        Mark = true;
-                        Hide();
-                    }
+                    !Mark && Hide(performance.now());
                 }, { passive: true });
+
                 self.AddListener(target, "mouseleave", ()=> {
                     if (Mark) {
                         Mark = false;
@@ -88,22 +86,28 @@
                     }
                 }, { passive: true });
 
-                function Hide() {
-                    let PastTime = performance.now();
+                function Hide(PastTime) {
+                    Mark = true;
+
                     self.AddListener(target, "mousemove", ()=> {
-                        if (performance.now() - PastTime > 500) {
-                            PastTime = performance.now();
-                            clearTimeout(self.MouseMove);
-                            requestAnimationFrame(() => {
-                                body.style.cursor = "default";
-                                bar.style.display = "block";
-                                self.MouseMove = setTimeout(()=> {
-                                    body.style.cursor = "none";
-                                    bar.style.display = "none";
-                                }, 2300);
-                            });
+                        if (performance.now() - PastTime > 100) {
+                            PastTime = performance.now(); TriggerTimer();
                         }
                     }, { passive: true });
+
+                    self.AddListener(target, "click", () => {TriggerTimer()}, { passive: true });
+
+                    function TriggerTimer() {
+                        clearTimeout(self.MouseMove);
+                        requestAnimationFrame(() => {
+                            body.style.cursor = "default";
+                            bar.style.display = "block";
+                            self.MouseMove = setTimeout(()=> {
+                                body.style.cursor = "none";
+                                bar.style.display = "none";
+                            }, 2200);
+                        });
+                    }
                 }
             })
         }
