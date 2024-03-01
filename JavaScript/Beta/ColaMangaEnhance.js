@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.2
+// @version      0.0.3
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -16,7 +16,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-start
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 
@@ -49,6 +49,7 @@
         constructor() {
             super();
             this.DEV = true;
+            this.GetStatus = null;
 
             this.ContentsPage = null;
             this.HomePage = null;
@@ -56,6 +57,7 @@
             this.PreviousPage = null;
             this.NextPage = null;
 
+            this.MangaList = null;
             this.BottomStrip = null;
 
             this.Interval = null;
@@ -64,15 +66,31 @@
             this.Observer_Next = null;
 
             /* 取得數據 */
-            this.Get_Data = () => {
-                const HomeLink = this.$$("a", true, this.$$("div.mh_readtitle"));
-                const PageLink = this.$$("a.mh_prevbook", true, this.$$("div.mh_headpager"));
-                this.BottomStrip = this.$$("div.mh_readend");
-                this.ContentsPage = HomeLink[0].href; // 目錄連結
-                this.HomePage = HomeLink[1].href; // 首頁連結
-                this.PreviousPage = PageLink[0].href; // 上一頁連結
-                this.NextPage = PageLink[1].href; // 下一頁連結
-                return [this.ContentsPage, this.HomePage, this.PreviousPage, this.NextPage].every(Check => Check);
+            this.Get_Data = async () => {
+                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element=> {
+                    let [HomeLink, PageLink, BottomStrip, MangaList] = element;
+                    HomeLink = this.$$("a", true, HomeLink);
+                    this.ContentsPage = HomeLink[0].href; // 目錄連結
+                    this.HomePage = HomeLink[1].href; // 首頁連結
+
+                    PageLink = this.$$("a.mh_prevbook", true, PageLink);
+                    this.PreviousPage = PageLink[0].href; // 上一頁連結
+                    this.NextPage = PageLink[1].href; // 下一頁連結
+
+                    this.MangaList = MangaList; // 漫畫列表
+
+                    BottomStrip = this.$$("a", true, BottomStrip);
+                    this.BottomStrip = BottomStrip[BottomStrip.length - 1]; // 下一頁的按鈕, 看到他觸發跳轉
+
+                    this.GetStatus = [
+                        this.ContentsPage,
+                        this.HomePage,
+                        this.PreviousPage,
+                        this.NextPage,
+                        this.MangaList,
+                        this.BottomStrip
+                    ].every(Check => Check);
+                })
             }
 
             /* 註冊自動滾動 */
@@ -111,9 +129,20 @@
             }, 1000);
             this.AddStyle(`
                 body {pointer-events: none;}
-                body .mh_wrap, .modal-background {pointer-events: auto;}
+                body AdvertisingBezel, .mh_wrap, .modal-background {pointer-events: auto;}
+                #mangalist {position: relative;}
+                AdvertisingBezel {
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    display: flex;
+                    z-index: 9999;
+                    overflow: auto;
+                    position: absolute;
+                }
             `, "Inject-Blocking-Ads");
-
+            this.MangaList.appendChild(document.createElement("AdvertisingBezel"))
             this.DEV && this.log("廣告阻擋注入", true);
         }
 
@@ -126,27 +155,25 @@
 
         /* 圖片樣式 */
         async PictureStyle() {
-            this.WaitElem("#mangalist", false, 10, list=> {
-                this.AddStyle(`
-                    .mh_comicpic img {
-                        vertical-align: top;cursor: pointer;display: block;margin: auto;
-                        width: ${this.ImgStyle.Img_Bw};
-                        max-width: ${this.ImgStyle.Img_Mw};
-                    }
-                `, "Inject-Image-Style");
-                this.AutoReload(list);
-                this.DEV && this.log("圖片樣式注入", true);
-            })
+            this.AddStyle(`
+                .mh_comicpic img {
+                    vertical-align: top;cursor: pointer;display: block;margin: auto;
+                    width: ${this.ImgStyle.Img_Bw};
+                    max-width: ${this.ImgStyle.Img_Mw};
+                }
+            `, "Inject-Image-Style");
+            this.AutoReload();
+            this.DEV && this.log("圖片樣式注入", true);
         }
 
         /* 自動重新載入 */
-        async AutoReload(element) {
+        async AutoReload() {
             try {
                 let click = new MouseEvent("click", {bubbles: true, cancelable: true});
                 const observer = new IntersectionObserver(observed => {
                     observed.forEach(entry => {entry.isIntersecting && entry.target.dispatchEvent(click)});
                 }, { threshold: 1 });
-                this.$$("span.mh_btn:not(.contact)", true, element).forEach(b=> {observer.observe(b)});
+                this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b=> {observer.observe(b)});
                 this.DEV && this.log("自動重載注入", true);
             } catch {
                 this.DEV && this.log("自動重載注入失敗", false);
@@ -154,8 +181,8 @@
         }
 
         /* 快捷切換上下頁 */
-        async Hotkey_Switch(state) {
-            if (state) {
+        async Hotkey_Switch() {
+            if (this.GetStatus) {
                 this.AddListener(document, "keydown", event=> {
                     const key = event.key;
                     if (key == "ArrowLeft") {location.assign(this.PreviousPage)}
@@ -177,17 +204,12 @@
         }
 
         /* 自動切換下一頁 */
-        async Automatic_Next(state) {
-            if (state) {
-                const self = this;
+        async Automatic_Next() {
+            if (this.GetStatus) {
+                const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * 0.7)];
                 self.Observer_Next = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const img = self.$$("#mangalist img", true), lest_img = img[Math.floor(img.length * 0.7)].src;
-                            lest_img && location.assign(self.NextPage);
-                        }
-                    });
-                }, { threshold: 0.5 });
+                    observed.forEach(entry => {entry.isIntersecting && lest_img.src && location.assign(self.NextPage)});
+                }, { threshold: 0.1 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
@@ -196,10 +218,8 @@
         }
 
         /* 設定菜單 */
-        async SettingMenu(state) {
-            if (state) {
-
-            } else {this.DEV && this.log("無取得換頁數據", false)}
+        async SettingMenu() {
+            if (this.GetStatus) {} else {this.DEV && this.log("無取得換頁數據", false)}
         }
 
         /* 菜單樣式 */
@@ -211,15 +231,20 @@
         /* 功能注入 */
         async Injection() {
             try {
-                this.BlockAds();
+                this.Get_Data();
                 this.BackgroundStyle();
-                this.PictureStyle();
 
-                const GetStatus = this.Get_Data();
-                this.Hotkey_Switch(GetStatus);
-                //this.SettingMenu(GetStatus);
-                this.Automatic_Next(GetStatus);
-            } catch {location.reload()}
+                const waitResults = setInterval(()=> {
+                    if (this.GetStatus != null) {
+                        clearInterval(waitResults);
+                        this.BlockAds();
+                        this.PictureStyle();
+                        this.Hotkey_Switch();
+                        this.SettingMenu();
+                        this.Automatic_Next();
+                    }
+                }, 300);
+            } catch (error) {this.DEV && this.log(null, error)}
         }
     }
 
