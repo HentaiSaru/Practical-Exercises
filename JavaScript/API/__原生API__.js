@@ -8,7 +8,7 @@ class Collection {
  * [多選器, 匹配的第一元素]: document.querySelector(tag /.class /#id)
  * [多選器, 匹配的所有元素]: document.querySelectorAll(同上)
  * [創建元素節點]: document.createElement(tagName)
- * [創建包含文本的節點]: document.createTextNode(text)
+ * [創建文本的節點]: document.createTextNode(text)
  *
  * [添加節點到末端]: 被添加元素.appendChild(添加元素)
  * [刪除節點]: 父節點.removeChild(刪除元素)
@@ -22,6 +22,9 @@ class Collection {
  * [取得子元素數量]: 元素.childElementCount
  * [取得子元素]: 元素.children
  * 
+ * [取得元素第一個子節點]: 元素.firstElementChild
+ * [取得元素最後一個子節點]: 元素.lastElementChild
+ * 
  * Todo (可配合 .add() / .remov())
  * [取得元素 Html]: 元素.innerHTML (設置: 元素1.innerHTML = html)
  * [獲取元素 文本]: 元素.innerText (同上)
@@ -30,10 +33,13 @@ class Collection {
  * 
  * 直接取得標籤:
  * document.title <title>
+ * document.documentElement <html>
  * document.head <head>
  * document.body <body>
  * document.scripts <script>
+ * document.embeds <embed>
  * document.forms <form>
+ * document.fonts <字體>
  * document.images <img>
  * document.links <a>
  * 
@@ -78,13 +84,23 @@ class Collection {
  * 元素.addEventListener("監聽類型", "監聽後工作", {附加功能});
  * 
  * 監聽類型:
+ *? 滑鼠事件 / 對應手機端指針
  * [滑鼠點擊]: "click"
  * [滑鼠滾動]: "scroll"
- * [滑鼠放開]: "mouseup"
- * [滑鼠按下]: "mousedown"
- * [滑鼠懸浮]: "mouseenter"
- * [滑鼠離開]: "mouseleave"
- * [滑鼠於元素上移動]: "mousemove"
+ * [滑鼠放開]: "mouseup" / "pointerup"
+ * [滑鼠按下]: "mousedown" / "pointerdown"
+ * [滑鼠移入]: "mouseover" / "pointerover" | 在目標上反覆觸發
+ * [滑鼠移開]: "mouseout" / "pointerout" | 在目標外反覆觸發
+ * [滑鼠進入]: "mouseenter" / "pointerenter" | 進入觸發一次
+ * [滑鼠離開]: "mouseleave" / "pointerleave" | 離開觸發一次
+ * [滑鼠於元素上移動]: "mousemove" / pointermove
+ * 
+ *? 手機觸碰事件
+ * [手機按下]: "touchstart"
+ * [手機放開]: "touchend"
+ * [手機滑動]: "touchmove"
+ * 
+ * ? 鍵盤事件
  * [鍵盤放開]: "keyup"
  * [鍵盤按下]: "keydown"
  * [元素獲得焦點]: "focus" (通常用於 input 或 textarea)
@@ -96,7 +112,7 @@ class Collection {
  * [歷史紀錄變化]: "popstate" (url 的轉變)
  * [用戶離開頁面]: "beforeunload"
  * 
- * 監聽後工作:
+ *? 監聽後事件:
  * document.addEventListener("監聽類型", event => {
  * event.preventDefault() 防止默認行為, 例如跳轉, 送出表單等
  * event.stopPropagation() 防止事件傳播, 用於事件只作用在特定元素
@@ -105,7 +121,7 @@ class Collection {
  * event.target 獲取事件物件
  * event.currentTarget 獲取事件觸發元素
  * event.key 獲取鍵盤相關鍵值
- * event.keyCode
+ * event.keyCode 鍵排按鈕的 code 碼
  * event.clientX 獲取滑鼠觸發的座標
  * event.clientY
  * })
