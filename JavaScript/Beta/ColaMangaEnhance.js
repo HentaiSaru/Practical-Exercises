@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -79,8 +79,7 @@
 
                     this.MangaList = MangaList; // 漫畫列表
 
-                    BottomStrip = this.$$("a", true, BottomStrip);
-                    this.BottomStrip = BottomStrip[BottomStrip.length - 1]; // 下一頁的按鈕, 看到他觸發跳轉
+                    this.BottomStrip = this.$$("a", false, BottomStrip); // 以閱讀完畢的那條, 看到他跳轉
 
                     this.GetStatus = [
                         this.ContentsPage,
@@ -126,30 +125,35 @@
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             this.Interval = setInterval(() => {
                 const iframe = this.$$("iframe"); iframe && iframe.remove();
-            }, 500);
+            }, 600);
             this.AddStyle(`
                 body {pointer-events: none;}
                 body .mh_wrap, .modal-background {pointer-events: auto;}
             `, "Inject-Blocking-Ads");
-            this.AddListener(window, "click", event => {
-                const target = event.target;
-                if (
-                    target.closest(".mh_readtitle")||
-                    target.closest(".mh_headpager")||
-                    target.closest(".mh_readend")||
-                    target.classList.contains("read_page_link")
-                ) {this.log("觸發對象", target)} else {
-                    event.preventDefault();
-                    event.stopPropagation();
-                }
-            })
+
+            // this.AddListener(window, "pointerup", event => {
+                // event.preventDefault();
+                // event.stopPropagation();
+            // }, { capture: true })
+
+            // this.AddListener(window, "click", event => {
+                // const target = event.target;
+                // if (
+                    // target.closest(".mh_readtitle")||
+                    // target.closest(".mh_headpager")||
+                    // target.closest(".mh_readend")||
+                    // target.classList.contains("read_page_link")
+                // ) {this.log("觸發對象", target)} else {
+                    // event.preventDefault();
+                    // event.stopPropagation();
+                // }
+            // })
             this.DEV && this.log("廣告阻擋注入", true);
         }
 
         /* 背景樣式 */
         async BackgroundStyle() {
-            $("body").css("background-color", this.ImgStyle.BG_Color);
-
+            document.body.style.backgroundColor=this.ImgStyle.BG_Color;
             this.DEV && this.log("背景顏色注入", true);
         }
 
@@ -190,12 +194,28 @@
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
-                            this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
+                        this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
                     }
                     else if (key == "ArrowDown") {
                         this.Rotation_Up = this.Rotation_Up && this.CleanRotation(this.Rotation_Up);
                         this.Rotation_Down = !this.Rotation_Down ?
-                            this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
+                        this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
+                    }
+                }, { capture: true, passive: true });
+                // 手機手勢
+                const threshold = 0.4 * window.innerWidth; // 觸發跳轉所需罰值
+                let startX;
+
+                this.AddListener(document, "touchstart", event => {
+                    startX = event.touches[0].clientX;
+                }, { capture: true, passive: true });
+
+                this.AddListener(document, "touchmove", event => {
+                    let currentX = event.touches[0].clientX;
+                    let deltaX = currentX - startX;
+
+                    if (Math.abs(deltaX) > threshold) {
+                        deltaX > 0 ? location.assign(this.PreviousPage) : location.assign(this.NextPage);
                     }
                 }, { capture: true, passive: true });
 
@@ -219,7 +239,7 @@
 
         /* 設定菜單 */
         async SettingMenu() {
-            if (this.GetStatus) { } else { this.DEV && this.log("無取得換頁數據", false) }
+            if (this.GetStatus) {} else { this.DEV && this.log("無取得換頁數據", false) }
         }
 
         /* 菜單樣式 */
@@ -247,7 +267,5 @@
             } catch (error) { this.DEV && this.log(null, error) }
         }
     }
-
-    const Cola = new Manga();
-    Cola.Injection();
+    (new Manga()).Injection();
 })();
