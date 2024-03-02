@@ -48,7 +48,7 @@
     class Manga extends API {
         constructor() {
             super();
-            this.DEV = true;
+            this.DEV = false;
             this.GetStatus = null;
 
             this.ContentsPage = null;
@@ -176,7 +176,7 @@
                 let click = new MouseEvent("click", { bubbles: true, cancelable: true });
                 const observer = new IntersectionObserver(observed => {
                     observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
-                }, { threshold: 1 });
+                }, { threshold: .1 });
                 this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
                 this.DEV && this.log("自動重載注入", true);
             } catch {
@@ -187,10 +187,12 @@
         /* 快捷切換上下頁 */
         async Hotkey_Switch() {
             if (this.GetStatus) {
+                let trigger = false, startX;
+
                 this.AddListener(document, "keydown", event => {
                     const key = event.key;
-                    if (key == "ArrowLeft") { location.assign(this.PreviousPage) }
-                    else if (key == "ArrowRight") { location.assign(this.NextPage) }
+                    if (key == "ArrowLeft" && !trigger) { trigger = true; location.assign(this.PreviousPage); }
+                    else if (key == "ArrowRight" && !trigger) { trigger = true; location.assign(this.NextPage); }
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
@@ -202,22 +204,23 @@
                         this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
                     }
                 }, { capture: true, passive: true });
-                // 手機手勢
-                const threshold = 0.4 * window.innerWidth; // 觸發跳轉所需罰值
-                let startX;
 
+                // 手機手勢
                 this.AddListener(document, "touchstart", event => {
                     startX = event.touches[0].clientX;
-                }, { capture: true, passive: true });
+                }, { passive: true });
 
+                const threshold = .4 * window.innerWidth; // 觸發跳轉所需罰值
                 this.AddListener(document, "touchmove", event => {
                     let currentX = event.touches[0].clientX;
                     let deltaX = currentX - startX;
 
                     if (Math.abs(deltaX) > threshold) {
-                        deltaX > 0 ? location.assign(this.PreviousPage) : location.assign(this.NextPage);
+                        deltaX > 0 && !trigger ? 
+                        (trigger = true, location.assign(this.PreviousPage)): 
+                        (trigger = true, location.assign(this.NextPage));
                     }
-                }, { capture: true, passive: true });
+                }, { passive: true });
 
                 this.DEV && this.log("換頁快捷注入", true);
             } else { this.DEV && this.log("無取得換頁數據", false) }
@@ -226,10 +229,10 @@
         /* 自動切換下一頁 */
         async Automatic_Next() {
             if (this.GetStatus) {
-                const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * 0.7)];
+                const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
                 self.Observer_Next = new IntersectionObserver(observed => {
                     observed.forEach(entry => { entry.isIntersecting && lest_img.src && location.assign(self.NextPage) });
-                }, { threshold: 0.1 });
+                }, { threshold: .1 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
