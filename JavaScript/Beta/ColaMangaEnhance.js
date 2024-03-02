@@ -49,7 +49,7 @@
      * 
      * 編譯 ColaMangaEnhance / 2 -> R:/U_Compiler / 1
      */
-    class Manga extends API {
+    (new class Manga extends API {
         constructor() {
             super();
             this.DEV = true;
@@ -287,6 +287,5 @@
                 }, 300);
             } catch (error) { this.DEV && this.log(null, error) }
         }
-    }
-    (new Manga()).Injection();
+    }).Injection();
 })();
