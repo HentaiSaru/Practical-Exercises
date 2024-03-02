@@ -5,7 +5,7 @@
 // @name:en      Pornhub Mouse Hide
 // @name:ja      Pornhub マウス非表示
 // @name:ko      Pornhub 마우스 숨기기
-// @version      0.0.1
+// @version      0.0.2
 // @author       HentaiSaru
 
 // @description         在觀看影片時，如果滑鼠停留在影片區域內一段時間，則隱藏滑鼠遊標和進度條，當滑鼠再次移動時將重新顯示。隱藏功能僅在滑鼠位於影片區域內時觸發。
@@ -29,10 +29,14 @@
     class Pornhub_Hide {
         constructor() {
             this.ListenerRecord = new Map();
-            this.MouseMove = null;
+            this.StyalRules = null;
             this.Find = {
                 video_box: ".video-wrapper div",
-                progress_bar: ".mgp_progressOverflow",
+                progress_bar: ".mgp_seekBar",
+            }
+            this.set = {
+                mouse: styal => this.StyalRules[0].style.cursor = styal,
+                progress: styal => this.StyalRules[1].style.display = styal,
             }
         }
 
@@ -68,43 +72,59 @@
             timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
         }
 
+        async AddStyle(Rule, ID="New-Style") {
+            let new_style = document.getElementById(ID);
+            if (!new_style) {
+                new_style = document.createElement("style");
+                new_style.id = ID;
+                document.head.appendChild(new_style);
+            }
+            new_style.appendChild(document.createTextNode(Rule));
+        }
+
         static async HiddenInjection() {
             const self = new Pornhub_Hide();
+            let Mark = false, MouseMove;
+            self.AddStyle("body {cursor: default;}.Hidden {display: block;}", "Mouse-Hide");
             self.WaitMap([self.Find.video_box, self.Find.progress_bar], 30, call=> {
-                let Mark = false, body = document.body;
+                self.StyalRules = document.getElementById("Mouse-Hide").sheet.cssRules;
                 const [target, bar] = call;
 
-                self.AddListener(target, "mouseover", ()=> { // 避免意外, 如要檢少性能消耗換成 mouseenter
+                bar.classList.add("Hidden"); // 添加樣式到進度條
+                self.AddListener(target, "mouseover", ()=> {
                     !Mark && Hide(performance.now());
                 }, { passive: true });
 
-                self.AddListener(target, "mouseleave", ()=> {
+                self.AddListener(target, "pointerleave", ()=> {
                     if (Mark) {
                         Mark = false;
-                        clearTimeout(self.MouseMove);
-                        self.RemovListener(document, "mousemove");
+                        clearTimeout(MouseMove);
+                        self.RemovListener(target, "pointerdown");
+                        self.RemovListener(target, "pointermove");
                     }
                 }, { passive: true });
 
-                function Hide(PastTime) {
+                async function Hide(PastTime) {
                     Mark = true;
 
-                    self.AddListener(target, "mousemove", ()=> {
-                        if (performance.now() - PastTime > 100) {
-                            PastTime = performance.now(); TriggerTimer();
+                    // 移動後重置
+                    self.AddListener(target, "pointermove", ()=> {
+                        if (performance.now() - PastTime > 300) {
+                            TriggerTimer(); PastTime = performance.now();
                         }
                     }, { passive: true });
 
-                    self.AddListener(target, "click", () => {TriggerTimer()}, { passive: true });
+                    // 點擊後重置
+                    self.AddListener(target, "pointerdown", () => {TriggerTimer()}, { passive: true });
 
                     function TriggerTimer() {
-                        clearTimeout(self.MouseMove);
                         requestAnimationFrame(() => {
-                            body.style.cursor = "default";
-                            bar.style.display = "block";
-                            self.MouseMove = setTimeout(()=> {
-                                body.style.cursor = "none";
-                                bar.style.display = "none";
+                            self.set.mouse("default");
+                            self.set.progress("block");
+                            clearTimeout(MouseMove);
+                            MouseMove = setTimeout(()=> {
+                                self.set.mouse("none");
+                                self.set.progress("none");
                             }, 2200);
                         });
                     }
