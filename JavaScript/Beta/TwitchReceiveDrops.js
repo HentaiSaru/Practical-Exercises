@@ -36,7 +36,7 @@
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         ProgressBar: "p.mLvNZ span", // 掉寶進度數據
-        ReceiveDropsButton: ".ScCoreButton-sc-ocjdkq-0.ScCoreButtonPrimary-sc-ocjdkq-1.caieTg.eHSNkH", // 領取按鈕
+        ReceiveDropsButton: ".caieTg", // 領取按鈕
         ActivityLink: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 參與活動的頻道連結
 
         TagType: "span", // 頻道 Tag 標籤
@@ -61,8 +61,10 @@
             /* 展示進度於標題 */
             this.#ShowTitle = async display => {
                 this.config.ProgressDisplay = false;
-                const TitleDisplay = setInterval(()=>{document.title = display}, 500);
-                setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 8);
+                if (display) {
+                    const TitleDisplay = setInterval(()=>{document.title = display}, 500);
+                    setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 8);
+                }
             }
         }
 
