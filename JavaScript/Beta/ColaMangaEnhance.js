@@ -203,6 +203,33 @@
                         this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
                     }
                 }, { capture: true, passive: true });
+
+                /*
+                const threshold = .4 * window.innerWidth;
+                let startX, currentX, moveX
+
+                this.AddListener(this.MangaList, "touchstart", event => {
+                    startX = event.touches[0].clientX;
+                }, { capture: true, passive: true });
+
+                this.AddListener(this.MangaList, "touchmove", event => {
+                    currentX = event.touches[0].clientX;
+                }, { capture: true, passive: true });
+
+                this.AddListener(this.MangaList, "touchend", () => {
+                    moveX = currentX - startX;
+
+                    if (Math.abs(moveX) > threshold) {
+                        if (moveX > 0 && !trigger) {
+                            trigger = true;
+                            location.assign(this.PreviousPage)
+                        } else if (moveX < 0 && !trigger) {
+                            trigger = true;
+                            location.assign(this.NextPage);
+                        }
+                    }
+                }, { capture: true, passive: true });*/
+
                 this.DEV && this.log("換頁快捷注入", true);
             } else { this.DEV && this.log("無取得換頁數據", false) }
         }
