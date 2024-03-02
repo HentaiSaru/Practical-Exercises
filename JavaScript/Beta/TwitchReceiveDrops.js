@@ -55,33 +55,31 @@
             /* 解析進度(找到 < 100 的最大值) */
             this.#ProgressParse = progress => {
                 progress.sort((a, b) => b - a);
-                return progress.find(number => number < 100);
+                return progress.find(number => number < 1e2);
             }
 
             /* 展示進度於標題 */
             this.#ShowTitle = async display => {
-                this.config.ProgressDisplay = false;
-                if (display) {
-                    const TitleDisplay = setInterval(()=>{document.title = display}, 500);
-                    setTimeout(()=> {clearInterval(TitleDisplay)}, 1000 * 8);
-                }
+                this.config.ProgressDisplay = !1;
+                const TitleDisplay = setInterval(()=>{document.title = display}, 5e2);
+                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e3 * 8);
             }
         }
 
         /* 主要運行 */
-        static async Ran() {
+        static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
             let Withdraw, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
-            data=[], use=true, dynamic = new Detection(), self = dynamic.config;
+            data=[], use=!0, dynamic = new Detection(), self = dynamic.config;
             const observer = new MutationObserver(() => {
                 title = document.querySelectorAll(self.ProgressBar); // 這邊會有各種特殊類型, 所以這樣處理, 取得所有進度值, 再取找到小於 100 的最大值
-                title = title.length > 0 && use ? (use = false, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : false;
-                state = self.ProgressDisplay && title != false ? (dynamic.#ShowTitle(`${title}%`), true) : false;
+                title = title.length > 0 && use ? (use = !1, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : !1;
+                state = self.ProgressDisplay && title ? (dynamic.#ShowTitle(`${title}%`), !0) : !1;
 
                 if (self.RestartLive && state) {
-                    self.RestartLive = false;
+                    self.RestartLive = !1;
 
                     const time = new Date(), // 格式為 = 時間戳, 進度值
-                    [Timestamp, Progress] = GM_getValue("record", null) || [time.getTime(), title], conversion = (time - Timestamp) / (1000 * 60);
+                    [Timestamp, Progress] = GM_getValue("record", null) || [time.getTime(), title], conversion = (time - Timestamp) / (1e3 * 60);
 
                     if (conversion >= self.JudgmentInterval && title === Progress) { // 當時間戳轉換大於檢測間隔, 並且標題與進度值相同, 代表需要重啟
                         Restart.Ran();
@@ -95,7 +93,7 @@
                 Withdraw && observer.disconnect() && Withdraw.click();
             });
             /* 延遲注入 */
-            setTimeout(()=> {observer.observe(document.body, {childList: true, subtree: true})}, 1000 * self.InjectDelay);
+            setTimeout(()=> {observer.observe(document.body, {childList: !0, subtree: !0})}, 1e3 * self.InjectDelay);
         }
     }
 
@@ -112,10 +110,10 @@
                     let video = window.document.querySelector("video");
                     if (video) {
                         clearInterval(Interval);
-                        const SilentInterval = setInterval(() => {video.muted = true}, 500);
-                        setTimeout(()=> {clearInterval(SilentInterval)}, 1000 * 15);
+                        const SilentInterval = setInterval(() => {video.muted = !0}, 5e2);
+                        setTimeout(()=> {clearInterval(SilentInterval)}, 1e3 * 15);
                     }
-                }, 1000);
+                }, 1e3);
             }
         }
 
@@ -136,7 +134,7 @@
                         article[index].querySelector(self.WatchLiveLink).click();
                         self.RestartLiveMute && this.#VideoMute(NewWindow);
                     }
-                }, 500);
+                }, 5e2);
             }
         }
     }
@@ -144,5 +142,5 @@
     /* 主運行調用 */
     const Restart = new RestartLive();
     Detection.Ran();
-    setTimeout(()=> {location.reload()}, 1000 * Config.UpdateInterval);
+    setTimeout(()=> {location.reload()}, 1e3 * Config.UpdateInterval);
 })();
