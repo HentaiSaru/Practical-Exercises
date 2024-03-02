@@ -35,8 +35,8 @@
                 progress_bar: ".mgp_seekBar",
             }
             this.set = {
-                mouse: styal => this.StyalRules[0].style.cursor = styal,
-                progress: styal => this.StyalRules[1].style.display = styal,
+                mouse: styal => requestAnimationFrame(() => {this.StyalRules[0].style.cursor = styal}),
+                progress: styal => requestAnimationFrame(() => {this.StyalRules[1].style.display = styal}),
             }
         }
 
@@ -106,11 +106,13 @@
 
                 // 強制隱形
                 self.AddListener(document, "keydown", event => {
-                    if (event.key.toLowerCase() == "h" && !Hidden) {
+                    const key = event.key.toLowerCase();
+                    if (key == "h" && !Hidden) {
                         Hidden = true;
                         self.set.mouse("none");
                         self.set.progress("none");
-                    } else if (event.key.toLowerCase() == "h" && Hidden) {
+                        clearTimeout(MouseMove);
+                    } else if (key == "h" && Hidden) {
                         Hidden = false;
                         self.set.mouse("default");
                         self.set.progress("block");
@@ -127,26 +129,24 @@
 
                     // 移動後重置
                     self.AddListener(target, "pointermove", ()=> {
-                        if (performance.now() - PastTime > 300) {
+                        if (performance.now() - PastTime > 200) {
                             TriggerTimer(); PastTime = performance.now();
                         }
-                    }, { passive: true });
+                    });
 
                     // 點擊後重置
-                    self.AddListener(target, "pointerdown", () => {TriggerTimer()}, { passive: true });
+                    self.AddListener(target, "pointerdown", () => {TriggerTimer()});
 
-                    function TriggerTimer() {
-                        requestAnimationFrame(() => {
-                            Hidden = false;
-                            clearTimeout(MouseMove);
-                            self.set.mouse("default");
-                            self.set.progress("block");
-                            MouseMove = setTimeout(()=> {
-                                Hidden = true;
-                                self.set.mouse("none");
-                                self.set.progress("none");
-                            }, 2200);
-                        });
+                    async function TriggerTimer() {
+                        Hidden = false;
+                        clearTimeout(MouseMove);
+                        self.set.mouse("default");
+                        self.set.progress("block");
+                        MouseMove = setTimeout(()=> {
+                            Hidden = true;
+                            self.set.mouse("none");
+                            self.set.progress("none");
+                        }, 2200);
                     }
                 }
             })
