@@ -19,7 +19,7 @@
 // @match        *://*.pornhubpremium.com/view_video.php?viewkey=*
 // @icon         https://ei.phncdn.com/www-static/favicon.ico
 
-// @run-at       document-body
+// @run-at       document-start
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
@@ -84,7 +84,7 @@
 
         static async HiddenInjection() {
             const self = new Pornhub_Hide();
-            let Mark = false, MouseMove;
+            let Mark = false, Hidden = false, MouseMove;
             self.AddStyle("body {cursor: default;}.Hidden {display: block;}", "Mouse-Hide");
             self.WaitMap([self.Find.video_box, self.Find.progress_bar], 30, call=> {
                 self.StyalRules = document.getElementById("Mouse-Hide").sheet.cssRules;
@@ -104,6 +104,24 @@
                     }
                 }, { passive: true });
 
+                // 強制隱形
+                self.AddListener(document, "keydown", event => {
+                    if (event.key.toLowerCase() == "h" && !Hidden) {
+                        Hidden = true;
+                        self.set.mouse("none");
+                        self.set.progress("none");
+                    } else if (event.key.toLowerCase() == "h" && Hidden) {
+                        Hidden = false;
+                        self.set.mouse("default");
+                        self.set.progress("block");
+                        MouseMove = setTimeout(()=> {
+                            Hidden = true;
+                            self.set.mouse("none");
+                            self.set.progress("none");
+                        }, 2200);
+                    }
+                }, { capture: true, passive: true });
+
                 async function Hide(PastTime) {
                     Mark = true;
 
@@ -119,10 +137,12 @@
 
                     function TriggerTimer() {
                         requestAnimationFrame(() => {
+                            Hidden = false;
+                            clearTimeout(MouseMove);
                             self.set.mouse("default");
                             self.set.progress("block");
-                            clearTimeout(MouseMove);
                             MouseMove = setTimeout(()=> {
+                                Hidden = true;
                                 self.set.mouse("none");
                                 self.set.progress("none");
                             }, 2200);
