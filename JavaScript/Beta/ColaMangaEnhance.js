@@ -67,7 +67,7 @@
 
             /* 取得數據 */
             this.Get_Data = async () => {
-                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element => {
+                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend a", "#mangalist"], 20, element => {
                     let [HomeLink, PageLink, BottomStrip, MangaList] = element;
                     HomeLink = this.$$("a", true, HomeLink);
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
@@ -79,7 +79,7 @@
 
                     this.MangaList = MangaList; // 漫畫列表
 
-                    this.BottomStrip = this.$$("a", false, BottomStrip); // 以閱讀完畢的那條, 看到他跳轉
+                    this.BottomStrip = BottomStrip; // 以閱讀完畢的那條, 看到他跳轉
 
                     this.GetStatus = [
                         this.ContentsPage,
@@ -187,8 +187,7 @@
         /* 快捷切換上下頁 */
         async Hotkey_Switch() {
             if (this.GetStatus) {
-                let trigger = false, startX;
-
+                let trigger = false;
                 this.AddListener(document, "keydown", event => {
                     const key = event.key;
                     if (key == "ArrowLeft" && !trigger) { trigger = true; location.assign(this.PreviousPage); }
@@ -204,28 +203,6 @@
                         this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
                     }
                 }, { capture: true, passive: true });
-
-                // 手機手勢
-                this.AddListener(document, "touchstart", event => {
-                    startX = event.touches[0].clientX;
-                }, { capture: true, passive: true });
-
-                const threshold = .4 * window.innerWidth; // 觸發跳轉所需罰值
-                this.AddListener(document, "touchmove", event => {
-                    let currentX = event.touches[0].clientX;
-                    let deltaX = currentX - startX;
-
-                    if (Math.abs(deltaX) > threshold) {
-                        if (deltaX > 0 && !trigger) {
-                            trigger = true;
-                            location.assign(this.PreviousPage)
-                        } else if (deltaX < 0 && !trigger) {
-                            trigger = true;
-                            location.assign(this.NextPage);
-                        }
-                    }
-                }, { capture: true, passive: true });
-
                 this.DEV && this.log("換頁快捷注入", true);
             } else { this.DEV && this.log("無取得換頁數據", false) }
         }
