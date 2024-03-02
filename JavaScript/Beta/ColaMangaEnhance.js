@@ -208,7 +208,7 @@
                 // 手機手勢
                 this.AddListener(document, "touchstart", event => {
                     startX = event.touches[0].clientX;
-                }, { passive: true });
+                }, { capture: true, passive: true });
 
                 const threshold = .4 * window.innerWidth; // 觸發跳轉所需罰值
                 this.AddListener(document, "touchmove", event => {
@@ -216,11 +216,15 @@
                     let deltaX = currentX - startX;
 
                     if (Math.abs(deltaX) > threshold) {
-                        deltaX > 0 && !trigger ? 
-                        (trigger = true, location.assign(this.PreviousPage)): 
-                        (trigger = true, location.assign(this.NextPage));
+                        if (deltaX > 0 && !trigger) {
+                            trigger = true;
+                            location.assign(this.PreviousPage)
+                        } else if (deltaX < 0 && !trigger) {
+                            trigger = true;
+                            location.assign(this.NextPage);
+                        }
                     }
-                }, { passive: true });
+                }, { capture: true, passive: true });
 
                 this.DEV && this.log("換頁快捷注入", true);
             } else { this.DEV && this.log("無取得換頁數據", false) }
