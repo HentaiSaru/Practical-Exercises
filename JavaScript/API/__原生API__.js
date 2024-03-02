@@ -93,7 +93,7 @@ class Collection {
  * [滑鼠移開]: "mouseout" / "pointerout" | 在目標外反覆觸發
  * [滑鼠進入]: "mouseenter" / "pointerenter" | 進入觸發一次
  * [滑鼠離開]: "mouseleave" / "pointerleave" | 離開觸發一次
- * [滑鼠於元素上移動]: "mousemove" / pointermove
+ * [滑鼠於元素上移動]: "mousemove" / "pointermove"
  * 
  *? 手機觸碰事件
  * [手機按下]: "touchstart"
