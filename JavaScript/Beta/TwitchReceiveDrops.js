@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.9
+// @version             0.0.10
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -20,7 +20,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // ==/UserScript==
@@ -36,8 +36,9 @@
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         ProgressBar: "p.mLvNZ span", // 掉寶進度數據
-        ReceiveDropsButton: ".caieTg", // 領取按鈕
+        ReceiveDropsButton: "button.caieTg", // 領取按鈕
         ActivityLink: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 參與活動的頻道連結
+        ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']",
 
         TagType: "span", // 頻道 Tag 標籤
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
@@ -54,46 +55,45 @@
 
             /* 解析進度(找到 < 100 的最大值) */
             this.#ProgressParse = progress => {
-                progress.sort((a, b) => b - a);
-                return progress.find(number => number < 1e2);
+                return progress.sort((a, b) => b - a).find(number => number < 1e2);
             }
 
             /* 展示進度於標題 */
             this.#ShowTitle = async display => {
                 this.config.ProgressDisplay = !1;
                 const TitleDisplay = setInterval(()=>{document.title = display}, 5e2);
-                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e3 * 8);
+                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e3 * 10);
             }
         }
 
         /* 主要運行 */
         static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
             let Withdraw, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
-            data=[], use=!0, dynamic = new Detection(), self = dynamic.config;
-            const observer = new MutationObserver(() => {
-                title = document.querySelectorAll(self.ProgressBar); // 這邊會有各種特殊類型, 所以這樣處理, 取得所有進度值, 再取找到小於 100 的最大值
-                title = title.length > 0 && use ? (use = !1, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : !1;
-                state = self.ProgressDisplay && title ? (dynamic.#ShowTitle(`${title}%`), !0) : !1;
+            data=[], deal=!0, dynamic=new Detection(), self=dynamic.config;
+            const observer = new MutationObserver(() => { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
+                title = deal && document.querySelectorAll(self.ProgressBar); // 這邊會有各種特殊類型, 所以這樣處理, 取得所有進度值, 再取找到小於 100 的最大值
+                title = title.length > 0 && deal ? (deal=!1, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : !1;
+                state = title ? (self.ProgressDisplay && dynamic.#ShowTitle(`${title}%`), !0) : !1; // 只要有標題就是 true, 判斷是否顯示 不會影響取狀態
 
                 if (self.RestartLive && state) {
                     self.RestartLive = !1;
 
-                    const time = new Date(), // 格式為 = 時間戳, 進度值
+                    const time=new Date(), // 格式為 = 時間戳, 進度值
                     [Timestamp, Progress] = GM_getValue("record", null) || [time.getTime(), title], conversion = (time - Timestamp) / (1e3 * 60);
 
-                    if (conversion >= self.JudgmentInterval && title === Progress) { // 當時間戳轉換大於檢測間隔, 並且標題與進度值相同, 代表需要重啟
+                    if (conversion >= self.JudgmentInterval && title == Progress) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
                         Restart.Ran();
                         GM_setValue("record", [time.getTime(), title]);
-                    } else if (conversion === 0 || title !== Progress) {
+                    } else if (conversion == 0 || title != Progress) { // 時間是 0 或 標題 不是 進度, 代表有變化
                         GM_setValue("record", [time.getTime(), title]);
                     }
                 }
 
                 Withdraw = document.querySelector(self.ReceiveDropsButton);
-                Withdraw && observer.disconnect() && Withdraw.click();
+                if (Withdraw) {observer.disconnect(); Withdraw.click();}
             });
             /* 延遲注入 */
-            setTimeout(()=> {observer.observe(document.body, {childList: !0, subtree: !0})}, 1e3 * self.InjectDelay);
+            setTimeout(()=> {observer.observe(document, {childList: !0, subtree: !0})}, 1e3 * self.InjectDelay);
         }
     }
 
@@ -106,8 +106,9 @@
 
             /* 重啟直播的影片靜音(持續執行 15 秒) */
             this.#VideoMute = async window => {
+                let video;
                 const Interval = setInterval(() => {
-                    let video = window.document.querySelector("video");
+                    video = window.document.querySelector("video");
                     if (video) {
                         clearInterval(Interval);
                         const SilentInterval = setInterval(() => {video.muted = !0}, 5e2);
@@ -118,11 +119,11 @@
         }
 
         async Ran() {
-            let NewWindow, article, channel, self = this.config;
-            channel = document.querySelector(self.ActivityLink);
+            let NewWindow, article, channel, self=this.config;
+            channel = document.querySelector(self.ActivityLink) || document.querySelector(self.ActivityLink2);
             if (channel) { // 使用標籤 "LiveWindow" 找到先前開啟的直播, 嘗試將其關閉
                 window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-                NewWindow = window.open(channel.href, "LiveWindow");
+                NewWindow = window.open(channel.href || channel.querySelector("a").href, "LiveWindow");
                 const Interval = setInterval(() => {
                     article = NewWindow.document.getElementsByTagName("article");
                     if (article.length > 20) { // 找到大於 20 個頻道
