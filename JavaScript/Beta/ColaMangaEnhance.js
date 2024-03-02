@@ -41,28 +41,24 @@
      * 自動翻頁
      * 自動滾動 => 速度設置
      * 
+     * 請求 document.querySelector(".all_data_list") 主頁數據
+     * 
      * 返回目錄按鈕 返回首頁按鈕
      * 點選模態框關閉 並自動保存 (先隱藏 隔 1 秒刪除, 製作效果, 注意避免重複創建)
      * 模態需要設置特別的標籤 , 要避免被廣告阻擋函數的樣式擋住
+     * 
+     * 編譯 ColaMangaEnhance / 2 -> R:/U_Compiler / 1
      */
     class Manga extends API {
         constructor() {
             super();
-            this.DEV = false;
-            this.GetStatus = null;
-
-            this.ContentsPage = null;
-            this.HomePage = null;
-
-            this.PreviousPage = null;
-            this.NextPage = null;
-
-            this.MangaList = null;
-            this.BottomStrip = null;
-
-            this.Interval = null;
-            this.Rotation_Up = null;
-            this.Rotation_Down = null;
+            this.DEV = true;
+            this.JumpTrigger = false;
+            this.Interval = this.GetStatus = null;
+            this.ContentsPage = this.HomePage = null;
+            this.PreviousPage = this.NextPage = null;
+            this.MangaList = this.BottomStrip = null;
+            this.Rotation_Up = this.Rotation_Down = null;
             this.Observer_Next = null;
 
             /* 取得數據 */
@@ -78,7 +74,6 @@
                     this.NextPage = PageLink[1].href; // 下一頁連結
 
                     this.MangaList = MangaList; // 漫畫列表
-
                     this.BottomStrip = BottomStrip; // 以閱讀完畢的那條, 看到他跳轉
 
                     this.GetStatus = [
@@ -176,7 +171,7 @@
                 let click = new MouseEvent("click", { bubbles: true, cancelable: true });
                 const observer = new IntersectionObserver(observed => {
                     observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
-                }, { threshold: .1 });
+                }, { threshold: .3 });
                 this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
                 this.DEV && this.log("自動重載注入", true);
             } catch {
@@ -187,11 +182,10 @@
         /* 快捷切換上下頁 */
         async Hotkey_Switch() {
             if (this.GetStatus) {
-                let trigger = false;
                 this.AddListener(document, "keydown", event => {
                     const key = event.key;
-                    if (key == "ArrowLeft" && !trigger) { trigger = true; location.assign(this.PreviousPage); }
-                    else if (key == "ArrowRight" && !trigger) { trigger = true; location.assign(this.NextPage); }
+                    if (key == "ArrowLeft" && !this.JumpTrigger) { this.JumpTrigger = true; location.assign(this.PreviousPage); }
+                    else if (key == "ArrowRight" && !this.JumpTrigger) { this.JumpTrigger = true; location.assign(this.NextPage); }
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
@@ -239,8 +233,13 @@
             if (this.GetStatus) {
                 const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
                 self.Observer_Next = new IntersectionObserver(observed => {
-                    observed.forEach(entry => { entry.isIntersecting && lest_img.src && location.assign(self.NextPage) });
-                }, { threshold: .1 });
+                    observed.forEach(entry => {
+                        if (entry.isIntersecting && !this.JumpTrigger && lest_img.src) {
+                            lest_img.src = true;
+                            location.assign(self.NextPage)
+                        }
+                    });
+                }, { threshold: .5 });
                 self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
                 this.DEV && this.log("觀察換頁注入", true);
             } else {
