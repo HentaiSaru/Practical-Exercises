@@ -69,7 +69,7 @@
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
                     this.HomePage = HomeLink[1].href; // 首頁連結
 
-                    PageLink = this.$$("a.mh_prevbook", true, PageLink);
+                    PageLink = this.$$("a.mh_btn:not(.mh_bgcolor)", true, PageLink);
                     this.PreviousPage = PageLink[0].href; // 上一頁連結
                     this.NextPage = PageLink[1].href; // 下一頁連結
 
@@ -85,6 +85,11 @@
                         this.BottomStrip
                     ].every(Check => Check);
                 })
+            }
+
+            /* 檢測跳轉連結 */
+            this.JumpLinkDetection = (link) => {
+                return !link.startsWith("javascript");
             }
 
             /* 註冊自動滾動 */
@@ -184,8 +189,14 @@
             if (this.GetStatus) {
                 this.AddListener(document, "keydown", event => {
                     const key = event.key;
-                    if (key == "ArrowLeft" && !this.JumpTrigger) { this.JumpTrigger = true; location.assign(this.PreviousPage); }
-                    else if (key == "ArrowRight" && !this.JumpTrigger) { this.JumpTrigger = true; location.assign(this.NextPage); }
+                    if (key == "ArrowLeft" && !this.JumpTrigger) {
+                        this.JumpTrigger = this.JumpLinkDetection(this.PreviousPage) ? true : false;
+                        location.assign(this.PreviousPage);
+                    }
+                    else if (key == "ArrowRight" && !this.JumpTrigger) {
+                        this.JumpTrigger = this.JumpLinkDetection(this.NextPage) ? true : false;
+                        location.assign(this.NextPage);
+                    }
                     else if (key == "ArrowUp") {
                         this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
                         this.Rotation_Up = !this.Rotation_Up ?
@@ -234,9 +245,9 @@
                 const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
                 self.Observer_Next = new IntersectionObserver(observed => {
                     observed.forEach(entry => {
-                        if (entry.isIntersecting && !this.JumpTrigger && lest_img.src) {
-                            lest_img.src = true;
-                            location.assign(self.NextPage)
+                        if (entry.isIntersecting && lest_img.src) {
+                            self.Observer_Next.disconnect();
+                            self.JumpLinkDetection(self.NextPage) && location.assign(self.NextPage);
                         }
                     });
                 }, { threshold: .5 });
