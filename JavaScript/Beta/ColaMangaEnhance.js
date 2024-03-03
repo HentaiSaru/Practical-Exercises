@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -16,7 +16,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-body
+// @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
 
@@ -58,8 +58,29 @@
             this.ContentsPage = this.HomePage = null;
             this.PreviousPage = this.NextPage = null;
             this.MangaList = this.BottomStrip = null;
-            this.Rotation_Up = this.Rotation_Down = null;
+            this.Up_scroll = this.Down_scroll = false;
             this.Observer_Next = null;
+
+            // 延遲 ms
+            this.ScrollSpeed = 5;
+
+            /* 獲取驅動訊行 (不要直接調用 前面有 _ 的) */
+            this.Device = {
+                Width: window.innerWidth,
+                Height: window.innerHeight,
+                Agent: navigator.userAgent,
+                _Type: undefined,
+                Type: function() {
+                    if (this._Type) {
+                        return this._Type;
+                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent) || this.Width < 768) {
+                        this._Type = "Mobile";
+                    } else {
+                        this._Type = "Desktop";
+                    }
+                    return this._Type;
+                }
+            }
 
             /* 取得數據 */
             this.Get_Data = async () => {
@@ -88,22 +109,37 @@
             }
 
             /* 檢測跳轉連結 */
-            this.JumpLinkDetection = (link) => {
+            this.DetectionJumpLink = (link) => {
                 return !link.startsWith("javascript");
             }
 
-            /* 註冊自動滾動 */
-            this.RegisterRotation = (target, move, interval) => {
-                target = setInterval(() => {
-                    window.scrollBy(0, move);
-                }, interval);
-                return target;
+            /* 節流函數 */
+            this.throttle = (func, delay) => {
+                let timer = null;
+                return function() {
+                    let context=this, args=arguments;
+                    if (timer == null) {
+                        timer = setTimeout(function() {
+                            func.apply(context, args);
+                            timer = null;
+                        }, delay);
+                    }
+                };
             }
 
-            /* 清除自動滾動 */
-            this.CleanRotation = (target) => {
-                clearInterval(target);
-                return null;
+            /* 自動滾動 (邏輯修改) */
+            this.scroll = async(move) => {
+                if (this.Up_scroll && move < 0) {
+                    requestAnimationFrame(() => {
+                        window.scrollBy(0, move);
+                        this.throttle(this.scroll(move), this.ScrollSpeed);
+                    });
+                } else if (this.Down_scroll && move > 0) {
+                    requestAnimationFrame(() => {
+                        window.scrollBy(0, move);
+                        this.throttle(this.scroll(move), this.ScrollSpeed);
+                    });
+                }
             }
 
             /* 獲取樣式 */
@@ -123,32 +159,33 @@
         /* 阻擋廣告 */
         async BlockAds() {
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
-            this.Interval = setInterval(() => {
-                const iframe = this.$$("iframe"); iframe && iframe.remove();
-            }, 600);
-            this.AddStyle(`
-                body {pointer-events: none;}
-                body .mh_wrap, .modal-background {pointer-events: auto;}
-            `, "Inject-Blocking-Ads");
+            let iframe;
+            this.Interval = setInterval(() => {iframe = this.$$("iframe"); iframe && iframe.remove()}, 600);
+            if (this.Device.Type() == "Desktop") {
 
-            // this.AddListener(window, "pointerup", event => {
-                // event.preventDefault();
-                // event.stopPropagation();
-            // }, { capture: true })
+                this.AddStyle(`
+                    body {pointer-events: none;}
+                    body .mh_wrap, .modal-background {pointer-events: auto;}
+                `, "Inject-Blocking-Ads");
 
-            // this.AddListener(window, "click", event => {
-                // const target = event.target;
-                // if (
-                    // target.closest(".mh_readtitle")||
-                    // target.closest(".mh_headpager")||
-                    // target.closest(".mh_readend")||
-                    // target.classList.contains("read_page_link")
-                // ) {this.log("觸發對象", target)} else {
-                    // event.preventDefault();
-                    // event.stopPropagation();
-                // }
-            // })
-            this.DEV && this.log("廣告阻擋注入", true);
+                this.DEV && this.log("電腦廣告阻擋注入", true);
+            } else if (this.Device.Type() == "Mobile") {
+
+                this.AddListener(window, "pointerup", event => {
+                    event.stopImmediatePropagation();
+                }, { capture: true, passive: true });
+                this.AddListener(document, "pointerup", event => {
+                    event.stopImmediatePropagation();
+                }, { capture: true, passive: true });
+                this.AddListener(window, "click", event => {
+                    event.stopImmediatePropagation();
+                }, { capture: true, passive: true });
+                this.AddListener(document, "click", event => {
+                    event.stopImmediatePropagation();
+                }, { capture: true, passive: true });
+
+                this.DEV && this.log("手機廣告阻擋注入", true);
+            }
         }
 
         /* 背景樣式 */
@@ -159,13 +196,15 @@
 
         /* 圖片樣式 */
         async PictureStyle() {
-            this.AddStyle(`
-                .mh_comicpic img {
-                    vertical-align: top;cursor: pointer;display: block;margin: auto;
-                    width: ${this.ImgStyle.Img_Bw};
-                    max-width: ${this.ImgStyle.Img_Mw};
-                }
-            `, "Inject-Image-Style");
+            if (this.Device.Type() == "Desktop") {
+                this.AddStyle(`
+                    .mh_comicpic img {
+                        vertical-align: top;cursor: pointer;display: block;margin: auto;
+                        width: ${this.ImgStyle.Img_Bw};
+                        max-width: ${this.ImgStyle.Img_Mw};
+                    }
+                `, "Inject-Image-Style");
+            }
             this.AutoReload();
             this.DEV && this.log("圖片樣式注入", true);
         }
@@ -187,55 +226,68 @@
         /* 快捷切換上下頁 */
         async Hotkey_Switch() {
             if (this.GetStatus) {
-                this.AddListener(document, "keydown", event => {
-                    const key = event.key;
-                    if (key == "ArrowLeft" && !this.JumpTrigger) {
-                        this.JumpTrigger = this.JumpLinkDetection(this.PreviousPage) ? true : false;
-                        location.assign(this.PreviousPage);
-                    }
-                    else if (key == "ArrowRight" && !this.JumpTrigger) {
-                        this.JumpTrigger = this.JumpLinkDetection(this.NextPage) ? true : false;
-                        location.assign(this.NextPage);
-                    }
-                    else if (key == "ArrowUp") {
-                        this.Rotation_Down = this.Rotation_Down && this.CleanRotation(this.Rotation_Down);
-                        this.Rotation_Up = !this.Rotation_Up ?
-                        this.RegisterRotation(this.Rotation_Up, -2, 7) : this.CleanRotation(this.Rotation_Up);
-                    }
-                    else if (key == "ArrowDown") {
-                        this.Rotation_Up = this.Rotation_Up && this.CleanRotation(this.Rotation_Up);
-                        this.Rotation_Down = !this.Rotation_Down ?
-                        this.RegisterRotation(this.Rotation_Down, 2, 7) : this.CleanRotation(this.Rotation_Down);
-                    }
-                }, { capture: true, passive: true });
-
-                /*
-                const threshold = .4 * window.innerWidth;
-                let startX, currentX, moveX
-
-                this.AddListener(this.MangaList, "touchstart", event => {
-                    startX = event.touches[0].clientX;
-                }, { capture: true, passive: true });
-
-                this.AddListener(this.MangaList, "touchmove", event => {
-                    currentX = event.touches[0].clientX;
-                }, { capture: true, passive: true });
-
-                this.AddListener(this.MangaList, "touchend", () => {
-                    moveX = currentX - startX;
-
-                    if (Math.abs(moveX) > threshold) {
-                        if (moveX > 0 && !trigger) {
-                            trigger = true;
-                            location.assign(this.PreviousPage)
-                        } else if (moveX < 0 && !trigger) {
-                            trigger = true;
+                if (this.Device.Type() == "Desktop") {
+                    this.AddListener(document, "keydown", event => {
+                        const key = event.key;
+                        if (key == "ArrowLeft" && !this.JumpTrigger) {
+                            this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                            location.assign(this.PreviousPage);
+                        }
+                        else if (key == "ArrowRight" && !this.JumpTrigger) {
+                            this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
                             location.assign(this.NextPage);
                         }
-                    }
-                }, { capture: true, passive: true });*/
+                        else if (key == "ArrowUp") {
+                            event.preventDefault();
+                            if (this.Up_scroll) {
+                                this.Up_scroll = false;
+                            } else if (!this.Up_scroll || this.Down_scroll) {
+                                this.Down_scroll = false;
+                                this.Up_scroll = true;
+                                this.scroll(-1);
+                            }
+                        }
+                        else if (key == "ArrowDown") {
+                            event.preventDefault();
+                            if (this.Down_scroll) {
+                                this.Down_scroll = false;
+                            } else if (this.Up_scroll || !this.Down_scroll) {
+                                this.Up_scroll = false;
+                                this.Down_scroll = true;
+                                this.scroll(1);
+                            }
+                        }
+                    }, { capture: true });
 
-                this.DEV && this.log("換頁快捷注入", true);
+                    this.DEV && this.log("快捷換頁注入", true);
+                } else if (this.Device.Type() == "Mobile") {
+
+                    const sidelineX = .35 * this.Device.Width, sidelineY = (this.Device.Height / 4) * .2;
+                    let startX, startY, moveX, moveY;
+
+                    this.AddListener(this.MangaList, "touchstart", event => {
+                        startX = event.touches[0].clientX;
+                        startY = event.touches[0].clientY;
+                    }, { passive: true });
+
+                    this.AddListener(this.MangaList, "touchmove", this.throttle(event => {
+                        requestAnimationFrame(() => {
+                            moveX = event.touches[0].clientX - startX;
+                            moveY = event.touches[0].clientY - startY;
+                            if (Math.abs(moveY) < sidelineY) {
+                                if (moveX > sidelineX && !this.JumpTrigger) {
+                                    this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                                    location.assign(this.PreviousPage);
+                                } else if (moveX < -sidelineX && !this.JumpTrigger) {
+                                    this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
+                                    location.assign(this.NextPage);
+                                }
+                            }
+                        });
+                    }, 100), { passive: true });
+
+                    this.DEV && this.log("手勢換頁注入", true);
+                }
             } else { this.DEV && this.log("無取得換頁數據", false) }
         }
 
@@ -247,7 +299,7 @@
                     observed.forEach(entry => {
                         if (entry.isIntersecting && lest_img.src) {
                             self.Observer_Next.disconnect();
-                            self.JumpLinkDetection(self.NextPage) && location.assign(self.NextPage);
+                            self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
                         }
                     });
                 }, { threshold: .5 });
@@ -272,19 +324,25 @@
         /* 功能注入 */
         async Injection() {
             try {
-                this.Get_Data();
-                this.BackgroundStyle();
-
-                const waitResults = setInterval(() => {
-                    if (this.GetStatus != null) {
-                        clearInterval(waitResults);
-                        this.BlockAds();
-                        this.PictureStyle();
-                        this.Hotkey_Switch();
-                        this.SettingMenu();
-                        this.Automatic_Next();
+                this.BlockAds(); // 為了阻止手機版廣告, 要優先注入, 且腳本要 document-start, 所以下面不等 document.body 出現會有問題
+                const DOMContentLoaded = new MutationObserver(() => { // 監聽 "DOMContentLoaded" 無法觸發是什麼鬼
+                    const DOM = document.body;
+                    if (DOM) {
+                        DOMContentLoaded.disconnect();
+                        this.Get_Data();
+                        this.BackgroundStyle();
+                        const waitResults = setInterval(() => {
+                            if (this.GetStatus != null) {
+                                clearInterval(waitResults);
+                                this.PictureStyle();
+                                this.Hotkey_Switch();
+                                this.SettingMenu();
+                                this.Automatic_Next();
+                            }
+                        }, 300);
                     }
-                }, 300);
+                })
+                DOMContentLoaded.observe(document, { childList: true, subtree: true });
             } catch (error) { this.DEV && this.log(null, error) }
         }
     }).Injection();
