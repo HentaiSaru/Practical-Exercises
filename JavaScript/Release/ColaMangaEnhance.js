@@ -16,7 +16,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-body
+// @run-at       document-start
 // @grant        GM_getValue
 // @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
 // ==/UserScript==
