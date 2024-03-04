@@ -79,6 +79,7 @@
                     const observer = new MutationObserver(() => {
                         /* 雖說這樣可以節省性能, 但是無法找到新的元素 */
                         // media = media == undefined ? self.$$("video") : media;
+                        // 改成找到所有 video, 並判斷 offsetWidth 誰是最寬的
                         media = self.$$("video") // 比較消耗性能的寫法
                         if (media && !media.hasAttribute("Media-Audio-Booster")) {
                             self.Trigger(media, performance.now());
