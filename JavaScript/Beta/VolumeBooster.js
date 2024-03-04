@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         影片音量增強器
-// @version      0.0.32
+// @version      0.0.33
 // @author       HentaiSaru
 // @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音 或是 沒有效果，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
@@ -19,13 +19,13 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1337297/GrammarSimplified.js
 // ==/UserScript==
 
 (function() {
     const Support = /^(http|https):\/\/(?!chrome\/|about\/).*$/i;
     if (Support.test(document.URL)) {
-        class Main extends API {
+        (new class Main extends API {
             constructor() {
                 super();
                 this.Booster = null;
@@ -59,36 +59,33 @@
                     this.Listen(document, "keydown", event => {
                         if (event.altKey && event.key.toUpperCase() == "B") {this.IncrementalSetting()}
                     }, { passive: true, capture: true }, state => {
-                        const Elapsed = `${(performance.now() - time).toFixed(2)}ms`;
+                        const Elapsed = `${(Date.now() - time).toFixed(2)}ms`;
                         state ? this.log("Hotkey Success", Elapsed) : this.log("Hotkey Failed", Elapsed);
                     });
                 }
 
-                /* 驗證最終添加狀態 */
-                this.Verify = () => {
-                    const media = this.$$("video");
-                    return media && media.hasAttribute("Media-Audio-Booster") ? true : false;
+                /* 找到主要的影片 */
+                this.FindMain = async(video, target) => {
+                    target(video.sort((a, b) => b.offsetWidth - a.offsetWidth)[0]);
                 }
             }
 
-            /* 監聽注入 (注意所有的 this 都要改 self) */
-            static async Injection() {
-                let media, self = new Main();
-
-                if (!self.ExcludeStatus) {
+            /* 監聽注入 */
+            async Injection() {
+                if (!this.ExcludeStatus) {
+                    let tume = Date.now();
                     const observer = new MutationObserver(() => {
-                        /* 雖說這樣可以節省性能, 但是無法找到新的元素 */
-                        // media = media == undefined ? self.$$("video") : media;
-                        // 改成找到所有 video, 並判斷 offsetWidth 誰是最寬的
-                        media = self.$$("video") // 比較消耗性能的寫法
-                        if (media && !media.hasAttribute("Media-Audio-Booster")) {
-                            self.Trigger(media, performance.now());
-                        }
+                        this.FindMain(this.$$("video", true), media=> {
+                            if (media && !media.hasAttribute("Media-Audio-Booster")) {
+                                observer.disconnect();
+                                this.Trigger(media, tume);
+                            }
+                        });
                     });
                     observer.observe(document.head, { childList: true, subtree: true });
-                    self.StatusMenu(self.Display.MD);
+                    this.StatusMenu(this.Display.MD);
                 } else {
-                    self.StatusMenu(self.Display.MS);
+                    this.StatusMenu(this.Display.MS);
                 }
             }
 
@@ -104,6 +101,7 @@
                         .Booster-Modal-Background {
                             top: 0;
                             left: 0;
+                            opacity: 1;
                             width: 100%;
                             height: 100%;
                             display: flex;
@@ -112,10 +110,10 @@
                             position: fixed;
                             align-items: center;
                             justify-content: center;
+                            transition: opacity 0.4s ease;
                         }
                         .Booster-Modal-Button {
-                            top: 0;
-                            margin: 3% 2%;
+                            margin: 0 2% 2% 0;
                             color: #d877ff;
                             font-size: 16px;
                             font-weight: bold;
@@ -144,8 +142,12 @@
                         .Booster-Multiplier {
                             font-size:25px;
                             color:rgb(253, 1, 85);
-                            margin: 10px;
+                            margin: 15px;
                             font-weight:bold;
+                        }
+                        .Booster-Modal-Background-Closur {
+                            opacity: 0;
+                            pointer-events: none;
                         }
                         .Booster-Slider {width: 350px;}
                         div input {cursor: pointer;}
@@ -159,7 +161,6 @@
             /* 音量增量邏輯 */
             BoosterLogic(media, increase, time) {
                 const Support = window.AudioContext || window.oAudioContext;
-
                 try {
 
                     if (!Support) {
@@ -202,10 +203,6 @@
                     // 節點創建標記
                     media.setAttribute("Media-Audio-Booster", true);
 
-                    if (!this.Verify()) {
-                        throw this.Display.BT2;
-                    }
-
                     // 完成後創建菜單
                     this.Menu({
                         [this.Display.MK]: ()=> alert(this.Display.MKT),
@@ -218,9 +215,12 @@
                         this.Display.BT3,
                         {
                             "Booster Media : ": media,
-                            "Elapsed Time : ": `${(performance.now() - time).toFixed(2)}ms`
+                            "Elapsed Time : ": `${(Date.now() - time).toFixed(2)}ms`
                         }
                     );
+
+                    // 最終確認完成後, 再次添加監聽器, 5秒後
+                    media.hasAttribute("Media-Audio-Booster") && setTimeout(()=> {this.Injection()}, 5e3);
 
                     return {
                         // 設置音量
@@ -245,40 +245,45 @@
                                 <h2 style="color: #3754f8;">${this.Display.ST}</h2>
                                 <div style="margin:1rem auto 1rem auto;">
                                     <div class="Booster-Multiplier">
-                                        <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">${this.Display.S1}</span><span id="CurrentValue">${this.Increase}</span><span>${this.Display.S2}</span>
+                                        <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">${this.Display.S1}</span><span id="Booster-CurrentValue">${this.Increase}</span><span>${this.Display.S2}</span>
                                     </div>
-                                    <input type="range" id="sound-amplification" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
+                                    <input type="range" id="Adjustment-Sound-Enhancement" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
                                 </div>
                                 <div style="text-align: right;">
                                     <button class="Booster-Modal-Button" id="sound-save">${this.Display.SS}</button>
-                                    <button class="Booster-Modal-Button" id="sound-close">${this.Display.SC}</button>
                                 </div>
                             </div>
                         </div>
                     `
                     document.body.appendChild(modal);
 
-                    const CurrentValue = this.$$("#CurrentValue");
-                    const slider = this.$$("#sound-amplification");
+                    const CurrentValue = this.$$("#Booster-CurrentValue");
+                    const slider = this.$$("#Adjustment-Sound-Enhancement");
 
                     // 監聽設定拉條
+                    let Current;
                     this.AddListener(slider, "input", event => {
-                        const Current = event.target.value;
-                        CurrentValue.textContent = Current;
-                        this.Booster.setVolume(Current);
+                        requestAnimationFrame(()=> {
+                            Current = event.target.value;
+                            CurrentValue.textContent = Current;
+                            this.Booster.setVolume(Current);
+                        });
                     }, { passive: true, capture: true });
 
                     // 監聽保存關閉
-                    this.AddListener(this.$$(".Booster-Modal-Background"), "click", click => {
+                    const Modal = this.$$(".Booster-Modal-Background");
+                    this.AddListener(Modal, "click", click => {
                         click.stopPropagation();
                         const target = click.target;
                         if (target.id === "sound-save") {
                             const value = parseFloat(slider.value);
                             this.Increase = value;
                             this.store("set", this.Domain, value);
-                            this.$$(".Booster-Modal-Background").remove();
-                        } else if (target.className === "Booster-Modal-Background" || target.id === "sound-close") {
-                            this.$$(".Booster-Modal-Background").remove();
+                            Modal.classList.add("Booster-Modal-Background-Closur");
+                            setTimeout(()=> {Modal.remove()}, 1200);
+                        } else if (target.className === "Booster-Modal-Background") {
+                            Modal.classList.add("Booster-Modal-Background-Closur");
+                            setTimeout(()=> {Modal.remove()}, 1200);
                         }
                     }, { capture: true });
 
@@ -295,7 +300,7 @@
                         "BT1": "不支援音頻增強節點", "BT2": "添加增強節點失敗",
                         "BT3": "添加增強節點成功", "BT4": "增強失敗",
                         "ST": "音量增強", "S1": "增強倍數 ", "S2": " 倍",
-                        "SS": "保存設置", "SC": "退出選單",
+                        "SS": "保存設置",
                     }],
                     "zh-CN": [{
                         "MS": "✅ 启用增幅", "MD": "❌ 禁用增幅",
@@ -304,7 +309,7 @@
                         "BT1": "不支援音频增强节点", "BT2": "添加增强节点失败",
                         "BT3": "添加增强节点成功", "BT4": "增强失败",
                         "ST": "音量增强", "S1": "增强倍数 ", "S2": " 倍",
-                        "SS": "保存设置", "SC": "退出菜单",
+                        "SS": "保存设置",
                     }],
                     "en-US": [{
                         "MS": "✅ Enable Boost", "MD": "❌ Disable Boost",
@@ -313,12 +318,11 @@
                         "BT1": "Audio enhancement node not supported", "BT2": "Failed to add enhancement node",
                         "BT3": "Enhancement node added successfully", "BT4": "Enhancement failed",
                         "ST": "Volume Boost", "S1": "Boost Level ", "S2": " X",
-                        "SS": "Save Settings", "SC": "Exit Menu",
+                        "SS": "Save Settings",
                     }],
                 }
                 return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
             }
-        }
-        Main.Injection();
+        }).Injection();
     }
 })();
