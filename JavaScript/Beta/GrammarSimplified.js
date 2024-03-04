@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/02/26
+// @version      2024/03/04
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -202,9 +202,9 @@ class API {
      * WaitElem("元素", false, 1, call => {
      *      後續操作...
      *      console.log(call);
-     * })
+     * }, document)
      */
-    async WaitElem(selector, all, timeout, callback) {
+    async WaitElem(selector, all, timeout, callback, object=document.body) {
         let timer, element, result;
         const observer = new MutationObserver(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
@@ -217,7 +217,7 @@ class API {
                 callback(element);
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
 
@@ -232,9 +232,9 @@ class API {
      * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), call => {
      *      全部找到後續操作...
      *      const [元素1, 元素2, 元素3] = call;
-     * })
+     * }, document)
      */
-    async WaitMap(selectors, timeout, callback) {
+    async WaitMap(selectors, timeout, callback, object=document.body) {
         let timer, elements;
         const observer = new MutationObserver(() => {
             elements = selectors.map(selector => document.querySelector(selector))
@@ -244,7 +244,7 @@ class API {
                 callback(elements);
             }
         });
-        observer.observe(document.body, { childList: true, subtree: true });
+        observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
 
