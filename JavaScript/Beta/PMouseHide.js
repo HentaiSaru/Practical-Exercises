@@ -5,7 +5,7 @@
 // @name:en      Pornhub Mouse Hide
 // @name:ja      Pornhub マウス非表示
 // @name:ko      Pornhub 마우스 숨기기
-// @version      0.0.3
+// @version      0.0.4
 // @author       HentaiSaru
 
 // @description         電腦端滑鼠於影片區塊上停留一段時間，會隱藏滑鼠遊標和進度條，滑鼠再次移動時將重新顯示，收機端在影片區塊向右滑，會觸發影片加速，滑越多加越多最高16倍，放開後恢復正常速度。
@@ -37,14 +37,13 @@
                 })
             }
             this.Device = {
-                Width: window.innerWidth,
-                Height: window.innerHeight,
-                Agent: navigator.userAgent,
+                Width: ()=> {return window.innerWidth},
+                Agent: ()=> {return navigator.userAgent},
                 _Type: undefined,
                 Type: function() {
                     if (this._Type) {
                         return this._Type;
-                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent) || this.Width < 768) {
+                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768) {
                         this._Type = "Mobile";
                     } else {
                         this._Type = "Desktop";
@@ -52,7 +51,7 @@
                     return this._Type;
                 }
             }
-            this.throttle = (func, delay) => {
+            this.throttle_discard = (func, delay) => {
                 let lastTime = 0;
                 return function() {
                     const context = this, args = arguments, now = Date.now();
@@ -121,7 +120,7 @@
                     }, { passive: true });
 
                     // 移動在目標上觸發隱形與重置
-                    self.AddListener(target, "pointermove", self.throttle(()=> {TriggerHide()}, 200), { passive: true });
+                    self.AddListener(target, "pointermove", self.throttle_discard(()=> {TriggerHide()}, 200), { passive: true });
 
                     // 點擊在目標上觸發隱形與重置
                     self.AddListener(target, "pointerdown", () => {TriggerHide()}, { passive: true });
@@ -139,12 +138,12 @@
 
                     // 觸碰
                     self.AddListener(target, "touchstart", event => {
-                        sidelineX = self.Device.Width * .2;
+                        sidelineX = self.Device.Width() * .2;
                         startX = event.touches[0].clientX;
                     }, { passive: true });
 
                     // 滑動
-                    self.AddListener(target, "touchmove", self.throttle(event => {
+                    self.AddListener(target, "touchmove", self.throttle_discard(event => {
                         requestAnimationFrame(() => {
                             moveX = event.touches[0].clientX - startX;
                             if (moveX > sidelineX) { // 右滑
@@ -153,7 +152,7 @@
                                 video.playbackRate = Math.min(NewPlaybackRate, 16.0);
                             }
                         });
-                    }, 100), { passive: true });
+                    }, 200), { passive: true });
 
                     // 放開
                     self.AddListener(target, "touchend", ()=> {
