@@ -238,9 +238,9 @@ class Collection {
 
 /**_________________________
  ** { 計算處理時間 API}
- *  開始時間 = performance.now()
+ *  開始時間 = performance.now() | Date.now()
  *  運行方法...
- *  結束時間 = performance.now()
+ *  結束時間 = performance.now() | Date.now()
  *  總共時間 = 結束時間 - 開始時間
  * 
  *  另一種方式
