@@ -411,9 +411,9 @@ async function RemovListener(element, type) {
  * WaitElem("元素", false, 1, call => {
  *      後續操作...
  *      console.log(call);
- * })
+ * }, document)
  */
-async function WaitElem(selector, all, timeout, callback) {
+async function WaitElem(selector, all, timeout, callback, object=document.body) {
     let timer, element, result;
     const observer = new MutationObserver(() => {
         element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
@@ -424,7 +424,7 @@ async function WaitElem(selector, all, timeout, callback) {
             callback(element);
         }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(object, { childList: true, subtree: true });
     timer = setTimeout(() => {
         observer.disconnect();
     }, (1000 * timeout));
@@ -445,9 +445,9 @@ async function WaitElem(selector, all, timeout, callback) {
  * WaitElem(element, 1, call => {
  *      全部找到後續操作...
  *      const [元素1, 元素2, 元素3] = call;
- * })
+ * }, document)
  */
-async function WaitMap(selectors, timeout, callback) {
+async function WaitMap(selectors, timeout, callback, object=document.body) {
     let timer, elements;
     const observer = new MutationObserver(() => {
         elements = selectors.map(selector => document.querySelector(selector))
@@ -457,7 +457,7 @@ async function WaitMap(selectors, timeout, callback) {
             callback(elements);
         }
     });
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(object, { childList: true, subtree: true });
     timer = setTimeout(() => {
         observer.disconnect();
     }, (1000 * timeout));
@@ -560,6 +560,9 @@ async function log(group=null, label="print", type="log") {
  * @param {string} Mark      - 監聽標記, 避免重複創建
  * @param {element} Target   - 觸發的監聽對象
  * @param {function} Trigger - 觸發的函數
+ * 
+ * @example
+ * Observer("標記", document, 觸發函數);
  */
 const ObservreMark = new Map();
 async function Observer(Mark, Target, Trigger) {
@@ -569,3 +572,56 @@ async function Observer(Mark, Target, Trigger) {
         observer.observe(Target, { childList: true, subtree: true });
     }
 }
+
+/* ==================================================== */
+
+/**
+ ** { 節流函數 [不會遺棄觸發] }
+ * @param {function} func - 要觸發的函數
+ * @param {number} delay - 延遲的時間ms
+ * @returns {function}
+ * 
+ * @example
+ * a = throttle(()=> {}, 100);
+ * a();
+ * 
+ * function b(n) {
+ *      throttle(b(n), 100);
+ * }
+ * 
+ * document.addEventListener("pointermove", throttle(()=> {
+ *  
+ * }), 100)
+ */
+function throttle(func, delay) {
+    let timer = null;
+    return function() {
+        let context=this, args=arguments;
+        if (timer == null) {
+            timer = setTimeout(function() {
+                func.apply(context, args);
+                timer = null;
+            }, delay);
+        }
+    };
+}
+
+/**
+ ** { 節流函數 [會丟棄觸發] }
+ * @param {function} func - 要觸發的函數
+ * @param {number} delay - 延遲的時間ms
+ * @returns {function}
+ * 
+ * @example
+ * 與上方相同
+ */
+function throttle_discard(func, delay) {
+    let lastTime = 0;
+    return function() {
+        const context = this, args = arguments, now = Date.now();
+        if ((now - lastTime) >= delay) {
+            func.apply(context, args);
+            lastTime = now;
+        }
+    };
+};
