@@ -51,6 +51,18 @@
                     return this._Type;
                 }
             }
+            this.throttle = (func, delay) => {
+                let timer = null;
+                return function() {
+                    let context=this, args=arguments;
+                    if (timer == null) {
+                        timer = setTimeout(function() {
+                            func.apply(context, args);
+                            timer = null;
+                        }, delay);
+                    }
+                };
+            }
             this.throttle_discard = (func, delay) => {
                 let lastTime = 0;
                 return function() {
@@ -61,6 +73,7 @@
                     }
                 };
             };
+            this.FindObjects = this.Device.Type() == "Desktop" ? ".video-wrapper div" : this.Device.Type() == "Mobile" ? ".mgp_videoWrapper" : ".video-wrapper div";
         }
 
         async AddListener(element, type, listener, add={}) {
@@ -104,14 +117,14 @@
 
         async Injection() {
             let self = this, device = self.Device.Type(), MouseHide;
-            const FindObjects = device == "Desktop" ? ".video-wrapper div" : device == "Mobile" ? ".mgp_videoWrapper" : "";
-            self.AddStyle("body {cursor: default;}.Hidden {display: block;}", "Mouse-Hide");
             /* 找到 影片區塊, 影片, 和進度條 */
-            self.WaitMap([FindObjects, "video.mgp_videoElement", ".mgp_seekBar"], 30, call=> {
+            self.WaitMap([self.FindObjects, "video.mgp_videoElement", ".mgp_progressHandle"], 30, call=> {
                 const [target, video, bar] = call;
-                if (device == "Desktop") {
+                if (device == "Desktop") { /* 電腦端 */
+                    console.log("\x1b[1m\x1b[32m%s\x1b[0m", "Hidden Injection Successful");
+                    self.AddStyle("body {cursor: default;}.Hidden {display: block;}", "Mouse-Hide");
                     self.StyalRules = document.getElementById("Mouse-Hide").sheet.cssRules;
-                    bar.classList.add("Hidden"); // 添加樣式到進度條
+                    bar.parentNode.classList.add("Hidden"); // 添加樣式到進度條
 
                     // 離開目標後重置
                     self.AddListener(target, "pointerleave", ()=> {
@@ -133,7 +146,8 @@
                         }, 2100);
                     }
 
-                } else if (device == "Mobile") {
+                } else if (device == "Mobile") { /* 手機端 */
+                    console.log("\x1b[1m\x1b[32m%s\x1b[0m", "Accelerate Injection Successfully");
                     let sidelineX, startX, moveX, PlaybackRate = video.playbackRate;
 
                     // 觸碰
@@ -143,7 +157,7 @@
                     }, { passive: true });
 
                     // 滑動
-                    self.AddListener(target, "touchmove", self.throttle_discard(event => {
+                    self.AddListener(target, "touchmove", self.throttle(event => {
                         requestAnimationFrame(() => {
                             moveX = event.touches[0].clientX - startX;
                             if (moveX > sidelineX) { // 右滑
@@ -158,6 +172,8 @@
                     self.AddListener(target, "touchend", ()=> {
                         video.playbackRate = PlaybackRate;
                     }, { passive: true });
+                } else {
+                    console.log("\x1b[1m\x1b[31m%s\x1b[0m", "Injection Failed");
                 }
             })
         }
