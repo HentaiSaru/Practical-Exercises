@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -23,7 +23,7 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1337297/GrammarSimplified.js
 // ==/UserScript==
 
 (function () {
@@ -50,43 +50,56 @@
      * 
      * 編譯 ColaMangaEnhance / 2 -> R:/U_Compiler / 1
      */
+
+    /* 
+        只有設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
+        (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
+    */
+    const Config = { 
+        BlockAd: 1, // 使用阻擋廣告點擊
+        BGColor: 1, // 使用背景換色 [目前還沒有自訂]
+        RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
+        AutoTurnPage: 1, // 使用自動換頁 mode: 1 = 自動換頁(敏感), 2 = 自動換頁(不敏感)
+    };
     (new class Manga extends API {
         constructor() {
             super();
             this.DEV = true;
-            this.JumpTrigger = false;
-            this.Interval = this.GetStatus = null;
-            this.ContentsPage = this.HomePage = null;
-            this.PreviousPage = this.NextPage = null;
-            this.MangaList = this.BottomStrip = null;
-            this.Up_scroll = this.Down_scroll = false;
-            this.Observer_Next = null;
-
-            // 延遲 ms
-            this.ScrollSpeed = 5;
+            this.ScrollSpeed = 1; // 像素, 越高越快
+            this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
+            this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
+            this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
+            this.PreviousPage = this.NextPage = null; // 下一頁, 上一頁, 連結
+            this.MangaList = this.BottomStrip = null; // 漫畫列表, 底下觸發換頁條
+            this.Up_scroll = this.Down_scroll = false; // 向上滾動, 向下滾動
+            this.Observer_Next = null; // 下一頁觀察器
 
             /* 獲取驅動訊行 (不要直接調用 前面有 _ 的) */
             this.Device = {
-                Width: window.innerWidth,
-                Height: window.innerHeight,
-                Agent: navigator.userAgent,
+                sY: ()=> {return window.scrollY},
+                sX: ()=> {return window.scrollX},
+                Width: ()=> {return window.innerWidth},
+                Height: ()=> {return window.innerHeight},
+                Agent: ()=> {return navigator.userAgent},
                 _Type: undefined,
                 Type: function() {
                     if (this._Type) {
                         return this._Type;
-                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent) || this.Width < 768) {
+                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768) {
                         this._Type = "Mobile";
                     } else {
                         this._Type = "Desktop";
                     }
                     return this._Type;
                 }
-            }
+            };
 
             /* 取得數據 */
-            this.Get_Data = async () => {
-                this.WaitMap(["div.mh_readtitle", "div.mh_headpager", "div.mh_readend a", "#mangalist"], 20, element => {
-                    let [HomeLink, PageLink, BottomStrip, MangaList] = element;
+            this.Get_Data = async (callback) => {
+                this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend a", "#mangalist"], 20, element => {
+                    let [Body, HomeLink, PageLink, BottomStrip, MangaList] = element;
+                    this.Body = Body;
+
                     HomeLink = this.$$("a", true, HomeLink);
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
                     this.HomePage = HomeLink[1].href; // 首頁連結
@@ -98,23 +111,26 @@
                     this.MangaList = MangaList; // 漫畫列表
                     this.BottomStrip = BottomStrip; // 以閱讀完畢的那條, 看到他跳轉
 
-                    this.GetStatus = [
+                    if([
+                        this.Body,
                         this.ContentsPage,
                         this.HomePage,
                         this.PreviousPage,
                         this.NextPage,
                         this.MangaList,
                         this.BottomStrip
-                    ].every(Check => Check);
-                })
-            }
+                    ].every(Check => Check))
+                    {callback(true)}
+                    else {callback(false)}
+                }, document);
+            };
 
             /* 檢測跳轉連結 */
             this.DetectionJumpLink = (link) => {
                 return !link.startsWith("javascript");
-            }
+            };
 
-            /* 節流函數 */
+            /* 節流函數 (不會遺棄觸發) */
             this.throttle = (func, delay) => {
                 let timer = null;
                 return function() {
@@ -126,22 +142,46 @@
                         }, delay);
                     }
                 };
-            }
+            };
+
+            /* 節流函數 (會丟棄觸發) */
+            this.throttle_discard = (func, delay) => {
+                let lastTime = 0;
+                return function() {
+                    const context = this, args = arguments, now = Date.now();
+                    if ((now - lastTime) >= delay) {
+                        func.apply(context, args);
+                        lastTime = now;
+                    }
+                };
+            };
+
+            /* 檢測到頂 */
+            this.TopDetected = this.throttle_discard(()=>{
+                this.Up_scroll = this.Device.sY() == 0 ? false : true;
+            }, 1000);
+            /* 檢測到底 */
+            this.BottomDetected = this.throttle_discard(()=>{
+                this.Down_scroll =
+                this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? false : true;
+            }, 1000);
 
             /* 自動滾動 (邏輯修改) */
-            this.scroll = async(move) => {
+            this.scroll = (move) => {
                 if (this.Up_scroll && move < 0) {
+                    this.TopDetected();
                     requestAnimationFrame(() => {
                         window.scrollBy(0, move);
-                        this.throttle(this.scroll(move), this.ScrollSpeed);
+                        this.scroll(move);
                     });
                 } else if (this.Down_scroll && move > 0) {
+                    this.BottomDetected();
                     requestAnimationFrame(() => {
                         window.scrollBy(0, move);
-                        this.throttle(this.scroll(move), this.ScrollSpeed);
+                        this.scroll(move);
                     });
                 }
-            }
+            };
 
             /* 獲取樣式 */
             this.Get_Style = () => {
@@ -150,9 +190,9 @@
                         "BG_Color": "#595959",
                         "Img_Bw": "auto",
                         "Img_Mw": "100%"
-                    }]
+                    }];
                 return Style[0];
-            }
+            };
 
             this.ImgStyle = this.Get_Style();
         }
@@ -161,7 +201,7 @@
         async BlockAds() {
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             let iframe;
-            this.Interval = setInterval(() => {iframe = this.$$("iframe"); iframe && iframe.remove()}, 600);
+            this.AdCleanup = setInterval(() => {iframe = this.$$("iframe"); iframe && iframe.remove()}, 600);
             if (this.Device.Type() == "Desktop") {
 
                 this.AddStyle(`
@@ -191,7 +231,7 @@
 
         /* 背景樣式 */
         async BackgroundStyle() {
-            document.body.style.backgroundColor=this.ImgStyle.BG_Color;
+            this.Body.style.backgroundColor=this.ImgStyle.BG_Color;
             this.DEV && this.log("背景顏色注入", true);
         }
 
@@ -224,96 +264,99 @@
             }
         }
 
-        /* 快捷切換上下頁 */
-        async Hotkey_Switch() {
-            if (this.GetStatus) {
-                if (this.Device.Type() == "Desktop") {
-                    this.AddListener(document, "keydown", event => {
-                        const key = event.key;
-                        if (key == "ArrowLeft" && !this.JumpTrigger) {
-                            this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
-                            location.assign(this.PreviousPage);
-                        }
-                        else if (key == "ArrowRight" && !this.JumpTrigger) {
-                            this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
-                            location.assign(this.NextPage);
-                        }
-                        else if (key == "ArrowUp") {
-                            event.preventDefault();
-                            if (this.Up_scroll) {
-                                this.Up_scroll = false;
-                            } else if (!this.Up_scroll || this.Down_scroll) {
-                                this.Down_scroll = false;
-                                this.Up_scroll = true;
-                                this.scroll(-1);
-                            }
-                        }
-                        else if (key == "ArrowDown") {
-                            event.preventDefault();
-                            if (this.Down_scroll) {
-                                this.Down_scroll = false;
-                            } else if (this.Up_scroll || !this.Down_scroll) {
-                                this.Up_scroll = false;
-                                this.Down_scroll = true;
-                                this.scroll(1);
-                            }
-                        }
-                    }, { capture: true });
-
-                    this.DEV && this.log("快捷換頁注入", true);
-                } else if (this.Device.Type() == "Mobile") {
-
-                    const sidelineX = .35 * this.Device.Width, sidelineY = (this.Device.Height / 4) * .2;
-                    let startX, startY, moveX, moveY;
-
-                    this.AddListener(this.MangaList, "touchstart", event => {
-                        startX = event.touches[0].clientX;
-                        startY = event.touches[0].clientY;
-                    }, { passive: true });
-
-                    this.AddListener(this.MangaList, "touchmove", this.throttle(event => {
-                        requestAnimationFrame(() => {
-                            moveX = event.touches[0].clientX - startX;
-                            moveY = event.touches[0].clientY - startY;
-                            if (Math.abs(moveY) < sidelineY) {
-                                if (moveX > sidelineX && !this.JumpTrigger) {
-                                    this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
-                                    location.assign(this.PreviousPage);
-                                } else if (moveX < -sidelineX && !this.JumpTrigger) {
-                                    this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
-                                    location.assign(this.NextPage);
-                                }
-                            }
-                        });
-                    }, 100), { passive: true });
-
-                    this.DEV && this.log("手勢換頁注入", true);
+        /* 快捷切換上下頁 和 自動滾動 */
+        async Hotkey_Switch(mode) {
+            if (this.Device.Type() == "Desktop") {
+                if (mode == 3) {
+                    this.Down_scroll = this.store("get", "scroll");
+                    this.scroll(this.ScrollSpeed);
                 }
-            } else { this.DEV && this.log("無取得換頁數據", false) }
+
+                const UP_ScrollSpeed = this.ScrollSpeed * -1;
+                this.AddListener(document, "keydown", event => {
+                    const key = event.key;
+                    if (key == "ArrowLeft" && !this.JumpTrigger) {
+                        this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                        location.assign(this.PreviousPage);
+                    }
+                    else if (key == "ArrowRight" && !this.JumpTrigger) {
+                        this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
+                        location.assign(this.NextPage);
+                    }
+                    else if (key == "ArrowUp" && mode >= 2) {
+                        event.preventDefault();
+                        if (this.Up_scroll) {
+                            this.Up_scroll = false;
+                        } else if (!this.Up_scroll || this.Down_scroll) {
+                            this.Down_scroll = false;
+                            this.Up_scroll = true;
+                            this.scroll(UP_ScrollSpeed);
+                        }
+                    }
+                    else if (key == "ArrowDown" && mode >= 2) {
+                        event.preventDefault();
+                        if (this.Down_scroll) {
+                            this.Down_scroll = false;
+                            this.store("set","scroll",false);
+                        } else if (this.Up_scroll || !this.Down_scroll) {
+                            this.Up_scroll = false;
+                            this.Down_scroll = true;
+                            this.store("set","scroll",true);
+                            this.scroll(this.ScrollSpeed);
+                        }
+                    }
+                }, { capture: true });
+
+                this.DEV && this.log("快捷換頁注入", true);
+            } else if (this.Device.Type() == "Mobile") {
+
+                const sidelineX = .35 * this.Device.Width(), sidelineY = (this.Device.Height() / 4) * .2;
+                let startX, startY, moveX, moveY;
+
+                this.AddListener(this.MangaList, "touchstart", event => {
+                    startX = event.touches[0].clientX;
+                    startY = event.touches[0].clientY;
+                }, { passive: true });
+
+                this.AddListener(this.MangaList, "touchmove", this.throttle(event => {
+                    requestAnimationFrame(() => {
+                        moveX = event.touches[0].clientX - startX;
+                        moveY = event.touches[0].clientY - startY;
+                        if (Math.abs(moveY) < sidelineY) {
+                            if (moveX > sidelineX && !this.JumpTrigger) {
+                                this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                                location.assign(this.PreviousPage);
+                            } else if (moveX < -sidelineX && !this.JumpTrigger) {
+                                this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
+                                location.assign(this.NextPage);
+                            }
+                        }
+                    });
+                }, 200), { passive: true });
+
+                this.DEV && this.log("手勢換頁注入", true);
+            }
         }
 
         /* 自動切換下一頁 */
-        async Automatic_Next() {
-            if (this.GetStatus) {
-                const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
-                self.Observer_Next = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {
-                        if (entry.isIntersecting && lest_img.src) {
-                            self.Observer_Next.disconnect();
-                            self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
-                        }
-                    });
-                }, { threshold: .5 });
-                self.Observer_Next.observe(self.BottomStrip); // 添加觀察者
-                this.DEV && this.log("觀察換頁注入", true);
-            } else {
-                this.DEV && this.log("無取得換頁數據", false);
-            }
+        async Automatic_Next(mode) {
+            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
+            let hold; // 觀察的靈敏度
+            self.Observer_Next = new IntersectionObserver(observed => {
+                observed.forEach(entry => {
+                    if (entry.isIntersecting && lest_img.src) {
+                        self.Observer_Next.disconnect();
+                        self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
+                    }
+                });
+            }, { threshold: hold });
+            hold = mode >= 2 ? 1 : .1;
+            self.Observer_Next.observe(mode >= 2 ? self.$$("div.endtip2.clear") : self.BottomStrip);
+            this.DEV && this.log("觀察換頁注入", true);
         }
 
         /* 設定菜單 */
         async SettingMenu() {
-            if (this.GetStatus) {} else { this.DEV && this.log("無取得換頁數據", false) }
         }
 
         /* 菜單樣式 */
@@ -325,25 +368,18 @@
         /* 功能注入 */
         async Injection() {
             try {
-                this.BlockAds(); // 為了阻止手機版廣告, 要優先注入, 且腳本要 document-start, 所以下面不等 document.body 出現會有問題
-                const DOMContentLoaded = new MutationObserver(() => { // 監聽 "DOMContentLoaded" 無法觸發是什麼鬼
-                    const DOM = document.body;
-                    if (DOM) {
-                        DOMContentLoaded.disconnect();
-                        this.Get_Data();
-                        this.BackgroundStyle();
-                        const waitResults = setInterval(() => {
-                            if (this.GetStatus != null) {
-                                clearInterval(waitResults);
-                                this.PictureStyle();
-                                this.Hotkey_Switch();
-                                this.SettingMenu();
-                                this.Automatic_Next();
-                            }
-                        }, 300);
+                Config.BlockAd > 0 && this.BlockAds();
+                this.Get_Data(state=> {
+                    if (state) {
+                        Config.BGColor > 0 && this.BackgroundStyle();
+                        this.PictureStyle();
+                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey);
+                        this.SettingMenu();
+                        Config.AutoTurnPage > 0 && this.Automatic_Next(Config.AutoTurnPage);
+                    } else {
+                        this.DEV && this.log("取得數據失敗", false);
                     }
-                })
-                DOMContentLoaded.observe(document, { childList: true, subtree: true });
+                });
             } catch (error) { this.DEV && this.log(null, error) }
         }
     }).Injection();
