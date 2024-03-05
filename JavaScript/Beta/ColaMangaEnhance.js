@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.6
+// @version      0.0.7
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -56,16 +56,16 @@
         (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
     */
     const Config = { 
-        BlockAd: 1, // 使用阻擋廣告點擊
-        BGColor: 1, // 使用背景換色 [目前還沒有自訂]
+        BlockAd: 1, // 阻擋廣告點擊
+        BGColor: 1, // 背景換色 [目前還沒有自訂]
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 1, // 使用自動換頁 mode: 1 = 自動換頁(敏感), 2 = 自動換頁(不敏感)
+        AutoTurnPage: 2, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢 [1~3 數字越大需要滾動越下面, 也就是越慢觸發], 4 = 特殊 (實驗中的酷東西)
     };
     (new class Manga extends API {
         constructor() {
             super();
             this.DEV = true;
-            this.ScrollSpeed = 1; // 像素, 越高越快
+            this.ScrollSpeed = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
@@ -73,14 +73,16 @@
             this.MangaList = this.BottomStrip = null; // 漫畫列表, 底下觸發換頁條
             this.Up_scroll = this.Down_scroll = false; // 向上滾動, 向下滾動
             this.Observer_Next = null; // 下一頁觀察器
+            this.RecordName = location.pathname.split("/")[1];
+            this.RecordURL = this.store("get", this.RecordName) || document.URL;
 
             /* 獲取驅動訊行 (不要直接調用 前面有 _ 的) */
             this.Device = {
-                sY: ()=> {return window.scrollY},
-                sX: ()=> {return window.scrollX},
-                Width: ()=> {return window.innerWidth},
-                Height: ()=> {return window.innerHeight},
-                Agent: ()=> {return navigator.userAgent},
+                sY: ()=> window.scrollY,
+                sX: ()=> window.scrollX,
+                Width: ()=> window.innerWidth,
+                Height: ()=> window.innerHeight,
+                Agent: ()=> navigator.userAgent,
                 _Type: undefined,
                 Type: function() {
                     if (this._Type) {
@@ -158,12 +160,12 @@
 
             /* 檢測到頂 */
             this.TopDetected = this.throttle_discard(()=>{
-                this.Up_scroll = this.Device.sY() == 0 ? false : true;
+                this.Up_scroll = this.Device.sY() == 0 ? (this.store("set","scroll",false), false) : true;
             }, 1000);
             /* 檢測到底 */
             this.BottomDetected = this.throttle_discard(()=>{
                 this.Down_scroll =
-                this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? false : true;
+                this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? (this.store("set","scroll",false), false) : true;
             }, 1000);
 
             /* 自動滾動 (邏輯修改) */
@@ -201,12 +203,12 @@
         async BlockAds() {
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             let iframe;
-            this.AdCleanup = setInterval(() => {iframe = this.$$("iframe"); iframe && iframe.remove()}, 600);
+            this.AdCleanup = setInterval(() => {iframe = this.$$("iframe:not(#Iframe-Comics)"); iframe && iframe.remove()}, 600);
             if (this.Device.Type() == "Desktop") {
 
                 this.AddStyle(`
                     body {pointer-events: none;}
-                    body .mh_wrap, .modal-background {pointer-events: auto;}
+                    body iframe, .mh_wrap, .modal-background {pointer-events: auto;}
                 `, "Inject-Blocking-Ads");
 
                 this.DEV && this.log("電腦廣告阻擋注入", true);
@@ -340,8 +342,8 @@
 
         /* 自動切換下一頁 */
         async Automatic_Next(mode) {
-            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .7)];
-            let hold; // 觀察的靈敏度
+            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .85)];
+            let hold, object;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
                     if (entry.isIntersecting && lest_img.src) {
@@ -350,9 +352,78 @@
                     }
                 });
             }, { threshold: hold });
-            hold = mode >= 2 ? 1 : .1;
-            self.Observer_Next.observe(mode >= 2 ? self.$$("div.endtip2.clear") : self.BottomStrip);
+            switch (mode) {
+                case 2:
+                    hold = .5;
+                    object = self.$$("li:nth-child(3) a.read_page_link");
+                    break;
+                case 3:
+                    hold = 1;
+                    object = self.$$("div.endtip2.clear");
+                    break;
+                case 4:
+                    self.$$(".mh_wrap.tc").style.display = "none";
+                    this.SpecialPageTurning();
+                    break;
+                default:
+                    hold = .1;
+                    object = self.BottomStrip;
+            }
+            mode != 4 && self.Observer_Next.observe(object);
             this.DEV && this.log("觀察換頁注入", true);
+        }
+
+        /* 特殊翻頁邏輯 */
+        async SpecialPageTurning() {
+            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .93)];
+
+            async function trigger() {
+                self.AddStyle(`
+                    #Iframe-Comics {
+                        border: none;
+                        width: 100%;
+                    }
+                `)
+
+                // 刪除底部的物件
+                self.$$(".mh_readend").style.display = "none";
+                self.$$(".mh_footpager").style.display = "none";
+                self.$$(".fed-foot-info.fed-part-layout.fed-back-whits").style.display = "none";
+
+                // 創建 iframe 元素
+                let iframe = document.createElement("iframe");
+                requestAnimationFrame(() => {
+                    iframe.id = "Iframe-Comics";
+                    iframe.src = self.NextPage;
+                    document.body.appendChild(iframe);
+                });
+
+                // 等待 iframe 載入完成
+                let iframeContent
+                iframe.onload = function() {
+                    iframeContent = iframe.contentWindow.document;
+                    iframeContent.body.style.overflow = "hidden";
+                    iframe.style.height = `${1e4}px`;
+                };
+
+                GM_setValue(self.RecordName, self.NextPage);
+                setInterval(()=> {
+                    requestAnimationFrame(() => {
+                        iframe.style.height = `${iframeContent.body.scrollHeight}px`;
+                    });
+                }, 3e3);
+            }
+
+            // 監聽翻頁
+            self.Observer_Next = new IntersectionObserver(observed => {
+                observed.forEach(entry => {
+                    if (entry.isIntersecting && lest_img.src) {
+                        self.Observer_Next.disconnect();
+                        self.DetectionJumpLink(self.NextPage) && trigger();
+                    }
+                });
+            }, { threshold: .5 });
+            self.Observer_Next.observe(lest_img);
         }
 
         /* 設定菜單 */
@@ -368,6 +439,10 @@
         /* 功能注入 */
         async Injection() {
             try {
+                if (this.RecordURL != document.URL) {
+                    GM_setValue(this.RecordName, "");
+                    location.assign(this.RecordURL);
+                }
                 Config.BlockAd > 0 && this.BlockAds();
                 this.Get_Data(state=> {
                     if (state) {
