@@ -59,7 +59,7 @@
         BlockAd: 1, // 阻擋廣告點擊
         BGColor: 1, // 背景換色 [目前還沒有自訂]
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 2, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢 [1~3 數字越大需要滾動越下面, 也就是越慢觸發], 4 = 特殊 (實驗中的酷東西)
+        AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢 [1~3 數字越大需要滾動越下面, 也就是越慢觸發], 4 = 特殊 (實驗中的酷東西)
     };
     (new class Manga extends API {
         constructor() {
@@ -342,11 +342,12 @@
 
         /* 自動切換下一頁 */
         async Automatic_Next(mode) {
-            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .85)];
+            const self = this, img = self.$$("img", true, self.MangaList), il = img.length,
+            [lest_img, lest_img_2] = [img[Math.floor(il * .95)], img[Math.floor(il * .75)]];
             let hold, object;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && lest_img.src) {
+                    if (entry.isIntersecting && (lest_img.src || lest_img_2.src)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
                     }
@@ -375,7 +376,8 @@
 
         /* 特殊翻頁邏輯 */
         async SpecialPageTurning() {
-            const self = this, img = self.$$("img", true, self.MangaList), lest_img = img[Math.floor(img.length * .93)];
+            const self = this, img = self.$$("img", true, self.MangaList), il = img.length,
+            [lest_img, lest_img_2] = [img[Math.floor(il * .95)], img[Math.floor(il * .75)]];
 
             async function trigger() {
                 self.AddStyle(`
@@ -417,7 +419,7 @@
             // 監聽翻頁
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && lest_img.src) {
+                    if (entry.isIntersecting && (lest_img.src || lest_img_2.src)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage) && trigger();
                     }
