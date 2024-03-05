@@ -625,3 +625,26 @@ function throttle_discard(func, delay) {
         }
     };
 };
+
+/* ==================================================== */
+
+/**
+ ** { 獲取運行經過時間 }
+ * @param {Date.now()} time - 傳入 Date.now()
+ * @param {boolean} log - 是否直接打印
+ * 
+ * @returns {Date.now()}
+ * 
+ * @example
+ * let start = Runtime();
+ * let end = Runtime(start);
+ * console.log(end);
+ * 
+ * let start = Runtime();
+ * Runtime(start, true);
+ */
+ function Runtime(time=null, log=false) {
+    return !time? Date.now(): log?
+    console.log("\x1b[1m\x1b[36m%s\x1b[0m", `Elapsed Time: ${((Date.now()-time)/1e3)}s`):
+    (Date.now() - time);
+}
