@@ -65,7 +65,7 @@
         constructor() {
             super();
             this.DEV = true;
-            this.ScrollSpeed = 2; // 像素, 越高越快
+            this.ScrollSpeed = 1; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
@@ -185,6 +185,15 @@
                 }
             };
 
+            /* 自動翻頁獲取檢測對象 */
+            this.ObserveValue = (object) => {
+                const L = object.length;
+                return [
+                    L*.95, L*.75,
+                    L*(Math.random() * (0.7 - 0.1) + 0.1).toPrecision(2)
+                ].map(I=> {return object[Math.floor(I)]});
+            }
+
             /* 獲取樣式 */
             this.Get_Style = () => {
                 const Style = this.store("get", "Style") ||
@@ -214,16 +223,16 @@
                 this.DEV && this.log("電腦廣告阻擋注入", true);
             } else if (this.Device.Type() == "Mobile") {
 
-                this.AddListener(window, "pointerup", event => {
+                this.Listen(window, "pointerup", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-                this.AddListener(document, "pointerup", event => {
+                this.Listen(document, "pointerup", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-                this.AddListener(window, "click", event => {
+                this.Listen(window, "click", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-                this.AddListener(document, "click", event => {
+                this.Listen(document, "click", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
 
@@ -342,12 +351,12 @@
 
         /* 自動切換下一頁 */
         async Automatic_Next(mode) {
-            const self = this, img = self.$$("img", true, self.MangaList), il = img.length,
-            [lest_img, lest_img_2] = [img[Math.floor(il * .95)], img[Math.floor(il * .75)]];
+            const self = this, [lest_img, img_2, img_3] = self.ObserveValue(self.$$("img", true, self.MangaList));
+
             let hold, object;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && (lest_img.src || lest_img_2.src)) {
+                    if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
                     }
@@ -363,7 +372,10 @@
                     object = self.$$("div.endtip2.clear");
                     break;
                 case 4:
-                    self.$$(".mh_wrap.tc").style.display = "none";
+                    self.AddStyle(`
+                        .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info {display: none;}
+                        #Iframe-Comics {border: none; height:0px; width: 100%;}
+                    `, "scroll-hidden")
                     this.SpecialPageTurning();
                     break;
                 default:
@@ -376,29 +388,14 @@
 
         /* 特殊翻頁邏輯 */
         async SpecialPageTurning() {
-            const self = this, img = self.$$("img", true, self.MangaList), il = img.length,
-            [lest_img, lest_img_2] = [img[Math.floor(il * .95)], img[Math.floor(il * .75)]];
+            const self = this, [lest_img, img_2, img_3] = self.ObserveValue(self.$$("img", true, self.MangaList)),
+            iframe = document.createElement("iframe"); // 創建後先添加
+            iframe.id = "Iframe-Comics";
+            requestAnimationFrame(() => {document.body.appendChild(iframe)});
 
             async function trigger() {
-                self.AddStyle(`
-                    #Iframe-Comics {
-                        border: none;
-                        width: 100%;
-                    }
-                `)
-
-                // 刪除底部的物件
-                self.$$(".mh_readend").style.display = "none";
-                self.$$(".mh_footpager").style.display = "none";
-                self.$$(".fed-foot-info.fed-part-layout.fed-back-whits").style.display = "none";
-
-                // 創建 iframe 元素
-                let iframe = document.createElement("iframe");
-                requestAnimationFrame(() => {
-                    iframe.id = "Iframe-Comics";
-                    iframe.src = self.NextPage;
-                    document.body.appendChild(iframe);
-                });
+                // 載入 src
+                requestAnimationFrame(() => {iframe.src = self.NextPage});
 
                 // 等待 iframe 載入完成
                 let iframeContent
@@ -409,22 +406,24 @@
                 };
 
                 GM_setValue(self.RecordName, self.NextPage);
-                setInterval(()=> {
+
+                function updateIframeHeight() {
                     requestAnimationFrame(() => {
                         iframe.style.height = `${iframeContent.body.scrollHeight}px`;
                     });
-                }, 3e3);
+                }
+                setInterval(updateIframeHeight, 2e3);
             }
 
             // 監聽翻頁
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && (lest_img.src || lest_img_2.src)) {
+                    if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage) && trigger();
                     }
                 });
-            }, { threshold: .5 });
+            }, { threshold: .1 });
             self.Observer_Next.observe(lest_img);
         }
 
