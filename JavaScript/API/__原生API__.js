@@ -648,3 +648,37 @@ function throttle_discard(func, delay) {
     console.log("\x1b[1m\x1b[36m%s\x1b[0m", `Elapsed Time: ${((Date.now()-time)/1e3)}s`):
     (Date.now() - time);
 }
+
+/* ==================================================== */
+
+/**
+ ** { 兩個 API 功能相同, 只是保存的位置不同 }
+ * @param {string} key - 要保存 或 取出的 key
+ * @param {map} value - 目前是用於專門處理 map 數據存儲的
+ * @returns 
+ */
+function SessionMap(key, value=null) {
+    let data, result;
+    if (value) {
+        sessionStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
+        result = true;
+    } else {
+        data = sessionStorage.getItem(key);
+        result = data ? new Map(JSON.parse(data)) : false;
+    }
+    return result;
+}
+
+function LocalMap(key, value=null) {
+    let data, result;
+    if (value) {
+        localStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
+        result = true;
+    } else {
+        data = localStorage.getItem(key);
+        result = data ? new Map(JSON.parse(data)) : false;
+    }
+    return result;
+}
+
+/* ==================================================== */
