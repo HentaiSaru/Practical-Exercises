@@ -374,7 +374,7 @@
                 case 4:
                     self.AddStyle(`
                         .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info {display: none;}
-                        #Iframe-Comics {border: none; height:0px; width: 100%;}
+                        #Iframe-Comics {height:0px; border: none; width: 100%;}
                     `, "scroll-hidden")
                     this.SpecialPageTurning();
                     break;
@@ -394,6 +394,8 @@
             requestAnimationFrame(() => {document.body.appendChild(iframe)});
 
             async function trigger() {
+                let StylelRules = self.$$("#scroll-hidden").sheet.cssRules[1].style;
+
                 // 載入 src
                 requestAnimationFrame(() => {iframe.src = self.NextPage});
 
@@ -402,17 +404,12 @@
                 iframe.onload = function() {
                     iframeContent = iframe.contentWindow.document;
                     iframeContent.body.style.overflow = "hidden";
-                    iframe.style.height = `${1e4}px`;
+                    setInterval(()=> {
+                        StylelRules.height = `${iframeContent.body.scrollHeight}px`;
+                    }, 2e3);
                 };
 
                 GM_setValue(self.RecordName, self.NextPage);
-
-                function updateIframeHeight() {
-                    requestAnimationFrame(() => {
-                        iframe.style.height = `${iframeContent.body.scrollHeight}px`;
-                    });
-                }
-                setInterval(updateIframeHeight, 2e3);
             }
 
             // 監聽翻頁
