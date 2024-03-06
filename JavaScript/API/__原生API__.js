@@ -652,33 +652,45 @@ function throttle_discard(func, delay) {
 /* ==================================================== */
 
 /**
- ** { 兩個 API 功能相同, 只是保存的位置不同 }
- * @param {string} key - 要保存 或 取出的 key
- * @param {map} value - 目前是用於專門處理 map 數據存儲的
- * @returns 
+ ** { 瀏覽器 Storage 操作 }
+ * @param {sessionStorage | localStorage} storage - 存儲的類型 
+ * @param {string} key - 存儲的 key 值
+ * @param {*} value - 存儲的 value 值
+ * @returns {boolean | *} - 回傳保存的值
+ * 
+ * @example
+ * 支援的類型 (String, Number, Array, Object, Boolean, Date, Map)
+ * 
+ *  Storage(sessionStorage, "會話數據", 123)
+ *  Storage(sessionStorage, "會話數據")
+ * 
+ *  Storage(localStorage, "本地數據", 123)
+ *  Storage(localStorage, "本地數據")
  */
-function SessionMap(key, value=null) {
-    let data, result;
-    if (value) {
-        sessionStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
-        result = true;
-    } else {
-        data = sessionStorage.getItem(key);
-        result = data ? new Map(JSON.parse(data)) : false;
-    }
-    return result;
-}
-
-function LocalMap(key, value=null) {
-    let data, result;
-    if (value) {
-        localStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
-        result = true;
-    } else {
-        data = localStorage.getItem(key);
-        result = data ? new Map(JSON.parse(data)) : false;
-    }
-    return result;
+function Storage(storage, key, value=null) {
+    let data,
+    Formula = {
+        Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
+        String: (parse) =>
+            parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Number: (parse) =>
+            parse ? Number(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Array: (parse) =>
+            parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Object: (parse) =>
+            parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Boolean: (parse) =>
+            parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Date: (parse) =>
+            parse ? new Date(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Map: (parse) =>
+            parse
+            ? new Map(JSON.parse(parse))
+            : (storage.setItem(key, JSON.stringify([...value])), true),
+    };
+    return null != value
+        ? Formula[Formula.Type(value)]()
+        : !!(data = storage.getItem(key)) && Formula[Formula.Type(JSON.parse(data))](data);
 }
 
 /* ==================================================== */
