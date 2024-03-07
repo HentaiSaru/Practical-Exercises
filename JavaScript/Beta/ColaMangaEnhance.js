@@ -19,11 +19,13 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_listValues
+// @grant        GM_deleteValue
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1337297/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1338920/GrammarSimplified.js
 // ==/UserScript==
 
 (function () {
@@ -38,7 +40,7 @@
      * 
      * 隱藏廣告
      * 快捷翻頁
-     * 自動翻頁 => 敏感 / 不敏感
+     * 自動翻頁 => mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 
      * 自動滾動 => 速度設置 / 換頁繼續滾動
      * 
      * 請求 document.querySelector(".all_data_list") 主頁數據
@@ -76,7 +78,7 @@
             this.RecordName = location.pathname.split("/")[1];
             this.RecordURL = this.store("get", this.RecordName) || document.URL;
 
-            /* 獲取驅動訊行 (不要直接調用 前面有 _ 的) */
+            /* 獲取驅動訊息 (不要直接調用 前面有 _ 的) */
             this.Device = {
                 sY: ()=> window.scrollY,
                 sX: ()=> window.scrollX,
@@ -127,6 +129,13 @@
                 }, document);
             };
 
+            /* 存取會話數據 */
+            this.storage = (key, value=null) => {
+                return value != null
+                ? this.Storage(sessionStorage, key, value) 
+                : this.Storage(sessionStorage, key);
+            }
+
             /* 檢測跳轉連結 */
             this.DetectionJumpLink = (link) => {
                 return !link.startsWith("javascript");
@@ -160,12 +169,12 @@
 
             /* 檢測到頂 */
             this.TopDetected = this.throttle_discard(()=>{
-                this.Up_scroll = this.Device.sY() == 0 ? (this.store("set","scroll",false), false) : true;
+                this.Up_scroll = this.Device.sY() == 0 ? (this.storage("scroll", false), false) : true;
             }, 1000);
             /* 檢測到底 */
             this.BottomDetected = this.throttle_discard(()=>{
                 this.Down_scroll =
-                this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? (this.store("set","scroll",false), false) : true;
+                this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? (this.storage("scroll", false), false) : true;
             }, 1000);
 
             /* 自動滾動 (邏輯修改) */
@@ -279,8 +288,8 @@
         async Hotkey_Switch(mode, temporary) {
             if (this.Device.Type() == "Desktop") {
                 if (mode == 3 && temporary != 4) {
-                    this.Down_scroll = this.store("get", "scroll");
-                    this.scroll(this.ScrollSpeed);
+                    this.Down_scroll = this.storage("scroll");
+                    this.Down_scroll && this.scroll(this.ScrollSpeed);
                 }
 
                 const UP_ScrollSpeed = this.ScrollSpeed * -1;
@@ -308,11 +317,11 @@
                         event.preventDefault();
                         if (this.Down_scroll) {
                             this.Down_scroll = false;
-                            this.store("set","scroll",false);
+                            this.storage("scroll", false);
                         } else if (this.Up_scroll || !this.Down_scroll) {
                             this.Up_scroll = false;
                             this.Down_scroll = true;
-                            this.store("set","scroll",true);
+                            this.storage("scroll", true);
                             this.scroll(this.ScrollSpeed);
                         }
                     }
@@ -400,13 +409,13 @@
                 requestAnimationFrame(() => {iframe.src = self.NextPage});
 
                 // 等待 iframe 載入完成
-                let iframeContent
+                let iframeContent;
                 iframe.onload = function() {
                     iframeContent = iframe.contentWindow.document;
                     iframeContent.body.style.overflow = "hidden";
                     setInterval(()=> {
                         StylelRules.height = `${iframeContent.body.scrollHeight}px`;
-                    }, 2e3);
+                    }, 1500);
                 };
 
                 GM_setValue(self.RecordName, self.NextPage);
