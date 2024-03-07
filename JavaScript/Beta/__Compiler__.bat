@@ -29,7 +29,7 @@ cls
 @ ECHO.
 set /p file="輸入檔名後按下(Enter) : "
 @ ECHO.
-Choice /C 12 /N /M "選擇編譯模式(1: google / 2: uglifyjs) : "
+Choice /C 123 /N /M "編譯模式([1]google [2]uglifyjs [3]uglifyjs-b) : "
 
 if %errorlevel% == 1 (
 
@@ -38,5 +38,9 @@ google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js
 ) else if %errorlevel% == 2 (
 
 uglifyjs %file%.js -c -m -o R:/U_Compiler.js
+
+) else if %errorlevel% == 3 (
+
+uglifyjs %file%.js -c -m -b -o R:/U_Compiler.js
 
 )
