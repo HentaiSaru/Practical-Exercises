@@ -190,7 +190,7 @@
                 const L = object.length;
                 return [
                     L*.95, L*.75,
-                    L*(Math.random() * (0.7 - 0.1) + 0.1).toPrecision(2)
+                    L*(Math.random() * (0.6 - 0.1) + 0.1).toPrecision(2)
                 ].map(I=> {return object[Math.floor(I)]});
             }
 
@@ -276,9 +276,9 @@
         }
 
         /* 快捷切換上下頁 和 自動滾動 */
-        async Hotkey_Switch(mode) {
+        async Hotkey_Switch(mode, temporary) {
             if (this.Device.Type() == "Desktop") {
-                if (mode == 3) {
+                if (mode == 3 && temporary != 4) {
                     this.Down_scroll = this.store("get", "scroll");
                     this.scroll(this.ScrollSpeed);
                 }
@@ -446,7 +446,7 @@
                     if (state) {
                         Config.BGColor > 0 && this.BackgroundStyle();
                         this.PictureStyle();
-                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey);
+                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey, Config.AutoTurnPage);
                         this.SettingMenu();
                         Config.AutoTurnPage > 0 && this.Automatic_Next(Config.AutoTurnPage);
                     } else {
