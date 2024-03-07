@@ -6,6 +6,9 @@ mshta vbscript:createobject("shell.application").shellexecute("%~s0","goto :Admi
 :Admin
 cls
 
+:: 混淆代碼 但會增加體積 (https://lizh.gitbook.io/knowledge/research/javascript-jia-mi-hun-xiao)
+:: npm install --save-dev javascript-obfuscator
+
 @ ECHO [1m
 @ ECHO ===================================
 @ ECHO.
@@ -34,6 +37,6 @@ google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js
 
 ) else if %errorlevel% == 2 (
 
-uglifyjs %file%.js -m -c -o R:/U_Compiler.js
+uglifyjs %file%.js -c -m -o R:/U_Compiler.js
 
 )
