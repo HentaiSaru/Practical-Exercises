@@ -12,24 +12,28 @@ cls
 @ ECHO [1m
 @ ECHO ===================================
 @ ECHO.
-@ ECHO        [36m JavaScript Compiler [37m
+@ ECHO        [32m JavaScript Compiler [37m
 @ ECHO.
-@ ECHO [31m 使用前確保安裝了 [37m
-@ ECHO [32m npm i -g google-closure-compiler
+@ ECHO [34m npm i -g google-closure-compiler
 @ ECHO  npm install uglify-js -g [37m
 @ ECHO.
+@ ECHO [33m 使用說明:
 @ ECHO.
-@ ECHO [35m 路徑預設: 輸入為當前目錄/輸出為 R
-@ ECHO  只要輸入檔名即可(不含 .js 後墜) [37m
+@ ECHO  [預設路徑] 輸入為當前目錄, 輸出為 R, 輸入檔名(不含 .js 後墜)
+@ ECHO.
+@ ECHO  Mode:
+@ ECHO  [1] google-closure-compiler 預設編譯模式
+@ ECHO  [2] uglifyjs 壓縮/混淆
+@ ECHO  [3] uglifyjs 壓縮/美化 [37m
 @ ECHO.
 @ ECHO ===================================
 
 :choose
 
 @ ECHO.
-set /p file="輸入檔名後按下(Enter) : "
+set /p file="輸入檔名(Enter) : "
 @ ECHO.
-Choice /C 123 /N /M "編譯模式([1]google [2]uglifyjs [3]uglifyjs-b) : "
+Choice /C 123 /N /M "編譯模式(Mode) : "
 
 if %errorlevel% == 1 (
 
@@ -41,6 +45,6 @@ uglifyjs %file%.js -c -m -o R:/U_Compiler.js
 
 ) else if %errorlevel% == 3 (
 
-uglifyjs %file%.js -c -m -b -o R:/U_Compiler.js
+uglifyjs %file%.js -c -b -o R:/U_Compiler.js
 
 )
