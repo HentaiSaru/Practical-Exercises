@@ -1,7 +1,7 @@
 /**
  ** { 菜單註冊 API }
  * 
- * @grant GM_registerMenuCommand
+ * // @grant GM_registerMenuCommand
  * 
  * @param {*} item  - 創建菜單的物件
  * @example
@@ -20,32 +20,36 @@ async function Menu(item) {
 /* ==================================================== */
 
 /**
- ** { 操作存储空間 }
+ ** { 操作存储空間 (精簡版) }
  * 
- * @grant GM_setValue
- * @grant GM_getValue
+ * // @grant GM_setValue
+ * // @grant GM_getValue
+ * // @grant GM_listValues
+ * // @grant GM_deleteValue
  * 
- * @param {string} operate - 操作類型 ("set", "get", "setjs", "getjs")
+ * @param {string} operate - 操作類型 ("del", "all", "set", "get", "sjs", "gjs")
  * @param {string} key     - 操作數據索引Key
  * @param {*} orig         - 原始的回傳值
  * @returns {data}         - 獲取的數據值
- * 
+ *
  * @example
  * 數據A = store("get", "資料A")
  * store("setjs", "資料B", "數據B")
  */
-function store(operate, key, orig=null){
+function store(operation, key=null, value=null) {
+    const verify = val => (val !== void 0 ? val : null);
     return {
-        __verify: val => val !== undefined ? val : null,
-        set: function(val, put) {return GM_setValue(val, put)},
-        get: function(val, call) {return this.__verify(GM_getValue(val, call))},
-        setjs: function(val, put) {return GM_setValue(val, JSON.stringify(put, null, 4))},
-        getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
-    }[operate](key, orig);
+        del: (key) => GM_deleteValue(key),
+        all: () => verify(GM_listValues()),
+        set: (key, value) => GM_setValue(key, value),
+        get: (key, defaultValue) => verify(GM_getValue(key, defaultValue)),
+        sjs: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
+        gjs: (key, defaultValue) => JSON.parse(verify(GM_getValue(key, defaultValue)))
+    }[operation](key, value);
 }
 
 /**
- ** { 操作存储空間(改)}
+ ** { 操作存储空間(廢棄) }
  *
  * 使用方法只有差在, 在程式開頭要宣告 GM
  * 改版的有對數據處理做優化
