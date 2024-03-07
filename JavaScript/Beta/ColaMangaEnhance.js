@@ -19,8 +19,6 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_listValues
-// @grant        GM_deleteValue
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
@@ -61,7 +59,7 @@
         BlockAd: 1, // 阻擋廣告點擊
         BGColor: 1, // 背景換色 [目前還沒有自訂]
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢 [1~3 數字越大需要滾動越下面, 也就是越慢觸發], 4 = 特殊 (實驗中的酷東西)
+        AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 (實驗中的酷東西)
     };
     (new class Manga extends API {
         constructor() {
@@ -75,8 +73,8 @@
             this.MangaList = this.BottomStrip = null; // 漫畫列表, 底下觸發換頁條
             this.Up_scroll = this.Down_scroll = false; // 向上滾動, 向下滾動
             this.Observer_Next = null; // 下一頁觀察器
-            this.RecordName = location.pathname.split("/")[1];
-            this.RecordURL = this.store("get", this.RecordName) || document.URL;
+            this.RecordName = location.pathname.split("/")[1]; // 獲取漫畫標示符
+            this.RecordURL = this.Storage(localStorage, this.RecordName) || document.URL;
 
             /* 獲取驅動訊息 (不要直接調用 前面有 _ 的) */
             this.Device = {
@@ -285,9 +283,9 @@
         }
 
         /* 快捷切換上下頁 和 自動滾動 */
-        async Hotkey_Switch(mode, temporary) {
+        async Hotkey_Switch(mode) {
             if (this.Device.Type() == "Desktop") {
-                if (mode == 3 && temporary != 4) {
+                if (mode == 3 && window.self == window.parent) {
                     this.Down_scroll = this.storage("scroll");
                     this.Down_scroll && this.scroll(this.ScrollSpeed);
                 }
@@ -384,7 +382,7 @@
                     self.AddStyle(`
                         .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info {display: none;}
                         #Iframe-Comics {height:0px; border: none; width: 100%;}
-                    `, "scroll-hidden")
+                    `, "scroll-hidden");
                     this.SpecialPageTurning();
                     break;
                 default:
@@ -402,25 +400,6 @@
             iframe.id = "Iframe-Comics";
             requestAnimationFrame(() => {document.body.appendChild(iframe)});
 
-            async function trigger() {
-                let StylelRules = self.$$("#scroll-hidden").sheet.cssRules[1].style;
-
-                // 載入 src
-                requestAnimationFrame(() => {iframe.src = self.NextPage});
-
-                // 等待 iframe 載入完成
-                let iframeContent;
-                iframe.onload = function() {
-                    iframeContent = iframe.contentWindow.document;
-                    iframeContent.body.style.overflow = "hidden";
-                    setInterval(()=> {
-                        StylelRules.height = `${iframeContent.body.scrollHeight}px`;
-                    }, 1500);
-                };
-
-                GM_setValue(self.RecordName, self.NextPage);
-            }
-
             // 監聽翻頁
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
@@ -431,6 +410,25 @@
                 });
             }, { threshold: .1 });
             self.Observer_Next.observe(lest_img);
+
+            async function trigger() {
+                let IframeContent, StylelRules = self.$$("#scroll-hidden").sheet.cssRules[1].style;
+
+                // 載入 src
+                requestAnimationFrame(() => {iframe.src = self.NextPage});
+
+                // 等待 iframe 載入完成
+                iframe.onload = function() {
+                    IframeContent = iframe.contentWindow.document;
+                    IframeContent.body.style.overflow = "hidden";
+
+                    setInterval(()=> {
+                        StylelRules.height = `${IframeContent.body.scrollHeight}px`;
+                    }, 1500);
+
+                    self.Storage(localStorage, self.RecordName, self.NextPage);
+                };
+            }
         }
 
         /* 設定菜單 */
@@ -446,16 +444,16 @@
         /* 功能注入 */
         async Injection() {
             try {
+                Config.BlockAd > 0 && this.BlockAds();
                 if (this.RecordURL != document.URL) {
-                    GM_setValue(this.RecordName, "");
+                    this.Storage(localStorage, this.RecordName, false);
                     location.assign(this.RecordURL);
                 }
-                Config.BlockAd > 0 && this.BlockAds();
                 this.Get_Data(state=> {
                     if (state) {
                         Config.BGColor > 0 && this.BackgroundStyle();
                         this.PictureStyle();
-                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey, Config.AutoTurnPage);
+                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey);
                         this.SettingMenu();
                         Config.AutoTurnPage > 0 && this.Automatic_Next(Config.AutoTurnPage);
                     } else {
