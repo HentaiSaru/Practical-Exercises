@@ -64,7 +64,6 @@
     (new class Manga extends API {
         constructor() {
             super();
-            this.DEV = true;
             this.ScrollSpeed = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.CurrentPage = document.URL;
@@ -74,6 +73,9 @@
             this.MangaList = this.BottomStrip = null; // 漫畫列表, 底下觸發換頁條
             this.Up_scroll = this.Down_scroll = false; // 向上滾動, 向下滾動
             this.Observer_Next = null; // 下一頁觀察器
+
+            this.Origin = location.origin;
+            this.IsMainPage = (window.self === window.parent);
             this.RecordName = location.pathname.split("/")[1]; // 獲取漫畫標示符
             this.RecordURL = this.Storage(localStorage, this.RecordName) || this.CurrentPage;
 
@@ -99,20 +101,26 @@
 
             /* 取得數據 */
             this.Get_Data = async (callback) => {
-                this.WaitMap(["body", "div.mh_readtitle", "div.mh_readend", "#mangalist"], 20, element => {
-                    const [Body, Top, Bottom, Manga] = element;
+                this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element => {
+                    const [Body, Title, HeadPager, Readend, Manga] = element;
                     this.Body = Body;
 
-                    const HomeLink = this.$$("a", true, Top);
+                    const HomeLink = this.$$("a", true, Title);
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
                     this.HomePage = HomeLink[1].href; // 首頁連結
 
-                    const PageLink = this.$$("ul a", true, Bottom);
-                    this.PreviousPage = PageLink[0].href; // 上一頁連結
-                    this.NextPage = PageLink[2].href; // 下一頁連結
+                    try {
+                        const PageLink = this.$$("ul a", true, Readend);
+                        this.PreviousPage = PageLink[0].href;
+                        this.NextPage = PageLink[2].href;
+                    } catch {
+                        const PageLink = this.$$("a.mh_btn:not(.mh_bgcolor)", true, HeadPager);
+                        this.PreviousPage = PageLink[0].href;
+                        this.NextPage = PageLink[1].href;
+                    }
 
                     this.MangaList = Manga; // 漫畫列表
-                    this.BottomStrip = this.$$("a", false, Bottom); // 以閱讀完畢的那條, 看到他跳轉
+                    this.BottomStrip = this.$$("a", false, Readend); // 以閱讀完畢的那條, 看到他跳轉
 
                     if([
                         this.Body,
@@ -227,31 +235,26 @@
                     body {pointer-events: none;}
                     body iframe, .mh_wrap, .modal-background {pointer-events: auto;}
                 `, "Inject-Blocking-Ads");
-
-                this.DEV && this.log("電腦廣告阻擋注入", true);
             } else if (this.Device.Type() == "Mobile") {
 
                 this.Listen(window, "pointerup", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-                this.Listen(document, "pointerup", event => {
+                this.Listen(window, "click", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-                this.Listen(window, "click", event => {
+                this.Listen(document, "pointerup", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
                 this.Listen(document, "click", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
-
-                this.DEV && this.log("手機廣告阻擋注入", true);
             }
         }
 
         /* 背景樣式 */
         async BackgroundStyle() {
             this.Body.style.backgroundColor=this.ImgStyle.BG_Color;
-            this.DEV && this.log("背景顏色注入", true);
         }
 
         /* 圖片樣式 */
@@ -266,33 +269,27 @@
                 `, "Inject-Image-Style");
             }
             this.AutoReload();
-            this.DEV && this.log("圖片樣式注入", true);
         }
 
         /* 自動重新載入 */
         async AutoReload() {
-            try {
-                let click = new MouseEvent("click", { bubbles: true, cancelable: true });
-                const observer = new IntersectionObserver(observed => {
-                    observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
-                }, { threshold: .3 });
-                this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
-                this.DEV && this.log("自動重載注入", true);
-            } catch {
-                this.DEV && this.log("自動重載注入失敗", false);
-            }
+            let click = new MouseEvent("click", { bubbles: true, cancelable: true });
+            const observer = new IntersectionObserver(observed => {
+                observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
+            }, { threshold: .3 });
+            this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
         }
 
         /* 快捷切換上下頁 和 自動滾動 */
         async Hotkey_Switch(mode) {
             if (this.Device.Type() == "Desktop") {
-                if (mode == 3 && window.self == window.parent) {
+                if (mode == 3 && this.IsMainPage) {
                     this.Down_scroll = this.storage("scroll");
                     this.Down_scroll && this.scroll(this.ScrollSpeed);
                 }
 
                 const UP_ScrollSpeed = this.ScrollSpeed * -1;
-                this.AddListener(document, "keydown", event => {
+                this.Listen(window, "keydown", event => {
                     const key = event.key;
                     if (key == "ArrowLeft" && !this.JumpTrigger) {
                         this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
@@ -325,19 +322,17 @@
                         }
                     }
                 }, { capture: true });
-
-                this.DEV && this.log("快捷換頁注入", true);
             } else if (this.Device.Type() == "Mobile") {
 
                 const sidelineX = .35 * this.Device.Width(), sidelineY = (this.Device.Height() / 4) * .2;
                 let startX, startY, moveX, moveY;
 
-                this.AddListener(this.MangaList, "touchstart", event => {
+                this.Listen(window, "touchstart", event => {
                     startX = event.touches[0].clientX;
                     startY = event.touches[0].clientY;
                 }, { passive: true });
 
-                this.AddListener(this.MangaList, "touchmove", this.throttle(event => {
+                this.Listen(window, "touchmove", this.throttle(event => {
                     requestAnimationFrame(() => {
                         moveX = event.touches[0].clientX - startX;
                         moveY = event.touches[0].clientY - startY;
@@ -352,8 +347,6 @@
                         }
                     });
                 }, 200), { passive: true });
-
-                this.DEV && this.log("手勢換頁注入", true);
             }
         }
 
@@ -391,15 +384,27 @@
                     object = self.BottomStrip;
             }
             mode != 4 && self.Observer_Next.observe(object);
-            this.DEV && this.log("觀察換頁注入", true);
         }
 
         /* 特殊翻頁邏輯 */
         async SpecialPageTurning() {
             const self = this, [lest_img, img_2, img_3] = self.ObserveValue(self.$$("img", true, self.MangaList)),
-            iframe = document.createElement("iframe"); // 創建後先添加
+            iframe = document.createElement("iframe");
             iframe.id = "Iframe-Comics";
-            requestAnimationFrame(() => {document.body.appendChild(iframe)});
+            iframe.src = self.NextPage;
+            self.Buffer.appendChild(iframe);
+
+            if (self.IsMainPage) { // 主頁負責修改
+                this.Listen(window, "message", event => { // 監聽歷史紀錄
+                    history.pushState(null, null, event.data);
+                })
+            } else { // 第二頁開始, 不斷向上找到主頁
+                let MainWindow = window;
+                this.Listen(window, "message", event => {
+                    while (MainWindow.parent !== MainWindow) {MainWindow = MainWindow.parent}
+                    MainWindow.postMessage(event.data, self.Origin);
+                })
+            }
 
             // 監聽翻頁
             let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
@@ -408,31 +413,35 @@
                     if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage)
-                        ? trigger(self.NextPage)
+                        ? trigger()
                         : StylelRules[0].style.display = "block";
                     }
                 });
             }, { threshold: .1 });
             self.Observer_Next.observe(lest_img);
 
-            function trigger(link) {
-                // 載入 src
-                requestAnimationFrame(() => {iframe.src = link});
+            async function trigger() {
+                // 載入 iframe
+                requestAnimationFrame(() => {
+                    document.body.appendChild(self.Buffer);
+                    load();
+                });
 
-                // 等待 iframe 載入完成
-                iframe.onload = function() {
-                    URL = iframe.contentWindow.location.href;
-                    URL != link && trigger(link);
+                function load() {
+                    // 等待 iframe 載入完成
+                    iframe.onload = function() {
+                        URL = iframe.contentWindow.location.href;
+                        URL != self.NextPage && (iframe.src = self.NextPage, load());
 
-                    Content = iframe.contentWindow.document;
-                    Content.body.style.overflow = "hidden";
+                        Content = iframe.contentWindow.document;
+                        Content.body.style.overflow = "hidden";
+                        setInterval(()=> {
+                            StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
+                        }, 1500);
 
-                    setInterval(()=> {
-                        StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
-                    }, 1500);
-
-                    self.Storage(localStorage, self.RecordName, link);
-                };
+                        window.parent.postMessage(self.CurrentPage, self.Origin);
+                    };
+                }
             }
         }
 
@@ -450,22 +459,15 @@
         async Injection() {
             try {
                 Config.BlockAd > 0 && this.BlockAds();
-                if (this.RecordURL != this.CurrentPage) {
-                    this.Storage(localStorage, this.RecordName, false);
-                    location.assign(this.RecordURL);
-                }
                 this.Get_Data(state=> {
                     if (state) {
                         Config.BGColor > 0 && this.BackgroundStyle();
                         this.PictureStyle();
                         Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey);
-                        this.SettingMenu();
                         Config.AutoTurnPage > 0 && this.Automatic_Next(Config.AutoTurnPage);
-                    } else {
-                        this.DEV && this.log("取得數據失敗", false);
                     }
                 });
-            } catch (error) { this.DEV && this.log(null, error) }
+            } catch (error) { this.log(null, error) }
         }
     }).Injection();
 })();
