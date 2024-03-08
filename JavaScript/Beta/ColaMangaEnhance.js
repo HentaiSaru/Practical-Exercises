@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.7
+// @version      0.0.8
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -65,8 +65,9 @@
         constructor() {
             super();
             this.DEV = true;
-            this.ScrollSpeed = 1; // 像素, 越高越快
+            this.ScrollSpeed = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
+            this.CurrentPage = document.URL;
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
             this.PreviousPage = this.NextPage = null; // 下一頁, 上一頁, 連結
@@ -74,7 +75,7 @@
             this.Up_scroll = this.Down_scroll = false; // 向上滾動, 向下滾動
             this.Observer_Next = null; // 下一頁觀察器
             this.RecordName = location.pathname.split("/")[1]; // 獲取漫畫標示符
-            this.RecordURL = this.Storage(localStorage, this.RecordName) || document.URL;
+            this.RecordURL = this.Storage(localStorage, this.RecordName) || this.CurrentPage;
 
             /* 獲取驅動訊息 (不要直接調用 前面有 _ 的) */
             this.Device = {
@@ -98,20 +99,20 @@
 
             /* 取得數據 */
             this.Get_Data = async (callback) => {
-                this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend a", "#mangalist"], 20, element => {
-                    let [Body, HomeLink, PageLink, BottomStrip, MangaList] = element;
+                this.WaitMap(["body", "div.mh_readtitle", "div.mh_readend", "#mangalist"], 20, element => {
+                    const [Body, Top, Bottom, Manga] = element;
                     this.Body = Body;
 
-                    HomeLink = this.$$("a", true, HomeLink);
+                    const HomeLink = this.$$("a", true, Top);
                     this.ContentsPage = HomeLink[0].href; // 目錄連結
                     this.HomePage = HomeLink[1].href; // 首頁連結
 
-                    PageLink = this.$$("a.mh_btn:not(.mh_bgcolor)", true, PageLink);
+                    const PageLink = this.$$("ul a", true, Bottom);
                     this.PreviousPage = PageLink[0].href; // 上一頁連結
-                    this.NextPage = PageLink[1].href; // 下一頁連結
+                    this.NextPage = PageLink[2].href; // 下一頁連結
 
-                    this.MangaList = MangaList; // 漫畫列表
-                    this.BottomStrip = BottomStrip; // 以閱讀完畢的那條, 看到他跳轉
+                    this.MangaList = Manga; // 漫畫列表
+                    this.BottomStrip = this.$$("a", false, Bottom); // 以閱讀完畢的那條, 看到他跳轉
 
                     if([
                         this.Body,
@@ -196,7 +197,7 @@
             this.ObserveValue = (object) => {
                 const L = object.length;
                 return [
-                    L*.95, L*.75,
+                    L*.9, L*.7,
                     L*(Math.random() * (0.6 - 0.1) + 0.1).toPrecision(2)
                 ].map(I=> {return object[Math.floor(I)]});
             }
@@ -401,32 +402,36 @@
             requestAnimationFrame(() => {document.body.appendChild(iframe)});
 
             // 監聽翻頁
+            let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
                     if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
                         self.Observer_Next.disconnect();
-                        self.DetectionJumpLink(self.NextPage) && trigger();
+                        self.DetectionJumpLink(self.NextPage)
+                        ? trigger(self.NextPage)
+                        : StylelRules[0].style.display = "block";
                     }
                 });
             }, { threshold: .1 });
             self.Observer_Next.observe(lest_img);
 
-            async function trigger() {
-                let IframeContent, StylelRules = self.$$("#scroll-hidden").sheet.cssRules[1].style;
-
+            function trigger(link) {
                 // 載入 src
-                requestAnimationFrame(() => {iframe.src = self.NextPage});
+                requestAnimationFrame(() => {iframe.src = link});
 
                 // 等待 iframe 載入完成
                 iframe.onload = function() {
-                    IframeContent = iframe.contentWindow.document;
-                    IframeContent.body.style.overflow = "hidden";
+                    URL = iframe.contentWindow.location.href;
+                    URL != link && trigger(link);
+
+                    Content = iframe.contentWindow.document;
+                    Content.body.style.overflow = "hidden";
 
                     setInterval(()=> {
-                        StylelRules.height = `${IframeContent.body.scrollHeight}px`;
+                        StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
                     }, 1500);
 
-                    self.Storage(localStorage, self.RecordName, self.NextPage);
+                    self.Storage(localStorage, self.RecordName, link);
                 };
             }
         }
@@ -445,7 +450,7 @@
         async Injection() {
             try {
                 Config.BlockAd > 0 && this.BlockAds();
-                if (this.RecordURL != document.URL) {
+                if (this.RecordURL != this.CurrentPage) {
                     this.Storage(localStorage, this.RecordName, false);
                     location.assign(this.RecordURL);
                 }
