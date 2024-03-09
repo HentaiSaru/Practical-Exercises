@@ -492,8 +492,7 @@
 
         /* 菜單樣式 */
         async MenuStyle() {
-            this.AddStyle(`
-            `, "Inject_MenuStyle");
+            this.AddStyle(``, "Inject_MenuStyle");
         }
 
         /* 功能注入 */
