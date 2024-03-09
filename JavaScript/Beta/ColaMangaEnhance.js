@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.8
+// @version      0.0.9
 // @author       HentaiSaru
 // @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -23,7 +23,7 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1338920/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1339711/GrammarSimplified.js
 // ==/UserScript==
 
 (function () {
@@ -66,7 +66,7 @@
             super();
             this.ScrollSpeed = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
-            this.CurrentPage = document.URL;
+            this.WaitPicture = 1500; // 等待圖片載入時間
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
             this.PreviousPage = this.NextPage = null; // 下一頁, 上一頁, 連結
@@ -75,6 +75,7 @@
             this.Observer_Next = null; // 下一頁觀察器
 
             this.Origin = location.origin;
+            this.CurrentPage = document.URL;
             this.IsMainPage = (window.self === window.parent);
             this.RecordName = location.pathname.split("/")[1]; // 獲取漫畫標示符
             this.RecordURL = this.Storage(localStorage, this.RecordName) || this.CurrentPage;
@@ -101,6 +102,20 @@
 
             /* 取得數據 */
             this.Get_Data = async (callback) => {
+                if (this.Device.Type() == "Mobile") { // 手機版進行複寫
+                    this.WaitMap = (selectors, timeout, callback, object) => {
+                        let timer, elements;
+                        const Interval = setInterval(() => {
+                            elements = selectors.map(selector => document.querySelector(selector))
+                            if (elements.every(element => {return element !== null && typeof "undefined"})) {
+                                clearInterval(Interval);
+                                clearTimeout(timer);
+                                callback(elements);
+                            }
+                        }, 100);
+                        timer = setTimeout(() => {clearInterval(Interval)}, (1000 * timeout));
+                    }
+                }
                 this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], 20, element => {
                     const [Body, Title, HeadPager, Readend, Manga] = element;
                     this.Body = Body;
@@ -201,13 +216,13 @@
                 }
             };
 
-            /* 自動翻頁獲取檢測對象 */
+            /* 自動翻頁獲取觀察對象 */
             this.ObserveValue = (object) => {
-                const L = object.length;
-                return [
-                    L*.9, L*.7,
-                    L*(Math.random() * (0.6 - 0.1) + 0.1).toPrecision(2)
-                ].map(I=> {return object[Math.floor(I)]});
+                return object[Math.floor(object.length*.7)];
+            }
+            /* 總圖片數的 50 % 圖片高度不為 0 */
+            this.DetectionValue = (object) => {
+                return object.filter(img=> img.height != 0).length >= Math.floor(object.length*.5);
             }
 
             /* 獲取樣式 */
@@ -230,13 +245,12 @@
             let iframe;
             this.AdCleanup = setInterval(() => {iframe = this.$$("iframe:not(#Iframe-Comics)"); iframe && iframe.remove()}, 600);
             if (this.Device.Type() == "Desktop") {
-
                 this.AddStyle(`
                     body {pointer-events: none;}
-                    body iframe, .mh_wrap, .modal-background {pointer-events: auto;}
+                    body .mh_wrap, span.mh_btn:not(.contact), #Iframe-Comics {pointer-events: auto;}
                 `, "Inject-Blocking-Ads");
-            } else if (this.Device.Type() == "Mobile") {
 
+            } else if (this.Device.Type() == "Mobile") {
                 this.Listen(window, "pointerup", event => {
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
@@ -250,6 +264,7 @@
                     event.stopImmediatePropagation();
                 }, { capture: true, passive: true });
             }
+
         }
 
         /* 背景樣式 */
@@ -268,14 +283,16 @@
                     }
                 `, "Inject-Image-Style");
             }
-            this.AutoReload();
+            setTimeout(()=>{this.AutoReload()}, this.WaitPicture);
         }
 
         /* 自動重新載入 */
         async AutoReload() {
             let click = new MouseEvent("click", { bubbles: true, cancelable: true });
             const observer = new IntersectionObserver(observed => {
-                observed.forEach(entry => { entry.isIntersecting && entry.target.dispatchEvent(click) });
+                observed.forEach(entry => { 
+                    if (entry.isIntersecting) {entry.target.dispatchEvent(click)}
+                });
             }, { threshold: .3 });
             this.$$("span.mh_btn:not(.contact)", true, this.MangaList).forEach(b => { observer.observe(b) });
         }
@@ -292,14 +309,17 @@
                 this.Listen(window, "keydown", event => {
                     const key = event.key;
                     if (key == "ArrowLeft" && !this.JumpTrigger) {
+                        event.stopImmediatePropagation();
                         this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
                         location.assign(this.PreviousPage);
                     }
                     else if (key == "ArrowRight" && !this.JumpTrigger) {
+                        event.stopImmediatePropagation();
                         this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
                         location.assign(this.NextPage);
                     }
                     else if (key == "ArrowUp" && mode >= 2) {
+                        event.stopImmediatePropagation();
                         event.preventDefault();
                         if (this.Up_scroll) {
                             this.Up_scroll = false;
@@ -310,6 +330,7 @@
                         }
                     }
                     else if (key == "ArrowDown" && mode >= 2) {
+                        event.stopImmediatePropagation();
                         event.preventDefault();
                         if (this.Down_scroll) {
                             this.Down_scroll = false;
@@ -352,17 +373,16 @@
 
         /* 自動切換下一頁 */
         async Automatic_Next(mode) {
-            const self = this, [lest_img, img_2, img_3] = self.ObserveValue(self.$$("img", true, self.MangaList));
-
-            let hold, object;
+            let self = this, hold, object, img;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
+                    if (entry.isIntersecting && self.DetectionValue(img)) {
                         self.Observer_Next.disconnect();
                         self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
                     }
                 });
             }, { threshold: hold });
+
             switch (mode) {
                 case 2:
                     hold = .5;
@@ -373,28 +393,53 @@
                     object = self.$$("div.endtip2.clear");
                     break;
                 case 4:
-                    self.AddStyle(`
-                        .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info {display: none;}
-                        #Iframe-Comics {height:0px; border: none; width: 100%;}
-                    `, "scroll-hidden");
                     this.SpecialPageTurning();
                     break;
                 default:
                     hold = .1;
                     object = self.BottomStrip;
             }
-            mode != 4 && self.Observer_Next.observe(object);
+
+            if (mode != 4) {
+                setTimeout(()=> {
+                    img = self.$$("img", true, self.MangaList);
+                    self.Observer_Next.observe(object);
+                }, self.WaitPicture);
+            }
         }
 
         /* 特殊翻頁邏輯 */
         async SpecialPageTurning() {
-            const self = this, [lest_img, img_2, img_3] = self.ObserveValue(self.$$("img", true, self.MangaList)),
-            iframe = document.createElement("iframe");
+            const self = this, iframe = document.createElement("iframe");
             iframe.id = "Iframe-Comics";
             iframe.src = self.NextPage;
-            self.Buffer.appendChild(iframe);
 
-            if (self.IsMainPage) { // 主頁負責修改
+            // 修改樣式
+            self.AddStyle(`
+                .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info, #imgvalidation2022 {display: none;}
+                #Iframe-Comics {height:0px; border: none; width: 100%;}
+            `, "scroll-hidden");
+
+            // 監聽翻頁
+            let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules, img;
+            self.Observer_Next = new IntersectionObserver(observed => {
+                observed.forEach(entry => {
+                    if (entry.isIntersecting && self.DetectionValue(img)) {
+                        self.Observer_Next.disconnect();
+                        self.DetectionJumpLink(self.NextPage)
+                        ? trigger()
+                        : StylelRules[0].style.display = "block";
+                    }
+                });
+            }, { threshold: .1 });
+
+            setTimeout(()=> {
+                img = self.$$("img", true, self.MangaList);
+                self.Observer_Next.observe(self.ObserveValue(img));
+            }, self.WaitPicture);
+
+            // 主頁修改網址
+            if (self.IsMainPage) {
                 this.Listen(window, "message", event => { // 監聽歷史紀錄
                     history.pushState(null, null, event.data);
                 })
@@ -406,40 +451,36 @@
                 })
             }
 
-            // 監聽翻頁
-            let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
-            self.Observer_Next = new IntersectionObserver(observed => {
-                observed.forEach(entry => {
-                    if (entry.isIntersecting && (lest_img.src || img_2.src || img_3.src)) {
-                        self.Observer_Next.disconnect();
-                        self.DetectionJumpLink(self.NextPage)
-                        ? trigger()
-                        : StylelRules[0].style.display = "block";
-                    }
-                });
-            }, { threshold: .1 });
-            self.Observer_Next.observe(lest_img);
-
+            self.Buffer.appendChild(iframe); // 添加緩衝
             async function trigger() {
-                // 載入 iframe
-                requestAnimationFrame(() => {
-                    document.body.appendChild(self.Buffer);
-                    load();
+                requestAnimationFrame(() => { // 載入 iframe
+                    document.body.appendChild(self.Buffer); Waitload();
                 });
 
-                function load() {
-                    // 等待 iframe 載入完成
+                // 等待 iframe 載入完成
+                function Waitload() {
                     iframe.onload = function() {
                         URL = iframe.contentWindow.location.href;
-                        URL != self.NextPage && (iframe.src = self.NextPage, load());
+                        URL != self.NextPage && (iframe.src=self.NextPage, Waitload());
 
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
+
                         setInterval(()=> {
-                            StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
+                            const Height = Content.body.scrollHeight;
+                            StylelRules[1].style.height = `${Height}px`;
                         }, 1500);
 
-                        window.parent.postMessage(self.CurrentPage, self.Origin);
+                        // 監聽換頁點
+                        const UrlUpdate = new IntersectionObserver(observed => {
+                            observed.forEach(entry => {
+                                if (entry.isIntersecting) {
+                                    UrlUpdate.disconnect();
+                                    window.parent.postMessage(URL, self.Origin);
+                                }
+                            });
+                        }, { threshold: .1 });
+                        UrlUpdate.observe(self.$$("#mangalist img", false, Content));
                     };
                 }
             }
