@@ -37,37 +37,37 @@ async function Menu(item) {
  * store("setjs", "資料B", "數據B")
  */
 function store(operation, key=null, value=null) {
-    const verify = val => (val !== void 0 ? val : null);
+    const verify = (val) => (val != void 0 && val != null ? val : null);
     return {
         del: (key) => GM_deleteValue(key),
         all: () => verify(GM_listValues()),
-        set: (key, value) => GM_setValue(key, value),
-        get: (key, defaultValue) => verify(GM_getValue(key, defaultValue)),
+        set: (key, value) => verify(GM_setValue(key, value)),
+        get: (key, Value) => verify(GM_getValue(key, Value)),
         sjs: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
-        gjs: (key, defaultValue) => JSON.parse(verify(GM_getValue(key, defaultValue)))
+        gjs: (key, Value) => JSON.parse(verify(GM_getValue(key, Value)))
     }[operation](key, value);
 }
 
 /**
- ** { 操作存储空間(廢棄) }
+ ** { 操作存储空間 }
  *
- * 使用方法只有差在, 在程式開頭要宣告 GM
- * 改版的有對數據處理做優化
+ * 該函數需要在程式開頭要宣告 GM
+ * 改版的有對數據處理做優化, 且有驗證存入類型, 無法存入空數據
  */
 let GM;
 function store(operate, key, orig=null){
     if (typeof GM === "undefined") {
         GM = {
-            __verify: val => val !== undefined ? val : null,
+            verify: (val) => (val != void 0 && val != null ? val : null),
             set: function(val, put) {GM_setValue(val, put)},
-            get: function(val, call) {return this.__verify(GM_getValue(val, call))},
+            get: function(val, call) {return this.verify(GM_getValue(val, call))},
             setjs: function(val, put) {GM_setValue(val, JSON.stringify(put, null, 4))},
-            getjs: function(val, call) {return JSON.parse(this.__verify(GM_getValue(val, call)))},
+            getjs: function(val, call) {return JSON.parse(this.verify(GM_getValue(val, call)))},
         }
     }
     switch (operate[0]) {
         case "g": return GM[operate](key, orig);
-        case "s": return orig !== null ? GM[operate](key, orig) : null;
+        case "s": return GM.verify(orig) ? GM[operate](key, orig) : null;
         default: return new Error("wrong type of operation");
     }
 }
