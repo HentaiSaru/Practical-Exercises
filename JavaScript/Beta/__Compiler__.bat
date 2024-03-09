@@ -9,7 +9,7 @@ cls
 :: 混淆代碼 但會增加體積 (https://lizh.gitbook.io/knowledge/research/javascript-jia-mi-hun-xiao)
 :: npm install --save-dev javascript-obfuscator
 
-:choose
+:Menu
 @ ECHO [1m
 @ ECHO ===================================
 @ ECHO.
@@ -34,42 +34,44 @@ cls
 @ ECHO.
 set /p file="輸入檔名(Enter) : "
 @ ECHO.
-Choice /C 12345 /N /M "編譯模式(Mode) : "
+set /p Choice="編譯模式(Mode) : "
 cls
 
-if %errorlevel% == 1 (
+if %Choice% equ 1 (
 
 start /B uglifyjs %file%.js -c -m -o R:/U_Compiler.js > NUL
 start R:/U_Compiler.js > NUL
 
-goto choose
+goto Menu
 
-) else if %errorlevel% == 2 (
+) else if %Choice% equ 2 (
 
 start /B uglifyjs %file%.js -c -b -o R:/U_Compiler.js > NUL
 start R:/U_Compiler.js > NUL
 
-goto choose
+goto Menu
 
-) else if %errorlevel% == 3 (
+) else if %Choice% equ 3 (
 
 start /B google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js > NUL
 start R:/G_Compiler.js > NUL
 
-goto choose
+goto Menu
 
-) else if %errorlevel% == 4 (
+) else if %Choice% equ 4 (
 
 start /B uglifyjs %file%.js -c -m -o R:/U_Compiler.js > NUL
 start /B google-closure-compiler R:/U_Compiler.js --js_output_file R:/G_Compiler.js > NUL
 start R:/G_Compiler.js > NUL
-goto choose
 
-) else if %errorlevel% == 5 (
+goto Menu
+
+) else if %Choice% equ 5 (
 
 start /B google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js > NUL
 start /B uglifyjs R:/G_Compiler.js -c -m -o R:/U_Compiler.js > NUL
 start R:/U_Compiler.js > NUL
-goto choose
+
+goto Menu
 
 )
