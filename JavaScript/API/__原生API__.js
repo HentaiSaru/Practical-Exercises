@@ -83,6 +83,9 @@ class Collection {
  * 
  * 元素.addEventListener("監聽類型", "監聽後工作", {附加功能});
  * 
+ *? 只能在控制台使用 (獲取整個頁面的監聽器)
+ * window.getEventListeners(對象).監聽器類型
+ * 
  * 監聽類型:
  *? 滑鼠事件 / 對應手機端指針
  * [滑鼠點擊]: "click"
@@ -550,6 +553,24 @@ async function log(group=null, label="print", type="log") {
         template[type](label);
         console.groupEnd();
     }
+}
+
+/* ==================================================== */
+
+/**
+ * @param {function} trigger - 呼叫的函數
+ * @param {number} time - 暫停毫秒
+ * @returns {setTimeout}
+ * 
+ * @example
+ * Timeout(()=>{執行函數}, 延遲毫秒);
+ */
+function Timeout(trigger, time) {
+    return setTimeout(()=>{trigger()}, time);
+}
+
+function Interval(trigger, time) {
+    return setInterval(()=>{trigger()}, time);
 }
 
 /* ==================================================== */
