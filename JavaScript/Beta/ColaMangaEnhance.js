@@ -55,7 +55,7 @@
         只有設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
         (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
     */
-    const Config = { 
+    const Config = {
         BlockAd: 1, // 阻擋廣告點擊
         BGColor: 1, // 背景換色 [目前還沒有自訂]
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
@@ -251,20 +251,12 @@
                 `, "Inject-Blocking-Ads");
 
             } else if (this.Device.Type() == "Mobile") {
-                this.Listen(window, "pointerup", event => {
-                    event.stopImmediatePropagation();
-                }, { capture: true, passive: true });
-                this.Listen(window, "click", event => {
-                    event.stopImmediatePropagation();
-                }, { capture: true, passive: true });
-                this.Listen(document, "pointerup", event => {
-                    event.stopImmediatePropagation();
-                }, { capture: true, passive: true });
-                this.Listen(document, "click", event => {
-                    event.stopImmediatePropagation();
-                }, { capture: true, passive: true });
+                const OriginListener = EventTarget.prototype.addEventListener;
+                EventTarget.prototype.addEventListener = function(type, listener, options) {
+                    if (type === "pointerup") {return}
+                    OriginListener.call(this, type, listener, options);
+                };
             }
-
         }
 
         /* 背景樣式 */
@@ -438,10 +430,12 @@
                 self.Observer_Next.observe(self.ObserveValue(img));
             }, self.WaitPicture);
 
-            // 主頁修改網址
+            // 主頁修改 網址 與 標題
             if (self.IsMainPage) {
                 this.Listen(window, "message", event => { // 監聽歷史紀錄
-                    history.pushState(null, null, event.data);
+                    const data = event.data;
+                    document.title = data[0];
+                    history.pushState(null, null, data[1]);
                 })
             } else { // 第二頁開始, 不斷向上找到主頁
                 let MainWindow = window;
@@ -476,7 +470,7 @@
                             observed.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     UrlUpdate.disconnect();
-                                    window.parent.postMessage(URL, self.Origin);
+                                    window.parent.postMessage([Content.title, URL], self.Origin);
                                 }
                             });
                         }, { threshold: .1 });
