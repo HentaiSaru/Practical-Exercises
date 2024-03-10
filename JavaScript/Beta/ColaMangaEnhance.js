@@ -203,16 +203,12 @@
             this.scroll = (move) => {
                 if (this.Up_scroll && move < 0) {
                     this.TopDetected();
-                    requestAnimationFrame(() => {
-                        window.scrollBy(0, move);
-                        this.scroll(move);
-                    });
+                    window.scrollBy(0, move);
+                    requestAnimationFrame(() => this.scroll(move));
                 } else if (this.Down_scroll && move > 0) {
                     this.BottomDetected();
-                    requestAnimationFrame(() => {
-                        window.scrollBy(0, move);
-                        this.scroll(move);
-                    });
+                    window.scrollBy(0, move);
+                    requestAnimationFrame(() => this.scroll(move));
                 }
             };
 
@@ -404,34 +400,34 @@
         async SpecialPageTurning() {
             const self = this, iframe = document.createElement("iframe");
             iframe.id = "Iframe-Comics";
-            iframe.src = self.NextPage;
+            iframe.src = this.NextPage;
 
             // 修改樣式
-            self.AddStyle(`
+            this.AddStyle(`
                 .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info, #imgvalidation2022 {display: none;}
                 #Iframe-Comics {height:0px; border: none; width: 100%;}
             `, "scroll-hidden");
 
             // 監聽翻頁
-            let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules, img;
-            self.Observer_Next = new IntersectionObserver(observed => {
+            let URL, Content, StylelRules=this.$$("#scroll-hidden").sheet.cssRules, img;
+            this.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
-                    if (entry.isIntersecting && self.DetectionValue(img)) {
-                        self.Observer_Next.disconnect();
-                        self.DetectionJumpLink(self.NextPage)
-                        ? trigger()
+                    if (entry.isIntersecting && this.DetectionValue(img)) {
+                        this.Observer_Next.disconnect();
+                        this.DetectionJumpLink(this.NextPage)
+                        ? TurnPage()
                         : StylelRules[0].style.display = "block";
                     }
                 });
             }, { threshold: .1 });
 
-            setTimeout(()=> {
-                img = self.$$("img", true, self.MangaList);
-                self.Observer_Next.observe(self.ObserveValue(img));
-            }, self.WaitPicture);
+            setTimeout(()=> {// 想辦法讓監聽對象變成動態調整
+                img = this.$$("img", true, this.MangaList);
+                this.Observer_Next.observe(this.ObserveValue(img));
+            }, this.WaitPicture);
 
             // 主頁修改 網址 與 標題
-            if (self.IsMainPage) {
+            if (this.IsMainPage) {
                 this.Listen(window, "message", event => { // 監聽歷史紀錄
                     const data = event.data;
                     document.title = data[0];
@@ -445,26 +441,25 @@
                 })
             }
 
-            self.Buffer.appendChild(iframe); // 添加緩衝
-            async function trigger() {
+            this.Buffer.appendChild(iframe); // 添加緩衝
+            async function TurnPage() {
                 requestAnimationFrame(() => { // 載入 iframe
                     document.body.appendChild(self.Buffer); Waitload();
                 });
-
+            
                 // 等待 iframe 載入完成
                 function Waitload() {
-                    iframe.onload = function() {
+                    iframe.onload = () => {
                         URL = iframe.contentWindow.location.href;
                         URL != self.NextPage && (iframe.src=self.NextPage, Waitload());
-
+                    
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
-
+                    
                         setInterval(()=> {
-                            const Height = Content.body.scrollHeight;
-                            StylelRules[1].style.height = `${Height}px`;
+                            StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
                         }, 1500);
-
+                    
                         // 監聽換頁點
                         const UrlUpdate = new IntersectionObserver(observed => {
                             observed.forEach(entry => {
@@ -475,6 +470,9 @@
                             });
                         }, { threshold: .1 });
                         UrlUpdate.observe(self.$$("#mangalist img", false, Content));
+                    };
+                    iframe.onerror = () => {
+                        setTimeout(()=> {iframe.src = self.NextPage; Waitload();}, 1500);
                     };
                 }
             }
