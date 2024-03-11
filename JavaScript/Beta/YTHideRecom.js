@@ -25,7 +25,7 @@
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1339711/GrammarSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -41,7 +41,7 @@
         constructor(hotKey) {
             super();
             this.HK = hotKey;
-            this.Dev = false;
+            this.Dev = true;
             this.Language = language(navigator.language);
             this.Video = /^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/; // 影片播放區
             this.Playlist = /^(https?:\/\/)www\.youtube\.com\/playlist\?list=.+$/; // 播放清單
@@ -49,28 +49,25 @@
             this.Register = null;
             this.Transform = false;
 
-            /* 觸發設置 */
-            this.SetTrigger = async Element => {
-                Element.style.display = "none";
-                return new Promise(resolve => {
-                    Element.style.display == "none" ? resolve(true) : resolve(false);
-                });
-            }
-
             /* 判斷設置 */
             this.HideJudgment = async (Element, setValue=null) => {
                 if (Element.style.display == "none" || this.Transform) {
                     Element.style.display = "block";
-                    setValue && GM_setValue(setValue, false);
+                    setValue && this.store("set", setValue, false);
                 } else {
                     Element.style.display = "none";
-                    setValue && GM_setValue(setValue, true);
+                    setValue && this.store("set", setValue, true);
                 }
             }
 
-            /* 快速切換樣式 */
-            this.StyleSwitch = async (Element, Type) => {
-                Element.forEach(e =>{e.style.display = Type});
+            /* 風格轉換器 */
+            this.StyleConverter = async (EL, Type, Style, Result=null) => {
+                EL.forEach(element=>{element.style[Type] = Style});
+                if (Result) {
+                    return new Promise(resolve => {
+                        resolve(EL.every(element => element.style[Type] == Style))
+                    });
+                }
             }
 
             /* 設置標籤 */
@@ -105,30 +102,35 @@
                         "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
-                    ], 10, element => {
+                    ], 20, element => {
                         let [
                             end, below, secondary, inner, related, comments, actions
                         ] = element;
 
                         // 極簡化
                         if (this.store("get", "Minimalist")) {
-                            Promise.all([this.SetTrigger(end), this.SetTrigger(below), this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
-                                results.every(result => result) && this.Dev && this.log("極簡化", true);
+                            this.StyleConverter([document.body], "overflow", "hidden");
+                            this.StyleConverter([end, below, secondary, related], "display", "none", this.Dev).then(Success => {
+                                Success && this.log("極簡化", true);
                             });
                         } else {
                             // 推薦播放隱藏
                             if (this.store("get", "RecomViewing")) {
-                                Promise.all([this.SetTrigger(secondary), this.SetTrigger(related)]).then(results => {
-                                    results.every(result => result) && this.Dev && this.log("隱藏推薦觀看", true);
+                                this.StyleConverter([secondary, related], "display", "none", this.Dev).then(Success => {
+                                    Success && this.log("隱藏推薦觀看", true);
                                 });
                             }
                             // 評論區
                             if (this.store("get", "Comment")) {
-                                this.SetTrigger(comments).then(() => {this.Dev && this.log("隱藏留言區", true)});
+                                this.StyleConverter([comments], "display", "none", this.Dev).then(Success => {
+                                    Success && this.log("隱藏留言區", true);
+                                });
                             }
                             // 功能選項區
                             if (this.store("get", "FunctionBar")) {
-                                this.SetTrigger(actions).then(() => {this.Dev && this.log("隱藏功能選項", true)});
+                                this.StyleConverter([actions], "display", "none", this.Dev).then(Success => {
+                                    Success && this.log("隱藏功能選項", true);
+                                });
                             }
                         }
 
@@ -138,11 +140,13 @@
                             if (this.HK.MinimaList(event)) {
                                 event.preventDefault();
                                 if (this.store("get", "Minimalist")) {
-                                    GM_setValue("Minimalist", false);
-                                    this.StyleSwitch([end, below, secondary, related], "block");
+                                    this.store("set", "Minimalist", false);
+                                    this.StyleConverter([document.body], "overflow", "auto");
+                                    this.StyleConverter([end, below, secondary, related], "display", "block");
                                 } else {
-                                    GM_setValue("Minimalist", true);
-                                    this.StyleSwitch([end, below, secondary, related], "none");
+                                    this.store("set", "Minimalist", true);
+                                    this.StyleConverter([document.body], "overflow", "hidden");
+                                    this.StyleConverter([end, below, secondary, related], "display", "none");
                                 }
                             } else if (this.HK.RecomViewing(event)) {
                                 event.preventDefault();
@@ -168,10 +172,12 @@
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
-                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 10, playlist=> {
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 20, playlist=> {
                         // 播放清單資訊
                         if (this.store("get", "ListDesc")) {
-                            this.SetTrigger(playlist).then(() => {this.Dev && this.log("隱藏播放清單資訊", true)});
+                            this.StyleConverter([playlist], "display", "none", this.Dev).then(Success => {
+                                Success && this.log("隱藏播放清單資訊", true);
+                            });
                         }
                         this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
