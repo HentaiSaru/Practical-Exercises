@@ -318,7 +318,7 @@ class API {
      *
      * @example
      * 數據A = store("get", "資料A")
-     * store("setjs", "資料B", "數據B")
+     * store("sjs", "資料B", "數據B")
      */
     store(operation, key=null, value=null) {
         const verify = val => (val !== void 0 ? val : null);
