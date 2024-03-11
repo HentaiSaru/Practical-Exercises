@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/03/09
+// @version      2024/03/12
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -257,6 +257,78 @@ class API {
             this.Template[type](label);
             console.groupEnd();
         }
+    }
+
+    /**
+     ** { 獲取運行經過時間 }
+     * @param {Date.now()} time - 傳入 Date.now()
+     * @param {boolean} log - 是否直接打印
+     * 
+     * @returns {Date.now()}
+     * 
+     * @example
+     * let start = Runtime();
+     * let end = Runtime(start);
+     * console.log(end);
+     * 
+     * let start = Runtime();
+     * Runtime(start, true);
+     */
+    Runtime(time=null, log=true) {
+        return !time? Date.now(): log?
+        console.log("\x1b[1m\x1b[36m%s\x1b[0m", `Elapsed Time: ${((Date.now()-time)/1e3)}s`):
+        (Date.now() - time);
+    }
+
+    /**
+     ** { 節流函數 [不會遺棄觸發] }
+     * @param {function} func - 要觸發的函數
+     * @param {number} delay - 延遲的時間ms
+     * @returns {function}
+     * 
+     * @example
+     * a = throttle(()=> {}, 100);
+     * a();
+     * 
+     * function b(n) {
+     *      throttle(b(n), 100);
+     * }
+     * 
+     * document.addEventListener("pointermove", throttle(()=> {
+     *  
+     * }), 100)
+     */
+    Throttle(func, delay) {
+        let timer = null;
+        return function() {
+            let context=this, args=arguments;
+            if (timer == null) {
+                timer = setTimeout(function() {
+                    func.apply(context, args);
+                    timer = null;
+                }, delay);
+            }
+        };
+    }
+
+    /**
+     ** { 節流函數 [會丟棄觸發] }
+     * @param {function} func - 要觸發的函數
+     * @param {number} delay - 延遲的時間ms
+     * @returns {function}
+     * 
+     * @example
+     * 與上方相同
+     */
+    Throttle_discard(func, delay) {
+        let lastTime = 0;
+        return function() {
+            const context = this, args = arguments, now = Date.now();
+            if ((now - lastTime) >= delay) {
+                func.apply(context, args);
+                lastTime = now;
+            }
+        };
     }
 
     /**
