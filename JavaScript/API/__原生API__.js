@@ -614,7 +614,7 @@ async function Observer(Mark, Target, Trigger) {
  *  
  * }), 100)
  */
-function throttle(func, delay) {
+function Throttle(func, delay) {
     let timer = null;
     return function() {
         let context=this, args=arguments;
@@ -636,7 +636,7 @@ function throttle(func, delay) {
  * @example
  * 與上方相同
  */
-function throttle_discard(func, delay) {
+function Throttle_discard(func, delay) {
     let lastTime = 0;
     return function() {
         const context = this, args = arguments, now = Date.now();
@@ -645,7 +645,7 @@ function throttle_discard(func, delay) {
             lastTime = now;
         }
     };
-};
+}
 
 /* ==================================================== */
 
