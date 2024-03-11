@@ -216,9 +216,9 @@
             this.ObserveValue = (object) => {
                 return object[Math.floor(object.length*.7)];
             }
-            /* 總圖片數的 50 % 圖片高度不為 0 */
+            /* 總圖片數的 50 % */
             this.DetectionValue = (object) => {
-                return object.filter(img=> img.height != 0).length >= Math.floor(object.length*.5);
+                return object.filter(img=> img.height != 0 || img.src).length >= Math.floor(object.length*.5);
             }
 
             /* 獲取樣式 */
