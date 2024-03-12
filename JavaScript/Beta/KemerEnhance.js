@@ -246,7 +246,7 @@
                                     const a = api.$$("a", false, p);
                                     if (a) { // 含有 a 標籤的狀態
                                         const href = a.href, text = Advanced(a); // (有 A 標籤 & 他的父元素 除去 A 還有其餘文字) | (只有 A 元素)
-                                        text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
+                                        text != "" ? Analysis(a.parentNode, `${text}\n${href}`) : Analysis(a, href);
                                     }
                                     else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
                                 });
@@ -333,6 +333,30 @@
                     })
                     )
                 };
+                switch (Mode) {
+                    case 2:
+                        Replace(0);
+                        break;
+                    case 3:
+                        thumbnail.forEach((object, index) => {
+                            object.alt = `IMG-${index}`;
+                            observer.observe(object);
+                        });break;
+
+                    default:
+                        thumbnail.forEach((object, index) => {
+                            object.classList.remove("post__thumbnail");
+                            href = api.$$("a", false, object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+                        });
+                        // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
+                        api.AddListener(document, "click", event => {
+                            const target = event.target.matches(".image-link img");
+                            if (target && target.alt == "Loading Failed") {
+                                img.src = img.src;
+                            }
+                        }, {capture: true, passive: true})
+                }
                 // Case 2 邏輯
                 function Replace(index) {
                     if (index == thumbnail.length) {return}
@@ -361,33 +385,9 @@
                         }
                     });
                 }, { threshold: 0.8 });
-                switch (Mode) {
-                    case 2:
-                        Replace(0);
-                        break;
-                    case 3:
-                        thumbnail.forEach((object, index) => {
-                            object.alt = `IMG-${index}`;
-                            observer.observe(object);
-                        });break;
-
-                    default:
-                        thumbnail.forEach((object, index) => {
-                            object.classList.remove("post__thumbnail");
-                            href = api.$$("a", false, object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-                        });
-                        // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                        api.AddListener(document, "click", event => {
-                            const target = event.target.matches(".image-link img");
-                            if (target && target.alt == "Loading Failed") {
-                                img.src = img.src;
-                            }
-                        }, {capture: true, passive: true})
-                }
             });
 
-            /* 載入原圖 (死圖重試) */
+            /* 載入原圖 (死圖重試) [後續修改邏輯為, 死圖添加觀察者, 看到他後進行刷新] */
             async function Reload(ID, retry) {
                 if (retry > 0) {
                     setTimeout(() => {
