@@ -23,7 +23,7 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1339711/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1341419/GrammarSimplified.js
 // ==/UserScript==
 
 (function () {
@@ -163,38 +163,12 @@
                 return !link.startsWith("javascript");
             };
 
-            /* 節流函數 (不會遺棄觸發) */
-            this.throttle = (func, delay) => {
-                let timer = null;
-                return function() {
-                    let context=this, args=arguments;
-                    if (timer == null) {
-                        timer = setTimeout(function() {
-                            func.apply(context, args);
-                            timer = null;
-                        }, delay);
-                    }
-                };
-            };
-
-            /* 節流函數 (會丟棄觸發) */
-            this.throttle_discard = (func, delay) => {
-                let lastTime = 0;
-                return function() {
-                    const context = this, args = arguments, now = Date.now();
-                    if ((now - lastTime) >= delay) {
-                        func.apply(context, args);
-                        lastTime = now;
-                    }
-                };
-            };
-
             /* 檢測到頂 */
-            this.TopDetected = this.throttle_discard(()=>{
+            this.TopDetected = this.Throttle_discard(()=>{
                 this.Up_scroll = this.Device.sY() == 0 ? (this.storage("scroll", false), false) : true;
             }, 1000);
             /* 檢測到底 */
-            this.BottomDetected = this.throttle_discard(()=>{
+            this.BottomDetected = this.Throttle_discard(()=>{
                 this.Down_scroll =
                 this.Device.sY() + this.Device.Height() >= document.documentElement.scrollHeight ? (this.storage("scroll", false), false) : true;
             }, 1000);
@@ -341,7 +315,7 @@
                     startY = event.touches[0].clientY;
                 }, { passive: true });
 
-                this.Listen(window, "touchmove", this.throttle(event => {
+                this.Listen(window, "touchmove", this.Throttle(event => {
                     requestAnimationFrame(() => {
                         moveX = event.touches[0].clientX - startX;
                         moveY = event.touches[0].clientY - startY;
