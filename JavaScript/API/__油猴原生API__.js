@@ -12,6 +12,9 @@
 // @namespace    腳本頁面
 
 // @icon         腳本圖示
+// @iconURL      同上
+// @icon64       高清版本圖示
+// @icon64URL    同上
 // @match        腳本使用網域
 // @include      腳本使用網站
 // @exclude      腳本排除網域
@@ -20,9 +23,12 @@
 // @copyright    著作權
 // @run-at       document-start (開始時注入)
 // @run-at       document-body  (body存在時注入)
+// @run-at       document-idle  (在DOMContentLoaded 後注入)
 // @run-at       document-end   (等待DOM載入完成注入)
 // @run-at       context-menu   (菜單點選後注入)
 
+// @connect *    設置檢索網域
+// @noframes     禁止在 iframe 中運行
 // @updateURL    檢查更新URL
 // @downloadURL  更新下載URL
 // @supportURL   用戶反饋網址
