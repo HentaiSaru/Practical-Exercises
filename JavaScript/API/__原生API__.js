@@ -197,40 +197,54 @@ class Collection {
  */
 
  /**_________________________
-  ** { String 字串 }
-  * 
-  * 字串的處理:
-  * String.length [獲取字串長度, 不包含 0 有幾個字就是多少]
-  * String.charAt() [獲取字串中指定索引值]
-  * String.at() [功能與上面差不多]
-  * String.charCodeAt() [獲取字串中指定索引值 的 UTF-16 code]
-  * String.split(分割字串) [以分割字串為分割點, 將一個字串分割成陣列]
-  * String.slice() [進行字串切片, 可提供兩個索引值, 也可是負數, 邏輯與 Python 的切片差不多]
-  * String.substring() [只回傳指定索引之間的字串, 其餘的將被排除]
-  * String.toUpperCase() [字串都轉大寫]
-  * String.toLowerCase() [字串都轉小寫]
-  * String.concat(A, B) [用於字串的連結] (用 + 或 `` 模板比較方便吧 w)
-  * String.trim() [刪除前後空格]
-  * String.trimStart() [只刪除前空格]
-  * String.trimEnd() [只刪除後空格]
-  * String.padStart(填充數, 填充值) [重前面開始填充, 直到該字串的長度, 與填充數相同, 只有小於填充數的才會運行]
-  * String.padEnd(填充數, 填充值) [基本同上, 但重後面來]
-  * String.repeat(重複數) [用同一個字串, 根據重複數, 進行累加填充]
-  * String.replace(指定字串, 替換的字串) [將字串中的指定字串, 替換成其他字串, 可用正則]
-  * String.replaceAll() [基本同上, 但 replace 只會改第一個找到的指定字串, 後續不會變更, 但是使用正則的 /g 就會和 replaceAll 相同]
-  * 
-  * 字串的查找 (查找都可用正則):
-  * String.indexOf("查找字串") [查找字串第一次出現的索引位置, 沒找到就回傳 -1]
-  * String.search("查找字串") [同上一樣是查找字串, 但不允許添加第二參數, 也就是查找的起始位置, 另外兩個可以]
-  * String.lastIndexOf("查找字串") [同上, 但重後面開始找]
-  * String.match() [回傳匹配成功的字串]
-  * String.matchAll() [回傳 iterator]
-  * 
-  * 字串的判斷:
-  * String.startsWith() [是否已指定字串開頭]
-  * String.endsWith() [是否已指定字串結尾]
-  * String.includes() [是否包含指定字串]
-  */
+ ** { String 字串 }
+ * 
+ * 字串的處理:
+ * String.length [獲取字串長度, 不包含 0 有幾個字就是多少]
+ * String.charAt() [獲取字串中指定索引值]
+ * String.at() [功能與上面差不多]
+ * String.charCodeAt() [獲取字串中指定索引值 的 UTF-16 code]
+ * String.split(分割字串) [以分割字串為分割點, 將一個字串分割成陣列]
+ * String.slice() [進行字串切片, 可提供兩個索引值, 也可是負數, 邏輯與 Python 的切片差不多]
+ * String.substring() [只回傳指定索引之間的字串, 其餘的將被排除]
+ * String.toUpperCase() [字串都轉大寫]
+ * String.toLowerCase() [字串都轉小寫]
+ * String.concat(A, B) [用於字串的連結] (用 + 或 `` 模板比較方便吧 w)
+ * String.trim() [刪除前後空格]
+ * String.trimStart() [只刪除前空格]
+ * String.trimEnd() [只刪除後空格]
+ * String.padStart(填充數, 填充值) [重前面開始填充, 直到該字串的長度, 與填充數相同, 只有小於填充數的才會運行]
+ * String.padEnd(填充數, 填充值) [基本同上, 但重後面來]
+ * String.repeat(重複數) [用同一個字串, 根據重複數, 進行累加填充]
+ * String.replace(指定字串, 替換的字串) [將字串中的指定字串, 替換成其他字串, 可用正則]
+ * String.replaceAll() [基本同上, 但 replace 只會改第一個找到的指定字串, 後續不會變更, 但是使用正則的 /g 就會和 replaceAll 相同]
+ * 
+ * 字串的查找 (查找都可用正則):
+ * String.indexOf("查找字串") [查找字串第一次出現的索引位置, 沒找到就回傳 -1]
+ * String.search("查找字串") [同上一樣是查找字串, 但不允許添加第二參數, 也就是查找的起始位置, 另外兩個可以]
+ * String.lastIndexOf("查找字串") [同上, 但重後面開始找]
+ * String.match() [回傳匹配成功的字串]
+ * String.matchAll() [回傳 iterator]
+ * 
+ * 字串的判斷:
+ * String.startsWith() [是否已指定字串開頭]
+ * String.endsWith() [是否已指定字串結尾]
+ * String.includes() [是否包含指定字串]
+ */
+
+/**_________________________
+ ** { 整數 }
+ *
+ * BigInt(Number) [轉換長整數]
+ * Number.isInteger() [判斷是否是整數]
+ * Number.toString() [轉換字串]
+ * Number.toFixed(2) [回傳小數點位數到第二位 字串]
+ * Number.toPrecision(2) [回傳指定長度的數字]
+ * 
+ * Number() [轉換為整數 類型]
+ * parseFloat() [解析為浮點數]
+ * parseInt() [解析為整數]
+ */
 
 /**_________________________
  ** { JSON API }
