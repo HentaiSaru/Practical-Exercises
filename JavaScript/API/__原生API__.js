@@ -1,6 +1,6 @@
 class Collection {
 /**_________________________
- ** { document API }
+ ** { document }
  * 
  * [ID元素]: document.getElementById(id)
  * [Tag 標籤列表]: document.getElementsByTagName(tagName)
@@ -57,7 +57,7 @@ class Collection {
  */
 
 /**_________________________
- ** { location API }
+ ** { location }
  * 
  * window.* (全域) [window.location.href] 獲取完整資訊, 其實基本上和簡化版差不多
  * location.* (簡化版)
@@ -79,7 +79,7 @@ class Collection {
  */
 
 /**_________________________
- ** { addEventListener API }
+ ** { addEventListener }
  * 
  * 元素.addEventListener("監聽類型", "監聽後工作", {附加功能});
  * 
@@ -136,7 +136,7 @@ class Collection {
  */
 
 /**_________________________
- ** { navigator API }
+ ** { navigator }
  * 
  * 瀏覽器資訊:
  * navigator.appVersion
@@ -156,7 +156,7 @@ class Collection {
  */
 
 /**_________________________
- ** { Object 處理 API }
+ ** { Object }
  * 
  * Object.assign(目標, ...來源) [一或多個來源的 Object 合併到目標 Objec
  * Object.keys(物件) [獲取 Object 的 key 值]
@@ -169,7 +169,7 @@ class Collection {
  */
 
 /**_________________________
- ** { Array 陣列 }
+ ** { Array }
  *
  * Array.push(新元素) [添加新元素到陣列末端]
  * Array.unshift(新元素) [添加新元素到陣列前端]
@@ -197,7 +197,7 @@ class Collection {
  */
 
  /**_________________________
- ** { String 字串 }
+ ** { String }
  * 
  * 字串的處理:
  * String.length [獲取字串長度, 不包含 0 有幾個字就是多少]
@@ -233,7 +233,7 @@ class Collection {
  */
 
 /**_________________________
- ** { 整數 }
+ ** { Number }
  *
  * BigInt(Number) [轉換長整數]
  * Number.isInteger() [判斷是否是整數]
@@ -247,14 +247,14 @@ class Collection {
  */
 
 /**_________________________
- ** { JSON API }
+ ** { JSON }
  * 
  * [解析Json為 js 對象]: JSON.parse(JsonString);
  * [js 對象 轉為 Json]: JSON.stringify(Js物件, 替換/null, 縮排/4)
  */
 
 /**_________________________
- ** { 計算處理時間 API}
+ ** { 計算處理時間 }
  *  開始時間 = performance.now() | Date.now()
  *  運行方法...
  *  結束時間 = performance.now() | Date.now()
