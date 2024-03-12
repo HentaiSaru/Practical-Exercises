@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1341419/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -51,12 +51,14 @@
         CardText: 1,        // 預覽卡文字效果 [1 = 隱藏文字 , 2 = 淡化文字]
         CardZoom: 1,        // 縮放預覽卡大小
     }, Content={ /* 帖子內容頁面 */
-        TextToLink: 1,      // 將內容文字的, 連結文本轉換成超連結
+        TextToLink: 1,      // 連結文本, 轉換超連結
         LinkSimplified: 1,  // 將下載連結簡化
         VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
         OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
         ExtraButton: 1,     // 額外的下方按鈕
+    }, Special={ /* 預覽帖子頁面的 announcements */
+        TextToLink: 2,      // 連結文本, 轉換超連結 [使用輸入 2]
 
     }, api = new API();
 
@@ -207,7 +209,7 @@
         buffer = null;
 
         /* 連結文本轉換成超連結 */
-        async TextToLink() {
+        async TextToLink(Mode) {
             const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
             async function Analysis(father, text) {
                 father.innerHTML = text.replace(URL_F, url => {
@@ -222,26 +224,36 @@
                 clone.removeChild(api.$$("a", false, clone))
                 return clone.textContent.trim();
             }
-            api.WaitElem("div.post__body", false, 8, body => {
-                const article = api.$$("article", false, body);
-                const content = api.$$("div.post__content", false, body);
-                if (article) {
-                    api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
-                } else if (content) {
-                    const pre = api.$$("pre", false, content);
-                    if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
-                    else {
-                        api.$$("p", true, content).forEach(p => {
-                            const a = api.$$("a", false, p);
-                            if (a) {
-                                const href = a.href, text = Advanced(a); // (有 A 標籤 & 他的父元素 除去 A 還有其餘文字) | (只有 A 元素)
-                                text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
-                            } // 含有 a 標籤的狀態
-                            else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
-                        });
-                    }
-                }
-            });
+            switch (Mode) {
+                case 2:
+                    api.WaitElem("div.card-list__items pre", true, 8, content => {
+                        content.forEach(pre=> { // 只有轉換純文本
+                            const Convert = Array.from(pre.childNodes).every(node => node.nodeType == Node.TEXT_NODE);
+                            Convert && Analysis(pre, pre.textContent);
+                        })
+                    }, document);break;
+                default:
+                    api.WaitElem("div.post__body", false, 8, body => {
+                        const article = api.$$("article", false, body);
+                        const content = api.$$("div.post__content", false, body);
+                        if (article) {
+                            api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
+                        } else if (content) {
+                            const pre = api.$$("pre", false, content);
+                            if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
+                            else {
+                                api.$$("p", true, content).forEach(p => {
+                                    const a = api.$$("a", false, p);
+                                    if (a) { // 含有 a 標籤的狀態
+                                        const href = a.href, text = Advanced(a); // (有 A 標籤 & 他的父元素 除去 A 還有其餘文字) | (只有 A 元素)
+                                        text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
+                                    }
+                                    else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
+                                });
+                            }
+                        }
+                    });
+            }
         }
 
         /* 下載連結簡化 */
@@ -968,9 +980,11 @@
             this.DmsPage = /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/;
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
+            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/.+\/(user\/[^\/]+\/announcements)(\?.*)?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
-            this.M1 = () => {return this.ContentPage.test(this.url)}
-            this.M3 = () => {return this.PostsPage.test(this.url) || this.UserPage.test(this.url) || this.DmsPage.test(this.url)}
+            this.M1 = () => this.ContentPage.test(this.url)
+            this.MS = () => this.Announcement.test(this.url)
+            this.M3 = () => this.PostsPage.test(this.url) || this.UserPage.test(this.url) || this.DmsPage.test(this.url)
             this.USE = (Select, FuncName) => {Select > 0 ? FuncName(Select) : null}
         }
 
@@ -996,6 +1010,7 @@
 
             Start(Global);
             if (this.M3()) {PF = new Preview_Function(); Start(Preview)}
+            else if (this.MS()) {CF = new Content_Function(); Start(Special);}
             else if (this.M1()) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
