@@ -27,7 +27,8 @@ cls
 @ ECHO  [2] uglifyjs 壓縮/美化
 @ ECHO  [3] google-closure-compiler 預設
 @ ECHO  [4] uglifyjs(壓縮/混淆) + google-closure-compiler(預設)
-@ ECHO  [5] google-closure-compiler(預設) + uglifyjs(壓縮/混淆)  [37m
+@ ECHO  [5] google-closure-compiler(預設) + uglifyjs(壓縮/混淆)
+@ ECHO  [6] google-closure-compiler(預設) + uglifyjs(壓縮/美化)  [37m
 @ ECHO.
 @ ECHO ===================================
 
@@ -117,6 +118,28 @@ start /B uglifyjs R:/G_Compiler.js -c -m -o R:/U_Compiler.js > NUL
 if not exist "R:/U_Compiler.js" (
     timeout /t 01 >nul
     goto Wait_07
+)
+
+start R:/U_Compiler.js > NUL
+
+goto Menu
+
+) else if %Choice% equ 6 (
+
+start /B google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js > NUL
+
+:Wait_08
+if not exist "R:/G_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_08
+)
+
+start /B uglifyjs R:/G_Compiler.js -c -b -o R:/U_Compiler.js > NUL
+
+:Wait_09
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_09
 )
 
 start R:/U_Compiler.js > NUL
