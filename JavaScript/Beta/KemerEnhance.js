@@ -211,18 +211,12 @@
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
             const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
-            async function Analysis(father, text) {
+            async function Analysis(father, text, content) {
                 father.innerHTML = text.replace(URL_F, url => {
                     const link = Protocol_F.test(url) ? `https://${url}` : url;
-                    return `<a href="${link}" target="_blank">${decodeURIComponent(url)}</a>`;
+                    const display = content ? content : decodeURIComponent(url);
+                    return `<a href="${link}" target="_blank">${display}</a>`;
                 });
-            }
-            // 進階檢測
-            function Advanced(element) {
-                const parent = element.parentNode;
-                const clone = parent.cloneNode(true);
-                clone.removeChild(api.$$("a", false, clone))
-                return clone.textContent.trim();
             }
             switch (Mode) {
                 case 2:
@@ -236,23 +230,33 @@
                     api.WaitElem("div.post__body", false, 8, body => {
                         const article = api.$$("article", false, body);
                         const content = api.$$("div.post__content", false, body);
+
                         if (article) {
                             api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
                         } else if (content) {
-                            const pre = api.$$("pre", false, content);
-                            if (pre) {Analysis(pre, pre.textContent)} // 單一個 Pre 標籤的狀態
-                            else {
-                                api.$$("p", true, content).forEach(p => {
-                                    const a = api.$$("a", false, p);
-                                    if (a) { // 含有 a 標籤的狀態
-                                        const href = a.href, text = Advanced(a); // (有 A 標籤 & 他的父元素 除去 A 還有其餘文字) | (只有 A 元素)
-                                        text != "" ? Analysis(a.parentNode, `${text}\n${href}`) : Analysis(a, href);
-                                    }
-                                    else {Analysis(p, p.textContent)} // 只有 P 標籤的狀態
+                            const pre = api.$$("pre", false, content); // 懶得一個一個遍歷子節點, 全部都查找
+                            const p = api.$$("p", true, content);
+
+                            if (pre && p.length == 0) { // 單一個 Pre 標籤的狀態
+                                Analysis(pre, pre.textContent);
+                            } else {
+                                // 維持 p 的排版
+                                api.AddStyle("p {display: flex;flex-direction: column;}", "maintain-layout");
+                                p.forEach(p => { // 找到所有 p 標籤
+                                    p.childNodes.forEach(node=>{ // 找到 p 標籤的所有子節點
+
+                                        switch (node.nodeName) {
+                                            case "#text": // 有 P 標籤的狀態
+                                                Analysis(node, node.textContent); break;
+                                            case "A": // 有 A 標籤的狀態
+                                                Analysis(node, node.href, node.textContent);break;
+                                        }
+
+                                    });
                                 });
                             }
                         }
-                    });
+                    })
             }
         }
 
