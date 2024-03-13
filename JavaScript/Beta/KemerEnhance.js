@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.45
+// @version      0.0.45-Beta
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -33,32 +33,32 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1341419/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1342021/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
 (function () {
-    /* (0 = false | 1 = true) */
+    /* (0 = false | 1 = true | 2~n = mode) */
     const Global={ /* 全域功能 */
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
         BlockAds: 1,        // 封鎖廣告
-    }, Preview={ /* 預覽帖子頁面 */
+    }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
-        CardText: 1,        // 預覽卡文字效果 [1 = 隱藏文字 , 2 = 淡化文字]
+        CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
         CardZoom: 1,        // 縮放預覽卡大小
-    }, Content={ /* 帖子內容頁面 */
+    }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
         LinkSimplified: 1,  // 將下載連結簡化
-        VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
-        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+        VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
+        OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
         ExtraButton: 1,     // 額外的下方按鈕
-    }, Special={ /* 預覽帖子頁面的 announcements */
-        TextToLink: 2,      // 連結文本, 轉換超連結 [使用輸入 2]
+    }, Special={ /* 預覽頁面的 announcements */
+        TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
 
     }, api = new API();
 
@@ -122,7 +122,7 @@
             async function Request(link) { // 請求數據
                 Old_data = api.$$("section");
                 item = api.$$("div.card-list__items");
-                GM_addElement(item, "img", {class: "gif-overlay"});
+                requestAnimationFrame(()=> {GM_addElement(item, "img", {class: "gif-overlay"})});
                 GM_xmlhttpRequest({
                     method: "GET",
                     url: link,
@@ -210,11 +210,11 @@
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
             const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
-            async function Analysis(father, text, content) {
+            async function Analysis(father, text, content=null) {
                 father.innerHTML = text.replace(URL_F, url => {
                     const link = Protocol_F.test(url) ? `https://${url}` : url;
                     const display = content ? content : decodeURIComponent(url);
-                    return `<a href="${link}" target="_blank">${display}</a>`;
+                    return `<a href="${link}" target="_blank">${display.trim()}</a>`;
                 });
             }
             switch (Mode) {
@@ -224,7 +224,7 @@
                             const Convert = Array.from(pre.childNodes).every(node => node.nodeType == Node.TEXT_NODE);
                             Convert && Analysis(pre, pre.textContent);
                         })
-                    }, document);break;
+                    }, document, 600);break;
                 default:
                     api.WaitElem("div.post__body", false, 8, body => {
                         const article = api.$$("article", false, body);
@@ -239,35 +239,32 @@
                             if (pre && p.length == 0) { // 單一個 Pre 標籤的狀態
                                 Analysis(pre, pre.textContent);
                             } else {
-                                // 維持 p 的排版
-                                api.AddStyle("p {display: flex;flex-direction: column;}", "maintain-layout");
                                 p.forEach(p => { // 找到所有 p 標籤
-                                    p.childNodes.forEach(node=>{ // 找到 p 標籤的所有子節點
-
+                                    p.childNodes.forEach(node=>{ // 找到所有子節點
                                         switch (node.nodeName) {
                                             case "#text": // 有 P 標籤的狀態
-                                                Analysis(node, node.textContent); break;
+                                                Analysis(node.parentNode, node.textContent); break;
                                             case "A": // 有 A 標籤的狀態
-                                                Analysis(node, node.href, node.textContent);break;
+                                                Analysis(node.parentNode, node.href, node.textContent);break;
                                         }
 
                                     });
                                 });
                             }
                         }
-                    })
+                    }, document.body, 300);
             }
         }
 
         /* 下載連結簡化 */
         async LinkSimplified() {
-            api.WaitElem("a.post__attachment-link", true, 8, post => {
+            api.WaitElem("a.post__attachment-link", true, 5, post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
                 })
-            });
+            }, document.body, 600);
         }
 
         /* 影片美化 */
@@ -315,8 +312,8 @@
                             li.insertBefore(title, api.$$("summary", false, li));
                         }
                     });
-                });
-            });
+                }, document.body, 600);
+            }, document.body, 600);
         }
 
         /* 載入原圖 */
@@ -397,15 +394,14 @@
                                 img.src = "";
                                 img.src = src;
                             }
-                        }, {capture: true, passive: true})
+                        }, {capture: true, passive: true});
                 }
-            });
+            }, document.body, 600);
 
             /* 載入原圖 (死圖重試) */
             async function Reload(Img, Retry) {
                 if (Retry > 0) {
                     setTimeout(() => {
-                        console.log(Img);
                         let src = Img.src;
                         Img.src = "";
                         Object.assign(Img, {
@@ -446,9 +442,12 @@
                 CF.OriginalImage();
                 CF.CommentFormat();
                 CF.ExtraButton();
-                if (api.$$(".post__content img", true).length > 2) {
-                    api.$$(".post__content").remove();
-                }
+                // 刪除所有只有 br 標籤的元素
+                api.$$("div.post__content p", true).forEach(p=> {
+                    p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
+                })
+                // 刪除所有是圖片連結的 a
+                api.$$("div.post__content a", true).forEach(a=> {/\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()});
                 api.$$("h1.post__title").scrollIntoView(); // 滾動到上方
             }
             /* 切換頁面 */
@@ -492,7 +491,7 @@
                     event.preventDefault();
                     AjexReplace(next.href, api.$$("main"));
                 }, { capture: true, once: true });
-            });
+            }, document.body, 600);
         }
 
     }
@@ -504,12 +503,12 @@
         Set = null;
         /* 及時設置響應 */
         styleRules = {
-            img_h: value => DM.ImgRules[0].style.height = value,
-            img_w: value => DM.ImgRules[0].style.width = value,
-            img_mw: value => DM.ImgRules[0].style.maxWidth = value,
-            img_gap: value => DM.ImgRules[0].style.margin = `${value} auto`,
-            MT: value => DM.ImgRules[2].style.top = value,
-            ML: value => DM.ImgRules[2].style.left = value
+            img_h: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.height = value}),
+            img_w: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.width = value}),
+            img_mw: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.maxWidth = value}),
+            img_gap: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.margin = `${value} auto`}),
+            MT: value => requestAnimationFrame(()=> {DM.ImgRules[2].style.top = value}),
+            ML: value => requestAnimationFrame(()=> {DM.ImgRules[2].style.left = value})
         }
 
         /*
@@ -751,7 +750,10 @@
                             overflow: auto;
                             border-spacing: 0px;
                         }
-                        p { display: flex; flex-wrap: nowrap; }
+                        .modal-background p { 
+                            display: flex;
+                            flex-wrap: nowrap;
+                        }
                         option { color: #F6F6F6; }
                         ul {
                             list-style: none;
