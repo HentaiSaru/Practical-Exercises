@@ -40,6 +40,13 @@ cls
 if %Choice% equ 1 (
 
 start /B uglifyjs %file%.js -c -m -o R:/U_Compiler.js > NUL
+
+:Wait_01
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_01
+)
+
 start R:/U_Compiler.js > NUL
 
 goto Menu
@@ -47,6 +54,13 @@ goto Menu
 ) else if %Choice% equ 2 (
 
 start /B uglifyjs %file%.js -c -b -o R:/U_Compiler.js > NUL
+
+:Wait_02
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_02
+)
+
 start R:/U_Compiler.js > NUL
 
 goto Menu
@@ -54,6 +68,13 @@ goto Menu
 ) else if %Choice% equ 3 (
 
 start /B google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js > NUL
+
+:Wait_03
+if not exist "R:/G_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_03
+)
+
 start R:/G_Compiler.js > NUL
 
 goto Menu
@@ -61,7 +82,21 @@ goto Menu
 ) else if %Choice% equ 4 (
 
 start /B uglifyjs %file%.js -c -m -o R:/U_Compiler.js > NUL
+
+:Wait_04
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_04
+)
+
 start /B google-closure-compiler R:/U_Compiler.js --js_output_file R:/G_Compiler.js > NUL
+
+:Wait_05
+if not exist "R:/G_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_05
+)
+
 start R:/G_Compiler.js > NUL
 
 goto Menu
@@ -69,7 +104,21 @@ goto Menu
 ) else if %Choice% equ 5 (
 
 start /B google-closure-compiler %file%.js --js_output_file R:/G_Compiler.js > NUL
+
+:Wait_06
+if not exist "R:/G_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_06
+)
+
 start /B uglifyjs R:/G_Compiler.js -c -m -o R:/U_Compiler.js > NUL
+
+:Wait_07
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_07
+)
+
 start R:/U_Compiler.js > NUL
 
 goto Menu
