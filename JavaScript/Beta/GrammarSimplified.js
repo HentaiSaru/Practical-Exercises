@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/03/12
+// @version      2024/03/13
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -192,16 +192,18 @@ class API {
      * @param {boolean} all         - 是否多選
      * @param {number} timeout      - 等待超時 (秒數)
      * @param {function} callback   - 回條函式
+     * @param {Element} object      - 監聽的 DOM 物件 (預設 body)
+     * @param {number} throttle     - 對監聽觸發進行節流 (毫秒)
      * 
      * @example
      * WaitElem("元素", false, 1, call => {
      *      後續操作...
      *      console.log(call);
-     * }, document)
+     * }, document, 100)
      */
-    async WaitElem(selector, all, timeout, callback, object=document.body) {
+    async WaitElem(selector, all, timeout, callback, object=document.body, throttle=0) {
         let timer, element, result;
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver(this.Throttle_discard(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
             result = all ? element.length > 0 && Array.from(element).every(item=> {
                 return item !== null && typeof item !== "undefined";
@@ -211,7 +213,7 @@ class API {
                 clearTimeout(timer);
                 callback(element);
             }
-        });
+        }, throttle));
         observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
@@ -222,23 +224,25 @@ class API {
      * @param {string} selector     - 等待元素
      * @param {number} timeout      - 等待超時 (秒數)
      * @param {function} callback   - 回條函式
+     * @param {Element} object      - 監聽的 DOM 物件 (預設 body)
+     * @param {number} throttle     - 對監聽觸發進行節流 (毫秒)
      * 
      * @example
      * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), call => {
      *      全部找到後續操作...
      *      const [元素1, 元素2, 元素3] = call;
-     * }, document)
+     * }, document, 100)
      */
-    async WaitMap(selectors, timeout, callback, object=document.body) {
+    async WaitMap(selectors, timeout, callback, object=document.body, throttle=0) {
         let timer, elements;
-        const observer = new MutationObserver(() => {
+        const observer = new MutationObserver(this.Throttle_discard(() => {
             elements = selectors.map(selector => document.querySelector(selector))
             if (elements.every(element => {return element !== null && typeof "undefined"})) {
                 observer.disconnect();
                 clearTimeout(timer);
                 callback(elements);
             }
-        });
+        }, throttle));
         observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
     }
