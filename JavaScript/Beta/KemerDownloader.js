@@ -46,7 +46,7 @@
     const pattern = /^(https?:\/\/)?(www\.)?.+\..+\/.+\/user\/.+\/post\/.+$/, language = display_language(navigator.language);
 
     const Config = {
-        DeBug: false,                   // 顯示請求資訊, 與錯誤資訊
+        DeBug: true,                   // 顯示請求資訊, 與錯誤資訊
         NotiFication: true,             // 操作時 系統通知
         CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
@@ -178,39 +178,43 @@
 
     /* 下載觸發 */
     function DownloadTrigger(button) {
-        let data = new Map(), link;
+        button.disabled = true;
+        let data = new Map(), files, title, user, link;
         let interval = setInterval(() => {
-            let imgdata = $$("div.post__files a", true);
-            let title = $$("h1.post__title").textContent.trim();
-            let user = $$("a.post__user-name").textContent.trim();
-            if (imgdata.length > 0 && title && user) {
+            files = $$("div.post__files");
+            title = IllegalFilter($$("h1.post__title").textContent.trim());
+            user = IllegalFilter($$("a.post__user-name").textContent.trim());
+            if (files && title && user) {
                 clearInterval(interval); // 等到找到所有下載元素後觸發下載
                 button.textContent = language.DS_03;
-                button.disabled = true;
-                imgdata.forEach((files, index) => {
-                    link = files.href || $$("img", false, files).src;
-                    data.set(index, link.split("?f=")[0]);
+                const
+                a = $$("a", true, files),
+                img = $$("img", true, files),
+                folder = `[${user}] ${title}`,
+                imgdata = a.length > 0 ? a : img;
+                imgdata.forEach((file, index) => {
+                    link = file.href || file.src;
+                    data.set(index, link);
                 });
                 if (Config.DeBug) {
                     console.groupCollapsed("Get Data");
-                    console.log(`[${user}] ${title}`);
+                    console.log(folder);
                     console.log(data);
                     console.groupEnd();
                 }
                 CompressMode ?
-                ZipDownload(`[${user}] ${title}`, data, button) :
-                ImageDownload(`[${user}] ${title}`, data, button);
+                ZipDownload(folder, title, data, button) :
+                ImageDownload(folder, title, data, button);
             }
-        }, 300);
+        }, 100);
     }
 
     /* 壓縮下載 */
-    async function ZipDownload(Folder, ImgData, Button) {
+    async function ZipDownload(Folder, File, ImgData, Button) {
         const Data = new JSZip(),
         Total = ImgData.size,
-        File = Conversion(Folder),
-        TitleCache = OriginalTitle(),
-        name = IllegalFilter(Folder.split(" ")[1]);
+        TitleCache = OriginalTitle();
+        Folder = Conversion(Folder);
         let progress = 1, task = 0, mantissa, link;
 
         const worker = WorkerCreation(`
@@ -275,7 +279,7 @@
             if (!error) {
                 if (Config.DeBug) {console.log("Download Successful")}
                 mantissa = (index + 1).toString().padStart(3, "0");
-                Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, blob);
+                Data.file(`${Folder}/${File}_${mantissa}.${GetExtension(url)}`, blob);
                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                 document.title = `[${progress}/${Total}]`;
                 progress++;
@@ -291,7 +295,7 @@
                         onload: response => {
                             if (response.status === 200 && response.response instanceof Blob && response.response.size > 0) {
                                 mantissa = (index + 1).toString().padStart(3, '0');
-                                Data.file(`${File}/${name}_${mantissa}.${GetExtension(url)}`, response.response);
+                                Data.file(`${Folder}/${File}_${mantissa}.${GetExtension(url)}`, response.response);
                                 Button.textContent = `${language.DS_05} [${progress}/${Total}]`;
                                 document.title = `[${progress}/${Total}]`;
                                 progress++;
