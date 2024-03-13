@@ -23,6 +23,7 @@ cls
 @ ECHO  [預設路徑] 輸入為當前目錄, 輸出為 R, 輸入檔名(不含 .js 後墜)
 @ ECHO.
 @ ECHO  Mode:
+@ ECHO  [0] uglifyjs 美化
 @ ECHO  [1] uglifyjs 壓縮/混淆
 @ ECHO  [2] uglifyjs 壓縮/美化
 @ ECHO  [3] google-closure-compiler 預設
@@ -38,7 +39,21 @@ set /p file="輸入檔名(Enter) : "
 set /p Choice="編譯模式(Mode) : "
 cls
 
-if %Choice% equ 1 (
+if %Choice% equ 0 (
+
+start /B uglifyjs %file%.js -b -o R:/U_Compiler.js > NUL
+
+:Wait_00
+if not exist "R:/U_Compiler.js" (
+    timeout /t 01 >nul
+    goto Wait_00
+)
+
+start R:/U_Compiler.js > NUL
+
+goto Menu
+
+) else if %Choice% equ 1 (
 
 start /B uglifyjs %file%.js -c -m -o R:/U_Compiler.js > NUL
 
