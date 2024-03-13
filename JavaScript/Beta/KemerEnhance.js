@@ -507,8 +507,8 @@
             img_w: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.width = value}),
             img_mw: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.maxWidth = value}),
             img_gap: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.margin = `${value} auto`}),
-            MT: value => requestAnimationFrame(()=> {DM.ImgRules[2].style.top = value}),
-            ML: value => requestAnimationFrame(()=> {DM.ImgRules[2].style.left = value})
+            MT: value => requestAnimationFrame(()=> {DM.ImgRules[3].style.top = value}),
+            ML: value => requestAnimationFrame(()=> {DM.ImgRules[3].style.left = value})
         }
 
         /*
