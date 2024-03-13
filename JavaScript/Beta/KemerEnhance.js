@@ -206,7 +206,6 @@
 
     /* ==================== 內容頁功能 ==================== */
     class Content_Function {
-        buffer = null;
 
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
@@ -326,17 +325,54 @@
             DM.Dependencies("Postview");
             api.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
                 function ImgRendering({ ID, href }) {
-                    return React.createElement("a", {
+                    return React.createElement("div", {
                         id: ID,
-                        className: "image-link"
+                        className: "Image-link"
                     }, React.createElement("img", {
                         key: "img",
-                        src: href.href.split("?f=")[0],
-                        className: "img-style",
-                        onError: function () {Reload(ID, 10)}
+                        src: href.href,
+                        className: "Image-loading-indicator Image-style",
+                        onLoad: function () {
+                            api.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
+                        },
+                        onError: function () {
+                            Reload(api.$$(`#${ID} img`), 10);
+                        }
                     })
                     )
                 };
+                // Case 2 邏輯
+                function Replace(index) {
+                    if (index == thumbnail.length) {return}
+                    const object = thumbnail[index];
+                    object.classList.remove("post__thumbnail");
+                    a = api.$$("a", false, object);
+                    img = api.$$("img", false, a);
+                    Object.assign(img, {
+                        className: "Image-loading-indicator Image-style",
+                        src: a.href,
+                    });
+                    img.removeAttribute("data-src");
+                    a.id = `IMG-${index}`;
+                    a.removeAttribute("href");
+                    a.removeAttribute("download");
+                    img.onload = function() {
+                        img.classList.remove("Image-loading-indicator");
+                        Replace(++index)
+                    };
+                };
+                // Case 3 邏輯
+                const observer = new IntersectionObserver(observed => {
+                    observed.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const object = entry.target;
+                            observer.unobserve(object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
+                            object.classList.remove("post__thumbnail");
+                        }
+                    });
+                }, { threshold: 0.3 });
+                /* 模式選擇 */
                 switch (Mode) {
                     case 2:
                         Replace(0);
@@ -355,57 +391,30 @@
                         });
                         // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
                         api.AddListener(document, "click", event => {
-                            const target = event.target.matches(".image-link img");
+                            const target = event.target.matches(".Image-link img");
                             if (target && target.alt == "Loading Failed") {
-                                img.src = img.src;
+                                const src = img.src;
+                                img.src = "";
+                                img.src = src;
                             }
                         }, {capture: true, passive: true})
                 }
-                // Case 2 邏輯
-                function Replace(index) {
-                    if (index == thumbnail.length) {return}
-                    const object = thumbnail[index];
-                    object.classList.remove("post__thumbnail");
-                    a = api.$$("a", false, object);
-                    img = api.$$("img", false, a);
-                    Object.assign(img, {
-                        className: "img-style",
-                        src: a.href.split("?f=")[0],
-                    });
-                    img.removeAttribute("data-src");
-                    a.id = `IMG-${index}`
-                    a.removeAttribute("href");
-                    a.removeAttribute("download");
-                    img.onload = function() {Replace(++index)};
-                };
-                // Case 3 邏輯
-                const observer = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const object = entry.target;
-                            observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
-                            object.classList.remove("post__thumbnail");
-                        }
-                    });
-                }, { threshold: 0.8 });
             });
 
-            /* 載入原圖 (死圖重試) [後續修改邏輯為, 死圖添加觀察者, 看到他後進行刷新] */
-            async function Reload(ID, retry) {
-                if (retry > 0) {
+            /* 載入原圖 (死圖重試) */
+            async function Reload(Img, Retry) {
+                if (Retry > 0) {
                     setTimeout(() => {
-                        let object = api.$$(`#${ID}`), old = api.$$("img", false, object), img = document.createElement("img");
-                        Object.assign(img, {
-                            src: old.src,
-                            alt: "Loading Failed",
-                            className: "img-style"
+                        console.log(Img);
+                        let src = Img.src;
+                        Img.src = "";
+                        Object.assign(Img, {
+                            src: src,
+                            alt: "Loading Failed"
                         });
-                        img.onerror = function () { Reload(ID, retry) };
-                        old.remove();
-                        object.appendChild(CF.buffer.appendChild(img));
-                        retry--;
-                    }, 1500);
+                        Img.onload = function() { Img.classList.remove("Image-loading-indicator") };
+                        Img.onerror = function () { Reload(Img, Retry-1) };
+                    }, 1000);
                 }
             }
         }
@@ -471,13 +480,13 @@
                         <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                     </svg>
                 `
-                CF.buffer.appendChild(svg);
-                CF.buffer.appendChild(span);
+                api.Buffer.appendChild(svg);
+                api.Buffer.appendChild(span);
 
                 api.Listen(svg, "click", () => {
                     api.$$("header").scrollIntoView();
                 }, { capture: true, passive: true })
-                comments.appendChild(CF.buffer);
+                comments.appendChild(api.Buffer);
 
                 api.Listen(api.$$("#next_box a"), "click", event => {
                     event.preventDefault();
@@ -541,8 +550,6 @@
                     `, "Preview-Effects");break;
 
                 case "Postview":
-                    /* 創建DOM 緩衝區 (宣告) */
-                    CF.buffer = document.createDocumentFragment();
                     /* 獲取設定 (宣告) */
                     DM.GetSet = {
                         MenuSet: () => {
@@ -563,12 +570,17 @@
                     /* 載入原圖樣式 */
                     DM.Set = DM.GetSet.ImgSet();
                     api.AddStyle(`
-                        .img-style {
+                        .Image-style {
                             display: block;
                             width: ${DM.Set.img_w};
                             height: ${DM.Set.img_h};
                             margin: ${DM.Set.img_gap} auto;
                             max-width: ${DM.Set.img_mw};
+                        }
+                        .Image-loading-indicator {
+                            min-height: 60vh;
+                            min-width: 60vW;
+                            border: 1px solid #fafafa;
                         }
                     `, "Custom-style");break;
 
