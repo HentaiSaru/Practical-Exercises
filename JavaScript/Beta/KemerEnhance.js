@@ -209,20 +209,33 @@
 
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
-            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
-            async function Analysis(father, text, content=null) {
+            let link, text;
+            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)\.com)/g, Protocol_F = /^(?!https?:\/\/)/;
+            async function Analysis(father, text) {
                 father.innerHTML = text.replace(URL_F, url => {
-                    const link = Protocol_F.test(url) ? `https://${url}` : url;
-                    const display = content ? content : decodeURIComponent(url);
-                    return `<a href="${link}" target="_blank">${display.trim()}</a>`;
+                    return `<a href="${url.replace(Protocol_F, "https://")}" target="_blank">${decodeURIComponent(url).trim()}</a>`;
                 });
             }
+            async function A_Analysis(A) { A.setAttribute("target", "_blank") }
             switch (Mode) {
                 case 2:
                     api.WaitElem("div.card-list__items pre", true, 8, content => {
-                        content.forEach(pre=> { // 只有轉換純文本
-                            const Convert = Array.from(pre.childNodes).every(node => node.nodeType == Node.TEXT_NODE);
-                            Convert && Analysis(pre, pre.textContent);
+                        content.forEach(pre=> {
+                            if (pre.childNodes.length > 1) {
+                                api.$$("p", true, pre).forEach(p=> {
+                                    text = p.textContent;
+                                    URL_F.test(text) && Analysis(p, text);
+                                })
+
+                                api.$$("a", true, pre).forEach(a=> {
+                                    link = a.href;
+                                    link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                })
+
+                            } else {
+                                text = pre.textContent;
+                                URL_F.test(text) && Analysis(pre, text);
+                            }
                         })
                     }, document, 600);break;
                 default:
@@ -233,26 +246,26 @@
                         if (article) {
                             api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
                         } else if (content) {
-                            const pre = api.$$("pre", false, content); // 懶得一個一個遍歷子節點, 全部都查找
-                            const p = api.$$("p", true, content);
+                            const pre = api.$$("pre", false, content);
 
-                            if (pre && p.length == 0) { // 單一個 Pre 標籤的狀態
-                                Analysis(pre, pre.textContent);
+                            if (pre) { // 單一個 Pre 標籤的狀態
+                                text = pre.textContent;
+                                URL_F.test(text) && Analysis(pre, text);
                             } else {
-                                p.forEach(p => { // 找到所有 p 標籤
-                                    p.childNodes.forEach(node=>{ // 找到所有子節點
-                                        switch (node.nodeName) {
-                                            case "#text": // 有 P 標籤的狀態
-                                                Analysis(node.parentNode, node.textContent); break;
-                                            case "A": // 有 A 標籤的狀態
-                                                Analysis(node.parentNode, node.href, node.textContent);break;
-                                        }
-
-                                    });
-                                });
+                                // Array.from(document.querySelector("div.post__content").childNodes).forEach(nodes => {
+                                    // console.log(nodes, nodes.nodeName, nodes.textContent);
+                                // })
+                                api.$$("p", true, content).forEach(p=> {
+                                    text = p.textContent;
+                                    URL_F.test(text) && Analysis(p, text);
+                                })
+                                api.$$("a", true, content).forEach(a=> {
+                                    link = a.href;
+                                    link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                })
                             }
                         }
-                    }, document.body, 300);
+                    }, document.body, 600);
             }
         }
 
@@ -318,7 +331,7 @@
 
         /* 載入原圖 */
         async OriginalImage(Mode) {
-            let href, img, a;
+            let img, a;
             DM.Dependencies("Postview");
             api.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
                 function ImgRendering({ ID, href }) {
@@ -342,7 +355,7 @@
                 function Replace(index) {
                     if (index == thumbnail.length) {return}
                     const object = thumbnail[index];
-                    object.classList.remove("post__thumbnail");
+                    object.removeAttribute("class");
                     a = api.$$("a", false, object);
                     img = api.$$("img", false, a);
                     Object.assign(img, {
@@ -365,7 +378,7 @@
                             const object = entry.target;
                             observer.unobserve(object);
                             ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
-                            object.classList.remove("post__thumbnail");
+                            object.removeAttribute("class");
                         }
                     });
                 }, { threshold: 0.3 });
@@ -382,9 +395,11 @@
 
                     default:
                         thumbnail.forEach((object, index) => {
-                            object.classList.remove("post__thumbnail");
-                            href = api.$$("a", false, object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
+                            setTimeout(()=> {
+                                object.removeAttribute("class");
+                                a = api.$$("a", false, object);
+                                ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
+                            }, index * 600);
                         });
                         // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
                         api.AddListener(document, "click", event => {
