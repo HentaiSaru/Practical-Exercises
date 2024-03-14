@@ -389,11 +389,11 @@ async function AddListener(element, type, listener, add={}) {
  *      console.log(註冊狀態)
  * })
  */
-async function Listen(element, type, listener, add={}, callback) {
+ async function Listen(element, type, listener, add={}, callback=null) {
     try {
         element.addEventListener(type, listener, add);
-        callback(true);
-    } catch {callback(false)}
+        if (callback) {callback(true)}
+    } catch {if (callback) {callback(false)}}
 }
 
 /**
