@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.45
+// @version      0.0.45-Beta
 // @author       HentaiSaru
 // @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
 // @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
@@ -33,30 +33,32 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1333587/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1342021/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
-(function () {
-    /* (0 = false | 1 = true) */
+(function() {
+    /* (0 = false | 1 = true | 2~n = mode) */
     const Global={ /* 全域功能 */
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
         BlockAds: 1,        // 封鎖廣告
-    }, Preview={ /* 預覽帖子頁面 */
+    }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
-        CardText: 1,        // 預覽卡文字效果 [1 = 隱藏文字 , 2 = 淡化文字]
+        CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
         CardZoom: 1,        // 縮放預覽卡大小
-    }, Content={ /* 帖子內容頁面 */
-        TextToLink: 1,      // 將內容文字的, 連結文本轉換成超連結
+    }, Content={ /* 內容頁面 */
+        TextToLink: 1,      // 連結文本, 轉換超連結
         LinkSimplified: 1,  // 將下載連結簡化
-        VideoBeautify: 1,   // 影片美化 [1 = 複製節點 , 2 = 移動節點]
-        OriginalImage: 1,   // 自動原圖 [1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+        VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
+        OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
         ExtraButton: 1,     // 額外的下方按鈕
+    }, Special={ /* 預覽頁面的 announcements */
+        TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
 
     }, api = new API();
     let PF, CF, Language;
@@ -109,17 +111,25 @@
             async function Request(link) {
                 Old_data = api.$$("section");
                 item = api.$$("div.card-list__items");
-                GM_addElement(item, "img", {class: "gif-overlay"});
+                requestAnimationFrame(() => {
+                    GM_addElement(item, "img", {
+                        class: "gif-overlay"
+                    });
+                });
                 GM_xmlhttpRequest({
                     method: "GET",
                     url: link,
                     nocache: false,
                     onload: response => {
                         New_data = api.$$("section", false, api.DomParse(response.responseText));
-                        ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
+                        ReactDOM.render(React.createElement(Rendering, {
+                            content: New_data.innerHTML
+                        }), Old_data);
                         history.pushState(null, null, link);
                     },
-                    onerror: error => {Request(link)}
+                    onerror: error => {
+                        Request(link);
+                    }
                 });
             }
             api.Listen(document, "click", event => {
@@ -128,21 +138,28 @@
                     event.preventDefault();
                     Request(target.href);
                 }
-            }, {capture: true})
+            }, {
+                capture: true
+            });
         }
         async NewTabOpens() {
             api.Listen(document, "click", event => {
                 const target = event.target.closest("article a");
                 if (target) {
                     event.preventDefault();
-                    GM_openInTab(target.href, { active: false, insert: true });
+                    GM_openInTab(target.href, {
+                        active: false,
+                        insert: true
+                    });
                 }
-            }, {capture: true})
+            }, {
+                capture: true
+            });
         }
         async CardText(Mode) {
             switch (Mode) {
-                case 2:
-                    api.AddStyle(`
+              case 2:
+                api.AddStyle(`
                         .post-card__header, .post-card__footer {
                             opacity: 0.4;
                             transition: opacity 0.3s;
@@ -151,9 +168,11 @@
                         a:hover .post-card__footer {
                             opacity: 1;
                         }
-                    `, "Effects");break;
-                default:
-                    api.AddStyle(`
+                    `, "Effects");
+                break;
+
+              default:
+                api.AddStyle(`
                         .post-card__header {
                             opacity: 0;
                             z-index: 1;
@@ -185,50 +204,73 @@
         }
     }
     class Content_Function {
-        buffer = null;
-        async TextToLink() {
-            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+\.com\/[^\s]+)/g, Protocol_F = /^(?!https?:\/\/).*/g;
+        async TextToLink(Mode) {
+            let link, text;
+            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)\.com)/g, Protocol_F = /^(?!https?:\/\/)/;
             async function Analysis(father, text) {
                 father.innerHTML = text.replace(URL_F, url => {
-                    const link = Protocol_F.test(url) ? `https://${url}` : url;
-                    return `<a href="${link}" target="_blank">${decodeURIComponent(url)}</a>`;
+                    return `<a href="${url.replace(Protocol_F, "https://")}" target="_blank">${decodeURIComponent(url).trim()}</a>`;
                 });
             }
-            function Advanced(element) {
-                const parent = element.parentNode;
-                const clone = parent.cloneNode(true);
-                clone.removeChild(api.$$("a", false, clone))
-                return clone.textContent.trim();
+            async function A_Analysis(A) {
+                A.setAttribute("target", "_blank");
             }
-            api.WaitElem("div.post__body", false, 8, body => {
-                const article = api.$$("article", false, body);
-                const content = api.$$("div.post__content", false, body);
-                if (article) {
-                    api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
-                } else if (content) {
-                    const pre = api.$$("pre", false, content);
-                    if (pre) {Analysis(pre, pre.textContent)}
-                    else {
-                        api.$$("p", true, content).forEach(p => {
-                            const a = api.$$("a", false, p);
-                            if (a) {
-                                const href = a.href, text = Advanced(a);
-                                text != "" ? Analysis(a.parentNode, href + text) : Analysis(a, href);
-                            }
-                            else {Analysis(p, p.textContent)}
+            switch (Mode) {
+              case 2:
+                api.WaitElem("div.card-list__items pre", true, 8, content => {
+                    content.forEach(pre => {
+                        if (pre.childNodes.length > 1) {
+                            api.$$("p", true, pre).forEach(p => {
+                                text = p.textContent;
+                                URL_F.test(text) && Analysis(p, text);
+                            });
+                            api.$$("a", true, pre).forEach(a => {
+                                link = a.href;
+                                link ? A_Analysis(a) : Analysis(a, a.textContent);
+                            });
+                        } else {
+                            text = pre.textContent;
+                            URL_F.test(text) && Analysis(pre, text);
+                        }
+                    });
+                }, document, 600);
+                break;
+
+              default:
+                api.WaitElem("div.post__body", false, 8, body => {
+                    const article = api.$$("article", false, body);
+                    const content = api.$$("div.post__content", false, body);
+                    if (article) {
+                        api.$$("span.choice-text", true, article).forEach(span => {
+                            Analysis(span, span.textContent);
                         });
+                    } else if (content) {
+                        const pre = api.$$("pre", false, content);
+                        if (pre) {
+                            text = pre.textContent;
+                            URL_F.test(text) && Analysis(pre, text);
+                        } else {
+                            api.$$("p", true, content).forEach(p => {
+                                text = p.textContent;
+                                URL_F.test(text) && Analysis(p, text);
+                            });
+                            api.$$("a", true, content).forEach(a => {
+                                link = a.href;
+                                link ? A_Analysis(a) : Analysis(a, a.textContent);
+                            });
+                        }
                     }
-                }
-            });
+                }, document.body, 600);
+            }
         }
         async LinkSimplified() {
-            api.WaitElem("a.post__attachment-link", true, 8, post => {
+            api.WaitElem("a.post__attachment-link", true, 5, post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
-                })
-            });
+                });
+            }, document.body, 600);
         }
         async VideoBeautify(Mode) {
             api.AddStyle(`
@@ -237,125 +279,159 @@
             `, "Effects");
             api.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
                 api.WaitElem("a.post__attachment-link", true, 5, post => {
-                    function VideoRendering({ stream }) {
+                    function VideoRendering({
+                        stream
+                    }) {
                         return React.createElement("summary", {
-                                className: "video-title"
-                            } , React.createElement("video", {
-                                key: "video",
-                                controls: true,
-                                preload: "auto",
-                                "data-setup": JSON.stringify({}),
-                                className: "post-video",
-                            },
-                            React.createElement("source", {
-                                key: "source",
-                                src: stream.src,
-                                type: stream.type
-                            })
-                        ));
+                            className: "video-title"
+                        }, React.createElement("video", {
+                            key: "video",
+                            controls: true,
+                            preload: "auto",
+                            "data-setup": JSON.stringify({}),
+                            className: "post-video"
+                        }, React.createElement("source", {
+                            key: "source",
+                            src: stream.src,
+                            type: stream.type
+                        })));
                     }
                     parents.forEach(li => {
-                        let title = api.$$("summary", false, li),
-                        stream = api.$$("source", false, li);
+                        let title = api.$$("summary", false, li), stream = api.$$("source", false, li);
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
                                     switch (Mode) {
-                                        case 2:
-                                            link.parentNode.remove();
-                                            title = link;
-                                        default:
-                                            title = link.cloneNode(true);
-                                            return;
+                                      case 2:
+                                        link.parentNode.remove();
+                                        title = link;
+
+                                      default:
+                                        title = link.cloneNode(true);
+                                        return;
                                     }
                                 }
                             });
-                            ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
+                            ReactDOM.render(React.createElement(VideoRendering, {
+                                stream: stream
+                            }), li);
                             li.insertBefore(title, api.$$("summary", false, li));
                         }
                     });
-                });
-            });
+                }, document.body, 600);
+            }, document.body, 600);
         }
         async OriginalImage(Mode) {
-            let href, img, a;
+            let img, a;
             DM.Dependencies("Postview");
             api.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
-                function ImgRendering({ ID, href }) {
-                    return React.createElement("a", {
+                function ImgRendering({
+                    ID,
+                    href
+                }) {
+                    return React.createElement("div", {
                         id: ID,
-                        className: "image-link"
+                        className: "Image-link"
                     }, React.createElement("img", {
                         key: "img",
-                        src: href.href.split("?f=")[0],
-                        className: "img-style",
-                        onError: function () {Reload(ID, 10)}
-                    })
-                    )
-                };
+                        src: href.href,
+                        className: "Image-loading-indicator Image-style",
+                        onLoad: function() {
+                            api.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
+                        },
+                        onError: function() {
+                            Reload(api.$$(`#${ID} img`), 10);
+                        }
+                    }));
+                }
                 function Replace(index) {
-                    if (index == thumbnail.length) {return}
+                    if (index == thumbnail.length) {
+                        return;
+                    }
                     const object = thumbnail[index];
-                    object.classList.remove("post__thumbnail");
+                    object.removeAttribute("class");
                     a = api.$$("a", false, object);
                     img = api.$$("img", false, a);
                     Object.assign(img, {
-                        className: "img-style",
-                        src: a.href.split("?f=")[0],
+                        className: "Image-loading-indicator Image-style",
+                        src: a.href
                     });
                     img.removeAttribute("data-src");
-                    a.id = `IMG-${index}`
+                    a.id = `IMG-${index}`;
                     a.removeAttribute("href");
                     a.removeAttribute("download");
-                    img.onload = function() {Replace(++index)};
-                };
+                    img.onload = function() {
+                        img.classList.remove("Image-loading-indicator");
+                        Replace(++index);
+                    };
+                }
                 const observer = new IntersectionObserver(observed => {
                     observed.forEach(entry => {
                         if (entry.isIntersecting) {
                             const object = entry.target;
                             observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
-                            object.classList.remove("post__thumbnail");
+                            ReactDOM.render(React.createElement(ImgRendering, {
+                                ID: object.alt,
+                                href: api.$$("a", false, object)
+                            }), object);
+                            object.removeAttribute("class");
                         }
                     });
-                }, { threshold: 0.8 });
+                }, {
+                    threshold: .3
+                });
                 switch (Mode) {
-                    case 2:
-                        Replace(0);
-                        break;
-                    case 3:
-                        thumbnail.forEach((object, index) => {
-                            object.alt = `IMG-${index}`;
-                            observer.observe(object);
-                        });break;
-                    default:
-                        thumbnail.forEach((object, index) => {
-                            object.classList.remove("post__thumbnail");
-                            href = api.$$("a", false, object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: href }), object);
-                        });
-                        api.AddListener(document, "click", event => {
-                            const target = event.target.matches(".image-link img");
-                            if (target && target.alt == "Loading Failed") {
-                                img.src = img.src;
-                            }
-                        }, {capture: true, passive: true})
+                  case 2:
+                    Replace(0);
+                    break;
+
+                  case 3:
+                    thumbnail.forEach((object, index) => {
+                        object.alt = `IMG-${index}`;
+                        observer.observe(object);
+                    });
+                    break;
+
+                  default:
+                    thumbnail.forEach((object, index) => {
+                        setTimeout(() => {
+                            object.removeAttribute("class");
+                            a = api.$$("a", false, object);
+                            ReactDOM.render(React.createElement(ImgRendering, {
+                                ID: `IMG-${index}`,
+                                href: a
+                            }), object);
+                        }, index * 600);
+                    });
+                    api.AddListener(document, "click", event => {
+                        const target = event.target.matches(".Image-link img");
+                        if (target && target.alt == "Loading Failed") {
+                            const src = img.src;
+                            img.src = "";
+                            img.src = src;
+                        }
+                    }, {
+                        capture: true,
+                        passive: true
+                    });
                 }
-            });
-            async function Reload(ID, retry) {
-                if (retry > 0) {
+            }, document.body, 600);
+            async function Reload(Img, Retry) {
+                if (Retry > 0) {
                     setTimeout(() => {
-                        let object = api.$$(`#${ID}`), old = api.$$("img", false, object), img = document.createElement("img");
-                        Object.assign(img, {
-                            src: old.src,
-                            alt: "Loading Failed",
-                            className: "img-style"
+                        let src = Img.src;
+                        Img.src = "";
+                        Object.assign(Img, {
+                            src: src,
+                            alt: "Loading Failed"
                         });
-                        img.onerror = function () { Reload(ID, retry) };
-                        old.remove();
-                        object.appendChild(CF.buffer.appendChild(img));
-                        retry--;
-                    }, 1500);
+                        Img.onload = function() {
+                            Img.classList.remove("Image-loading-indicator");
+                        };
+                        Img.onerror = function() {
+                            Reload(Img, Retry - 1);
+                        };
+                    }, 1e3);
                 }
             }
         }
@@ -382,9 +458,14 @@
                 CF.OriginalImage();
                 CF.CommentFormat();
                 CF.ExtraButton();
-                if (api.$$(".post__content img", true).length > 2) {
-                    api.$$(".post__content").remove();
-                }
+                api.$$("div.post__content p", true).forEach(p => {
+                    p.childNodes.forEach(node => {
+                        node.nodeName == "BR" && node.parentNode.remove();
+                    });
+                });
+                api.$$("div.post__content a", true).forEach(a => {
+                    /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
+                });
                 api.$$("h1.post__title").scrollIntoView();
             }
             async function AjexReplace(url, old_main) {
@@ -394,7 +475,9 @@
                     nocache: false,
                     onload: response => {
                         let New_main = api.$$("main", false, api.DomParse(response.responseText));
-                        ReactDOM.render(React.createElement(Rendering, { content: New_main.innerHTML }), old_main);
+                        ReactDOM.render(React.createElement(Rendering, {
+                            content: New_main.innerHTML
+                        }), old_main);
                         history.pushState(null, null, url);
                         setTimeout(Initialization(), 500);
                     }
@@ -414,18 +497,24 @@
                         <style>svg{fill: ${color}}</style>
                         <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                     </svg>
-                `
-                CF.buffer.appendChild(svg);
-                CF.buffer.appendChild(span);
+                `;
+                api.Buffer.appendChild(svg);
+                api.Buffer.appendChild(span);
                 api.Listen(svg, "click", () => {
                     api.$$("header").scrollIntoView();
-                }, { capture: true, passive: true })
-                comments.appendChild(CF.buffer);
+                }, {
+                    capture: true,
+                    passive: true
+                });
+                comments.appendChild(api.Buffer);
                 api.Listen(api.$$("#next_box a"), "click", event => {
                     event.preventDefault();
                     AjexReplace(next.href, api.$$("main"));
-                }, { capture: true, once: true });
-            });
+                }, {
+                    capture: true,
+                    once: true
+                });
+            }, document.body, 600);
         }
     }
     class Dependencies_And_Menu {
@@ -433,17 +522,29 @@
         GetSet = null;
         Set = null;
         styleRules = {
-            img_h: value => DM.ImgRules[0].style.height = value,
-            img_w: value => DM.ImgRules[0].style.width = value,
-            img_mw: value => DM.ImgRules[0].style.maxWidth = value,
-            img_gap: value => DM.ImgRules[0].style.margin = `${value} auto`,
-            MT: value => DM.ImgRules[2].style.top = value,
-            ML: value => DM.ImgRules[2].style.left = value
-        }
+            img_h: value => requestAnimationFrame(() => {
+                DM.ImgRules[0].style.height = value;
+            }),
+            img_w: value => requestAnimationFrame(() => {
+                DM.ImgRules[0].style.width = value;
+            }),
+            img_mw: value => requestAnimationFrame(() => {
+                DM.ImgRules[0].style.maxWidth = value;
+            }),
+            img_gap: value => requestAnimationFrame(() => {
+                DM.ImgRules[0].style.margin = `${value} auto`;
+            }),
+            MT: value => requestAnimationFrame(() => {
+                DM.ImgRules[3].style.top = value;
+            }),
+            ML: value => requestAnimationFrame(() => {
+                DM.ImgRules[3].style.left = value;
+            })
+        };
         Dependencies(type) {
             switch (type) {
-                case "Preview":
-                    api.AddStyle(`
+              case "Preview":
+                api.AddStyle(`
                         .gif-overlay {
                             top: 45%;
                             left: 50%;
@@ -468,40 +569,52 @@
                             justify-content: var(--local-justify);
                             align-items: var(--local-align);
                         }
-                    `, "Preview-Effects");break;
-                case "Postview":
-                    CF.buffer = document.createDocumentFragment();
-                    DM.GetSet = {
-                        MenuSet: () => {
-                            const data = api.store("get", "MenuSet") || [{
-                                "MT": "2vh",
-                                "ML": "50vw",
-                            }]; return data[0];
-                        },
-                        ImgSet: () => {
-                            const data = api.store("get", "ImgSet") || [{
-                                "img_h": "auto",
-                                "img_w": "auto",
-                                "img_mw": "100%",
-                                "img_gap": "0px",
-                            }]; return data[0];
-                        },
+                    `, "Preview-Effects");
+                break;
+
+              case "Postview":
+                DM.GetSet = {
+                    MenuSet: () => {
+                        const data = api.store("get", "MenuSet") || [ {
+                            MT: "2vh",
+                            ML: "50vw"
+                        } ];
+                        return data[0];
+                    },
+                    ImgSet: () => {
+                        const data = api.store("get", "ImgSet") || [ {
+                            img_h: "auto",
+                            img_w: "auto",
+                            img_mw: "100%",
+                            img_gap: "0px"
+                        } ];
+                        return data[0];
                     }
-                    DM.Set = DM.GetSet.ImgSet();
-                    api.AddStyle(`
-                        .img-style {
+                };
+                DM.Set = DM.GetSet.ImgSet();
+                api.AddStyle(`
+                        .Image-style {
                             display: block;
                             width: ${DM.Set.img_w};
                             height: ${DM.Set.img_h};
                             margin: ${DM.Set.img_gap} auto;
                             max-width: ${DM.Set.img_mw};
                         }
-                    `, "Custom-style");break;
-                case "Awesome":
-                    api.AddStyle(GM_getResourceText("font-awesome"), "font-awesome");break;
-                case "Menu":
-                    DM.Set = DM.GetSet.MenuSet();
-                    api.AddScript(`
+                        .Image-loading-indicator {
+                            min-height: 60vh;
+                            min-width: 60vW;
+                            border: 1px solid #fafafa;
+                        }
+                    `, "Custom-style");
+                break;
+
+              case "Awesome":
+                api.AddStyle(GM_getResourceText("font-awesome"), "font-awesome");
+                break;
+
+              case "Menu":
+                DM.Set = DM.GetSet.MenuSet();
+                api.AddScript(`
                         function check(value) {
                             if (value.toString().length > 4 || value > 1000) {
                                 value = 1000;
@@ -511,7 +624,7 @@
                             return value || 0;
                         }
                     `);
-                    api.AddStyle(`
+                api.AddStyle(`
                         .modal-background {
                             top: 0;
                             left: 0;
@@ -653,14 +766,18 @@
                             overflow: auto;
                             border-spacing: 0px;
                         }
-                        p { display: flex; flex-wrap: nowrap; }
+                        .modal-background p { 
+                            display: flex;
+                            flex-wrap: nowrap;
+                        }
                         option { color: #F6F6F6; }
                         ul {
                             list-style: none;
                             padding: 0px;
                             margin: 0px;
                         }
-                    `, "Custom-style");break;
+                    `, "Custom-style");
+                break;
             }
         }
         async Menu() {
@@ -668,7 +785,7 @@
                 DM.ImgRules = api.$$("#Custom-style").sheet.cssRules;
                 DM.Set = DM.GetSet.ImgSet();
                 let parent, child, img_input, img_select, img_set, analyze;
-                const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
+                const img_data = [ DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap ];
                 const menu = `
                     <div class="modal-background">
                         <div class="modal-interface">
@@ -735,7 +852,7 @@
                             </table>
                         </div>
                     </div>
-                `
+                `;
                 const UnitOptions = `
                     <select class="Image-input-settings" style="margin-left: 1rem;">
                         <option value="px" selected>px</option>
@@ -745,13 +862,17 @@
                         <option value="vw">vw</option>
                         <option value="auto">auto</option>
                     </select>
-                `
+                `;
                 $(document.body).append(menu);
-                $(".modal-interface").draggable({ cursor: "grabbing" });
+                $(".modal-interface").draggable({
+                    cursor: "grabbing"
+                });
                 $(".modal-interface").tabs();
-                function Menu_Close() {$(".modal-background").remove()}
+                function Menu_Close() {
+                    $(".modal-background").remove();
+                }
                 async function PictureSettings() {
-                    $on(".Image-input-settings", "input change", function (event) {
+                    $on(".Image-input-settings", "input change", function(event) {
                         event.stopPropagation();
                         const target = $(this), value = target.val(), id = target.attr("id");
                         parent = target.closest("div");
@@ -770,8 +891,8 @@
                         }
                     });
                 }
-                $("#language").val(api.store("get", "language") || "")
-                $on("#language", "input change", function (event) {
+                $("#language").val(api.store("get", "language") || "");
+                $on("#language", "input change", function(event) {
                     event.stopPropagation();
                     const value = $(this).val();
                     Language = DM.language(value);
@@ -781,7 +902,7 @@
                     DM.Menu();
                 });
                 let save = {}, set_value;
-                $on(".modal-interface", "click", function (event) {
+                $on(".modal-interface", "click", function(event) {
                     const id = $(event.target).attr("id");
                     if (id == "image-settings") {
                         img_set = $("#image-settings-show");
@@ -790,9 +911,9 @@
                                 $(this).append(UnitOptions);
                             });
                             img_set.css({
-                                "height": "auto",
-                                "width": "auto",
-                                "opacity": 1
+                                height: "auto",
+                                width: "auto",
+                                opacity: 1
                             });
                             $("#readsettings").prop("disabled", false);
                             PictureSettings();
@@ -810,61 +931,108 @@
                                 img_input.val(analyze[1]);
                                 img_select.val(analyze[2]);
                             }
-                        })
+                        });
                     } else if (id == "application") {
                         img_set = $("#image-settings-show").find("p");
                         img_data.forEach((read, index) => {
                             img_input = img_set.eq(index).find("input");
                             img_select = img_set.eq(index).find("select");
-                            if (img_select.val() == "auto") {set_value = "auto"}
-                            else if (img_input.val() == "") {set_value = read}
-                            else {set_value = `${img_input.val()}${img_select.val()}`}
+                            if (img_select.val() == "auto") {
+                                set_value = "auto";
+                            } else if (img_input.val() == "") {
+                                set_value = read;
+                            } else {
+                                set_value = `${img_input.val()}${img_select.val()}`;
+                            }
                             save[img_input.attr("id")] = set_value;
-                        })
-                        GM_setValue("ImgSet", [save]);
+                        });
+                        GM_setValue("ImgSet", [ save ]);
                         save = {};
                         const menu_location = $(".modal-interface");
                         const top = menu_location.css("top");
                         const left = menu_location.css("left");
-                        save["MT"] = top; save["ML"] = left;
-                        GM_setValue("MenuSet", [save]);
+                        save["MT"] = top;
+                        save["ML"] = left;
+                        GM_setValue("MenuSet", [ save ]);
                         DM.styleRules["MT"](top);
                         DM.styleRules["ML"](left);
                         Menu_Close();
-                    } else if (id == "closure") {Menu_Close()}
-                })
+                    } else if (id == "closure") {
+                        Menu_Close();
+                    }
+                });
             }
         }
         language(language) {
             let display = {
-                "zh-TW": [{
-                    "RM_01":"📝 設置選單",
-                    "MT_01":"設置菜單", "MO_01":"圖像設置",
-                    "MB_01":"讀取設定", "MB_02":"關閉離開", "MB_03":"保存應用",
-                    "ML_01":"語言", "ML_02":"英文", "ML_03":"繁體", "ML_04":"簡體", "ML_05":"日文",
-                    "MIS_01":"圖片高度", "MIS_02":"圖片寬度", "MIS_03":"圖片最大寬度", "MIS_04":"圖片間隔高度"
-                }],
-                "zh-CN": [{
-                    "RM_01":"📝 设置菜单",
-                    "MT_01":"设置菜单", "MO_01":"图像设置",
-                    "MB_01":"读取设置", "MB_02":"关闭退出", "MB_03":"保存应用",
-                    "ML_01":"语言", "ML_02":"英文", "ML_03":"繁体", "ML_04":"简体", "ML_05":"日文",
-                    "MIS_01":"图片高度", "MIS_02":"图片宽度", "MIS_03":"图片最大宽度", "MIS_04":"图片间隔高度"
-                }],
-                "ja": [{
-                    "RM_01":"📝 設定メニュー",
-                    "MT_01":"設定メニュー", "MO_01":"画像設定",
-                    "MB_01":"設定の読み込み", "MB_02":"閉じて終了する", "MB_03":"保存して適用する",
-                    "ML_01":"言語", "ML_02":"英語", "ML_03":"繁体字", "ML_04":"簡体字", "ML_05":"日本語",
-                    "MIS_01":"画像の高さ", "MIS_02":"画像の幅", "MIS_03":"画像の最大幅", "MIS_04":"画像の間隔の高さ"
-                }],
-                "en-US": [{
-                    "RM_01":"📝 Settings Menu",
-                    "MT_01":"Settings Menu", "MO_01":"Image Settings",
-                    "MB_01":"Load Settings", "MB_02":"Close and Exit", "MB_03":"Save and Apply",
-                    "ML_01":"Language", "ML_02":"English", "ML_03":"Traditional Chinese", "ML_04":"Simplified Chinese", "ML_05":"Japanese",
-                    "MIS_01":"Image Height", "MIS_02":"Image Width", "MIS_03":"Maximum Image Width", "MIS_04":"Image Spacing Height"
-                }],
+                "zh-TW": [ {
+                    RM_01: "📝 設置選單",
+                    MT_01: "設置菜單",
+                    MO_01: "圖像設置",
+                    MB_01: "讀取設定",
+                    MB_02: "關閉離開",
+                    MB_03: "保存應用",
+                    ML_01: "語言",
+                    ML_02: "英文",
+                    ML_03: "繁體",
+                    ML_04: "簡體",
+                    ML_05: "日文",
+                    MIS_01: "圖片高度",
+                    MIS_02: "圖片寬度",
+                    MIS_03: "圖片最大寬度",
+                    MIS_04: "圖片間隔高度"
+                } ],
+                "zh-CN": [ {
+                    RM_01: "📝 设置菜单",
+                    MT_01: "设置菜单",
+                    MO_01: "图像设置",
+                    MB_01: "读取设置",
+                    MB_02: "关闭退出",
+                    MB_03: "保存应用",
+                    ML_01: "语言",
+                    ML_02: "英文",
+                    ML_03: "繁体",
+                    ML_04: "简体",
+                    ML_05: "日文",
+                    MIS_01: "图片高度",
+                    MIS_02: "图片宽度",
+                    MIS_03: "图片最大宽度",
+                    MIS_04: "图片间隔高度"
+                } ],
+                ja: [ {
+                    RM_01: "📝 設定メニュー",
+                    MT_01: "設定メニュー",
+                    MO_01: "画像設定",
+                    MB_01: "設定の読み込み",
+                    MB_02: "閉じて終了する",
+                    MB_03: "保存して適用する",
+                    ML_01: "言語",
+                    ML_02: "英語",
+                    ML_03: "繁体字",
+                    ML_04: "簡体字",
+                    ML_05: "日本語",
+                    MIS_01: "画像の高さ",
+                    MIS_02: "画像の幅",
+                    MIS_03: "画像の最大幅",
+                    MIS_04: "画像の間隔の高さ"
+                } ],
+                "en-US": [ {
+                    RM_01: "📝 Settings Menu",
+                    MT_01: "Settings Menu",
+                    MO_01: "Image Settings",
+                    MB_01: "Load Settings",
+                    MB_02: "Close and Exit",
+                    MB_03: "Save and Apply",
+                    ML_01: "Language",
+                    ML_02: "English",
+                    ML_03: "Traditional Chinese",
+                    ML_04: "Simplified Chinese",
+                    ML_05: "Japanese",
+                    MIS_01: "Image Height",
+                    MIS_02: "Image Width",
+                    MIS_03: "Maximum Image Width",
+                    MIS_04: "Image Spacing Height"
+                } ]
             };
             return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
         }
@@ -875,43 +1043,63 @@
             this.DmsPage = /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/;
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
+            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/.+\/(user\/[^\/]+\/announcements)(\?.*)?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
-            this.M1 = () => {return this.ContentPage.test(this.url)}
-            this.M3 = () => {return this.PostsPage.test(this.url) || this.UserPage.test(this.url) || this.DmsPage.test(this.url)}
-            this.USE = (Select, FuncName) => {Select > 0 ? FuncName(Select) : null}
+            this.M1 = () => this.ContentPage.test(this.url);
+            this.MS = () => this.Announcement.test(this.url);
+            this.M3 = () => this.PostsPage.test(this.url) || this.UserPage.test(this.url) || this.DmsPage.test(this.url);
+            this.USE = (Select, FuncName) => {
+                Select > 0 ? FuncName(Select) : null;
+            };
         }
         async Run() {
             const Call = {
-                SidebarCollapse: s=> this.USE(s, GF.SidebarCollapse),
-                DeleteNotice: s=> this.USE(s, GF.DeleteNotice),
-                BlockAds: s=> this.USE(s, GF.BlockAds),
-                QuickPostToggle: s=> this.USE(s, PF.QuickPostToggle),
-                NewTabOpens: s=> this.USE(s, PF.NewTabOpens),
-                CardText: s=> this.USE(s, PF.CardText),
-                CardZoom: s=> this.USE(s, PF.CardZoom),
-                TextToLink: s=> this.USE(s, CF.TextToLink),
-                LinkSimplified: s=> this.USE(s, CF.LinkSimplified),
-                OriginalImage: s=> this.USE(s, CF.OriginalImage),
-                VideoBeautify: s=> this.USE(s, CF.VideoBeautify),
-                CommentFormat: s=> this.USE(s, CF.CommentFormat),
-                ExtraButton: s=> this.USE(s, CF.ExtraButton)
-            }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call[func](set))}
+                SidebarCollapse: s => this.USE(s, GF.SidebarCollapse),
+                DeleteNotice: s => this.USE(s, GF.DeleteNotice),
+                BlockAds: s => this.USE(s, GF.BlockAds),
+                QuickPostToggle: s => this.USE(s, PF.QuickPostToggle),
+                NewTabOpens: s => this.USE(s, PF.NewTabOpens),
+                CardText: s => this.USE(s, PF.CardText),
+                CardZoom: s => this.USE(s, PF.CardZoom),
+                TextToLink: s => this.USE(s, CF.TextToLink),
+                LinkSimplified: s => this.USE(s, CF.LinkSimplified),
+                OriginalImage: s => this.USE(s, CF.OriginalImage),
+                VideoBeautify: s => this.USE(s, CF.VideoBeautify),
+                CommentFormat: s => this.USE(s, CF.CommentFormat),
+                ExtraButton: s => this.USE(s, CF.ExtraButton)
+            }, Start = async Type => {
+                Object.entries(Type).forEach(([ func, set ]) => Call[func](set));
+            };
             Start(Global);
-            if (this.M3()) {PF = new Preview_Function(); Start(Preview)}
-            else if (this.M1()) {
-                CF = new Content_Function(); Start(Content);
+            if (this.M3()) {
+                PF = new Preview_Function();
+                Start(Preview);
+            } else if (this.MS()) {
+                CF = new Content_Function();
+                Start(Special);
+            } else if (this.M1()) {
+                CF = new Content_Function();
+                Start(Content);
                 DM.Dependencies("Menu");
                 Language = DM.language(api.store("get", "language"));
-                api.Menu({[Language.RM_01]: ()=> DM.Menu()})
+                api.Menu({
+                    [Language.RM_01]: () => DM.Menu()
+                });
             }
         }
     }
-    const
-    GF = new Global_Function(),
-    DM = new Dependencies_And_Menu(),
-    EC = new Enhance(document.URL); EC.Run();
-    function Rendering({ content }) {
-        return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
+    const GF = new Global_Function(), DM = new Dependencies_And_Menu(), EC = new Enhance(document.URL);
+    EC.Run();
+    function Rendering({
+        content
+    }) {
+        return React.createElement("div", {
+            dangerouslySetInnerHTML: {
+                __html: content
+            }
+        });
     }
-    async function $on(element, type, listener) {$(element).on(type, listener)}
+    async function $on(element, type, listener) {
+        $(element).on(type, listener);
+    }
 })();
