@@ -169,29 +169,59 @@ class Collection {
  */
 
 /**_________________________
- ** { Array }
+ ** { Array (可使用 Object 類型的一些 api, 但基本用不到) }
  *
+ * Array.length [獲取陣列的長度]
+ * 
+ * 添加
+ * Array.from() [字串轉陣列]
  * Array.push(新元素) [添加新元素到陣列末端]
  * Array.unshift(新元素) [添加新元素到陣列前端]
  * Array.concat(arr1, arr2, arrn) [將陣列合併, 回傳新的陣列]
- * Array.slice(開始索引, 結束索引) [回傳陣列的切片範圍]
+ * 
+ * 刪除
  * Array.pop() [刪除陣列其他元素, 回傳最後一項的值]
  * Array.shift() [刪除陣列其他元素, 回傳第一項的值]
+ * 
+ * 修改
+ * Array.flat() [將多維的 陣列 平攤成 一維]
+ * Array.join() [輸入值 以該值作為連結字, 例如 * 就會獲取所有 陣列 的數據, 並且以 * 連結]
+ * Array.copyWithin() [輸入指定範圍, 複製該範圍的值, 填充陣列]
+ * Array.slice(開始索引, 結束索引) [回傳陣列的切片範圍]
  * Array.splice(開始索引, 刪除數量, 選擇新添加元素) [添加刪除或替換陣列中的元素, 修改原始陣列]
+ * 
+ * Array.sort(); [以字母順序進行排序]
+ * Array.toSorted(); [與 sort 一樣進行排序, 但他會創新的陣列 , 而不是修改原數據]
+ * Array.reverse(); [反轉順序]
+ * Array.toReversed() [與 reverse 一樣進行反轉, 但他會創新的陣列 , 而不是修改原數據
+ * 
+ * 數字的排序
+ * Array.sort(function(a, b){return a - b}); [升序]
+ * Array.sort(function(a, b){return b - a}); [降序]
+ * 
+ * 查找
+ * Array.at(索引) [獲取該索引值數據]
+ * Array.findLast(查找元素) [重後方查找, 回傳第一個找到的值]
  * Array.indexOf(查找元素, 可選開始索引) [從前面開始查找, 找到就回傳索引, 找不到回傳 -1]
  * Array.lastIndexOf(查找元素, 可選開始索引) [從後面面開始查找, 找到就回傳索引, 找不到回傳 -1]
+ * Array.includes(查找元素) [查找是否包含該元素, 回傳 boolean]
  * 
  * 帶參數的查找, 回傳 True / False
  * Array.find((查找元素, 查找索引) => { 找到符合條件的值, 沒有就是 undefined })
  * Array.findIndex((查找元素, 查找索引) => { 找到符合條件的索引值, 沒有就是 -1 })
+ * Array.findLastIndex() [同上 但重後方開始找]
  * 
- * 不帶參數的遍歷, 回傳符合條件的值
+ * 不帶參數的查找, 回傳符合條件的值
  * Array.find(number => number > 5) [回傳第一個大於 5 的數值]
  * Array.findIndex(number => number > 5) [回傳第一個大於 5 的索引值]
  * 
+ * Array.forEach() [遍歷數據]
  * Array.filter(number => number % 2 == 0) [過濾出所有的偶數並回傳]
  * Array.reduce((累加值, 當前值) => {return 累加值 + 當前值}, 初始值) [對陣列進行累加]
  * Array.map(參數 => 操作邏輯) [回傳符合邏輯處理後的結果]
+ * Array.flatMap() [同上, 但多一個將多維 平攤的功能]
+ * Array.reduce() [將所有數據相加, 回傳新的 array]
+ * Array.reduceRight() [同上, 但反著重後面開始]
  * Array.every(參數 => 判斷) [當所有參數都符合判斷, 回傳 True 反之 False]
  * Array.some(參數 => 判斷) [只要有一個符合判斷, 回傳 True 反之 False]
  */
