@@ -42,3 +42,15 @@ console.log(1e4);
 // true, false 簡短表示
 console.log(!0);
 console.log(!1);
+
+// Array 轉 字串 (a,b,c)
+var arr = ["a", "b", "c"];
+console.log(arr.toString());
+
+// 字串轉 陣列 (... 語法) [也可用於其他類型數據的轉換]
+var a_str = "abcdef"
+console.log([...a_str]);
+
+// 合併陣列
+var arr2 = ["1", "2", "3"];
+console.log([...arr, ...arr2]);
