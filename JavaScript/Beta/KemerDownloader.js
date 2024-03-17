@@ -449,7 +449,7 @@
 
         // 遍歷數據
         for (const card of item) {
-            title = $$(".post-card__header", false, card).textContent.trim();
+            title = $$(".post-card__header", false, card).textContent.trim() || `Untitled_${String(progress+1).padStart(2, "0")}`;
             link = $$("a", false, card).href;
 
             if (Config.ExperimentalDownload) {
