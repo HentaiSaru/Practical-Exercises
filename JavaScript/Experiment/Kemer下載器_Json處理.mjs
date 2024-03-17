@@ -1,6 +1,6 @@
 import { readFile } from "fs";
 
-const json_path = "E:/(新)下載點/MANA.json"
+const json_path = ""
 
 readFile(json_path, "utf-8", (err, data)=> {
     for (const value of Object.values(JSON.parse(data))) {
