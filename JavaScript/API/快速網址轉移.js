@@ -44,6 +44,12 @@
             }
         }
 
+        /* 後續功能
+        
+        顯示當前總數據數量
+        顯示各網域數量 與編號
+        輸入編號選擇開啟的網域數據
+        */
         async Read() {
             this.store("all").forEach((title, index) => {
                 setTimeout(()=> {
