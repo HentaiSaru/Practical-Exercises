@@ -26,6 +26,16 @@
 
 (function() {
     (new class Bookmark extends API {
+        constructor() {
+            super();
+            this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
+            this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
+
+            this.DomainName = (url) => {
+                return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
+            }
+        }
+
         async Write() {
             try {
                 const url = document.URL;
@@ -44,25 +54,60 @@
             }
         }
 
-        /* 後續功能
-        
-        顯示當前總數據數量
-        顯示各網域數量 與編號
-        輸入編號選擇開啟的網域數據
-        */
-        async Read() {
+        Read() {
+            let display_text = "[0] 全部開啟\n", options = 0, open;
+            const data = new Map(), add_data = (key, value) => {
+                data.has(key) ? data.get(key).push(value) : data.set(key, [value]);
+            }
+
+            // 讀取後分類
             this.store("all").forEach((title, index) => {
-                setTimeout(()=> {
-                    GM_openInTab(this.store("get", title).url, {
-                        active: false,
-                        setParent: false
-                    });
-                    this.store("del", title);
-                }, 300 * index);
+                const read = this.store("get", title);
+                add_data(this.DomainName(read.url), [read, title, index]);
             });
+
+            // 解析數據顯示
+            data.forEach((value, domain)=> {
+                display_text += `[${++options}] ( ${domain} | ${value.length} )\n`;
+            });
+
+            // 將 map 數據轉成 array
+            const data_values = [...data.values()];
+
+            if (data_values.length > 0) {
+
+                while (true) {
+                    let choose = prompt(`輸入代號指定開啟:\n\n${display_text}`);
+                    choose = choose ? +choose : "";
+
+                    if (typeof choose == "string") {
+                        return;
+                    } else if (choose == 0) {
+                        open = data_values.flat(); break;
+                    } else if (choose > 0 && choose <= data.size) {
+                        open = data_values[choose-1]; break;
+                    } else {
+                        alert("不存在的代號");
+                    }
+                }
+
+                // 開啟連結
+                open.forEach(data=> {
+                    setTimeout(()=> {
+                        GM_openInTab(data[0].url, {
+                            active: false,
+                            setParent: false
+                        });
+                        this.store("del", data[1]); // 刪除開啟的數據
+                    }, 500 * data[2]);
+                })
+
+            } else {
+                alert("無可開啟的網址");
+            }
         }
 
-        async Import() {
+        Import() {
             const data = prompt("貼上導入的數據: ");
             if (data) {
                 for (const [title, value] of Object.entries(JSON.parse(data))) {
@@ -77,7 +122,7 @@
             }
         }
 
-        async Export() {
+        Export() {
             let box = {};
             this.store("all").forEach(title => {
                 const data = this.store("get", title);
@@ -92,11 +137,7 @@
                     timeout: 1500
                 })
             } else {
-                GM_notification({
-                    title: "導出失敗",
-                    text: "無可用的導出數據",
-                    timeout: 1500
-                })
+                alert("無可用的導出數據");
             }
         }
 
