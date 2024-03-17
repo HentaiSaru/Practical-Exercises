@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         快速網址轉移
+// @name         __簡易書籤__
 // @version      0.0.1
 // @author       HentaiSaru
-// @description  用於保存網址 與 一鍵快速轉移網址
+// @description  將網頁添加至書籤中保存, 一鍵快速導入導出, 一鍵快速開啟所有書籤
 
 // @noframes
 // @match        *://*/*
@@ -61,9 +61,9 @@
             }
 
             // 讀取後分類
-            this.store("all").forEach((title, index) => {
+            this.store("all").forEach(title => {
                 const read = this.store("get", title);
-                add_data(this.DomainName(read.url), [read, title, index]);
+                add_data(this.DomainName(read.url), [read, title]);
             });
 
             // 解析數據顯示
@@ -92,14 +92,11 @@
                 }
 
                 // 開啟連結
-                open.forEach(data=> {
+                open.forEach((data, index)=> {
                     setTimeout(()=> {
-                        GM_openInTab(data[0].url, {
-                            active: false,
-                            setParent: false
-                        });
+                        GM_openInTab(data[0].url);
                         this.store("del", data[1]); // 刪除開啟的數據
-                    }, 500 * data[2]);
+                    }, 500 * index);
                 })
 
             } else {
@@ -143,8 +140,8 @@
 
         async Create() {
             this.Menu({
-                "🔖 保存網址": ()=> this.Write(),
-                "📖 開啟網址": ()=> this.Read(),
+                "🔖 添加書籤": ()=> this.Write(),
+                "📖 開啟書籤": ()=> this.Read(),
                 "📤️ 導入數據": ()=> this.Import(),
                 "📥️ 導出數據": ()=> this.Export(),
             });
