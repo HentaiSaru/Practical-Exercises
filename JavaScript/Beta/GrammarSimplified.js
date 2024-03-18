@@ -96,11 +96,11 @@ class API {
 
     /**
      * * { 暫停異步函數 }
-     * @param {Integer} delay - 延遲的秒數
+     * @param {Integer} delay - 延遲毫秒
      * @returns { Promise }
      */
     sleep (delay) {
-        return new Promise(resolve => setTimeout(resolve, delay * 1000));
+        return new Promise(resolve => setTimeout(resolve, delay));
     }
 
     /**
