@@ -482,12 +482,9 @@
             api.WaitElem("h2.site-section__subheading", false, 8, comments => {
                 const prev = api.$$("a.post__nav-link.prev");
                 const next = api.$$("a.post__nav-link.next");
-                const span = document.createElement("span");
-                const svg = document.createElement("svg");
                 const color = location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
-                span.id = "next_box";
-                span.style = "float: right";
-                span.appendChild(next.cloneNode(true));
+
+                const svg = document.createElement("svg");
                 svg.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
                         <style>svg{fill: ${color}}</style>
@@ -495,17 +492,23 @@
                     </svg>
                 `
                 api.Buffer.appendChild(svg);
-                api.Buffer.appendChild(span);
-
                 api.Listen(svg, "click", () => {
                     api.$$("header").scrollIntoView();
                 }, { capture: true, passive: true })
-                comments.appendChild(api.Buffer);
 
-                api.Listen(api.$$("#next_box a"), "click", event => {
-                    event.preventDefault();
-                    AjexReplace(next.href, api.$$("main"));
-                }, { capture: true, once: true });
+                try {
+                    const span = document.createElement("span");
+                    span.id = "next_box";
+                    span.style = "float: right";
+                    span.appendChild(next.cloneNode(true));
+                    api.Buffer.appendChild(span);
+                    api.Listen(api.$$("#next_box a"), "click", event => {
+                        event.preventDefault();
+                        AjexReplace(next.href, api.$$("main"));
+                    }, { capture: true, once: true });
+                } catch {}
+
+                comments.appendChild(api.Buffer);
             }, document.body, 600);
         }
 
