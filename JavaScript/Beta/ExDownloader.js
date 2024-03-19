@@ -516,7 +516,7 @@
             Button.textContent = Language.DS_08;
             setTimeout(() => {
                 document.title = `✓ ${OriginalTitle}`;
-                ResetButton();
+                this.ResetButton();
             }, 3000);
         }
 
@@ -537,15 +537,24 @@
                 Button.textContent = Language.DS_06;
                 document.title = `✓ ${OriginalTitle}`;
                 setTimeout(() => {
-                    ResetButton();
+                    this.ResetButton();
                 }, 3000);
             }).catch(result => {
                 Button.textContent = Language.DS_07;
                 document.title = OriginalTitle;
                 setTimeout(() => {
-                    ResetButton();
+                    Button.disabled = false;
+                    Button.textContent = ModeDisplay;
                 }, 6000);
             })
+        }
+
+        /* 按鈕重置 */
+        async ResetButton() {
+            lock = false;
+            let Button = api.$$("#ExDB");
+            Button.disabled = false;
+            Button.textContent = `✓ ${ModeDisplay}`;
         }
     }
 
@@ -555,14 +564,6 @@
     Main.Match();
 
     /* ============ 全域 API ============ */
-
-    /* 按鈕重置 */
-    async function ResetButton() {
-        lock = false;
-        let Button = api.$$("#ExDB");
-        Button.disabled = false;
-        Button.textContent = `✓ ${ModeDisplay}`;
-    }
 
     function display_language(language) {
         let display = {
