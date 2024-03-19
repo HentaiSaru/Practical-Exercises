@@ -90,7 +90,7 @@ function DOM_Parsing(element, format) {
 function XpathSelect(xpathExpression) {
     const result = document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
     if (result) {
-        console.log(node);
+        console.log(result);
     } else {
         console.log("No matching element found for the given XPath expression.");
     }
