@@ -70,6 +70,7 @@
         BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     }
+
     class Download {
         constructor(CM, MD, BT) {
             this.ForceDownload = false;
@@ -111,7 +112,7 @@
                     Config.DeBug && func.log("Get Data", [folder, DownloadData]);
                     this.CompressMode
                     ? this.PackDownload(folder, title, DownloadData)
-                    : this.SeparDownload(folder, DownloadData);
+                    : this.SeparDownload(title, DownloadData);
                 }
             }, 300);
         }
@@ -295,8 +296,15 @@
         }
 
         /* 單圖下載 */
-        async SeparDownload(Folder, Data) {
-            
+        async SeparDownload(File, Data) {
+            let
+                show,
+                task = 0,
+                progress = 0,
+                extension, link;
+            const
+                Total = Data.size,
+                TitleCache = this.OriginalTitle()
         }
 
     }
@@ -482,8 +490,9 @@
             }],
             "zh-CN": [{
                 "RM_01" : "🔁 切换下载模式",
-                "RM_02" : "📑 获取所有帖子 Json 数据",
-                "RM_03" : "📃 打开当前页面所有帖子",
+                "RM_02" : "📑 获取 Json 数据",
+                "RM_03" : "📃 打开当前页面帖子",
+                "RM_04" : "📥 强制压缩下载",
                 "DM_01" : "压缩下载模式",
                 "DM_02" : "单图下载模式",
                 "DS_01" : "压缩下载",
@@ -509,8 +518,9 @@
             }],
             "ja": [{
                 "RM_01" : "🔁 ダウンロードモードの切り替え",
-                "RM_02" : "📑 すべての投稿のJsonデータを取得する",
-                "RM_03" : "📃 現在のページのすべての投稿を開く",
+                "RM_02" : "📑 JSON データを取得",
+                "RM_03" : "📃 現在のページの投稿を開く",
+                "RM_04" : "📥 強製的に圧縮してダウンロード",
                 "DM_01" : "圧縮ダウンロードモード",
                 "DM_02" : "シングル画像ダウンロードモード",
                 "DS_01" : "圧縮ダウンロード",
@@ -536,8 +546,9 @@
             }],
             "en-US": [{
                 "RM_01" : "🔁 Switch download mode",
-                "RM_02" : "📑 Get all post Json data",
-                "RM_03" : "📃 Open all posts on the current page",
+                "RM_02" : "📑 Get Json data",
+                "RM_03" : "📃 Open current page post",
+                "RM_04" : "📥 Force compression download",
                 "DM_01" : "Compressed download mode",
                 "DM_02" : "Single image download mode",
                 "DS_01" : "Compressed download",
