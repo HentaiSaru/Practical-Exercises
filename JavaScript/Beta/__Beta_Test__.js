@@ -35,7 +35,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1342021/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1345698/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -65,12 +65,14 @@
     const Config = {
         DeBug: true,                    // 顯示請求資訊, 與錯誤資訊
         NotiFication: true,             // 操作時 系統通知
+        ContainsVideo: true,            // 下載時包含影片
         CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
         BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     }
 
+    let lock = false;
     class Download {
         constructor(CM, MD, BT) {
             this.ForceDownload = false;
@@ -82,12 +84,62 @@
             this.OriginalTitle = () => {
                 const cache = document.title;
                 return cache.startsWith("✓ ") ? cache.slice(2) : cache;
-            }
+            };
+
+            this.isVideo = (str) => ["MP4", "MOV", "AVI", "WMV", "FLV"].includes(str.toUpperCase());
+
+            this.worker = func.WorkerCreation(`
+                /* 使用 worker 是希望切換焦點後, 下載不受瀏覽器影響 */
+                let queue = [], processing=false;
+                onmessage = function(e) {
+                    queue.push(e.data);
+                    !processing && (processing=true, processQueue());
+                }
+                async function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, url} = queue.shift();
+                        XmlRequest(index, url);
+                        setTimeout(processQueue, ${Config.ExperimentalDownloadDelay});
+                    } else {processing = false}
+                }
+
+                async function XmlRequest(index, url) {
+                    let xhr = new XMLHttpRequest();
+                    xhr.responseType = "blob";
+                    xhr.open("GET", url, true);
+                    xhr.onload = function() {
+                        if (xhr.readyState === 4 && xhr.status === 200) {
+                            postMessage({ index, url: url, blob: xhr.response, error: false });
+                        } else {
+                            FetchRequest(index, url);
+                        }
+                    }
+                    xhr.onerror = function() {
+                        FetchRequest(index, url);
+                    }
+                    xhr.send();
+                }
+
+                /* 試錯一次就回傳 */
+                async function FetchRequest(index, url) {
+                    try {
+                        const response = await fetch(url);
+                        if (response.readyState === 4 && response.status === 200) {
+                            const blob = await response.blob();
+                            postMessage({ index, url: url, blob, error: false });
+                        } else {
+                            postMessage({ index, url: url, blob: "", error: true });
+                        }
+                    } catch {
+                        postMessage({ index, url: url, blob: "", error: true });
+                    }
+                }
+            `);
         }
 
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
         async DownloadTrigger() {
-            this.Button.disabled = true;
+            this.Button.disabled = lock = true;
             let DownloadData = new Map(), files, title, artist,
             interval = setInterval(() => {
                 files = func.$$("div.post__files");
@@ -102,10 +154,12 @@
                     const
                         a = func.$$("a", true, files),
                         img = func.$$("img", true, files),
-                        folder = `(${artist}) ${title}`,
-                        data = a.length > 0 ? a : img;
+                        video = func.$$(".post__attachment a", true),
+                        folder = `${artist} ${title}`,
+                        data = a.length > 0 ? a : img,
+                        final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
-                    data.forEach((file, index) => {
+                    final_data.forEach((file, index) => {
                         DownloadData.set(index, (file.href || file.src));
                     });
 
@@ -115,80 +169,26 @@
                     : this.SeparDownload(title, DownloadData);
                 }
             }, 300);
+            setTimeout(()=> {clearInterval(interval)}, 1e4);
         }
 
         /* 打包壓縮下載 */
         async PackDownload(Folder, File, Data) {
             let
                 show,
+                extension,
                 progress = 0,
                 Total = Data.size;
             const
                 Self = this,
                 Zip = new JSZip(),
+                Fill = func.GetFill(Total),
                 TitleCache = this.OriginalTitle(),
-                worker = func.WorkerCreation(`
-                    /* 使用 worker 是希望切換焦點後, 下載不受瀏覽器影響 */
-                    let queue = [], processing=false;
-                    onmessage = function(e) {
-                        queue.push(e.data);
-                        !processing && (processing=true, processQueue());
-                    }
-                    async function processQueue() {
-                        if (queue.length > 0) {
-                            const {index, url} = queue.shift();
-                            XmlRequest(index, url);
-                            setTimeout(processQueue, ${Config.ExperimentalDownloadDelay});
-                        }
-                    }
-
-                    async function XmlRequest(index, url) {
-                        let xhr = new XMLHttpRequest();
-                        xhr.responseType = "blob";
-                        xhr.open("GET", url, true);
-                        xhr.onload = function() {
-                            if (xhr.readyState === 4 && xhr.status === 200) {
-                                postMessage({ index, url: url, blob: xhr.response, error: false });
-                            } else {
-                                FetchRequest(index, url);
-                            }
-                        }
-                        xhr.onerror = function() {
-                            FetchRequest(index, url);
-                        }
-                        xhr.send();
-                    }
-
-                    /* 試錯一次就回傳 */
-                    async function FetchRequest(index, url) {
-                        try {
-                            const response = await fetch(url);
-                            if (response.readyState === 4 && response.status === 200) {
-                                const blob = await response.blob();
-                                postMessage({ index, url: url, blob, error: false });
-                            } else {
-                                postMessage({ index, url: url, blob: "", error: true });
-                            }
-                        } catch {
-                            postMessage({ index, url: url, blob: "", error: true });
-                        }
-                    }
-                `),
                 Enforce = GM_registerMenuCommand(language.RM_04, ()=> ForceDownload());
-
-            //! 等待添加到 語法簡化
-            const GetFill = (page) => {
-                return Math.max(2, `${page}`.length);
-            }
-            const Mantissa = (index, fill) => {
-                return `${++index}`.padStart(fill, "0");
-            }
-
-            const Fill = GetFill(Total);
 
             // 強制下載
             async function ForceDownload() {
-                worker.terminate();
+                Self.worker.terminate();
                 Self.Compression(Folder, Zip, TitleCache, Enforce);
             }
 
@@ -197,9 +197,14 @@
                 if (Self.ForceDownload) {return}
                 requestAnimationFrame(()=> {
                     Data.delete(index);
-                    retry
-                    ? Data.set(index, url)
-                    : Zip.file(`${Folder}/(${File})_${Mantissa(index, Fill)}.${func.ExtensionName(url)}`, blob);
+                    if (retry) {
+                        Data.set(index, url);
+                    } else {
+                        extension = func.ExtensionName(url);
+                        Self.isVideo(extension)
+                        ? Zip.file(`${Folder}/${decodeURIComponent(url.split("?f=")[1])}`, blob)
+                        : Zip.file(`${Folder}/${File}_${func.Mantissa(index, Fill)}.${extension}`, blob);
+                    }
 
                     show = `[${++progress}/${Total}]`;
                     document.title = show;
@@ -208,7 +213,7 @@
                     if (progress == Total) {
                         Total = Data.size;
                         if (Total == 0) {
-                            worker.terminate();
+                            Self.worker.terminate();
                             Self.Compression(Folder, Zip, TitleCache, Enforce);
                         } else {
                             show = "Wait for failed re download";
@@ -235,7 +240,7 @@
                     onload: response => {
                         if (response.status === 429 && !Error_display) {
                             Error_display = true;
-                            worker.terminate();
+                            Self.worker.terminate();
                             Self.ForceDownload = true;
                             alert("Too Many Requests");
                         }
@@ -252,12 +257,12 @@
 
             // 傳遞訊息
             for (let index = 0; index < Total; index++) {
-                worker.postMessage({ index: index, url: Data.get(index) });
+                this.worker.postMessage({ index: index, url: Data.get(index) });
                 Self.Button.textContent = `${language.DS_09} [${index + 1}/${Total}]`;
             }
 
             // 接收訊息
-            worker.onmessage = (e) => {
+            this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
                 ? (Request(index, url), (Config.DeBug && func.log("Download Failed", url)))
@@ -281,9 +286,7 @@
                 document.title = `✓ ${Title}`;
                 this.Button.textContent = language.DS_08;
                 setTimeout(() => {
-                    Config.CompleteClose && window.close();
-                    this.Button.disabled = false;
-                    this.Button.textContent = `✓ ${this.ModeDisplay}`;
+                    this.ResetButton();
                 }, 3000);
             }).catch(result => {
                 document.title = Title;
@@ -299,22 +302,69 @@
         async SeparDownload(File, Data) {
             let
                 show,
-                task = 0,
-                progress = 0,
-                extension, link;
+                link,
+                filename,
+                extension,
+                progress = 0;
             const
+                Self = this,
+                Promises = [],
                 Total = Data.size,
-                TitleCache = this.OriginalTitle()
+                Fill = func.GetFill(Total),
+                TitleCache = this.OriginalTitle();
 
-            async function Request(index, retry) {
+            async function Request(index) {
                 link = Data.get(index);
-                GM_download({
-                    url: link,
-                    name: `${File}_${Mantissa(index, Fill)}.${func.ExtensionName(link)}`,
+                extension = func.ExtensionName(link);
+                filename = Self.isVideo(extension)
+                ? decodeURIComponent(link.split("?f=")[1])
+                : `${File}_${func.Mantissa(index, Fill)}.${extension}`;
+                return new Promise((resolve, reject) => {
+                    GM_download({
+                        url: link,
+                        name: filename,
+                        onprogress: (progress) => { //! 等待修正
+                            console.log("下載中");
+                            console.log(progress);
+                        },
+                        onload: () => {
+                            Config.DeBug && func.log("Download Successful", link);
+                            show = `[${++progress}/${Total}]`;
+                            document.title = show;
+                            Self.Button.textContent = `${language.DS_05} ${show}`;
+                            resolve();
+                        },
+                        onerror: () => {
+                            Config.DeBug && func.log("Download Failed", link);
+                            setTimeout(()=> {
+                                reject();
+                                Request(index);
+                            }, 1500);
+                        }
+                    });
                 });
             }
+
+            for (let i = 0; i < Total; i++) {
+                Promises.push(Request(i));
+                await func.sleep(Config.ExperimentalDownloadDelay);
+            }
+            await Promise.allSettled(Promises);
+            document.title = `✓ ${TitleCache}`;
+            this.Button.textContent = language.DS_08;
+            setTimeout(() => {
+                this.ResetButton();
+            }, 3000);
         }
 
+        /* 按鈕重置 */
+        async ResetButton() {
+            Config.CompleteClose && window.close();
+            lock = false;
+            const Button = func.$$("#ExDB button");
+            Button.disabled = false;
+            Button.textContent = `✓ ${this.ModeDisplay}`;
+        }
     }
 
     class DataToJson {
@@ -373,7 +423,7 @@
                         const ModeDisplay = CompressMode ? language.DS_01 : language.DS_02;
                         // 創建 Span
                         const spanElement = GM_addElement(Files[Files.length - 1], "span", {
-                            class: "File_Span", id: "DBExist"
+                            class: "File_Span", id: "ExDB"
                         });
                         // 創建 Svg
                         const setting = GM_addElement(spanElement, "svg", { class: "Setting_Button" });
@@ -382,7 +432,8 @@
                         func.Listen(setting, "click", ()=> {alert("後續開發")}, {capture: true, passive: true});
                         // 創建 Button
                         Button = GM_addElement(spanElement, "button", {class: "Download_Button"});
-                        Button.textContent = ModeDisplay;
+                        Button.disabled = lock;
+                        Button.textContent = lock ? "下載中鎖定" : ModeDisplay;
                         func.Listen(Button, "click", ()=> {
                             Load = new Download(CompressMode, ModeDisplay, Button);
                             Load.DownloadTrigger();
@@ -407,7 +458,7 @@
                         insert: false,
                         setParent: false
                     });
-                    await new Promise(resolve => setTimeout(resolve, Config.BatchOpenDelay));
+                    await func.sleep(Config.BatchOpenDelay);
                 }
             } catch {
                 alert(language.NF_07);
@@ -435,14 +486,16 @@
                     });
                 }
             }
-            func.$$("#DBExist").remove();
+            func.$$("#ExDB").remove();
             this.ButtonCreation();
         }
 
         /* 注入檢測創建 [ 檢測頁面創建按鈕, 創建菜單 ] */
         async Injection() {
             const observer = new MutationObserver(func.Throttle_discard(() => {
-                (this.Target && !func.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
+                try {
+                    (this.Target && !func.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
+                } catch {}
             }, 300));
             observer.observe(document, {childList: true, subtree: true});
 
