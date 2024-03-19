@@ -305,6 +305,14 @@
             const
                 Total = Data.size,
                 TitleCache = this.OriginalTitle()
+
+            async function Request(index, retry) {
+                link = Data.get(index);
+                GM_download({
+                    url: link,
+                    name: `${File}_${Mantissa(index, Fill)}.${func.ExtensionName(link)}`,
+                });
+            }
         }
 
     }
