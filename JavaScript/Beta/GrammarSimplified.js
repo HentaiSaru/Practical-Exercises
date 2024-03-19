@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/03/13
+// @version      2024/03/19
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -60,6 +60,30 @@ class API {
      */
     DomParse(html) {
         return this.Parser.parseFromString(html, "text/html");
+    }
+
+    /**
+     ** { 取得下載圖片時的填充量 }
+     * @param {object} pages - 下載的圖片連結物件 
+     * @returns {number}     - 返回填充的值
+     * 
+     * @example
+     * const box = [下載圖片的連結]
+     * const Fill = GetFill(box);
+     */
+    GetFill(pages) {
+        return Math.max(2, `${pages}`.length);
+    }
+
+    /**
+     ** { 回傳下載圖片的尾數 }
+     * @param {number} index   - 圖片的頁數
+     * @param {number} padding - 填充量 [由 GetFill() 取得填充量]
+     * @param {string} filler  - 用於填充的字串
+     * @returns {string}       - 經填充後的尾數
+     */
+    Mantissa(index, padding, filler="0") {
+        return `${++index}`.padStart(padding, filler);
     }
 
     /**
