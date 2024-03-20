@@ -54,3 +54,7 @@ console.log([...a_str]);
 // 合併陣列
 var arr2 = ["1", "2", "3"];
 console.log([...arr, ...arr2]);
+
+// 字串轉 js
+var code = "console.log('這是一個字串');"
+eval(code)
