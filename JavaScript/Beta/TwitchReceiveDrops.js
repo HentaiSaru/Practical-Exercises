@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.10
+// @version             0.0.11
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -28,15 +28,20 @@
 (function() {
     const Config = {
         RestartLive: true, // 使用重啟直播
+        EndAutoClose: true, // 全部進度完成後自動關閉
+        TryStayActive: true, // 嘗試讓頁面保持活躍
         RestartLiveMute: true, // 重啟的直播靜音
+        ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
-        InjectDelay: 1, // (seconds) 開始注入檢測的延遲 [提高降低性能消耗, 但太高會找不到]
+        DetectionInterval: 0.5, // (seconds) 查找元素時的間隔 [提高間隔查找速度會下降, 過高會找不到]
         UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
+        AllProgress: "div.ilRKfU", // 所有的掉寶進度
         ProgressBar: "p.mLvNZ span", // 掉寶進度數據
-        ReceiveDropsButton: "button.caieTg", // 領取按鈕
+        ActivityTime: "span.jSkguG", // 掉寶活動的日期
+        DropsButton: "button.caieTg", // 掉寶領取按鈕
         ActivityLink: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 參與活動的頻道連結
         ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']",
 
@@ -47,33 +52,70 @@
 
     /* 檢測邏輯 */
     class Detection {
-        #ProgressParse; // 宣告私有變數
-        #ShowTitle;
-
         constructor() {
             this.config = Config;
 
             /* 解析進度(找到 < 100 的最大值) */
-            this.#ProgressParse = progress => {
+            this.ProgressParse = progress => {
                 return progress.sort((a, b) => b - a).find(number => number < 1e2);
             }
 
             /* 展示進度於標題 */
-            this.#ShowTitle = async display => {
+            this.ShowTitle = async display => {
                 this.config.ProgressDisplay = !1;
                 const TitleDisplay = setInterval(()=>{document.title = display}, 5e2);
                 setTimeout(()=> {clearInterval(TitleDisplay)}, 1e3 * 10);
+            }
+
+            /* 對 DOM 查找進行節流 */
+            this.Throttle_discard = (func, delay) => {
+                let lastTime = 0;
+                return function() {
+                    const context = this, args = arguments, now = Date.now();
+                    if ((now - lastTime) >= delay) {
+                        func.apply(context, args);
+                        lastTime = now;
+                    }
+                }
+            }
+
+            /* 查找過期的項目將其刪除 */
+            this.TimeComparison = async (Object, Timestamp, Callback) => {
+                const match = Timestamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(\d{1,2}:\d{2}) \[GMT([+-]\d{1,2})\]/);
+                if (match) {
+                    const month = parseInt(match[1], 10);
+                    const day = parseInt(match[2], 10);
+                    const timeString = match[3];
+                    const offset = parseInt(match[4], 10);
+            
+                    const currentTime = new Date();
+                    const targetTime = new Date(currentTime.getFullYear(), month-1, day);
+            
+                    targetTime.setHours(parseInt(timeString.split(":")[0], 10) + 12);
+                    targetTime.setMinutes(parseInt(timeString.split(":")[1], 10));
+                    targetTime.setHours(targetTime.getHours() - offset);
+            
+                    currentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
+                }
             }
         }
 
         /* 主要運行 */
         static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
-            let Withdraw, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            let Withdraw, Allbox, bottom, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
             data=[], deal=!0, dynamic=new Detection(), self=dynamic.config;
-            const observer = new MutationObserver(() => { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
-                title = deal && document.querySelectorAll(self.ProgressBar); // 這邊會有各種特殊類型, 所以這樣處理, 取得所有進度值, 再取找到小於 100 的最大值
-                title = title.length > 0 && deal ? (deal=!1, title.forEach(progress=> data.push(+progress.textContent)), dynamic.#ProgressParse(data)) : !1;
-                state = title ? (self.ProgressDisplay && dynamic.#ShowTitle(`${title}%`), !0) : !1; // 只要有標題就是 true, 判斷是否顯示 不會影響取狀態
+            const observer = new MutationObserver(dynamic.Throttle_discard(() => {
+                Allbox = deal && document.querySelectorAll(self.AllProgress);
+                if (Allbox.length > 0 && deal) {
+                    deal=!1; Allbox.forEach(box=> {
+                        dynamic.TimeComparison(box, box.querySelector(self.ActivityTime).textContent,
+                        NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
+                            title = NotExpired.querySelectorAll(self.ProgressBar); // 找到未過期區塊內所有的進度, 並篩選出最大值
+                            title = title.length > 0 ? (title.forEach(progress=> data.push(+progress.textContent)), dynamic.ProgressParse(data)) : !1;
+                            state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
+                        })
+                    })
+                }
 
                 if (self.RestartLive && state) {
                     self.RestartLive = !1;
@@ -89,23 +131,41 @@
                     }
                 }
 
-                Withdraw = document.querySelector(self.ReceiveDropsButton);
-                if (Withdraw) {observer.disconnect(); Withdraw.click();}
-            });
+                Withdraw = document.querySelector(self.DropsButton);
+                Withdraw && Withdraw.click();
+
+                bottom = document.querySelector("div.gtpIYu");
+                if (bottom) {
+                    observer.disconnect();
+
+                    const count = GM_getValue("NoProgressCount", null) || 0;
+                    if (title) {
+                        GM_setValue("NoProgressCount", 0);
+                    } else if (count > 2) {
+                        GM_setValue("NoProgressCount", 0);
+                        if (self.EndAutoClose) {
+                            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
+                            window.open("https://www.twitch.tv/", "_self");
+                        }
+                    } else {
+                        GM_setValue("NoProgressCount", count+1);
+                    }
+                }
+            }, 1e3 * self.DetectionInterval));
+
             /* 延遲注入 */
-            setTimeout(()=> {observer.observe(document, {childList: !0, subtree: !0})}, 1e3 * self.InjectDelay);
+            observer.observe(document, {childList: !0, subtree: !0});
+            self.TryStayActive && StayActive(document);
         }
     }
 
     /* 重啟邏輯 */
     class RestartLive {
-        #VideoMute;
-
         constructor() {
             this.config = Config;
 
             /* 重啟直播的影片靜音(持續執行 15 秒) */
-            this.#VideoMute = async window => {
+            this.VideoMute = async window => {
                 let video;
                 const Interval = setInterval(() => {
                     video = window.document.querySelector("video");
@@ -133,15 +193,42 @@
                             return self.FindTag.some(match=> tag.includes(match.toLowerCase()));
                         });
                         article[index].querySelector(self.WatchLiveLink).click();
-                        self.RestartLiveMute && this.#VideoMute(NewWindow);
+                        self.RestartLiveMute && this.VideoMute(NewWindow);
+                        self.TryStayActive && StayActive(NewWindow.document);
                     }
                 }, 5e2);
             }
         }
     }
 
+    /* 使窗口保持活躍 */
+    async function StayActive(Target) {
+        const script = document.createElement("script");
+        script.appendChild(document.createTextNode(`
+            function WorkerCreation(code) {
+                const blob = new Blob([code], {type: "application/javascript"});
+                return new Worker(URL.createObjectURL(blob));
+            }
+            const Active = WorkerCreation(\`
+                onmessage = function(e) {
+                    setTimeout(()=> {
+                        const {url, visible} = e.data;
+                        visible == "hidden" && fetch(url);
+                        postMessage({url})
+                    }, 6e4);
+                }
+            \`);
+            Active.postMessage({ url: location.href, visible: document.visibilityState });
+            Active.onmessage = (e) => {
+                const { url } = e.data;
+                Active.postMessage({ url: url, visible: document.visibilityState });
+            };
+        `));
+        Target.head.appendChild(script);
+    }
+
     /* 主運行調用 */
     const Restart = new RestartLive();
     Detection.Ran();
-    setTimeout(()=> {location.reload()}, 1e3 * Config.UpdateInterval);
+    setTimeout(()=> {window.open(location.href, "_self")}, 1e3 * Config.UpdateInterval);
 })();
