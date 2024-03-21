@@ -78,12 +78,18 @@
 /**----------
  * @grant GM_download
  * @example - 下載
- * GM_download(url, file.txt, headers, onload, onerror, onprogress, ontimeout)
- * GM_download({
+ * GM_download(url, name, headers, saveAs, conflictAction, onload, onerror, onprogress, ontimeout)
+ * const download = GM_download({
  *      url: "http://example.com/file.txt",
  *      name: "file.txt",
- *      saveAs: true,
+ *      saveAs: true, 是否詢問要保存的位置
+ *      conflictAction: (uniquify 重新命名) (overwrite 覆蓋) (prompt 提示詢問
+ * }, (onprogress) => {
+ *      下載進度
+ * }, (ontimeout) => {
+ *      超時失敗後的回條
  * })
+ * download.abort(); // 停止下載
  */
 
 /**----------
@@ -121,7 +127,12 @@
 /**----------
  * @grant GM_registerMenuCommand
  * @example - 創建菜單
- * GM_registerMenuCommand(菜單名稱, 呼叫函數, 訪問快捷(s)當按下s可觸發)
+ * GM_registerMenuCommand(菜單名稱, 呼叫函數, {
+ *      id: 再次創建時, 同樣 id 的會直接更新
+ *      title: 當滑鼠在菜單上時, 提示該菜單功能
+ *      accessKey: 設置快捷鍵用於開啟菜單
+ *      autoClose: 點擊菜單後是否自動關閉
+ * })
  * GM_registerMenuCommand(菜單名稱, function() {函數()});
  */
 
@@ -213,6 +224,19 @@
 
 // @grant GM_saveTab
 // GM_saveTab(不知道確切用途)
+
+// @grant window.close
+// window.close();
+
+// @grant window.focus
+// window.focus();
+
+// @grant window.onurlchange
+/*
+    if (window.onurlchange === null) {
+        window.addEventListener('urlchange', (info) => {});
+    }
+*/
 
 // ==/UserScript==
 
