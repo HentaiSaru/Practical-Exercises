@@ -21,8 +21,7 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-body
-// @grant        GM_setValue
-// @grant        GM_getValue
+// @grant        window.close
 // @grant        GM_notification
 // ==/UserScript==
 
@@ -35,9 +34,9 @@
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
+        UpdateInterval: 90, // (seconds) 更新進度狀態的間隔
+        JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
         DetectionInterval: 0.3, // (seconds) 查找元素時的間隔 [提高間隔查找速度會下降, 過高會找不到]
-        UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
-        JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         DropsButton: "button.caieTg", // 掉寶領取按鈕
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
@@ -55,7 +54,7 @@
             this.ShowTitle = async display => {
                 this.config.ProgressDisplay = !1;
                 const TitleDisplay = setInterval(()=>{document.title = display}, 5e2);
-                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e3 * 10);
+                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e4);
             }
 
             /* 對 DOM 查找進行節流 */
@@ -68,6 +67,19 @@
                         lastTime = now;
                     }
                 }
+            }
+
+            /* 保存數據 */
+            this.storage = (key, value=null) => {
+                let data,
+                Formula = {
+                    Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
+                    Number: (parse) => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), true),
+                    Array: (parse) => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), true),
+                };
+                return null != value
+                    ? Formula[Formula.Type(value)]()
+                    : !!(data = sessionStorage.getItem(key)) && Formula[Formula.Type(JSON.parse(data))](data);
             }
 
             /* 查找過期的項目將其刪除 */
@@ -101,7 +113,7 @@
 
         /* 主要運行 */
         static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
-            let Withdraw, Allbox, bottom, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            let Allbox, bottom, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
             data=[], deal=!0, dynamic=new Detection(), self=dynamic.config;
             const observer = new MutationObserver(dynamic.Throttle_discard(() => {
                 Allbox = deal && document.querySelectorAll(self.AllProgress);
@@ -110,8 +122,8 @@
                         dynamic.TimeComparison(box, box.querySelector(self.ActivityTime).textContent,
                         NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
                             if (title) {return true}
-                            title = NotExpired.querySelectorAll(self.ProgressBar); // 找到未過期區塊內所有的進度, 並篩選出最大值
-                            title = title.length > 0 ? (title.forEach(progress=> data.push(+progress.textContent)), dynamic.ProgressParse(data)) : !1;
+                            NotExpired.querySelectorAll(self.ProgressBar).forEach(progress=> data.push(+progress.textContent));
+                            title = data.length > 0 ? dynamic.ProgressParse(data) : !1;
                             state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
                         })
                     })
@@ -120,35 +132,34 @@
                 if (self.RestartLive && state) {
                     self.RestartLive = !1;
 
-                    const time=new Date(), // 格式為 = 時間戳, 進度值
-                    [Timestamp, Progress] = GM_getValue("record", null) || [time.getTime(), title], conversion = (time - Timestamp) / (1e3 * 60);
+                    const time=new Date(), // 格式為 = 進度值, 時間戳
+                    [Progress, Timestamp] = dynamic.storage("Record") || [title, time.getTime()], conversion = (time - Timestamp) / (1e3 * 60);
 
                     if (conversion >= self.JudgmentInterval && title == Progress) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
                         Restart.Ran();
-                        GM_setValue("record", [time.getTime(), title]);
+                        dynamic.storage("Record", [title, time.getTime()]);
                     } else if (conversion == 0 || title != Progress) { // 時間是 0 或 標題 不是 進度, 代表有變化
-                        GM_setValue("record", [time.getTime(), title]);
+                        dynamic.storage("Record", [title, time.getTime()]);
                     }
                 }
 
-                Withdraw = document.querySelector(self.DropsButton);
-                Withdraw && Withdraw.click();
+                document.querySelectorAll(self.DropsButton).forEach(draw => {draw.click()});
 
                 bottom = document.querySelector(self.EndLine);
                 if (bottom) {
                     observer.disconnect();
 
-                    const count = GM_getValue("NoProgressCount", null) || 0;
+                    const count = dynamic.storage("NoProgressCount") || 0;
                     if (title) {
-                        GM_setValue("NoProgressCount", 0);
-                    } else if (count > 2) {
-                        GM_setValue("NoProgressCount", 0);
+                        dynamic.storage("NoProgressCount", 0);
+                    } else if (count > 1) {
+                        dynamic.storage("NoProgressCount", 0);
                         if (self.EndAutoClose) {
                             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-                            window.open("https://www.twitch.tv/", "_self");
+                            window.close();
                         }
                     } else {
-                        GM_setValue("NoProgressCount", count+1);
+                        dynamic.storage("NoProgressCount", count+1);
                     }
                 }
             }, 1e3 * self.DetectionInterval));
@@ -247,10 +258,18 @@
                             self.RestartLiveMute && dir.VideoMute(NewWindow);
                             self.TryStayActive && StayActive(NewWindow.document);
                         } else {
-                            GM_notification({
-                                title: "Search failed",
-                                text: "Can't find a channel with drops enabled"
-                            });
+                            function Language(display) {
+                                const language = {
+                                    "zh-TW": [{title: "搜尋失敗", text: "找不到啟用掉落的頻道"}],
+                                    "zh-CN": [{title: "搜索失败", text: "找不到启用掉落的频道"}],
+                                    "en-US": [{title: "Search failed", text: "Can't find a channel with drops enabled"}],
+                                    "ja": [{title: "検索失敗", text: "ドロップが有効なチャンネルが見つかりません"}],
+                                    "ko": [{title: "검색 실패", text: "드롭이 활성화된 채널을 찾을 수 없습니다"}],
+                                }
+                                return language.hasOwnProperty(display) ? language[display][0] : language["en-US"][0];
+                            }
+                            const show = Language(navigator.language);
+                            GM_notification({title: show.title, text: show.text});
                         }
                     }
                 }, 8e2);
