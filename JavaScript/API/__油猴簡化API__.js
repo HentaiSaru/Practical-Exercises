@@ -17,6 +17,12 @@ async function Menu(item) {
     }
 }
 
+GM_registerMenuCommand("原本的菜單", ()=> {}, {
+    id: "test",
+    title: "菜單提示",
+    autoClose: false
+})
+
 /* ==================================================== */
 
 /**
