@@ -23,6 +23,7 @@
 // @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_notification
 // ==/UserScript==
 
 (function() {
@@ -34,27 +35,17 @@
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
-        DetectionInterval: 0.5, // (seconds) 查找元素時的間隔 [提高間隔查找速度會下降, 過高會找不到]
+        DetectionInterval: 0.3, // (seconds) 查找元素時的間隔 [提高間隔查找速度會下降, 過高會找不到]
         UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 5, // (Minute) 判斷經過多長時間, 進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        AllProgress: "div.ilRKfU", // 所有的掉寶進度
-        ProgressBar: "p.mLvNZ span", // 掉寶進度數據
-        ActivityTime: "span.jSkguG", // 掉寶活動的日期
         DropsButton: "button.caieTg", // 掉寶領取按鈕
-        ActivityLink: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']", // 參與活動的頻道連結
-        ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']",
-
-        TagType: "span", // 頻道 Tag 標籤
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
-        WatchLiveLink: "[data-a-target='preview-card-image-link']", // 觀看直播的連結
     }
 
     /* 檢測邏輯 */
     class Detection {
         constructor() {
-            this.config = Config;
-
             /* 解析進度(找到 < 100 的最大值) */
             this.ProgressParse = progress => {
                 return progress.sort((a, b) => b - a).find(number => number < 1e2);
@@ -98,6 +89,14 @@
                     currentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
                 }
             }
+
+            /* 設置數據 */
+            this.config = Object.assign(Config, {
+                EndLine: "div.gtpIYu", // 斷開觀察者的終止線
+                AllProgress: "div.ilRKfU", // 所有的掉寶進度
+                ProgressBar: "p.mLvNZ span", // 掉寶進度數據
+                ActivityTime: "span.jSkguG", // 掉寶活動的日期
+            });
         }
 
         /* 主要運行 */
@@ -110,6 +109,7 @@
                     deal=!1; Allbox.forEach(box=> {
                         dynamic.TimeComparison(box, box.querySelector(self.ActivityTime).textContent,
                         NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
+                            if (title) {return true}
                             title = NotExpired.querySelectorAll(self.ProgressBar); // 找到未過期區塊內所有的進度, 並篩選出最大值
                             title = title.length > 0 ? (title.forEach(progress=> data.push(+progress.textContent)), dynamic.ProgressParse(data)) : !1;
                             state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
@@ -134,7 +134,7 @@
                 Withdraw = document.querySelector(self.DropsButton);
                 Withdraw && Withdraw.click();
 
-                bottom = document.querySelector("div.gtpIYu");
+                bottom = document.querySelector(self.EndLine);
                 if (bottom) {
                     observer.disconnect();
 
@@ -162,8 +162,6 @@
     /* 重啟邏輯 */
     class RestartLive {
         constructor() {
-            this.config = Config;
-
             /* 重啟直播的影片靜音(持續執行 15 秒) */
             this.VideoMute = async window => {
                 let video;
@@ -172,31 +170,90 @@
                     if (video) {
                         clearInterval(Interval);
                         const SilentInterval = setInterval(() => {video.muted = !0}, 5e2);
-                        setTimeout(()=> {clearInterval(SilentInterval)}, 1e3 * 15);
+                        setTimeout(()=> {clearInterval(SilentInterval)}, 1.5e4);
                     }
-                }, 1e3);
+                }, 5e2);
             }
+
+            this.config = Object.assign(Config, {
+                TagType: "span", // 頻道 Tag 標籤
+                Article: "article", // 直播目錄的文章
+                OfflineTag: "p.fQYeyD", // 顯示離線的標籤
+                ViewersTag: "span.hERoTc", // 觀看人數標籤
+                WatchLiveLink: "[data-a-target='preview-card-image-link']", // 觀看直播的連結
+                ActivityLink1: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']", // 參與活動的頻道連結
+                ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']",
+            });
         }
 
         async Ran() {
-            let NewWindow, article, channel, self=this.config;
-            channel = document.querySelector(self.ActivityLink) || document.querySelector(self.ActivityLink2);
-            if (channel) { // 使用標籤 "LiveWindow" 找到先前開啟的直播, 嘗試將其關閉
-                window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-                NewWindow = window.open(channel.href || channel.querySelector("a").href, "LiveWindow");
+            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
+            let NewWindow, OpenLink, Channel, article, self=this.config, dir=this;
+            Channel = document.querySelector(self.ActivityLink2);
+
+            if (Channel) {
+                NewWindow = window.open(Channel.href, "LiveWindow");
+                DirectorySearch(NewWindow);
+            } else {
+                Channel = document.querySelector(self.ActivityLink1);
+                OpenLink = [...Channel.querySelectorAll("a")].reverse();
+
+                FindLive(0);
+                async function FindLive(index) { // 持續找到有在直播的頻道
+                    if ((OpenLink.length-1) < index) {
+                        return false;
+                    }
+
+                    const href = OpenLink[index].href;
+                    NewWindow = !NewWindow ? window.open(href, "LiveWindow") : (NewWindow.location.assign(href), NewWindow);
+
+                    if (href.includes("directory")) { // 是目錄頁面
+                        DirectorySearch(NewWindow);
+                    } else {
+                        let Offline, Nowlive;
+                        const Interval = setInterval(()=> {
+                            Offline = NewWindow.document.querySelector(self.OfflineTag);
+                            Nowlive = NewWindow.document.querySelector(self.ViewersTag);
+
+                            if (Offline) {
+                                clearInterval(Interval);
+                                FindLive(index+1);
+
+                            } else if (Nowlive) {
+                                clearInterval(Interval);
+                                self.RestartLiveMute && dir.VideoMute(NewWindow);
+                                self.TryStayActive && StayActive(NewWindow.document);
+
+                            }
+                        }, 8e2);
+                    }
+                }
+
+            }
+
+            // 目錄頁面的查找邏輯
+            async function DirectorySearch(NewWindow) {
                 const Interval = setInterval(() => {
-                    article = NewWindow.document.getElementsByTagName("article");
+                    article = NewWindow.document.getElementsByTagName(self.Article);
                     if (article.length > 20) { // 找到大於 20 個頻道
                         clearInterval(Interval);
                         const index = Array.from(article).findIndex(element => {
                             const tag = element.querySelector(self.TagType).textContent.toLowerCase();
                             return self.FindTag.some(match=> tag.includes(match.toLowerCase()));
                         });
-                        article[index].querySelector(self.WatchLiveLink).click();
-                        self.RestartLiveMute && this.VideoMute(NewWindow);
-                        self.TryStayActive && StayActive(NewWindow.document);
+
+                        if (index != -1) {
+                            article[index].querySelector(self.WatchLiveLink).click();
+                            self.RestartLiveMute && dir.VideoMute(NewWindow);
+                            self.TryStayActive && StayActive(NewWindow.document);
+                        } else {
+                            GM_notification({
+                                title: "Search failed",
+                                text: "Can't find a channel with drops enabled"
+                            });
+                        }
                     }
-                }, 5e2);
+                }, 8e2);
             }
         }
     }
@@ -204,6 +261,7 @@
     /* 使窗口保持活躍 */
     async function StayActive(Target) {
         const script = document.createElement("script");
+        script.id = "Stay-Active";
         script.appendChild(document.createTextNode(`
             function WorkerCreation(code) {
                 const blob = new Blob([code], {type: "application/javascript"});
@@ -214,13 +272,15 @@
                     setTimeout(()=> {
                         const {url, visible} = e.data;
                         visible == "hidden" && fetch(url);
-                        postMessage({url})
+                        postMessage({url});
                     }, 6e4);
                 }
             \`);
-            Active.postMessage({ url: location.href, visible: document.visibilityState });
+            Active.postMessage({ url: location.href, visible: document.visibilityState});
             Active.onmessage = (e) => {
                 const { url } = e.data;
+                const video = document.querySelector("video");
+                video && video.play(); // 也許沒用
                 Active.postMessage({ url: url, visible: document.visibilityState });
             };
         `));
