@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.11
+// @version             0.0.12
 // @author              HentaiSaru
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -113,7 +113,7 @@
 
         /* 主要運行 */
         static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
-            let Allbox, bottom, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            let Allbox, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
             data=[], deal=!0, dynamic=new Detection(), self=dynamic.config;
             const observer = new MutationObserver(dynamic.Throttle_discard(() => {
                 Allbox = deal && document.querySelectorAll(self.AllProgress);
@@ -145,14 +145,13 @@
 
                 document.querySelectorAll(self.DropsButton).forEach(draw => {draw.click()});
 
-                bottom = document.querySelector(self.EndLine);
-                if (bottom) {
+                if (document.querySelector(self.EndLine)) {
                     observer.disconnect();
 
                     const count = dynamic.storage("NoProgressCount") || 0;
                     if (title) {
                         dynamic.storage("NoProgressCount", 0);
-                    } else if (count > 1) {
+                    } else if (count > 2) {
                         dynamic.storage("NoProgressCount", 0);
                         if (self.EndAutoClose) {
                             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
