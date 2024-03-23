@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/03/19
+// @version      2024/03/23
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -433,19 +433,32 @@ class API {
     }
 
     /**
-     * * { 菜單註冊 }
+     ** { 菜單註冊 API }
+     * 
      * // @grant GM_registerMenuCommand
-     * @param {*} item  - 創建菜單的物件
+     * 
+     * @param {object} Item  - 創建菜單的物件
+     * @param {string} ID    - 創建菜單的 ID
+     * @param {number} Index - 創建菜單的 ID 的 編號 (設置從多少開始)
      * @example
      * Menu({
-     *      "菜單1": ()=> 方法1(),
-     *      "菜單2": ()=> 方法2(),
-     *      ...
-     * })
+     * "菜單1": {
+     *     desc: "菜單描述",
+     *     func: 方法1(),
+     *     hotkey: "a",
+     *     close: true,
+     * },
+     * "菜單2": { func: 方法2() }
+     *}, "ID");
      */
-    async Menu(item) {
-        for (const [name, call] of Object.entries(item)) {
-            GM_registerMenuCommand(name, ()=> {call()});
+    async Menu(Item, ID="Menu", Index=1) {
+        for (const [Name, options] of Object.entries(Item)) {
+            GM_registerMenuCommand(Name, ()=> {options.func()}, {
+                title: options.desc,
+                id: `${ID}-${Index++}`,
+                autoClose: options.close,
+                accessKey: options.hotkey,
+            });
         }
     }
 }
