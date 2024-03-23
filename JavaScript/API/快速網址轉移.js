@@ -12,6 +12,7 @@
 // @icon64       https://cdn-icons-png.flaticon.com/512/13984/13984370.png
 
 // @run-at       document-start
+// @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_openInTab
@@ -78,6 +79,7 @@
                     text: "已保存網址",
                     timeout: 1500
                 })
+                setTimeout(()=> window.close(), 500);
             } catch (error) {
                 alert(error);
             }
