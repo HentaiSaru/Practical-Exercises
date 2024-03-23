@@ -444,11 +444,11 @@ class API {
      * Menu({
      * "菜單1": {
      *     desc: "菜單描述",
-     *     func: 方法1(),
+     *     func: ()=> { 方法1() },
      *     hotkey: "a",
      *     close: true,
      * },
-     * "菜單2": { func: 方法2() }
+     * "菜單2": ()=> { 方法2(參數) }
      *}, "ID");
      */
     async Menu(Item, ID="Menu", Index=1) {
