@@ -3,25 +3,29 @@
  * 
  * // @grant GM_registerMenuCommand
  * 
- * @param {*} item  - 創建菜單的物件
+ * @param {object} Item  - 創建菜單的物件
+ * @param {string} ID  - 創建菜單的 ID
  * @example
  * Menu({
- *      "菜單1": ()=> 方法1(),
- *      "菜單2": ()=> 方法2(),
- *      ...
- * })
+ * "菜單1": {
+ *     func: 方法1(),
+ *     hotkey: "a",
+ *     close: true,
+ * },
+ * "菜單2": { func: 方法2() }
+ *}, "ID");
  */
-async function Menu(item) {
-    for (const [name, call] of Object.entries(item)) {
-        GM_registerMenuCommand(name, ()=> {call()});
+ async function Menu(Item, ID="Menu") {
+    let Index = 1;
+    for (const [Name, options] of Object.entries(Item)) {
+        GM_registerMenuCommand(Name, ()=> {options.func()}, {
+            title: options.desc,
+            id: `${ID}-${Index++}`,
+            autoClose: options.close,
+            accessKey: options.hotkey,
+        });
     }
 }
-
-GM_registerMenuCommand("原本的菜單", ()=> {}, {
-    id: "test",
-    title: "菜單提示",
-    autoClose: false
-})
 
 /* ==================================================== */
 
