@@ -15,7 +15,7 @@
  * "菜單2": { func: 方法2() }
  *}, "ID");
  */
- async function Menu(Item, ID="Menu") {
+async function Menu(Item, ID="Menu") {
     let Index = 1;
     for (const [Name, options] of Object.entries(Item)) {
         GM_registerMenuCommand(Name, ()=> {options.func()}, {
