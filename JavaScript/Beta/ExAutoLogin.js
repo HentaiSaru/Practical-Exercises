@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.25
+// @version      0.0.26
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -27,10 +27,11 @@
 // @grant        GM_notification
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.5/js.cookie.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1339711/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1347864/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
@@ -68,23 +69,34 @@
                 }
             }
 
-            /* 刪除菜單 */
-            this.DeleteMenu = async() => {
-                const modal = $(".modal-background");
-                modal.addClass("modal-background-closur");
-                setTimeout(()=> {modal.remove()}, 1000);
-            }
-
-            /* 摺疊菜單 */
-            this.fold = async(state) => {
-                state ? api.Storage(localStorage, "Expand", false) : api.Storage(localStorage, "Expand", true);
-                location.reload();
-            }
-
-            /* 創建選單前檢測 */
+            /* 創建選單前檢測 (刪除重創) */
             this.CreateDetection = () => {
                 const detection = $(".modal-background");
                 detection[0] && detection.remove();
+            }
+
+            /* 創建菜單 */
+            this.CreateMenu = async() => {
+                $(document.body).append(this.modal);
+                requestAnimationFrame(()=> {
+                    $(".modal-background").css({
+                        "opacity": "1",
+                        "background-color": "rgba(0,0,0,0.5)",
+                        "transform": "translate(-50%, -50%) scale(1)"
+                    });
+                });
+            }
+
+            /* 刪除菜單 */
+            this.DeleteMenu = async() => {
+                const modal = $(".modal-background");
+                modal.css({
+                    "opacity": "0",
+                    "pointer-events": "none",
+                    "background-color": "rgba(0,0,0,0)",
+                    "transform": "translate(-50%, -50%) scale(0)"
+                });
+                setTimeout(()=> {modal.remove()}, 1300);
             }
 
             /* 通知展示 */
@@ -113,24 +125,6 @@
                 api.Storage(localStorage, "DetectionTime", CurrentTime.getTime());
             }
 
-            const state = api.Storage(localStorage, "Expand") || false,
-            disp = state ? language.RM_C1 : language.RM_C0;
-
-            api.Menu({ // 預設收起菜單
-                [language.RM_00]: ()=> this.SharedLogin(),
-                [disp]: ()=> this.fold(state),
-            });
-
-            if (state) {
-                api.Menu({
-                    [language.RM_01]: ()=> this.GetCookieAutomatically(),
-                    [language.RM_02]: ()=> this.ManualSetting(),
-                    [language.RM_03]: ()=> this.ViewSaveCookie(),
-                    [language.RM_04]: ()=> this.CookieInjection(),
-                    [language.RM_05]: ()=> this.ClearLogin(),
-                });
-            }
-
             /* 登入檢測 */
             async function CookieCheck(cookies) {
                 let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
@@ -145,6 +139,42 @@
                     location.reload();
                 }
             }
+
+            /* 創建選單 */
+            api.Menu({
+                [language.RM_00]: {func: ()=> this.SharedLogin()}
+            });
+            this.MenuSwitch();
+        }
+
+        /* 切換開合選單 */
+        async MenuSwitch() {
+            const state = api.Storage(localStorage, "Expand") || false,
+            disp = state ? language.RM_C1 : language.RM_C0;
+            api.Menu({
+                [disp]: {func: ()=> {
+                    state ? api.Storage(localStorage, "Expand", false) : api.Storage(localStorage, "Expand", true);
+                    this.MenuSwitch();
+                }, hotkey: "c", close: false}
+            }, "Switch");
+            // 開合需要比切換菜單晚創建, 不然會跑版
+            state ? this.Expand() : this.Collapse();
+        }
+
+        /* 刪除延伸選單 */
+        async Collapse() {
+            for (let i=1; i <= 5; i++) {GM_unregisterMenuCommand("Expand-" + i)}
+        }
+
+        /* 創建延伸選單 */
+        async Expand() {
+            api.Menu({
+                [language.RM_01]: {func: ()=> this.GetCookieAutomatically() },
+                [language.RM_02]: {func: ()=> this.ManualSetting() },
+                [language.RM_03]: {func: ()=> this.ViewSaveCookie() },
+                [language.RM_04]: {func: ()=> this.CookieInjection() },
+                [language.RM_05]: {func: ()=> this.ClearLogin() },
+            }, "Expand");
         }
 
         /* 共享號登入 */
@@ -163,7 +193,7 @@
                     </div>
                 </div>
             `
-            $(document.body).append(this.modal);
+            this.CreateMenu();
 
             // 根據數量添加選項
             for (let i = 1; i <= AccountQuantity; i++) {
@@ -212,7 +242,7 @@
                     </div>
                 </div>
             `
-            $(document.body).append(this.modal);
+            this.CreateMenu();
             const self = this;
             self.on(".modal-background", "click", function(click) {
                 click.stopImmediatePropagation();
@@ -249,7 +279,7 @@
                     </div>
                 </div>
             `
-            $(document.body).append(this.modal);
+            this.CreateMenu();
 
             let cookie;
             const textarea = $("<textarea>").attr({
@@ -278,6 +308,7 @@
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.className == "modal-background" || target.id == "close") {
+                    click.preventDefault();
                     cookie && api.store("set", "E/Ex_Cookies", cookie);
                     self.DeleteMenu();
                 }
@@ -297,13 +328,13 @@
                     </div>
                 </div>
             `
-            $(document.body).append(this.modal);
+            this.CreateMenu();
             const cookie = api.store("gjs", "E/Ex_Cookies");
             const textarea = $("<textarea>").attr({
                 rows: 20,
                 cols: 50,
                 id: "view_SC",
-                style: "margin-top: 1.25rem"
+                style: "margin-top: 1.25rem;"
 
             }), self = this;
             textarea.val(JSON.stringify(cookie , null, 4));
@@ -385,27 +416,24 @@
                     white-space: nowrap;
                     transform: translateX(-50%);
                 }
-                .modal-background {                  
-                    top: 0;
-                    left: 0;
-                    opacity: 1;
+                .modal-background {
+                    top: 50%;
+                    left: 50%;
+                    opacity: 0;
                     width: 100%;
                     height: 100%;
                     z-index: 9999;
                     overflow: auto;
                     position: fixed;
-                    transition: opacity 0.4s ease;
-                    background-color: rgba(0,0,0,0.5);
-                }
-                .modal-background-closur {
-                    opacity: 0;
-                    pointer-events: none;
+                    transition: 0.6s ease;
+                    background-color: rgba(0,0,0,0);
+                    transform: translate(-50%, -50%) scale(0.3);
                 }
                 .acc-modal {
                     ${show_style}
                     width: 20%;
                     overflow: auto;
-                    margin: 1rem auto;
+                    margin: 10rem auto;
                     border-radius: 10px;
                 }
                 .acc-flex {
@@ -430,7 +458,7 @@
                     width: 25%;
                     padding: 1.5rem;
                     overflow: auto;
-                    margin: 1rem auto;
+                    margin: 5rem auto;
                     text-align: left;
                     border-radius: 10px;
                     border-collapse: collapse;
@@ -450,7 +478,7 @@
                 }
                 .set-modal {
                     ${show_style}
-                    width: 30rem;
+                    width: 35rem;
                     padding: 0.3rem;
                     overflow: auto;
                     border-radius: 10px;
@@ -478,10 +506,10 @@
                     margin-top: 1.3rem;
                 }
                 label {
-                    font-size: 0.9rem;
                     margin: 0.4rem;
+                    font-size: 0.9rem;
                 }
-            `)
+            `);
         }
     }).Import();
 
