@@ -23,6 +23,7 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-start
+// @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
@@ -35,7 +36,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1345698/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1347864/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -323,10 +324,6 @@
                     GM_download({
                         url: link,
                         name: filename,
-                        onprogress: (progress) => { //! 等待修正
-                            console.log("下載中");
-                            console.log(progress);
-                        },
                         onload: () => {
                             Config.DeBug && func.log("Download Successful", link);
                             show = `[${++progress}/${Total}]`;
@@ -373,7 +370,13 @@
 
     (new class Main {
         constructor() {
-            this.Target = /^(https?:\/\/)?(www\.)?.+\..+\/.+\/user\/.+\/post\/.+$/.test(document.URL);
+            this.URL = document.URL;
+            this.Page = {
+                Content: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/.test(this.URL),
+                Preview: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/.test(this.URL)
+                || /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/.test(this.URL)
+                || /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/.test(this.URL)
+            }
             this.AddStyle = async () => {
                 if (!func.$$("#Download-button-style")) {
                     func.AddStyle(`
@@ -449,19 +452,15 @@
         //! 等待開發可指定開啟
         /* 一鍵開啟當前所有帖子 */
         async OpenAllPages() {
-            try {
-                const card = func.$$("article.post-card a", true);
-                if (card.length == 0) {throw new Error("No links found")}
-                for (const link of card) {
-                    GM_openInTab(link.href, {
-                        active: false,
-                        insert: false,
-                        setParent: false
-                    });
-                    await func.sleep(Config.BatchOpenDelay);
-                }
-            } catch {
-                alert(language.NF_07);
+            const card = func.$$("article.post-card a", true);
+            if (card.length == 0) {throw new Error("No links found")}
+            for (const link of card) {
+                GM_openInTab(link.href, {
+                    active: false,
+                    insert: false,
+                    setParent: false
+                });
+                await func.sleep(Config.BatchOpenDelay);
             }
         }
 
@@ -494,28 +493,34 @@
         async Injection() {
             const observer = new MutationObserver(func.Throttle_discard(() => {
                 try {
-                    (this.Target && !func.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
+                    (this.Page.Content && !func.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
                 } catch {}
             }, 300));
             observer.observe(document, {childList: true, subtree: true});
 
-            func.Menu({
-                [language.RM_01]: ()=> this.DownloadModeSwitch(),
-                [language.RM_02]: ()=> {
-                    /*
-                    const section = func.$$("section");
-                    if (section) {
-                        JsonDict = {};
-                        for (const page of func.$$(".pagination-button-disabled b", true)) {
-                            const number = Number(page.textContent);
-                            if (number) {Pages = number; break;}
-                            else {Pages = 1;}
-                        }
-                        GetPageData(section);
-                    }*/
-                },
-                [language.RM_03]: ()=> this.OpenAllPages()
-            });
+            if (this.Page.Content) {
+                func.Menu({
+                    [language.RM_01]: {func: ()=> this.DownloadModeSwitch(), close: false, hotkey: "c"}
+                });
+
+            } else if (this.Page.Preview) {
+                func.Menu({
+                    [language.RM_02]: {func: ()=> {
+                        /*
+                        const section = func.$$("section");
+                        if (section) {
+                            JsonDict = {};
+                            for (const page of func.$$(".pagination-button-disabled b", true)) {
+                                const number = Number(page.textContent);
+                                if (number) {Pages = number; break;}
+                                else {Pages = 1;}
+                            }
+                            GetPageData(section);
+                        }*/
+                    }},
+                    [language.RM_03]: {func: ()=> this.OpenAllPages()}
+                });
+            }
         }
     }).Injection();
 
@@ -545,9 +550,7 @@
                 "NF_02" : "數據處理中",
                 "NF_03" : "當前處理頁數",
                 "NF_04" : "數據處理完成",
-                "NF_05" : "Json 數據下載",
-                "NF_06" : "錯誤的請求頁面",
-                "NF_07" : "錯誤的開啟頁面"
+                "NF_05" : "Json 數據下載"
             }],
             "zh-CN": [{
                 "RM_01" : "🔁 切换下载模式",
@@ -573,9 +576,7 @@
                 "NF_02" : "数据处理中",
                 "NF_03" : "当前处理页数",
                 "NF_04" : "数据处理完成",
-                "NF_05" : "Json 数据下载",
-                "NF_06" : "错误的请求页面",
-                "NF_07" : "错误的打开页面"
+                "NF_05" : "Json 数据下载"
             }],
             "ja": [{
                 "RM_01" : "🔁 ダウンロードモードの切り替え",
@@ -601,9 +602,7 @@
                 "NF_02" : "データ処理中",
                 "NF_03" : "現在の処理ページ数",
                 "NF_04" : "データ処理が完了しました",
-                "NF_05" : "Jsonデータのダウンロード",
-                "NF_06" : "間違ったリクエストページ",
-                "NF_07" : "間違ったページを開く"
+                "NF_05" : "Jsonデータのダウンロード"
             }],
             "en-US": [{
                 "RM_01" : "🔁 Switch download mode",
@@ -629,9 +628,7 @@
                 "NF_02" : "Data processing",
                 "NF_03" : "Current processing page number",
                 "NF_04" : "Data processing completed",
-                "NF_05" : "Json data download",
-                "NF_06" : "Wrong request page",
-                "NF_07" : "Wrong page to open"
+                "NF_05" : "Json data download"
             }]
         };
         return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
