@@ -66,8 +66,8 @@
     const Config = {
         DeBug: true,                    // 顯示請求資訊, 與錯誤資訊
         NotiFication: true,             // 操作時 系統通知
-        ContainsVideo: true,            // 下載時包含影片
-        CompleteClose: false,           // 完成後關閉 [需要用另一個腳本的 "自動開新分頁" 或是此腳本的一鍵開啟, 要使用js開啟的分頁才能被關閉, 純js腳本被限制很多] {https://ppt.cc/fpQHSx}
+        ContainsVideo: false,           // 下載時包含影片
+        CompleteClose: false,           // 下載完成後關閉
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
         BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
@@ -184,14 +184,17 @@
                 Self = this,
                 Zip = new JSZip(),
                 Fill = func.GetFill(Total),
-                TitleCache = this.OriginalTitle(),
-                Enforce = GM_registerMenuCommand(language.RM_04, ()=> ForceDownload());
+                TitleCache = this.OriginalTitle();
 
             // 強制下載
             async function ForceDownload() {
                 Self.worker.terminate();
-                Self.Compression(Folder, Zip, TitleCache, Enforce);
+                Self.Compression(Folder, Zip, TitleCache);
             }
+
+            func.Menu({
+                [language.RM_04]: {func: ()=> ForceDownload(), hotkey: "d"}
+            }, "Enforce");
 
             // 更新請求狀態
             function Request_update(index, url, blob, retry=false) {
@@ -215,7 +218,7 @@
                         Total = Data.size;
                         if (Total == 0) {
                             Self.worker.terminate();
-                            Self.Compression(Folder, Zip, TitleCache, Enforce);
+                            Self.Compression(Folder, Zip, TitleCache);
                         } else {
                             show = "Wait for failed re download";
                             document.title = show;
@@ -272,9 +275,9 @@
         }
 
         /* 壓縮檔案 */
-        async Compression(Folder, Data, Title, Menu) {
+        async Compression(Folder, Data, Title) {
             this.ForceDownload = true;
-            GM_unregisterMenuCommand(Menu);
+            GM_unregisterMenuCommand("Enforce-1");
             Data.generateAsync({
                 type: "blob",
                 compression: "DEFLATE",
@@ -306,22 +309,35 @@
                 link,
                 filename,
                 extension,
+                stop = false,
                 progress = 0;
             const
                 Self = this,
+                Process = [],
                 Promises = [],
                 Total = Data.size,
                 Fill = func.GetFill(Total),
                 TitleCache = this.OriginalTitle();
 
+            // 停止下載的線程
+            async function Stop() {
+                stop = true;
+                Process.forEach(process => process.abort())
+            }
+
+            func.Menu({
+                ["⛔️ 終止下載"]: {func: ()=> Stop(), hotkey: "s"}
+            }, "Abort");
+
             async function Request(index) {
+                if (stop) {return}
                 link = Data.get(index);
                 extension = func.ExtensionName(link);
                 filename = Self.isVideo(extension)
                 ? decodeURIComponent(link.split("?f=")[1])
                 : `${File}_${func.Mantissa(index, Fill)}.${extension}`;
                 return new Promise((resolve, reject) => {
-                    GM_download({
+                    const download = GM_download({
                         url: link,
                         name: filename,
                         onload: () => {
@@ -339,6 +355,7 @@
                             }, 1500);
                         }
                     });
+                    Process.push(download);
                 });
             }
 
@@ -346,7 +363,10 @@
                 Promises.push(Request(i));
                 await func.sleep(Config.ExperimentalDownloadDelay);
             }
+
             await Promise.allSettled(Promises);
+            GM_unregisterMenuCommand("Abort-1");
+
             document.title = `✓ ${TitleCache}`;
             this.Button.textContent = language.DS_08;
             setTimeout(() => {
@@ -365,6 +385,208 @@
     }
 
     class DataToJson {
+        constructor() {
+            this.JsonDict = {};
+            this.Genmode = true;
+            this.TitleCache = document.title;
+            this.Section = func.$$("section");
+            this.Pages = this.progress =  this.filtercache = null;
+            this.JsonMode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}
+
+            /**
+             * 傳入數據生成列表物件
+             * 
+             * @param {string} ol - 原始連結
+             * @param {string} pn - 圖片數量
+             * @param {string} vn - 影片數量
+             * @param {string} lb - 下載連結
+             */
+            this.GenerateBox = (ol, pn, vn, lb) => {
+                if (this.Genmode) {
+                    return {
+                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [language.CD_01]: ol } : {}),
+                        ...(this.JsonMode.hasOwnProperty("imgnb") ? { [language.CD_02]: pn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("videonb") ? { [language.CD_03]: vn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("dllink") ? { [language.CD_04]: lb || {} } : {}),
+                    }
+                } else {
+                    return {
+                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [language.CD_01]: ol } : {}),
+                        ...(this.JsonMode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [language.CD_02]: pn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("videonb") && vn > 0 && pn <= 10 ? { [language.CD_03]: vn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("dllink") && Object.keys(lb).length > 0 ? { [language.CD_04]: lb } : {}),
+                    }
+                }
+            }
+
+            /* 獲取當前時間 (西元年-月-日 時:分:秒) */
+            this.GetTime = () => {
+                const date = new Date(),
+                year = date.getFullYear(),
+                month = String(date.getMonth() + 1).padStart(2, "0"),
+                day = String(date.getDate()).padStart(2, "0"),
+                hour = String(date.getHours()).padStart(2, "0"),
+                minute = String(date.getMinutes()).padStart(2, "0"),
+                second = String(date.getSeconds()).padStart(2, "0");
+                return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
+            }
+
+            /* Mega 連結解析 (測試中 有些Bug) */
+            this.MegaAnalysis = (data) => {
+                let title_box = [], link_box = [], result = {}, pass;
+                for (let i=0; i<data.length; i++) {
+                    const str = data[i].textContent.trim();
+                    if (str.startsWith("Pass")) { // 解析密碼字串
+                        const ps = data[i].innerHTML.match(/Pass:([^<]*)/);
+                        try {pass = `Pass : ${ps[1].trim()}`} catch {pass = str}
+                    } else if (str.toUpperCase() == "MEGA") {
+                        link_box.push(data[i].parentElement.href);
+                    } else {
+                        title_box.push(str.replace(":", "").trim());
+                    }
+                }
+                // 合併數據
+                for (let i=0; i<title_box.length; i++) {
+                    result[title_box[i]] = link_box[i]
+                }
+                return { pass, result };
+            }
+
+            /* 輸出Json */
+            this.ToJson = async () => {
+                Object.keys(this.JsonDict).sort(); // 進行簡單排序
+                const author = func.$$("span[itemprop='name']").textContent;
+                const json = document.createElement("a");
+                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.JsonDict, null, 4));
+                json.download = `${author}.json`;
+                json.click();
+                json.remove();
+                if (Config.NotiFication) {
+                    GM_notification({
+                        title: language.NF_04,
+                        text: language.NF_05,
+                        image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                        timeout: 2000
+                    });
+                }
+                document.title = this.TitleCache;
+            }
+        }
+
+        /* 初始化獲取數據 */
+        async GetData() {
+            if (this.Section) {
+                for (const page of func.$$(".pagination-button-disabled b", true)) {
+                    const number = Number(page.textContent);
+                    if (number) {this.Pages = number; break;}
+                    else {this.Pages = 1;}
+                }
+                this.JsonDict["獲取時間"] = this.GetTime();
+                this.GetPageData(this.Section);
+            } else {
+                console.log("未取得數據");
+            }
+        }
+
+        /* 獲取主頁元素 */
+        async GetPageData(section) {
+            let title, link, promises = [];
+            const
+            item = func.$$(".card-list__items article", true, section),
+            menu = func.$$("a.pagination-button-after-current", false, section);
+
+            this.progress = 0;
+            if (Config.NotiFication) {
+                GM_notification({
+                    title: language.NF_02,
+                    text: `${language.NF_03} : ${this.Pages}`,
+                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                    timeout: 800
+                });
+            }
+
+            // 遍歷數據
+            for (const card of item) {
+                title = func.$$(".post-card__header", false, card).textContent.trim() || `Untitled_${String(this.progress+1).padStart(2, "0")}`;
+                link = func.$$("a", false, card).href;
+
+                if (Config.ExperimentalDownload) { // 呼叫數據解析
+                    promises.push(this.DataAnalysis(title, link));
+                    await func.sleep(Config.ExperimentalDownloadDelay);
+                } else {
+                    this.JsonDict[`${link}`] = title;
+                }
+            }
+            // 等待所有請求完成
+            await Promise.allSettled(promises);
+            this.Pages++;
+            menu ? this.GetNextPage(menu.href) : this.ToJson();
+        }
+
+        /* 獲取下一頁數據 */
+        async GetNextPage(NextPage) {
+            GM_xmlhttpRequest({
+                method: "GET",
+                url: NextPage,
+                nocache: false,
+                ontimeout: 8000,
+                onload: response => {
+                    const DOM = func.DomParse(response.responseText);
+                    this.GetPageData(func.$$("section", false, DOM));
+                }
+            })
+        }
+
+        /**
+         * Json 數據分類
+         * 
+         * @param {string} title - 帖子名稱 標題
+         * @param {string} url - 連結索引
+         */
+        async DataAnalysis(title, url) {
+            const link_box = {};
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    url: url,
+                    nocache: true,
+                    onload: response => {
+                        const DOM = func.DomParse(response.responseText);
+
+                        const original_link = url;
+                        const pictures_number = func.$$("div.post__thumbnail", true, DOM).length;
+                        const video_number = func.$$('ul[style*="text-align: center;list-style-type: none;"] li', true, DOM).length;
+                        const mega_link = func.$$("div.post__content strong", true, DOM);
+
+                        func.$$("a.post__attachment-link", true, DOM).forEach(link => {
+                            const analyze = decodeURIComponent(link.href).split("?f=");
+                            const download_link = analyze[0];
+                            const download_name = analyze[1];
+                            link_box[download_name] = download_link;
+                        })
+
+                        if (mega_link.length > 0) {
+                            try {
+                                const {pass, result} = this.MegaAnalysis(mega_link);
+                                pass != undefined ? link_box[pass] = result : null;
+                            } catch {}
+                        }
+
+                        const Box = this.GenerateBox(original_link, pictures_number, video_number, link_box);
+                        if (Object.keys(Box).length !== 0) {
+                            this.JsonDict[title] = Box;
+                        }
+
+                        if (Config.DeBug) {console.log(this.JsonDict)}
+                        document.title = `（${this.Pages} - ${++this.progress}）`;
+                        resolve();
+                    },
+                    onerror: error => {
+                        reject(error);
+                    }
+                })
+            });
+        }
 
     }
 
@@ -505,20 +727,8 @@
 
             } else if (this.Page.Preview) {
                 func.Menu({
-                    [language.RM_02]: {func: ()=> {
-                        /*
-                        const section = func.$$("section");
-                        if (section) {
-                            JsonDict = {};
-                            for (const page of func.$$(".pagination-button-disabled b", true)) {
-                                const number = Number(page.textContent);
-                                if (number) {Pages = number; break;}
-                                else {Pages = 1;}
-                            }
-                            GetPageData(section);
-                        }*/
-                    }},
-                    [language.RM_03]: {func: ()=> this.OpenAllPages()}
+                    [language.RM_02]: {func: ()=> (new DataToJson()).GetData() },
+                    [language.RM_03]: {func: ()=> this.OpenAllPages() }
                 });
             }
         }
