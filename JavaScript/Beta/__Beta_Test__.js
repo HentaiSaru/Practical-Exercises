@@ -419,6 +419,48 @@
                 }
             }
 
+            /**
+             * 設置分類輸出 Json時的格式
+             *
+             * @param {Array} set    - 要進行的設置 [預設: []]
+             * @param {string} mode  - 設定的模式 [預設: "FilterMode"]
+             *
+             * @example
+             * 基本設置: ToJsonSet(["orlink", "imgnb", "videonb", "dllink"]) 可選項目
+             * mode = "FilterMode", 根據傳入的值, 將 {原始連結, 圖片數, 影片數, 下載連結} (過濾掉/刪除該項目)
+             * mode = "OnlyMode", 根據傳入的值, 例如 {set = ["imgnb"]}, 那就只會顯示有圖片的
+             * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘10張的被排除}
+             */
+            this.ToJsonSet = async (set = [], mode = "FilterMode") => {
+                try {
+                    switch (mode) {
+                        case "FilterMode":
+                            this.Genmode = true;
+                            set.forEach(key => {delete this.JsonMode[key]});
+                            break;
+                        case "OnlyMode":
+                            this.Genmode = false;
+                            this.filtercache = Object.keys(this.JsonMode).reduce((obj, key) => {
+                                if (set.includes(key)) {obj[key] = this.JsonMode[key]}
+                                return obj;
+                            }, {});
+                            this.JsonMode = this.filtercache;
+                            break;
+                    }
+                } catch (error) {console.error(error)}
+            }
+
+            /** ---------------------/
+             * 設置實驗 json 分類輸出格式
+             * 原始連結: "orlink"
+             * 圖片數量: "imgnb"
+             * 影片數量: "videonb"
+             * 連結數量: "dllink"
+             * 排除模式: "FilterMode"
+             * 唯一模式: "OnlyMode"
+             */
+            // this.ToJsonSet(["orlink", "dllink"], "OnlyMode");
+
             /* 獲取當前時間 (西元年-月-日 時:分:秒) */
             this.GetTime = () => {
                 const date = new Date(),
@@ -599,6 +641,7 @@
                 || /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/.test(this.URL)
                 || /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/.test(this.URL)
             }
+
             this.AddStyle = async () => {
                 if (!func.$$("#Download-button-style")) {
                     func.AddStyle(`
@@ -632,13 +675,55 @@
                     `, "Download-button-style");
                 }
             };
+
+            /**
+             * 解析範圍進行設置 (索引從 1 開始)
+             * 
+             * @param {string} scope - 設置的索引範圍 [1, 2, 3-5, 6~10, -4, !8]
+             * @param {object} obj   - 需要設置範圍的物件
+             * @returns {object} - 回傳設置完成的物件
+             * 
+             * @example
+             * object = ScopeParsing("", object);
+             */
+            this.ScopeParsing = (scope, obj) => {
+                const // 使用 set 避免重複索引
+                    result = new Set(),
+                    exclude = new Set(),
+                    len = obj.length;
+                for (const str of scope.split(/\s*,\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
+                    // 取索引值 -1 是為了得到真正的索引值
+                    if (str == "0") { // 不得有 0 索引
+                        continue;
+                    } else if (/^\d+$/.test(str)) { // 單數字
+                        result.add(Number(str)-1);
+                    } else if (/^\d+(?:~\d+|-\d+)$/.test(str)) {
+                        const
+                            range = str.split(/-|~/), // 數字 + (- | ~) + 數字, 並拆分出 前後數字
+                            start = Number(range[0]-1),
+                            end = Number(range[1]-1),
+                            judge = start <= end;
+                        for ( // 根據範圍生成索引值, 判斷大小是避免有機掰人寫反的
+                            let i = start;
+                            judge ? i <= end : i >= end;
+                            judge ? i++ : i--
+                        ) {result.add(i)}
+                    } else if (/(!|-)+\d+/.test(str)) { // 單數字前面是 - 或 ! 代表排除 (與上方判斷順序不能改)
+                        exclude.add(Number(str.slice(1)-1));
+                    }
+                }
+                // 使用排除過濾出剩下的索引, 並按照順序進行排序
+                const final_obj = [...result].filter(index => !exclude.has(index) && index < len).sort((a, b) => a - b);
+                // 回傳最終的索引物件
+                return final_obj.map(index => obj[index]);
+            }
         }
 
         /* 按鈕創建 */
         async ButtonCreation() {
             func.$$("section").setAttribute("Download-Button-Created", true);
             this.AddStyle();
-            let Button, Files, Load;
+            let Button, Files;
             const IntervalFind = setInterval(()=> {
                 Files = func.$$("div.post__body h2", true);
                 if (Files.length > 0) {
@@ -660,8 +745,9 @@
                         Button.disabled = lock;
                         Button.textContent = lock ? "下載中鎖定" : ModeDisplay;
                         func.Listen(Button, "click", ()=> {
-                            Load = new Download(CompressMode, ModeDisplay, Button);
-                            Load.DownloadTrigger();
+                            let Instantiate = null;
+                            Instantiate = new Download(CompressMode, ModeDisplay, Button);
+                            Instantiate.DownloadTrigger();
                         }, {capture: true, passive: true});
                     } catch {
                         Button.disabled = true;
@@ -671,18 +757,28 @@
             });
         }
 
-        //! 等待開發可指定開啟
         /* 一鍵開啟當前所有帖子 */
         async OpenAllPages() {
             const card = func.$$("article.post-card a", true);
             if (card.length == 0) {throw new Error("No links found")}
-            for (const link of card) {
-                GM_openInTab(link.href, {
-                    active: false,
-                    insert: false,
-                    setParent: false
-                });
-                await func.sleep(Config.BatchOpenDelay);
+
+            let scope = prompt(`(當前總數: ${card.length})
+            \n 輸入開啟範圍 =>
+            \n !! 不輸入直接確認, 將會開啟當前頁面所有帖子
+            \n 單個: 1, 2, 3
+            \n 範圍: 1~5, 6-10
+            \n 排除: !5, -10
+            `.replace(/^\s*(.*?)\s*$([\s\S]*)/, '$1$2'));
+
+            if (scope != null) {
+                scope = scope == "" ? "1-50" : scope;
+                for (const link of this.ScopeParsing(scope, card)) {
+                    GM_openInTab(link.href, {
+                        insert: false,
+                        setParent: false
+                    });
+                    await func.sleep(Config.BatchOpenDelay);
+                }
             }
         }
 
@@ -727,7 +823,11 @@
 
             } else if (this.Page.Preview) {
                 func.Menu({
-                    [language.RM_02]: {func: ()=> (new DataToJson()).GetData() },
+                    [language.RM_02]: {func: ()=> {
+                        let Instantiate = null;
+                        Instantiate = new DataToJson();
+                        Instantiate.GetData();
+                    }},
                     [language.RM_03]: {func: ()=> this.OpenAllPages() }
                 });
             }
