@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         GrammarSimplified
-// @version      2024/03/23
+// @version      2024/03/28
 // @author       HentaiSaru
 // @description  Simple syntax simplification function
 // @namespace    https://greasyfork.org/users/989635
@@ -357,6 +357,48 @@ class API {
                 lastTime = now;
             }
         };
+    }
+
+    /**
+     * 解析範圍進行設置 (索引從 1 開始)
+     * 
+     * @param {string} scope - 設置的索引範圍 [1, 2, 3-5, 6~10, -4, !8]
+     * @param {object} obj   - 需要設置範圍的物件
+     * @returns {object} - 回傳設置完成的物件
+     * 
+     * @example
+     * object = ScopeParsing("", object);
+     */
+    ScopeParsing(scope, obj) {
+        const // 使用 set 避免重複索引
+            result = new Set(),
+            exclude = new Set(),
+            len = obj.length;
+        for (const str of scope.split(/\s*,\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
+            // 取索引值 -1 是為了得到真正的索引值
+            if (str == "0") { // 不得有 0 索引
+                continue;
+            } else if (/^\d+$/.test(str)) { // 單數字
+                result.add(Number(str)-1);
+            } else if (/^\d+(?:~\d+|-\d+)$/.test(str)) {
+                const
+                    range = str.split(/-|~/), // 數字 + (- | ~) + 數字, 並拆分出 前後數字
+                    start = Number(range[0]-1),
+                    end = Number(range[1]-1),
+                    judge = start <= end;
+                for ( // 根據範圍生成索引值, 判斷大小是避免有機掰人寫反的
+                    let i = start;
+                    judge ? i <= end : i >= end;
+                    judge ? i++ : i--
+                ) {result.add(i)}
+            } else if (/(!|-)+\d+/.test(str)) { // 單數字前面是 - 或 ! 代表排除 (與上方判斷順序不能改)
+                exclude.add(Number(str.slice(1)-1));
+            }
+        }
+        // 使用排除過濾出剩下的索引, 並按照順序進行排序
+        const final_obj = [...result].filter(index => !exclude.has(index) && index < len).sort((a, b) => a - b);
+        // 回傳最終的索引物件
+        return final_obj.map(index => obj[index]);
     }
 
     /**
