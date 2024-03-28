@@ -54,10 +54,9 @@
 * 進階 Json 輸出格式設置
 * 
 * 添加功能:
-* 影片與圖片一同下載
 * 下載時檔名格式選擇
 * 壓縮下載時選擇是否需多一個資料夾
-* 上傳導出的 Json 一鍵下載所有內容(圖片/影片|雲端應該無法)
+* 上傳導出的 Json 一鍵下載所有內容 (圖片/影片|雲端應該無法)
 */
 
 (function() {
@@ -71,6 +70,27 @@
         ExperimentalDownload: true,     // 實驗功能 [json 下載]
         BatchOpenDelay: 500,            // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
+    }
+
+    /** ---------------------/
+     * 設置 json 輸出格式
+     * 
+     * Mode
+     * 排除模式: "FilterMode" -> 預設為全部使用, 設置排除的項目
+     * 僅有模式: "OnlyMode" -> 預設為全部不使用, 設置使用的項目
+     * 
+     * ----------------------
+     * 
+     * Settings
+     * 原始連結: "orlink"
+     * 圖片數量: "imgnb"
+     * 影片數量: "videonb"
+     * 連結數量: "dllink"
+     */
+    const JsonFormat = {
+        Use: false,
+        Mode: "OnlyMode",
+        Settings: ["orlink", "dllink"],
     }
 
     let lock = false;
@@ -388,9 +408,11 @@
         constructor() {
             this.JsonDict = {};
             this.Genmode = true;
+            this.Source = document.URL;
             this.TitleCache = document.title;
             this.Section = func.$$("section");
             this.Pages = this.progress =  this.filtercache = null;
+            this.Author = func.$$("span[itemprop='name']").textContent;
             this.JsonMode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}
 
             /**
@@ -422,8 +444,8 @@
             /**
              * 設置分類輸出 Json時的格式
              *
-             * @param {Array} set    - 要進行的設置 [預設: []]
              * @param {string} mode  - 設定的模式 [預設: "FilterMode"]
+             * @param {Array} set    - 要進行的設置 [預設: []]
              *
              * @example
              * 基本設置: ToJsonSet(["orlink", "imgnb", "videonb", "dllink"]) 可選項目
@@ -431,7 +453,7 @@
              * mode = "OnlyMode", 根據傳入的值, 例如 {set = ["imgnb"]}, 那就只會顯示有圖片的
              * "OnlyMode" 的 "imgnb", "videonb" 會有額外特別處理, {imgnb: 排除有影片的, videonb: 圖片多餘10張的被排除}
              */
-            this.ToJsonSet = async (set = [], mode = "FilterMode") => {
+            this.ToJsonSet = async (mode = "FilterMode", set = []) => {
                 try {
                     switch (mode) {
                         case "FilterMode":
@@ -449,17 +471,6 @@
                     }
                 } catch (error) {console.error(error)}
             }
-
-            /** ---------------------/
-             * 設置實驗 json 分類輸出格式
-             * 原始連結: "orlink"
-             * 圖片數量: "imgnb"
-             * 影片數量: "videonb"
-             * 連結數量: "dllink"
-             * 排除模式: "FilterMode"
-             * 唯一模式: "OnlyMode"
-             */
-            // this.ToJsonSet(["orlink", "dllink"], "OnlyMode");
 
             /* 獲取當前時間 (西元年-月-日 時:分:秒) */
             this.GetTime = () => {
@@ -497,10 +508,9 @@
             /* 輸出Json */
             this.ToJson = async () => {
                 Object.keys(this.JsonDict).sort(); // 進行簡單排序
-                const author = func.$$("span[itemprop='name']").textContent;
                 const json = document.createElement("a");
                 json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.JsonDict, null, 4));
-                json.download = `${author}.json`;
+                json.download = `${this.Author}.json`;
                 json.click();
                 json.remove();
                 if (Config.NotiFication) {
@@ -511,19 +521,28 @@
                         timeout: 2000
                     });
                 }
+                lock = false;
                 document.title = this.TitleCache;
             }
         }
 
+        //! 文本適應
         /* 初始化獲取數據 */
         async GetData() {
             if (this.Section) {
+                lock = true;
+                this.JsonDict["Meta-Data"] = {
+                    "作者": this.Author,
+                    "取得時間": this.GetTime(),
+                    "來源連結": this.Source
+                }
+
                 for (const page of func.$$(".pagination-button-disabled b", true)) {
                     const number = Number(page.textContent);
                     if (number) {this.Pages = number; break;}
                     else {this.Pages = 1;}
                 }
-                this.JsonDict["獲取時間"] = this.GetTime();
+
                 this.GetPageData(this.Section);
             } else {
                 console.log("未取得數據");
@@ -674,51 +693,10 @@
                         }
                     `, "Download-button-style");
                 }
-            };
-
-            /**
-             * 解析範圍進行設置 (索引從 1 開始)
-             * 
-             * @param {string} scope - 設置的索引範圍 [1, 2, 3-5, 6~10, -4, !8]
-             * @param {object} obj   - 需要設置範圍的物件
-             * @returns {object} - 回傳設置完成的物件
-             * 
-             * @example
-             * object = ScopeParsing("", object);
-             */
-            this.ScopeParsing = (scope, obj) => {
-                const // 使用 set 避免重複索引
-                    result = new Set(),
-                    exclude = new Set(),
-                    len = obj.length;
-                for (const str of scope.split(/\s*,\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
-                    // 取索引值 -1 是為了得到真正的索引值
-                    if (str == "0") { // 不得有 0 索引
-                        continue;
-                    } else if (/^\d+$/.test(str)) { // 單數字
-                        result.add(Number(str)-1);
-                    } else if (/^\d+(?:~\d+|-\d+)$/.test(str)) {
-                        const
-                            range = str.split(/-|~/), // 數字 + (- | ~) + 數字, 並拆分出 前後數字
-                            start = Number(range[0]-1),
-                            end = Number(range[1]-1),
-                            judge = start <= end;
-                        for ( // 根據範圍生成索引值, 判斷大小是避免有機掰人寫反的
-                            let i = start;
-                            judge ? i <= end : i >= end;
-                            judge ? i++ : i--
-                        ) {result.add(i)}
-                    } else if (/(!|-)+\d+/.test(str)) { // 單數字前面是 - 或 ! 代表排除 (與上方判斷順序不能改)
-                        exclude.add(Number(str.slice(1)-1));
-                    }
-                }
-                // 使用排除過濾出剩下的索引, 並按照順序進行排序
-                const final_obj = [...result].filter(index => !exclude.has(index) && index < len).sort((a, b) => a - b);
-                // 回傳最終的索引物件
-                return final_obj.map(index => obj[index]);
             }
         }
 
+        //! 文本適應
         /* 按鈕創建 */
         async ButtonCreation() {
             func.$$("section").setAttribute("Download-Button-Created", true);
@@ -757,6 +735,7 @@
             });
         }
 
+        //! 文本適應
         /* 一鍵開啟當前所有帖子 */
         async OpenAllPages() {
             const card = func.$$("article.post-card a", true);
@@ -768,11 +747,11 @@
             \n 單個: 1, 2, 3
             \n 範圍: 1~5, 6-10
             \n 排除: !5, -10
-            `.replace(/^\s*(.*?)\s*$([\s\S]*)/, '$1$2'));
+            `.replace(/^\s*(.*?)\s*$([\s\S]*)/, "$1$2"));
 
             if (scope != null) {
                 scope = scope == "" ? "1-50" : scope;
-                for (const link of this.ScopeParsing(scope, card)) {
+                for (const link of func.ScopeParsing(scope, card)) {
                     GM_openInTab(link.href, {
                         insert: false,
                         setParent: false
@@ -824,9 +803,12 @@
             } else if (this.Page.Preview) {
                 func.Menu({
                     [language.RM_02]: {func: ()=> {
-                        let Instantiate = null;
-                        Instantiate = new DataToJson();
-                        Instantiate.GetData();
+                        if (!lock) {
+                            let Instantiate = null;
+                            Instantiate = new DataToJson();
+                            JsonFormat.Use && Instantiate.ToJsonSet(JsonFormat.Mode, JsonFormat.Settings);
+                            Instantiate.GetData();
+                        }
                     }},
                     [language.RM_03]: {func: ()=> this.OpenAllPages() }
                 });
