@@ -5,7 +5,7 @@
 // @name:en      Pornhub Mouse Hide
 // @name:ja      Pornhub マウス非表示
 // @name:ko      Pornhub 마우스 숨기기
-// @version      0.0.4
+// @version      0.0.5
 // @author       HentaiSaru
 
 // @description         電腦端滑鼠於影片區塊上停留一段時間，會隱藏滑鼠遊標和進度條，滑鼠再次移動時將重新顯示，手機端在影片區塊向右滑，會觸發影片加速，滑越多加越多最高16倍，放開後恢復正常速度。
@@ -105,7 +105,10 @@
                 }
             });
             observer.observe(document, { childList: true, subtree: true });
-            timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
+            timer = setTimeout(() => {
+                observer.disconnect();
+                console.log("\x1b[1m\x1b[31m%s\x1b[0m", "Injection Failed");
+            }, (1000 * timeout));
         }
 
         async AddStyle(Rule, ID="New-Style") {
@@ -118,7 +121,7 @@
         async Injection() {
             let self = this, device = self.Device.Type(), MouseHide;
             /* 找到 影片區塊, 影片, 和進度條 */
-            self.WaitMap([self.FindObjects, "video.mgp_videoElement", ".mgp_progressHandle"], 30, call=> {
+            self.WaitMap([self.FindObjects, "video.mgp_videoElement", "div[class*='mgp_progress']"], 10, call=> {
                 const [target, video, bar] = call;
                 if (device == "Desktop") { /* 電腦端 */
                     console.log("\x1b[1m\x1b[32m%s\x1b[0m", "Hidden Injection Successful");
