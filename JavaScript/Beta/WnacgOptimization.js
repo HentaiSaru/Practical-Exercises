@@ -16,6 +16,12 @@
 // @match           *://*.wnacg01.ru/photos-view-id-*.html
 // @match           *://*.wnacg02.ru/photos-view-id-*.html
 // @match           *://*.wnacg03.ru/photos-view-id-*.html
+
+// @match           *://*.wnacg.com/photos-slist-aid-*.html
+// @match           *://*.wnacg01.ru/photos-slist-aid-*.html
+// @match           *://*.wnacg02.ru/photos-slist-aid-*.html
+// @match           *://*.wnacg03.ru/photos-slist-aid-*.html
+
 // @icon            https://www.wnacg.com/favicon.ico
 
 // @license         MIT
