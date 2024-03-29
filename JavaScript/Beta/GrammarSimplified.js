@@ -376,9 +376,7 @@ class API {
             len = obj.length;
         for (const str of scope.split(/\s*,\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
             // 取索引值 -1 是為了得到真正的索引值
-            if (str == "0") { // 不得有 0 索引
-                continue;
-            } else if (/^\d+$/.test(str)) { // 單數字
+            if (/^\d+$/.test(str)) { // 單數字
                 result.add(Number(str)-1);
             } else if (/^\d+(?:~\d+|-\d+)$/.test(str)) {
                 const
@@ -395,8 +393,9 @@ class API {
                 exclude.add(Number(str.slice(1)-1));
             }
         }
+    
         // 使用排除過濾出剩下的索引, 並按照順序進行排序
-        const final_obj = [...result].filter(index => !exclude.has(index) && index < len).sort((a, b) => a - b);
+        const final_obj = [...result].filter(index => !exclude.has(index) && index < len && index >= 0).sort((a, b) => a - b);
         // 回傳最終的索引物件
         return final_obj.map(index => obj[index]);
     }
