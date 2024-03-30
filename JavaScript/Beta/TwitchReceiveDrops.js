@@ -45,18 +45,6 @@
     /* 檢測邏輯 */
     class Detection {
         constructor() {
-            /* 解析進度(找到 < 100 的最大值) */
-            this.ProgressParse = progress => {
-                return progress.sort((a, b) => b - a).find(number => number < 1e2);
-            }
-
-            /* 展示進度於標題 */
-            this.ShowTitle = async display => {
-                this.config.ProgressDisplay = !1;
-                const TitleDisplay = setInterval(()=>{document.title = display}, 5e2);
-                setTimeout(()=> {clearInterval(TitleDisplay)}, 1e4);
-            }
-
             /* 對 DOM 查找進行節流 */
             this.Throttle_discard = (func, delay) => {
                 let lastTime = 0;
@@ -102,6 +90,19 @@
                 }
             }
 
+            /* 解析進度(找到 < 100 的最大值) */
+            this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 1e2);
+
+            /* 展示進度於標題 */
+            this.ShowTitle = async display => {
+                this.config.ProgressDisplay = !1;
+                (new MutationObserver(this.Throttle_discard(()=> {
+                    document.title != display && (document.title = display);
+                }, 100))).observe(document.head, {childList: !0, subtree: !0});
+                // 不加也行, 但避免沒轉變的意外
+                document.title = display;
+            }
+
             /* 設置數據 */
             this.config = Object.assign(Config, {
                 EndLine: "div.gtpIYu", // 斷開觀察者的終止線
@@ -143,6 +144,7 @@
                     }
                 }
 
+                // 領取按鈕
                 document.querySelectorAll(self.DropsButton).forEach(draw => {draw.click()});
 
                 if (document.querySelector(self.EndLine)) {
@@ -161,6 +163,7 @@
                         dynamic.storage("NoProgressCount", count+1);
                     }
                 }
+
             }, 1e3 * self.DetectionInterval));
 
             /* 延遲注入 */
@@ -305,8 +308,10 @@
         Target.head.appendChild(script);
     }
 
-    /* 主運行調用 */
+    // 等待重載
+    setTimeout(()=> {window.open(location.href, "_self")}, 1e3 * Config.UpdateInterval);
+
+    // 主運行調用
     const Restart = new RestartLive();
     Detection.Ran();
-    setTimeout(()=> {window.open(location.href, "_self")}, 1e3 * Config.UpdateInterval);
 })();
