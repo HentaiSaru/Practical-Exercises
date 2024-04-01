@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.26
+// @version      0.0.27
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -35,4 +35,610 @@
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
-!function(){const g=new API,h=location.hostname,d=(l=navigator.language,((m={"zh-TW":[{RM_00:"\ud83c\udf6a \u5171\u4eab\u767b\u5165",RM_C0:"\ud83d\udcc2 \u5c55\u958b\u83dc\u55ae",RM_C1:"\ud83d\udcc1 \u647a\u758a\u83dc\u55ae",RM_01:"\ud83d\udcdc \u81ea\u52d5\u7372\u53d6",RM_02:"\ud83d\udcdd \u624b\u52d5\u8f38\u5165",RM_03:"\ud83d\udd0d \u67e5\u770b\u4fdd\u5b58",RM_04:"\ud83d\udd03 \u624b\u52d5\u6ce8\u5165",RM_05:"\ud83d\uddd1\ufe0f \u6e05\u9664\u767b\u5165",SM_01:"\u78ba\u8a8d\u9078\u64c7\u7684 Cookies",SM_02:"\u78ba\u8a8d\u4fdd\u5b58",SM_03:"\u53d6\u6d88\u9000\u51fa",SM_04:"\u9000\u51fa\u9078\u55ae",SM_05:"\u4fdd\u5b58\u6210\u529f!",SM_06:"\u66f4\u6539\u4fdd\u5b58",SM_07:"\u8b8a\u66f4\u901a\u77e5",SM_08:"\u5df2\u4fdd\u5b58\u8b8a\u66f4",SM_09:"\u8a2d\u7f6e Cookies",SM_10:"\u8981\u767b\u5165 Ex \u624d\u9700\u8981\u586b\u5beb",SM_11:"\u5fc5\u586b\u9805\u76ee",SM_12:"\u4e0b\u65b9\u9078\u586b \u4e5f\u53ef\u4e0d\u4fee\u6539",SM_13:"[\u78ba\u8a8d\u8f38\u5165\u6b63\u78ba]\u6309\u4e0b\u9000\u51fa\u9078\u55ae\u4fdd\u5b58",SM_14:"\u7576\u524d\u8a2d\u7f6e Cookies",SM_15:"\u672a\u7372\u53d6\u5230 Cookies !!\n\n\u8acb\u5148\u767b\u5165\u5e33\u6236",SM_16:"\u672a\u6aa2\u6e2c\u5230\u53ef\u6ce8\u5165\u7684 Cookies !!\n\n\u8acb\u5f9e\u9078\u55ae\u4e2d\u9032\u884c\u8a2d\u7f6e",SM_17:"\u5e33\u6236\u9078\u64c7",SM_18:"\u767b\u5165",SM_19:"\u5e33\u865f"}],"zh-CN":[{RM_00:"\ud83c\udf6a \u5171\u4eab\u767b\u5f55",RM_C0:"\ud83d\udcc2 \u5c55\u5f00\u83dc\u5355",RM_C1:"\ud83d\udcc1 \u6298\u53e0\u83dc\u5355",RM_01:"\ud83d\udcdc \u81ea\u52a8\u83b7\u53d6",RM_02:"\ud83d\udcdd \u624b\u52a8\u8f93\u5165",RM_03:"\ud83d\udd0d \u67e5\u770b\u4fdd\u5b58",RM_04:"\ud83d\udd03 \u624b\u52a8\u6ce8\u5165",RM_05:"\ud83d\uddd1\ufe0f \u6e05\u9664\u767b\u5f55",SM_01:"\u786e\u8ba4\u9009\u62e9\u7684 Cookies",SM_02:"\u786e\u8ba4\u4fdd\u5b58",SM_03:"\u53d6\u6d88\u9000\u51fa",SM_04:"\u9000\u51fa\u83dc\u5355",SM_05:"\u4fdd\u5b58\u6210\u529f!",SM_06:"\u66f4\u6539\u4fdd\u5b58",SM_07:"\u53d8\u66f4\u901a\u77e5",SM_08:"\u5df2\u4fdd\u5b58\u53d8\u66f4",SM_09:"\u8bbe\u7f6e Cookies",SM_10:"\u8981\u767b\u5f55 Ex \u624d\u9700\u8981\u586b\u5199",SM_11:"\u5fc5\u586b\u9879\u76ee",SM_12:"\u4e0b\u65b9\u9009\u586b \u4e5f\u53ef\u4e0d\u4fee\u6539",SM_13:"[\u786e\u8ba4\u8f93\u5165\u6b63\u786e]\u6309\u4e0b\u9000\u51fa\u83dc\u5355\u4fdd\u5b58",SM_14:"\u5f53\u524d\u8bbe\u7f6e Cookies",SM_15:"\u672a\u83b7\u53d6\u5230 Cookies !!\n\n\u8bf7\u5148\u767b\u5f55\u8d26\u6237",SM_16:"\u672a\u68c0\u6d4b\u5230\u53ef\u6ce8\u5165\u7684 Cookies !!\n\n\u8bf7\u4ece\u83dc\u5355\u4e2d\u8fdb\u884c\u8bbe\u7f6e",SM_17:"\u5e10\u6237\u9009\u62e9",SM_18:"\u767b\u5f55",SM_19:"\u5e10\u53f7"}],ja:[{RM_00:"\ud83c\udf6a \u5171\u6709\u30ed\u30b0\u30a4\u30f3",RM_C0:"\ud83d\udcc2 \u30e1\u30cb\u30e5\u30fc\u3092\u5c55\u958b\u3059\u308b",RM_C1:"\ud83d\udcc1 \u30e1\u30cb\u30e5\u30fc\u3092\u6298\u308a\u305f\u305f\u3080",RM_01:"\ud83d\udcdc \u81ea\u52d5\u53d6\u5f97",RM_02:"\ud83d\udcdd \u624b\u52d5\u5165\u529b",RM_03:"\ud83d\udd0d \u4fdd\u5b58\u3092\u898b\u308b",RM_04:"\ud83d\udd03 \u624b\u52d5\u6ce8\u5165",RM_05:"\ud83d\uddd1\ufe0f \u30ed\u30b0\u30a4\u30f3\u3092\u30af\u30ea\u30a2",SM_01:"\u9078\u629e\u3057\u305f\u30af\u30c3\u30ad\u30fc\u3092\u78ba\u8a8d\u3059\u308b",SM_02:"\u4fdd\u5b58\u3092\u78ba\u8a8d\u3059\u308b",SM_03:"\u30ad\u30e3\u30f3\u30bb\u30eb\u3057\u3066\u7d42\u4e86\u3059\u308b",SM_04:"\u30e1\u30cb\u30e5\u30fc\u3092\u7d42\u4e86\u3059\u308b",SM_05:"\u4fdd\u5b58\u306b\u6210\u529f\u3057\u307e\u3057\u305f!",SM_06:"\u5909\u66f4\u306e\u4fdd\u5b58",SM_07:"\u5909\u66f4\u901a\u77e5",SM_08:"\u5909\u66f4\u304c\u4fdd\u5b58\u3055\u308c\u307e\u3057\u305f",SM_09:"\u30af\u30c3\u30ad\u30fc\u306e\u8a2d\u5b9a",SM_10:"Ex\u306b\u30ed\u30b0\u30a4\u30f3\u3059\u308b\u5fc5\u8981\u304c\u3042\u308a\u307e\u3059",SM_11:"\u5fc5\u9808\u9805\u76ee",SM_12:"\u4e0b\u8a18\u306f\u4efb\u610f\u3067\u3001\u5909\u66f4\u3057\u306a\u304f\u3066\u3082\u69cb\u3044\u307e\u305b\u3093",SM_13:"[\u6b63\u3057\u304f\u5165\u529b\u3055\u308c\u3066\u3044\u308b\u3053\u3068\u3092\u78ba\u8a8d\u3057\u3066\u304f\u3060\u3055\u3044]\u30e1\u30cb\u30e5\u30fc\u3092\u7d42\u4e86\u3057\u3066\u4fdd\u5b58\u3057\u307e\u3059",SM_14:"\u73fe\u5728\u306e\u30af\u30c3\u30ad\u30fc\u306e\u8a2d\u5b9a",SM_15:"Cookies \u3092\u53d6\u5f97\u3067\u304d\u307e\u305b\u3093\u3067\u3057\u305f !!\n\n\u6700\u521d\u306b\u30a2\u30ab\u30a6\u30f3\u30c8\u306b\u30ed\u30b0\u30a4\u30f3\u3057\u3066\u304f\u3060\u3055\u3044",SM_16:"\u6ce8\u5165\u53ef\u80fd\u306a\u30af\u30c3\u30ad\u30fc\u304c\u691c\u51fa\u3055\u308c\u307e\u305b\u3093\u3067\u3057\u305f!!\n\n\u30e1\u30cb\u30e5\u30fc\u304b\u3089\u8a2d\u5b9a\u3057\u3066\u304f\u3060\u3055\u3044",SM_17:"\u30a2\u30ab\u30a6\u30f3\u30c8\u9009\u629e",SM_18:"\u30ed\u30b0\u30a4\u30f3",SM_19:"\u30a2\u30ab\u30a6\u30f3\u30c8"}],"en-US":[{RM_00:"\ud83c\udf6a Shared Login",RM_C0:"\ud83d\udcc2 Expand menu",RM_C1:"\ud83d\udcc1 Collapse menu",RM_01:"\ud83d\udcdc Automatically get",RM_02:"\ud83d\udcdd Manual input",RM_03:"\ud83d\udd0d View saved",RM_04:"\ud83d\udd03 Manual injection",RM_05:"\ud83d\uddd1\ufe0f Clear Login",SM_01:"Confirm selected cookies",SM_02:"Confirm save",SM_03:"Cancel and exit",SM_04:"Exit menu",SM_05:"Saved successfully!",SM_06:"Change save",SM_07:"Change notification",SM_08:"Changes saved",SM_09:"Set cookies",SM_10:"Need to log in to Ex",SM_11:"Required fields",SM_12:"Optional below, can also not be modified",SM_13:"[Make sure the input is correct] Press to exit the menu and save",SM_14:"Current cookie settings",SM_15:"Failed to get Cookies !!\n\nPlease log in to your account first",SM_16:"No injectable cookies detected !!\n\nPlease set from the menu",SM_17:"Account Selection",SM_18:"Log In",SM_19:"Account"}],ko:[{RM_00:"\ud83c\udf6a \uacf5\uc720 \ub85c\uadf8\uc778",RM_C0:"\ud83d\udcc2 \uba54\ub274 \ud3bc\uce58\uae30",RM_C1:"\ud83d\udcc1 \uba54\ub274 \uc811\uae30",RM_01:"\ud83d\udcdc \uc790\ub3d9\uc73c\ub85c \uac00\uc838\uc624\uae30",RM_02:"\ud83d\udcdd \uc218\ub3d9 \uc785\ub825",RM_03:"\ud83d\udd0d \uc800\uc7a5\ub41c \uac83 \ubcf4\uae30",RM_04:"\ud83d\udd03 \uc218\ub3d9 \uc8fc\uc785",RM_05:"\ud83d\uddd1\ufe0f \ub85c\uadf8\uc778 \uc9c0\uc6b0\uae30",SM_01:"\uc120\ud0dd\ud55c \ucfe0\ud0a4 \ud655\uc778",SM_02:"\uc800\uc7a5 \ud655\uc778",SM_03:"\ucde8\uc18c\ud558\uace0 \uc885\ub8cc",SM_04:"\uba54\ub274 \uc885\ub8cc",SM_05:"\uc800\uc7a5 \uc131\uacf5!",SM_06:"\ubcc0\uacbd \uc800\uc7a5",SM_07:"\ubcc0\uacbd \uc54c\ub9bc",SM_08:"\ubcc0\uacbd \uc0ac\ud56d\uc774 \uc800\uc7a5\ub418\uc5c8\uc2b5\ub2c8\ub2e4",SM_09:"\ucfe0\ud0a4 \uc124\uc815",SM_10:"Ex\uc5d0 \ub85c\uadf8\uc778\ud574\uc57c\ud569\ub2c8\ub2e4",SM_11:"\ud544\uc218 \ud56d\ubaa9",SM_12:"\uc544\ub798\ub294 \uc120\ud0dd\uc801\uc73c\ub85c \uc218\uc815\ud558\uc9c0 \uc54a\uc544\ub3c4\ub429\ub2c8\ub2e4",SM_13:"[\uc785\ub825\uc774 \uc62c\ubc14\ub978\uc9c0 \ud655\uc778\ud558\uc138\uc694] \uba54\ub274\ub97c \uc885\ub8cc\ud558\uace0 \uc800\uc7a5\ud558\ub824\uba74 \ub204\ub974\uc138\uc694",SM_14:"\ud604\uc7ac \ucfe0\ud0a4 \uc124\uc815",SM_15:"Cookies\ub97c \uac00\uc838\uc624\uc9c0 \ubabb\ud588\uc2b5\ub2c8\ub2e4 !!\n\n\uba3c\uc800 \uacc4\uc815\uc5d0 \ub85c\uadf8\uc778\ud558\uc2ed\uc2dc\uc624",SM_16:"\uc8fc\uc785 \uac00\ub2a5\ud55c \ucfe0\ud0a4\uac00 \uac10\uc9c0\ub418\uc9c0 \uc54a\uc558\uc2b5\ub2c8\ub2e4 !!\n\n\uba54\ub274\uc5d0\uc11c \uc124\uc815\ud558\uc138\uc694",SM_17:"\uacc4\uc815 \uc120\ud0dd",SM_18:"\ub85c\uadf8\uc778",SM_19:"\uacc4\uc815"}]}).hasOwnProperty(l)?m[l]:m["en-US"])[0]);var l,m;(new class{constructor(){this.modal=null;this.Share=()=>({1:[{name:"igneous",value:"eebe6f1e6"},{name:"ipb_member_id",value:"7498513"},{name:"ipb_pass_hash",value:"e36bf990b97f805acb2dd5588440c203"},{name:"sl",value:"dm_2"}],2:[{name:"igneous",value:"3fef094b8"},{name:"ipb_member_id",value:"5191636"},{name:"ipb_pass_hash",value:"544b6a81f07d356f3753032183d1fdfb"},{name:"sl",value:"dm_2"}],3:[{name:"igneous",value:"a471a8815"},{name:"ipb_member_id",value:"7317440"},{name:"ipb_pass_hash",value:"dbba714316273efe9198992d40a20172"},{name:"sl",value:"dm_2"}]});this.GetCookie=()=>Cookies.get();this.AddCookie=a=>{let c,b=new Date;b.setFullYear(b.getFullYear()+1);for(c of a)Cookies.set(c.name,c.value,{expires:b})};this.DeleteCookie=()=>{for(const a of Object.keys(Cookies.get()))Cookies.remove(a,{path:"/"}),Cookies.remove(a,{path:"/",domain:"."+h})};this.CreateDetection=()=>{var a=$(".modal-background");a[0]&&a.remove()};this.CreateMenu=async()=>{$(document.body).append(this.modal);requestAnimationFrame(()=>{$(".modal-background").css({opacity:"1","background-color":"rgba(0,0,0,0.5)",transform:"translate(-50%, -50%) scale(1)"})})};this.DeleteMenu=async()=>{const a=$(".modal-background");a.css({opacity:"0","pointer-events":"none","background-color":"rgba(0,0,0,0)",transform:"translate(-50%, -50%) scale(0)"});setTimeout(()=>{a.remove()},1300)};this.Growl=async(a,c,b)=>{$.jGrowl(`&emsp;&emsp;${a}&emsp;&emsp;`,{theme:c,life:b})};this.on=async(a,c,b)=>{$(a).on(c,b)}}async Main(){var a=new Date,c=g.Storage(localStorage,"DetectionTime");const b=this;10<=((c?new Date(c):new Date(a.getTime()+66E4))-a)/6E4&&((c=g.store("gjs","E/Ex_Cookies"))&&async function(e){var f=["ipb_member_id","ipb_pass_hash"];"exhentai.org"==h&&f.unshift("igneous");const k=new Set(Object.keys(b.GetCookie()));f.every(n=>k.has(n))||(b.DeleteCookie(),b.AddCookie(e),location.reload())}(c),g.Storage(localStorage,"DetectionTime",a.getTime()));g.Menu({[d.RM_00]:{func:()=>this.SharedLogin()}});this.MenuSwitch()}async MenuSwitch(){const a=g.Storage(localStorage,"Expand")||!1;g.Menu({[a?d.RM_C1:d.RM_C0]:{func:()=>{a?g.Storage(localStorage,"Expand",!1):g.Storage(localStorage,"Expand",!0);this.MenuSwitch()},hotkey:"c",close:!1}},"Switch");a?this.Expand():this.Collapse()}async Collapse(){for(let a=1;5>=a;a++)GM_unregisterMenuCommand("Expand-"+a)}async Expand(){g.Menu({[d.RM_01]:{func:()=>this.GetCookieAutomatically()},[d.RM_02]:{func:()=>this.ManualSetting()},[d.RM_03]:{func:()=>this.ViewSaveCookie()},[d.RM_04]:{func:()=>this.CookieInjection()},[d.RM_05]:{func:()=>this.ClearLogin()}},"Expand")}async SharedLogin(){this.CreateDetection();const a=this.Share(),c=Object.keys(a).length;this.modal=`<div class="modal-background"><div class="acc-modal"><h1>${d.SM_17}</h1><div class="acc-flex"><select id="account-select" class="acc-select"></select><button class="modal-button" id="login">${d.SM_18}</button></div></div></div>`;this.CreateMenu();for(let f=1;f<=c;f++){var b=$("<option>").attr({value:f}).text(d.SM_19+" "+f);$("#account-select").append(b)}const e=this;e.on(".modal-background","click",function(f){f.stopImmediatePropagation();f=f.target;"login"==f.id?(g.Storage(localStorage,"DetectionTime",(new Date).getTime()),e.DeleteCookie(),e.AddCookie(a[+$("#account-select").val()]),location.reload()):"modal-background"==f.className&&e.DeleteMenu()})}async GetCookieAutomatically(){var a,c,b=[];for([a,c]of Object.entries(this.GetCookie()))b.push({name:a,value:c});1<b.length?this.Cookie_Show(JSON.stringify(b,null,4)):alert(d.SM_15)}async Cookie_Show(a){this.CreateDetection();this.modal=`<div class="modal-background"><div class="show-modal"><h1 style="text-align: center;">${d.SM_01}</h1><pre><b>${a}</b></pre><div style="text-align: right;"><button class="modal-button" id="save">${d.SM_02}</button><button class="modal-button" id="close">${d.SM_03}</button></div></div></div>`;this.CreateMenu();const c=this;c.on(".modal-background","click",function(b){b.stopImmediatePropagation();b=b.target;"save"==b.id?(g.store("set","E/Ex_Cookies",a),c.Growl(d.SM_05,"jGrowl",1500),c.DeleteMenu()):"modal-background"!=b.className&&"close"!=b.id||c.DeleteMenu()})}async ManualSetting(){this.CreateDetection();this.modal=`<div class="modal-background"><div class="set-modal"><h1>${d.SM_09}</h1><form id="set_cookies"><div id="input_cookies" class="set-box"><label>[igneous]\uff1a</label><input class="set-list" type="text" name="igneous" placeholder="${d.SM_10}"><br><label>[ipb_member_id]\uff1a</label><input class="set-list" type="text" name="ipb_member_id" placeholder="${d.SM_11}" required><br><label>[ipb_pass_hash]\uff1a</label><input class="set-list" type="text" name="ipb_pass_hash" placeholder="${d.SM_11}" required><hr><h3>${d.SM_12}</h3><label>[sl]\uff1a</label><input class="set-list" type="text" name="sl" value="dm_2"><br><label>[sk]\uff1a</label><input class="set-list" type="text" name="sk"><br></div><button type="submit" class="modal-button" id="save">${d.SM_02}</button><button class="modal-button" id="close">${d.SM_04}</button></form></div></div>`;this.CreateMenu();let a;const c=$("<textarea>").attr({style:"margin: 1.15rem auto 0 auto",rows:18,cols:40,readonly:!0}),b=this;b.on("#set_cookies","submit",function(e){e.preventDefault();e.stopImmediatePropagation();e=Array.from($("#set_cookies .set-list")).map(function(f){var k=$(f).val();return""!==k.trim()?{name:$(f).attr("name"),value:k}:null}).filter(Boolean);a=JSON.stringify(e,null,4);c.val(a);$("#set_cookies div").append(c);b.Growl(d.SM_13,"jGrowl",3E3)});b.on(".modal-background","click",function(e){e.stopImmediatePropagation();var f=e.target;"modal-background"!=f.className&&"close"!=f.id||(e.preventDefault(),a&&g.store("set","E/Ex_Cookies",a),b.DeleteMenu())})}async ViewSaveCookie(){this.CreateDetection();this.modal=`<div class="modal-background"><div class="set-modal"><h1>${d.SM_14}</h1><div id="view_cookies" style="margin: 0.6rem"></div><button class="modal-button" id="save">${d.SM_06}</button><button class="modal-button" id="close">${d.SM_04}</button></div></div>`;this.CreateMenu();var a=g.store("gjs","E/Ex_Cookies");const c=$("<textarea>").attr({rows:20,cols:50,id:"view_SC",style:"margin-top: 1.25rem;"}),b=this;c.val(JSON.stringify(a,null,4));$("#view_cookies").append(c);b.on(".modal-background","click",function(e){e.stopImmediatePropagation();e=e.target;"save"==e.id?(GM_notification({title:d.SM_07,text:d.SM_08,image:"https://cdn-icons-png.flaticon.com/512/5234/5234222.png",timeout:3E3}),g.store("sjs","E/Ex_Cookies",JSON.parse($("#view_SC").val())),b.DeleteMenu()):"modal-background"!=e.className&&"close"!=e.id||b.DeleteMenu()})}async CookieInjection(){try{this.DeleteCookie(),this.AddCookie(g.store("gjs","E/Ex_Cookies")),g.Storage(localStorage,"DetectionTime",(new Date).getTime()),location.reload()}catch(a){alert(d.SM_16)}}async ClearLogin(){this.DeleteCookie();location.reload()}}).Main();(new class{async Import(){let a,c,b,e,f;"e-hentai.org"==h?(b="color: #8f4701;",e="background-color: #5C0D12; color: #fefefe;",a="background-color: #fefefe; border: 3px ridge #34353b;",f="color: #5C0D12; background-color: #fefefe; border: 2px solid #B5A4A4;",c="color: #5C0D12; border: 2px solid #B5A4A4; background-color: #fefefe;"):"exhentai.org"==h&&(b="color: #989898;",e="background-color: #fefefe; color: #5C0D12;",a="background-color: #34353b; border: 2px ridge #5C0D12;",f="color: #f1f1f1; background-color: #34353b; border: 2px solid #8d8d8d;",c="color: #fefefe; border: 2px solid #8d8d8d; background-color: #34353b;",g.AddStyle("\nbody {\npadding: 2px;\ncolor: #f1f1f1;\ntext-align: center;\nbackground: #34353b;\n}\n"));g.AddStyle(`${GM_getResourceText("jgrowl-css")}.jGrowl {${e}top: 0;left: 50%;width: auto;z-index: 9999;font-size: 1.3rem;border-radius: 2px;text-align: center;white-space: nowrap;transform: translateX(-50%);}.modal-background {top: 50%;left: 50%;opacity: 0;width: 100%;height: 100%;z-index: 9999;overflow: auto;position: fixed;transition: 0.6s ease;background-color: rgba(0,0,0,0);transform: translate(-50%, -50%) scale(0.3);}.acc-modal {${a}width: 20%;overflow: auto;margin: 10rem auto;border-radius: 10px;}.acc-flex {display: flex;align-items: center;flex-direction: initial;justify-content: space-around;}.acc-select {${f}width: 10rem;padding: 4px;margin: 1.1rem 1.4rem 1.5rem 1.4rem;font-weight: bold;cursor: pointer;font-size: 1.2rem;text-align: center;border-radius: 5px;}.show-modal {${a}width: 25%;padding: 1.5rem;overflow: auto;margin: 5rem auto;text-align: left;border-radius: 10px;border-collapse: collapse;}.modal-button {${c}top: 0;margin: 3% 2%;font-size: 14px;font-weight: bold;border-radius: 3px;}.modal-button:hover, .modal-button:focus {${b}cursor: pointer;text-decoration: none;}.set-modal {${a}width: 35rem;padding: 0.3rem;overflow: auto;border-radius: 10px;text-align: center;border-collapse: collapse;margin: 2% auto 8px auto;}.set-box {display: flex;margin: 0.6rem;font-weight: bold;flex-direction: column;align-items: flex-start;}.set-list {width: 95%;font-weight: 550;font-size: 1.1rem;text-align: center;}hr {width: 98%;opacity: 0.2;border: 1px solid;margin-top: 1.3rem;}label {margin: 0.4rem;font-size: 0.9rem;}`)}}).Import()}();
+(function() {
+    const api = new API(), domain = location.hostname, language = Language(navigator.language);
+    class Cookie_Operations {
+        constructor() {
+            this.GetCookie = () => Cookies.get();
+            this.AddCookie = LoginCookies => {
+                let cookie, date = new Date();
+                date.setFullYear(date.getFullYear() + 1);
+                for (cookie of LoginCookies) {
+                    Cookies.set(cookie.name, cookie.value, {
+                        expires: date
+                    });
+                }
+            };
+            this.DeleteCookie = () => {
+                for (const Name of Object.keys(Cookies.get())) {
+                    Cookies.remove(Name, {
+                        path: "/"
+                    });
+                    Cookies.remove(Name, {
+                        path: "/",
+                        domain: `.${domain}`
+                    });
+                }
+            };
+        }
+    }
+    new class AutoLogin extends Cookie_Operations {
+        constructor() {
+            super();
+            this.modal = null;
+            this.Share = () => {
+                return [{
+                    1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
+                    2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
+                    3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
+                }][0]
+            }
+            this.on = async (element, type, listener) => {
+                $(element).on(type, listener);
+            };
+            this.Growl = async (message, theme, life) => {
+                $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
+                    theme: theme,
+                    life: life
+                });
+            };
+            this.CreateDetection = () => {
+                const detection = $(".modal-background");
+                detection[0] && detection.remove();
+            };
+            this.CreateMenu = async () => {
+                $(document.body).append(this.modal);
+                requestAnimationFrame(() => {
+                    $(".modal-background").css({
+                        opacity: "1",
+                        "background-color": "rgba(0,0,0,0.5)",
+                        transform: "translate(-50%, -50%) scale(1)"
+                    });
+                });
+            };
+            this.DeleteMenu = async () => {
+                const modal = $(".modal-background");
+                modal.css({
+                    opacity: "0",
+                    "pointer-events": "none",
+                    "background-color": "rgba(0,0,0,0)",
+                    transform: "translate(-50%, -50%) scale(0)"
+                });
+                setTimeout(() => {
+                    modal.remove();
+                }, 1300);
+            };
+            this.MenuSwitch = async () => {
+                const state = api.Storage(localStorage, "Expand") || false, disp = state ? language.RM_C1 : language.RM_C0;
+                api.Menu({
+                    [disp]: {
+                        func: () => {
+                            state ? api.Storage(localStorage, "Expand", false) : api.Storage(localStorage, "Expand", true);
+                            this.MenuSwitch();
+                        },
+                        hotkey: "c",
+                        close: false
+                    }
+                }, "Switch");
+                state ? this.Expand() : this.Collapse();
+            };
+            this.Expand = async () => {
+                api.Menu({
+                    [language.RM_01]: {
+                        func: () => this.GetCookieAutomatically()
+                    },
+                    [language.RM_02]: {
+                        func: () => this.ManualSetting()
+                    },
+                    [language.RM_03]: {
+                        func: () => this.ViewSaveCookie()
+                    },
+                    [language.RM_04]: {
+                        func: () => this.CookieInjection()
+                    },
+                    [language.RM_05]: {
+                        func: () => this.ClearLogin()
+                    }
+                }, "Expand");
+            };
+            this.Collapse = async () => {
+                for (let i = 1; i <= 5; i++) {
+                    GM_unregisterMenuCommand("Expand-" + i);
+                }
+            };
+        }
+        async Main() {
+            let CurrentTime = new Date(), DetectionTime = api.Storage(localStorage, "DetectionTime");
+            DetectionTime = DetectionTime ? new Date(DetectionTime) : new Date(CurrentTime.getTime() + 11 * 60 * 1e3);
+            const Conversion = (DetectionTime - CurrentTime) / (1e3 * 60), self = this;
+            if (Conversion >= 10) {
+                const cookie = api.store("gjs", "E/Ex_Cookies");
+                cookie && CookieCheck(cookie);
+                api.Storage(localStorage, "DetectionTime", CurrentTime.getTime());
+            }
+            async function CookieCheck(cookies) {
+                let RequiredCookies = [ "ipb_member_id", "ipb_pass_hash" ];
+                if (domain == "exhentai.org") {
+                    RequiredCookies.unshift("igneous");
+                }
+                const cookie = new Set(Object.keys(self.GetCookie()));
+                const CookieFound = RequiredCookies.every(Name => cookie.has(Name));
+                if (!CookieFound) {
+                    self.DeleteCookie();
+                    self.AddCookie(cookies);
+                    location.reload();
+                }
+            }
+            api.Menu({
+                [language.RM_00]: {
+                    func: () => this.SharedLogin()
+                }
+            });
+            this.MenuSwitch();
+        }
+        async SharedLogin() {
+            this.CreateDetection();
+            const Share = this.Share(), AccountQuantity = Object.keys(Share).length;
+            this.modal = `
+                <div class="modal-background">
+                    <div class="acc-modal">
+                    <h1>${language.SM_17}</h1>
+                        <div class="acc-flex">
+                            <select id="account-select" class="acc-select"></select>
+                            <button class="modal-button" id="login">${language.SM_18}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.CreateMenu();
+            for (let i = 1; i <= AccountQuantity; i++) {
+                const option = $("<option>").attr({
+                    value: i
+                }).text(`${language.SM_19} ${i}`);
+                $("#account-select").append(option);
+            }
+            const self = this;
+            self.on(".modal-background", "click", function(click) {
+                click.stopImmediatePropagation();
+                const target = click.target;
+                if (target.id == "login") {
+                    api.Storage(localStorage, "DetectionTime", new Date().getTime());
+                    self.DeleteCookie();
+                    self.AddCookie(Share[+$("#account-select").val()]);
+                    location.reload();
+                } else if (target.className == "modal-background") {
+                    self.DeleteMenu();
+                }
+            });
+        }
+        async GetCookieAutomatically() {
+            let cookie_box = [];
+            for (const [ name, value ] of Object.entries(this.GetCookie())) {
+                cookie_box.push({
+                    name: name,
+                    value: value
+                });
+            }
+            cookie_box.length > 1 ? this.Cookie_Show(JSON.stringify(cookie_box, null, 4)) : alert(language.SM_15);
+        }
+        async Cookie_Show(cookies) {
+            this.CreateDetection();
+            this.modal = `
+                <div class="modal-background">
+                    <div class="show-modal">
+                    <h1 style="text-align: center;">${language.SM_01}</h1>
+                        <pre><b>${cookies}</b></pre>
+                        <div style="text-align: right;">
+                            <button class="modal-button" id="save">${language.SM_02}</button>
+                            <button class="modal-button" id="close">${language.SM_03}</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            this.CreateMenu();
+            const self = this;
+            self.on(".modal-background", "click", function(click) {
+                click.stopImmediatePropagation();
+                const target = click.target;
+                if (target.id == "save") {
+                    api.store("set", "E/Ex_Cookies", cookies);
+                    self.Growl(language.SM_05, "jGrowl", 1500);
+                    self.DeleteMenu();
+                } else if (target.className == "modal-background" || target.id == "close") {
+                    self.DeleteMenu();
+                }
+            });
+        }
+        async ManualSetting() {
+            this.CreateDetection();
+            this.modal = `
+                <div class="modal-background">
+                    <div class="set-modal">
+                    <h1>${language.SM_09}</h1>
+                        <form id="set_cookies">
+                            <div id="input_cookies" class="set-box">
+                                <label>[igneous]：</label><input class="set-list" type="text" name="igneous" placeholder="${language.SM_10}"><br>
+                                <label>[ipb_member_id]：</label><input class="set-list" type="text" name="ipb_member_id" placeholder="${language.SM_11}" required><br>
+                                <label>[ipb_pass_hash]：</label><input class="set-list" type="text" name="ipb_pass_hash" placeholder="${language.SM_11}" required><hr>
+                                <h3>${language.SM_12}</h3>
+                                <label>[sl]：</label><input class="set-list" type="text" name="sl" value="dm_2"><br>
+                                <label>[sk]：</label><input class="set-list" type="text" name="sk"><br>
+                            </div>
+                            <button type="submit" class="modal-button" id="save">${language.SM_02}</button>
+                            <button class="modal-button" id="close">${language.SM_04}</button>
+                        </form>
+                    </div>
+                </div>
+            `;
+            this.CreateMenu();
+            let cookie;
+            const textarea = $("<textarea>").attr({
+                style: "margin: 1.15rem auto 0 auto",
+                rows: 18,
+                cols: 40,
+                readonly: true
+            }), self = this;
+            self.on("#set_cookies", "submit", function(submit) {
+                submit.preventDefault();
+                submit.stopImmediatePropagation();
+                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                    const value = $(input).val();
+                    return value.trim() !== "" ? {
+                        name: $(input).attr("name"),
+                        value: value
+                    } : null;
+                }).filter(Boolean);
+                cookie = JSON.stringify(cookie_list, null, 4);
+                textarea.val(cookie);
+                $("#set_cookies div").append(textarea);
+                self.Growl(language.SM_13, "jGrowl", 3e3);
+            });
+            self.on(".modal-background", "click", function(click) {
+                click.stopImmediatePropagation();
+                const target = click.target;
+                if (target.className == "modal-background" || target.id == "close") {
+                    click.preventDefault();
+                    cookie && api.store("set", "E/Ex_Cookies", cookie);
+                    self.DeleteMenu();
+                }
+            });
+        }
+        async ViewSaveCookie() {
+            this.CreateDetection();
+            this.modal = `
+                <div class="modal-background">
+                    <div class="set-modal">
+                    <h1>${language.SM_14}</h1>
+                        <div id="view_cookies" style="margin: 0.6rem"></div>
+                        <button class="modal-button" id="save">${language.SM_06}</button>
+                        <button class="modal-button" id="close">${language.SM_04}</button>
+                    </div>
+                </div>
+            `;
+            this.CreateMenu();
+            const cookie = api.store("gjs", "E/Ex_Cookies");
+            const textarea = $("<textarea>").attr({
+                rows: 20,
+                cols: 50,
+                id: "view_SC",
+                style: "margin-top: 1.25rem;"
+            }), self = this;
+            textarea.val(JSON.stringify(cookie, null, 4));
+            $("#view_cookies").append(textarea);
+            self.on(".modal-background", "click", function(click) {
+                click.stopImmediatePropagation();
+                const target = click.target;
+                if (target.id == "save") {
+                    GM_notification({
+                        title: language.SM_07,
+                        text: language.SM_08,
+                        image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
+                        timeout: 3e3
+                    });
+                    api.store("sjs", "E/Ex_Cookies", JSON.parse($("#view_SC").val()));
+                    self.DeleteMenu();
+                } else if (target.className == "modal-background" || target.id == "close") {
+                    self.DeleteMenu();
+                }
+            });
+        }
+        async CookieInjection() {
+            try {
+                this.DeleteCookie();
+                this.AddCookie(api.store("gjs", "E/Ex_Cookies"));
+                api.Storage(localStorage, "DetectionTime", new Date().getTime());
+                location.reload();
+            } catch (error) {
+                alert(language.SM_16);
+            }
+        }
+        async ClearLogin() {
+            this.DeleteCookie();
+            location.reload();
+        }
+    }().Main();
+    new class Style {
+        async Import() {
+            let show_style, button_style, button_hover, jGrowl_style, acc_style;
+            if (domain == "e-hentai.org") {
+                button_hover = "color: #8f4701;";
+                jGrowl_style = "background-color: #5C0D12; color: #fefefe;";
+                show_style = "background-color: #fefefe; border: 3px ridge #34353b;";
+                acc_style = "color: #5C0D12; background-color: #fefefe; border: 2px solid #B5A4A4;";
+                button_style = "color: #5C0D12; border: 2px solid #B5A4A4; background-color: #fefefe;";
+            } else if (domain == "exhentai.org") {
+                button_hover = "color: #989898;";
+                jGrowl_style = "background-color: #fefefe; color: #5C0D12;";
+                show_style = "background-color: #34353b; border: 2px ridge #5C0D12;";
+                acc_style = "color: #f1f1f1; background-color: #34353b; border: 2px solid #8d8d8d;";
+                button_style = "color: #fefefe; border: 2px solid #8d8d8d; background-color: #34353b;";
+                api.AddStyle(`
+                    body {
+                        padding: 2px;
+                        color: #f1f1f1;
+                        text-align: center;
+                        background: #34353b;
+                    }
+                `);
+            }
+            api.AddStyle(`
+                ${GM_getResourceText("jgrowl-css")}
+                .jGrowl {
+                    ${jGrowl_style}
+                    top: 0;
+                    left: 50%;
+                    width: auto;
+                    z-index: 9999;
+                    font-size: 1.3rem;
+                    border-radius: 2px;
+                    text-align: center;
+                    white-space: nowrap;
+                    transform: translateX(-50%);
+                }
+                .modal-background {
+                    top: 50%;
+                    left: 50%;
+                    opacity: 0;
+                    width: 100%;
+                    height: 100%;
+                    z-index: 9999;
+                    overflow: auto;
+                    position: fixed;
+                    transition: 0.6s ease;
+                    background-color: rgba(0,0,0,0);
+                    transform: translate(-50%, -50%) scale(0.3);
+                }
+                .acc-modal {
+                    ${show_style}
+                    width: 20%;
+                    overflow: auto;
+                    margin: 10rem auto;
+                    border-radius: 10px;
+                }
+                .acc-flex {
+                    display: flex;
+                    align-items: center;
+                    flex-direction: initial;
+                    justify-content: space-around;
+                }
+                .acc-select {
+                    ${acc_style}
+                    width: 10rem;
+                    padding: 4px;
+                    margin: 1.1rem 1.4rem 1.5rem 1.4rem;
+                    font-weight: bold;
+                    cursor: pointer;
+                    font-size: 1.2rem;
+                    text-align: center;
+                    border-radius: 5px;
+                }
+                .show-modal {
+                    ${show_style}
+                    width: 25%;
+                    padding: 1.5rem;
+                    overflow: auto;
+                    margin: 5rem auto;
+                    text-align: left;
+                    border-radius: 10px;
+                    border-collapse: collapse;
+                }
+                .modal-button {
+                    ${button_style}
+                    top: 0;
+                    margin: 3% 2%;
+                    font-size: 14px;
+                    font-weight: bold;
+                    border-radius: 3px;
+                }
+                .modal-button:hover, .modal-button:focus {
+                    ${button_hover}
+                    cursor: pointer;
+                    text-decoration: none;
+                }
+                .set-modal {
+                    ${show_style}
+                    width: 35rem;
+                    padding: 0.3rem;
+                    overflow: auto;
+                    border-radius: 10px;
+                    text-align: center;
+                    border-collapse: collapse;
+                    margin: 2% auto 8px auto;
+                }
+                .set-box {
+                    display: flex;
+                    margin: 0.6rem;
+                    font-weight: bold;
+                    flex-direction: column;
+                    align-items: flex-start;
+                }
+                .set-list {
+                    width: 95%;
+                    font-weight: 550;
+                    font-size: 1.1rem;
+                    text-align: center;
+                }
+                hr {
+                    width: 98%;
+                    opacity: 0.2;
+                    border: 1px solid;
+                    margin-top: 1.3rem;
+                }
+                label {
+                    margin: 0.4rem;
+                    font-size: 0.9rem;
+                }
+            `);
+        }
+    }().Import();
+    function Language(language) {
+        let display = {
+            "zh-TW": [ {
+                RM_00: "🍪 共享登入",
+                RM_C0: "📂 展開菜單",
+                RM_C1: "📁 摺疊菜單",
+                RM_01: "📜 自動獲取",
+                RM_02: "📝 手動輸入",
+                RM_03: "🔍 查看保存",
+                RM_04: "🔃 手動注入",
+                RM_05: "🗑️ 清除登入",
+                SM_01: "確認選擇的 Cookies",
+                SM_02: "確認保存",
+                SM_03: "取消退出",
+                SM_04: "退出選單",
+                SM_05: "保存成功!",
+                SM_06: "更改保存",
+                SM_07: "變更通知",
+                SM_08: "已保存變更",
+                SM_09: "設置 Cookies",
+                SM_10: "要登入 Ex 才需要填寫",
+                SM_11: "必填項目",
+                SM_12: "下方選填 也可不修改",
+                SM_13: "[確認輸入正確]按下退出選單保存",
+                SM_14: "當前設置 Cookies",
+                SM_15: "未獲取到 Cookies !!\n\n請先登入帳戶",
+                SM_16: "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置",
+                SM_17: "帳戶選擇",
+                SM_18: "登入",
+                SM_19: "帳號"
+            } ],
+            "zh-CN": [ {
+                RM_00: "🍪 共享登录",
+                RM_C0: "📂 展开菜单",
+                RM_C1: "📁 折叠菜单",
+                RM_01: "📜 自动获取",
+                RM_02: "📝 手动输入",
+                RM_03: "🔍 查看保存",
+                RM_04: "🔃 手动注入",
+                RM_05: "🗑️ 清除登录",
+                SM_01: "确认选择的 Cookies",
+                SM_02: "确认保存",
+                SM_03: "取消退出",
+                SM_04: "退出菜单",
+                SM_05: "保存成功!",
+                SM_06: "更改保存",
+                SM_07: "变更通知",
+                SM_08: "已保存变更",
+                SM_09: "设置 Cookies",
+                SM_10: "要登录 Ex 才需要填写",
+                SM_11: "必填项目",
+                SM_12: "下方选填 也可不修改",
+                SM_13: "[确认输入正确]按下退出菜单保存",
+                SM_14: "当前设置 Cookies",
+                SM_15: "未获取到 Cookies !!\n\n请先登录账户",
+                SM_16: "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
+                SM_17: "帐户选择",
+                SM_18: "登录",
+                SM_19: "帐号"
+            } ],
+            ja: [ {
+                RM_00: "🍪 共有ログイン",
+                RM_C0: "📂 メニューを展開する",
+                RM_C1: "📁 メニューを折りたたむ",
+                RM_01: "📜 自動取得",
+                RM_02: "📝 手動入力",
+                RM_03: "🔍 保存を見る",
+                RM_04: "🔃 手動注入",
+                RM_05: "🗑️ ログインをクリア",
+                SM_01: "選択したクッキーを確認する",
+                SM_02: "保存を確認する",
+                SM_03: "キャンセルして終了する",
+                SM_04: "メニューを終了する",
+                SM_05: "保存に成功しました!",
+                SM_06: "変更の保存",
+                SM_07: "変更通知",
+                SM_08: "変更が保存されました",
+                SM_09: "クッキーの設定",
+                SM_10: "Exにログインする必要があります",
+                SM_11: "必須項目",
+                SM_12: "下記は任意で、変更しなくても構いません",
+                SM_13: "[正しく入力されていることを確認してください]メニューを終了して保存します",
+                SM_14: "現在のクッキーの設定",
+                SM_15: "Cookies を取得できませんでした !!\n\n最初にアカウントにログインしてください",
+                SM_16: "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
+                SM_17: "アカウント选択",
+                SM_18: "ログイン",
+                SM_19: "アカウント"
+            } ],
+            "en-US": [ {
+                RM_00: "🍪 Shared Login",
+                RM_C0: "📂 Expand menu",
+                RM_C1: "📁 Collapse menu",
+                RM_01: "📜 Automatically get",
+                RM_02: "📝 Manual input",
+                RM_03: "🔍 View saved",
+                RM_04: "🔃 Manual injection",
+                RM_05: "🗑️ Clear Login",
+                SM_01: "Confirm selected cookies",
+                SM_02: "Confirm save",
+                SM_03: "Cancel and exit",
+                SM_04: "Exit menu",
+                SM_05: "Saved successfully!",
+                SM_06: "Change save",
+                SM_07: "Change notification",
+                SM_08: "Changes saved",
+                SM_09: "Set cookies",
+                SM_10: "Need to log in to Ex",
+                SM_11: "Required fields",
+                SM_12: "Optional below, can also not be modified",
+                SM_13: "[Make sure the input is correct] Press to exit the menu and save",
+                SM_14: "Current cookie settings",
+                SM_15: "Failed to get Cookies !!\n\nPlease log in to your account first",
+                SM_16: "No injectable cookies detected !!\n\nPlease set from the menu",
+                SM_17: "Account Selection",
+                SM_18: "Log In",
+                SM_19: "Account"
+            } ],
+            ko: [ {
+                RM_00: "🍪 공유 로그인",
+                RM_C0: "📂 메뉴 펼치기",
+                RM_C1: "📁 메뉴 접기",
+                RM_01: "📜 자동으로 가져오기",
+                RM_02: "📝 수동 입력",
+                RM_03: "🔍 저장된 것 보기",
+                RM_04: "🔃 수동 주입",
+                RM_05: "🗑️ 로그인 지우기",
+                SM_01: "선택한 쿠키 확인",
+                SM_02: "저장 확인",
+                SM_03: "취소하고 종료",
+                SM_04: "메뉴 종료",
+                SM_05: "저장 성공!",
+                SM_06: "변경 저장",
+                SM_07: "변경 알림",
+                SM_08: "변경 사항이 저장되었습니다",
+                SM_09: "쿠키 설정",
+                SM_10: "Ex에 로그인해야합니다",
+                SM_11: "필수 항목",
+                SM_12: "아래는 선택적으로 수정하지 않아도됩니다",
+                SM_13: "[입력이 올바른지 확인하세요] 메뉴를 종료하고 저장하려면 누르세요",
+                SM_14: "현재 쿠키 설정",
+                SM_15: "Cookies를 가져오지 못했습니다 !!\n\n먼저 계정에 로그인하십시오",
+                SM_16: "주입 가능한 쿠키가 감지되지 않았습니다 !!\n\n메뉴에서 설정하세요",
+                SM_17: "계정 선택",
+                SM_18: "로그인",
+                SM_19: "계정"
+            } ]
+        };
+        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
+    }
+})();
