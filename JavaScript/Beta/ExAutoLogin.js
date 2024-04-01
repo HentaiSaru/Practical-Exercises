@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.26
+// @version      0.0.27
 // @author       HentaiSaru
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -38,19 +38,9 @@
 
 (function() {
     const api = new API(), domain = location.hostname, language = Language(navigator.language);
-    (new class AutoLogin {
+
+    class Cookie_Operations {
         constructor() {
-            this.modal = null;
-
-            /* 共享帳號 */
-            this.Share = () => {
-                return [{
-                    1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
-                    2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
-                    3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
-                }][0]
-            }
-
             /* 取得 Cookies */
             this.GetCookie = () => Cookies.get();
             /* 添加 cookie */
@@ -67,6 +57,35 @@
                     Cookies.remove(Name, { path: "/" });
                     Cookies.remove(Name, { path: "/", domain: `.${domain}` });
                 }
+            }
+        }
+    }
+
+    (new class AutoLogin extends Cookie_Operations {
+        constructor() {
+            super();
+            this.modal = null;
+
+            /* 共享帳號 */
+            this.Share = () => {
+                return [{
+                    1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
+                    2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
+                    3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
+                }][0]
+            }
+
+            /* 添加監聽器 */
+            this.on = async(element, type, listener) => {
+                $(element).on(type, listener);
+            }
+
+            /* 通知展示 */
+            this.Growl = async(message, theme, life) => {
+                $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
+                    theme: theme,
+                    life: life
+                });
             }
 
             /* 創建選單前檢測 (刪除重創) */
@@ -99,17 +118,34 @@
                 setTimeout(()=> {modal.remove()}, 1300);
             }
 
-            /* 通知展示 */
-            this.Growl = async(message, theme, life) => {
-                $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
-                    theme: theme,
-                    life: life
-                });
+            /* 切換開合選單 */
+            this.MenuSwitch = async() => {
+                const state = api.Storage(localStorage, "Expand") || false,
+                disp = state ? language.RM_C1 : language.RM_C0;
+                api.Menu({
+                    [disp]: {func: ()=> {
+                        state ? api.Storage(localStorage, "Expand", false) : api.Storage(localStorage, "Expand", true);
+                        this.MenuSwitch();
+                    }, hotkey: "c", close: false}
+                }, "Switch");
+                // 開合需要比切換菜單晚創建, 不然會跑版
+                state ? this.Expand() : this.Collapse();
             }
 
-            /* 添加監聽器 */
-            this.on = async(element, type, listener) => {
-                $(element).on(type, listener);
+            /* 創建延伸選單 */
+            this.Expand = async() => {
+                api.Menu({
+                    [language.RM_01]: {func: ()=> this.GetCookieAutomatically() },
+                    [language.RM_02]: {func: ()=> this.ManualSetting() },
+                    [language.RM_03]: {func: ()=> this.ViewSaveCookie() },
+                    [language.RM_04]: {func: ()=> this.CookieInjection() },
+                    [language.RM_05]: {func: ()=> this.ClearLogin() },
+                }, "Expand");
+            }
+
+            /* 刪除延伸選單 */
+            this.Collapse = async() => {
+                for (let i=1; i <= 5; i++) {GM_unregisterMenuCommand("Expand-" + i)}
             }
         }
 
@@ -141,40 +177,8 @@
             }
 
             /* 創建選單 */
-            api.Menu({
-                [language.RM_00]: {func: ()=> this.SharedLogin()}
-            });
+            api.Menu({[language.RM_00]: {func: ()=> this.SharedLogin()}});
             this.MenuSwitch();
-        }
-
-        /* 切換開合選單 */
-        async MenuSwitch() {
-            const state = api.Storage(localStorage, "Expand") || false,
-            disp = state ? language.RM_C1 : language.RM_C0;
-            api.Menu({
-                [disp]: {func: ()=> {
-                    state ? api.Storage(localStorage, "Expand", false) : api.Storage(localStorage, "Expand", true);
-                    this.MenuSwitch();
-                }, hotkey: "c", close: false}
-            }, "Switch");
-            // 開合需要比切換菜單晚創建, 不然會跑版
-            state ? this.Expand() : this.Collapse();
-        }
-
-        /* 刪除延伸選單 */
-        async Collapse() {
-            for (let i=1; i <= 5; i++) {GM_unregisterMenuCommand("Expand-" + i)}
-        }
-
-        /* 創建延伸選單 */
-        async Expand() {
-            api.Menu({
-                [language.RM_01]: {func: ()=> this.GetCookieAutomatically() },
-                [language.RM_02]: {func: ()=> this.ManualSetting() },
-                [language.RM_03]: {func: ()=> this.ViewSaveCookie() },
-                [language.RM_04]: {func: ()=> this.CookieInjection() },
-                [language.RM_05]: {func: ()=> this.ClearLogin() },
-            }, "Expand");
         }
 
         /* 共享號登入 */
