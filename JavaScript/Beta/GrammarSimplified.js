@@ -43,7 +43,7 @@ class API {
      * @returns {element}       - DOM 元素
      */
     $$(Selector, All=false, Source=document) {
-        const slice = Selector.slice(1), analyze = [".", "#", " ", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
+        const slice = Selector.slice(1), analyze = [".", "#", " ", "=", ":"].some(m => {return slice.includes(m)}) ? " " : Selector[0];
         switch (analyze) {
             case "#": return Source.getElementById(slice);
             case " ": return All ? Source.querySelectorAll(Selector):Source.querySelector(Selector);
@@ -261,7 +261,7 @@ class API {
         let timer, elements;
         const observer = new MutationObserver(this.Throttle_discard(() => {
             elements = selectors.map(selector => document.querySelector(selector))
-            if (elements.every(element => {return element !== null && typeof "undefined"})) {
+            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                 observer.disconnect();
                 clearTimeout(timer);
                 callback(elements);
