@@ -62,7 +62,7 @@
 
     }, api = new API();
 
-    let PF, CF, Language; // 需要時才實例化
+    let PF, CF, Lang; // 需要時才實例化
 
     /* ==================== 全域功能 ==================== */
     class Global_Function {
@@ -806,11 +806,11 @@
                             <table class="modal-box">
                                 <tr>
                                     <td class="menu">
-                                        <h2 class="menu-text">${Language.MT_01}</h2>
+                                        <h2 class="menu-text">${Lang.MT_01}</h2>
                                         <ul>
                                             <li>
                                                 <a class="toggle-menu" href="#image-settings-show">
-                                                    <button class="menu-options" id="image-settings">${Language.MO_01}</button>
+                                                    <button class="menu-options" id="image-settings">${Lang.MO_01}</button>
                                                 </a>
                                             <li>
                                             <li>
@@ -826,19 +826,19 @@
                                                 <td class="content" id="set-content">
                                                     <div id="image-settings-show" class="form-hidden">
                                                         <div>
-                                                            <h2 class="narrative">${Language.MIS_01}：</h2>
+                                                            <h2 class="narrative">${Lang.MIS_01}：</h2>
                                                             <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
                                                         </div>
                                                         <div>
-                                                            <h2 class="narrative">${Language.MIS_02}：</h2>
+                                                            <h2 class="narrative">${Lang.MIS_02}：</h2>
                                                             <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
                                                         </div>
                                                         <div>
-                                                            <h2 class="narrative">${Language.MIS_03}：</h2>
+                                                            <h2 class="narrative">${Lang.MIS_03}：</h2>
                                                             <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
                                                         </div>
                                                         <div>
-                                                            <h2 class="narrative">${Language.MIS_04}：</h2>
+                                                            <h2 class="narrative">${Lang.MIS_04}：</h2>
                                                             <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
                                                         </div>
                                                     </div>
@@ -847,17 +847,17 @@
                                             <tr>
                                                 <td class="button-area">
                                                     <select id="language">
-                                                        <option value="" disabled selected>${Language.ML_01}</option>
-                                                        <option value="en">${Language.ML_02}</option>
-                                                        <option value="zh-TW">${Language.ML_03}</option>
-                                                        <option value="zh-CN">${Language.ML_04}</option>
-                                                        <option value="ja">${Language.ML_05}</option>
+                                                        <option value="" disabled selected>${Lang.ML_01}</option>
+                                                        <option value="en">${Lang.ML_02}</option>
+                                                        <option value="zh-TW">${Lang.ML_03}</option>
+                                                        <option value="zh-CN">${Lang.ML_04}</option>
+                                                        <option value="ja">${Lang.ML_05}</option>
                                                     </select>
-                                                    <button id="readsettings" class="button-options" disabled>${Language.MB_01}</button>
+                                                    <button id="readsettings" class="button-options" disabled>${Lang.MB_01}</button>
                                                     <span class="button-space"></span>
-                                                    <button id="closure" class="button-options">${Language.MB_02}</button>
+                                                    <button id="closure" class="button-options">${Lang.MB_02}</button>
                                                     <span class="button-space"></span>
-                                                    <button id="application" class="button-options">${Language.MB_03}</button>
+                                                    <button id="application" class="button-options">${Lang.MB_03}</button>
                                                 </td>
                                             </tr>
                                         </table>
@@ -908,7 +908,7 @@
                 $on("#language", "input change", function (event) {
                     event.stopPropagation();
                     const value = $(this).val();
-                    Language = DM.language(value);
+                    Lang = DM.language(value);
                     GM_setValue("language", value);
                     $("#language").off("input change");
                     Menu_Close();
@@ -984,38 +984,43 @@
         }
 
         /* 語言文本 */
-        language(language) {
-            let display = {
-                "zh-TW": [{
-                    "RM_01":"📝 設置選單",
-                    "MT_01":"設置菜單", "MO_01":"圖像設置",
-                    "MB_01":"讀取設定", "MB_02":"關閉離開", "MB_03":"保存應用",
-                    "ML_01":"語言", "ML_02":"英文", "ML_03":"繁體", "ML_04":"簡體", "ML_05":"日文",
-                    "MIS_01":"圖片高度", "MIS_02":"圖片寬度", "MIS_03":"圖片最大寬度", "MIS_04":"圖片間隔高度"
-                }],
-                "zh-CN": [{
-                    "RM_01":"📝 设置菜单",
-                    "MT_01":"设置菜单", "MO_01":"图像设置",
-                    "MB_01":"读取设置", "MB_02":"关闭退出", "MB_03":"保存应用",
-                    "ML_01":"语言", "ML_02":"英文", "ML_03":"繁体", "ML_04":"简体", "ML_05":"日文",
-                    "MIS_01":"图片高度", "MIS_02":"图片宽度", "MIS_03":"图片最大宽度", "MIS_04":"图片间隔高度"
-                }],
-                "ja": [{
-                    "RM_01":"📝 設定メニュー",
-                    "MT_01":"設定メニュー", "MO_01":"画像設定",
-                    "MB_01":"設定の読み込み", "MB_02":"閉じて終了する", "MB_03":"保存して適用する",
-                    "ML_01":"言語", "ML_02":"英語", "ML_03":"繁体字", "ML_04":"簡体字", "ML_05":"日本語",
-                    "MIS_01":"画像の高さ", "MIS_02":"画像の幅", "MIS_03":"画像の最大幅", "MIS_04":"画像の間隔の高さ"
-                }],
-                "en-US": [{
-                    "RM_01":"📝 Settings Menu",
-                    "MT_01":"Settings Menu", "MO_01":"Image Settings",
-                    "MB_01":"Load Settings", "MB_02":"Close and Exit", "MB_03":"Save and Apply",
-                    "ML_01":"Language", "ML_02":"English", "ML_03":"Traditional Chinese", "ML_04":"Simplified Chinese", "ML_05":"Japanese",
-                    "MIS_01":"Image Height", "MIS_02":"Image Width", "MIS_03":"Maximum Image Width", "MIS_04":"Image Spacing Height"
-                }],
+        language(lang) {
+            const Display = {
+                Traditional: {
+                    RM_01: "📝 設置選單",
+                    MT_01: "設置菜單", MO_01: "圖像設置",
+                    MB_01: "讀取設定", MB_02: "關閉離開", MB_03: "保存應用",
+                    ML_01: "語言", ML_02: "英文", ML_03: "繁體", ML_04: "簡體", ML_05: "日文",
+                    MIS_01: "圖片高度", MIS_02: "圖片寬度", MIS_03: "圖片最大寬度", MIS_04: "圖片間隔高度"
+                },
+                Simplified: {
+                    RM_01:"📝 设置菜单",
+                    MT_01:"设置菜单", MO_01:"图像设置",
+                    MB_01:"读取设置", MB_02:"关闭退出", MB_03:"保存应用",
+                    ML_01:"语言", ML_02:"英文", ML_03:"繁体", ML_04:"简体", ML_05:"日文",
+                    MIS_01:"图片高度", MIS_02:"图片宽度", MIS_03:"图片最大宽度", MIS_04:"图片间隔高度"
+                },
+                Japan: {
+                    RM_01:"📝 設定メニュー",
+                    MT_01:"設定メニュー", MO_01:"画像設定",
+                    MB_01:"設定の読み込み", MB_02:"閉じて終了する", MB_03:"保存して適用する",
+                    ML_01:"言語", ML_02:"英語", ML_03:"繁体字", ML_04:"簡体字", ML_05:"日本語",
+                    MIS_01:"画像の高さ", MIS_02:"画像の幅", MIS_03:"画像の最大幅", MIS_04:"画像の間隔の高さ"
+                },
+                English: {
+                    RM_01:"📝 Settings Menu",
+                    MT_01:"Settings Menu", MO_01:"Image Settings",
+                    MB_01:"Load Settings", MB_02:"Close and Exit", MB_03:"Save and Apply",
+                    ML_01:"Language", ML_02:"English", ML_03:"Traditional Chinese", ML_04:"Simplified Chinese", ML_05:"Japanese",
+                    MIS_01:"Image Height", MIS_02:"Image Width", MIS_03:"Maximum Image Width", MIS_04:"Image Spacing Height"
+                }
+            }, Match = {
+                "zh-TW": Display["Traditional"], "zh-HK": Display["Traditional"], "zh-MO": Display["Traditional"],
+                "zh-CN": Display["Simplified"], "zh-SG": Display["Simplified"],
+                "en-US": Display["English"],
+                "ja": Display["Japan"],
             };
-            return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
+            return Match[lang] || Match["en-US"];
         }
     }
 
@@ -1060,8 +1065,8 @@
             else if (this.M1()) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
-                Language = DM.language(api.store("get", "language"));
-                api.Menu({[Language.RM_01]: ()=> DM.Menu()})
+                Lang = DM.language(api.store("get", "language"));
+                api.Menu({[Lang.RM_01]: ()=> DM.Menu()})
             }
         }
     }
