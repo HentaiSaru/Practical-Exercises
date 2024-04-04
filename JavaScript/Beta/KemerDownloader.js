@@ -36,7 +36,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1350542/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1354065/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -110,7 +110,6 @@
             this.isVideo = (str) => ["MP4", "MOV", "AVI", "WMV", "FLV"].includes(str.toUpperCase());
 
             this.worker = func.WorkerCreation(`
-                /* 使用 worker 是希望切換焦點後, 下載不受瀏覽器影響 */
                 let queue = [], processing=false;
                 onmessage = function(e) {
                     queue.push(e.data);
@@ -141,7 +140,6 @@
                     xhr.send();
                 }
 
-                /* 試錯一次就回傳 */
                 async function FetchRequest(index, url) {
                     try {
                         const response = await fetch(url);
@@ -172,6 +170,7 @@
                     title = func.IllegalCharacters(title.textContent).trim();
                     artist = func.IllegalCharacters(artist.textContent).trim();
 
+                    //! 等待修改獲取名子格式
                     const
                         a = func.$$("a", true, files),
                         img = func.$$("img", true, files),
