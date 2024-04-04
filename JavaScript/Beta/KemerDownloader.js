@@ -4,8 +4,8 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.18-Beta
-// @author       HentaiSaru
+// @version      0.0.18
+// @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-CN   一键下载图片 (压缩下载/单图下载) , 页面数据创建 json 下载 , 一键开启当前所有帖子
@@ -72,7 +72,32 @@
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     }
 
-    /** ---------------------/
+    /** ---------------------
+     * 暫時的 檔名修改方案
+     * 
+     * 根據要添加的元素修改字串
+     * 中間的間隔可用任意字符
+     *
+     * ! 不限制大小寫, 但一定要有 {}, 不能用於命名的符號會被移除
+     *
+     * {Time} 發表時間
+     * {Title} 標題
+     * {Artist} 作者 | 繪師 ...
+     * {Source} 來源 => (Pixiv Fanbox) 之類的標籤
+     * 
+     * {Fill} 填充 => ! 只適用於檔名, 位置隨意 但 必須存在該值, 不得刪除
+     */
+    const FileName = {
+        FillValue: {
+            Filler: "0", // 填充元素 / 填料
+            Amount: "Auto", // 填充數量 [輸入 auto 或 任意數字]
+        },
+        CompressName: "({Artist}) {Title}", // 壓縮檔案名稱
+        FolderName: "{Title}", // 資料夾名稱
+        FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
+    }
+
+    /** ---------------------
      * 設置 json 輸出格式
      * 
      * Mode
@@ -100,6 +125,8 @@
             this.CompressMode = CM;
             this.ModeDisplay = MD;
             this.Button = BT;
+
+            this.Named_Data = null;
 
             /* 獲取原始標題 */
             this.OriginalTitle = () => {
@@ -156,26 +183,56 @@
             `);
         }
 
+        /* 解析名稱格式 */
+        NameAnalysis(format) {
+            if (typeof format == "string") {
+                return format.split(/{([^}]+)}/g).filter(Boolean).map(data => {
+                    const LowerData = data.toLowerCase();
+                    const isWord = /^[a-zA-Z]+$/.test(LowerData);
+                    return isWord ? (this.Named_Data[LowerData] ? this.Named_Data[LowerData]() || "None" : "None") : data;
+                }).join("");
+
+            } else if (typeof format == "object") {
+                const filler = String(format.Filler) || "0";
+                const amount = parseInt(format.Amount) || "auto";
+                return [amount, filler];
+
+            } else {}
+        }
+
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
         async DownloadTrigger() {
             this.Button.disabled = lock = true;
-            let DownloadData = new Map(), files, title, artist,
+            const selectors = [".post__files", ".post__title", ".post__user-name"], DownloadData = new Map(),
             interval = setInterval(() => {
-                files = func.$$("div.post__files");
-                title = func.$$("h1.post__title");
-                artist = func.$$("a.post__user-name");
-
-                if (files && title && artist) {
+                const found = selectors.map(selector => func.$$(selector));
+                if (found.every(e => {return e !== null && typeof e !== "undefined"})) {
                     clearInterval(interval);
-                    title = func.IllegalCharacters(title.textContent).trim();
-                    artist = func.IllegalCharacters(artist.textContent).trim();
 
-                    //! 等待修改獲取名子格式
+                    const [files, title, artist] = found;
+
+                    this.Named_Data = { // 建立數據
+                        fill: ()=> "fill",
+                        title: ()=> func.$$("span", false, title).textContent.trim(),
+                        artist: ()=> artist.textContent.trim(),
+                        source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
+                        time: ()=> {
+                            let published = func.$$(".post__published").cloneNode(true);
+                            published.firstElementChild.remove();
+                            return published.textContent.trim().split(" ")[0];
+                        }
+                    }
+
+                    const [ // 獲取名稱
+                        compress_name,
+                        folder_name,
+                        fill_name
+                    ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
+
                     const
                         a = func.$$("a", true, files),
                         img = func.$$("img", true, files),
                         video = func.$$(".post__attachment a", true),
-                        folder = `${artist}_${title}`,
                         data = a.length > 0 ? a : img,
                         final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
@@ -183,17 +240,18 @@
                         DownloadData.set(index, (file.href || file.src));
                     });
 
-                    Config.DeBug && func.log("Get Data", [folder, DownloadData]);
+                    Config.DeBug && func.log("Get Data", [folder_name, DownloadData]);
+
                     this.CompressMode
-                    ? this.PackDownload(folder, title, DownloadData)
-                    : this.SeparDownload(title, DownloadData);
+                        ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
+                        : this.SeparDownload(fill_name, DownloadData);
                 }
             }, 300);
             setTimeout(()=> {clearInterval(interval)}, 1e4);
         }
 
         /* 打包壓縮下載 */
-        async PackDownload(Folder, File, Data) {
+        async PackDownload(CompressName, FolderName, FillName, Data) {
             let
                 show,
                 extension,
@@ -202,13 +260,16 @@
             const
                 Self = this,
                 Zip = new JSZip(),
-                Fill = func.GetFill(Total),
                 TitleCache = this.OriginalTitle();
+            const
+                FillValue = this.NameAnalysis(FileName.FillValue),
+                Filler = FillValue[1],
+                Amount = FillValue[0] == "auto" ? func.GetFill(Total) : FillValue[0];
 
             // 強制下載
             async function ForceDownload() {
                 Self.worker.terminate();
-                Self.Compression(Folder, Zip, TitleCache);
+                Self.Compression(CompressName, Zip, TitleCache);
             }
 
             func.Menu({
@@ -225,8 +286,8 @@
                     } else {
                         extension = func.ExtensionName(url);
                         Self.isVideo(extension)
-                        ? Zip.file(`${Folder}/${decodeURIComponent(url.split("?f=")[1])}`, blob)
-                        : Zip.file(`${Folder}/${File}_${func.Mantissa(index, Fill)}.${extension}`, blob);
+                        ? Zip.file(`${FolderName}/${decodeURIComponent(url.split("?f=")[1])}`, blob)
+                        : Zip.file(`${FolderName}/${FillName.replace("fill", func.Mantissa(index, Amount, Filler))}.${extension}`, blob);
                     }
 
                     show = `[${++progress}/${Total}]`;
@@ -237,7 +298,7 @@
                         Total = Data.size;
                         if (Total == 0) {
                             Self.worker.terminate();
-                            Self.Compression(Folder, Zip, TitleCache);
+                            Self.Compression(CompressName, Zip, TitleCache);
                         } else {
                             show = "Wait for failed re download";
                             document.title = show;
@@ -297,7 +358,7 @@
         }
 
         /* 壓縮檔案 */
-        async Compression(Folder, Data, Title) {
+        async Compression(Name, Data, Title) {
             this.ForceDownload = true;
             GM_unregisterMenuCommand("Enforce-1");
             Data.generateAsync({
@@ -308,7 +369,7 @@
                 document.title = `${progress.percent.toFixed(1)} %`;
                 this.Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
             }).then(zip => {
-                saveAs(zip, `${Folder}.zip`);
+                saveAs(zip, `${Name}.zip`);
                 document.title = `✓ ${Title}`;
                 this.Button.textContent = language.DS_08;
                 setTimeout(() => {
@@ -325,7 +386,7 @@
         }
 
         /* 單圖下載 */
-        async SeparDownload(File, Data) {
+        async SeparDownload(FillName, Data) {
             let
                 show,
                 link,
@@ -338,8 +399,11 @@
                 Process = [],
                 Promises = [],
                 Total = Data.size,
-                Fill = func.GetFill(Total),
                 TitleCache = this.OriginalTitle();
+            const
+                FillValue = this.NameAnalysis(FileName.FillValue),
+                Filler = FillValue[1],
+                Amount = FillValue[0] == "auto" ? func.GetFill(Total) : FillValue[0];
 
             // 停止下載的線程
             async function Stop() {
@@ -357,7 +421,7 @@
                 extension = func.ExtensionName(link);
                 filename = Self.isVideo(extension)
                 ? decodeURIComponent(link.split("?f=")[1])
-                : `${File}_${func.Mantissa(index, Fill)}.${extension}`;
+                : `${FillName.replace("fill", func.Mantissa(index, Amount, Filler))}.${extension}`;
                 return new Promise((resolve, reject) => {
                     const download = GM_download({
                         url: link,
