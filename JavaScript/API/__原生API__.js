@@ -158,7 +158,7 @@ class Collection {
 /**_________________________
  ** { Object }
  * 
- * Object.assign(目標, ...來源) [一或多個來源的 Object 合併到目標 Objec
+ * Object.assign(目標, ...來源) [一或多個來源的 Object 合併到目標 Objec]
  * Object.keys(物件) [獲取 Object 的 key 值]
  * Object.values(物件) [獲取 Object 的 value 值]
  * Object.entries(物件) [獲取 Object 的, key / value 值]
