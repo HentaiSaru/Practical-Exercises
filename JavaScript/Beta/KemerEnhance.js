@@ -351,6 +351,25 @@
                     })
                     )
                 };
+                // Case 1 預設
+                async function FastAuto() {
+                    thumbnail.forEach((object, index) => {
+                        setTimeout(()=> {
+                            object.removeAttribute("class");
+                            a = api.$$("a", false, object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
+                        }, index * 300);
+                    });
+                    // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
+                    api.AddListener(document, "click", event => {
+                        const target = event.target.matches(".Image-link img");
+                        if (target && target.alt == "Loading Failed") {
+                            const src = img.src;
+                            img.src = "";
+                            img.src = src;
+                        }
+                    }, {capture: true, passive: true});
+                }
                 // Case 2 邏輯
                 function Replace(index) {
                     if (index == thumbnail.length) {return}
@@ -394,22 +413,13 @@
                         });break;
 
                     default:
-                        thumbnail.forEach((object, index) => {
-                            setTimeout(()=> {
-                                object.removeAttribute("class");
-                                a = api.$$("a", false, object);
-                                ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
-                            }, index * 600);
-                        });
-                        // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                        api.AddListener(document, "click", event => {
-                            const target = event.target.matches(".Image-link img");
-                            if (target && target.alt == "Loading Failed") {
-                                const src = img.src;
-                                img.src = "";
-                                img.src = src;
-                            }
-                        }, {capture: true, passive: true});
+                        if (document.visibilityState === "hidden") { // 當可見時才觸發快速自動原圖
+                            api.AddListener(document, "visibilitychange", ()=> {
+                                if (document.visibilityState === "visible") {
+                                    api.RemovListener(document, "visibilitychange"); FastAuto();
+                                }
+                            })
+                        } else {FastAuto()}
                 }
             }, document.body, 600);
 
