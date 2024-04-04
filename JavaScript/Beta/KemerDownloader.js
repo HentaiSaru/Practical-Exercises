@@ -511,8 +511,15 @@
 
             /* 輸出Json */
             this.ToJson = async () => {
-                const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.JsonDict, null, 4));
+                const json = document.createElement("a"),
+                Json_data = Object.assign({
+                    ["Meta-Data"]: {
+                        [language.CD_05]: this.Author,
+                        [language.CD_06]: this.GetTime(),
+                        [language.CD_07]: this.Source
+                    }
+                }, this.JsonDict);
+                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Json_data, null, 4));
                 json.download = `${this.Author}.json`;
                 json.click();
                 json.remove();
@@ -579,11 +586,6 @@
         async GetData() {
             if (this.Section) {
                 lock = true;
-                this.JsonDict["Meta-Data"] = {
-                    [language.CD_05]: this.Author,
-                    [language.CD_06]: this.GetTime(),
-                    [language.CD_07]: this.Source
-                }
 
                 for (const page of func.$$(".pagination-button-disabled b", true)) {
                     const number = Number(page.textContent);
