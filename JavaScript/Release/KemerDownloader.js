@@ -4,8 +4,8 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.18-Beta
-// @author       HentaiSaru
+// @version      0.0.18
+// @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-CN   一键下载图片 (压缩下载/单图下载) , 页面数据创建 json 下载 , 一键开启当前所有帖子
@@ -36,11 +36,10 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1350542/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1354065/GrammarSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
-
 (function() {
     const func = new API(), language = Language(navigator.language);
     const Config = {
@@ -52,7 +51,31 @@
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     };
-    /** ---------------------/
+    /** ---------------------
+     * 暫時的 檔名修改方案
+     * 
+     * 根據要添加的元素修改字串
+     * 中間的間隔可用任意字符
+     *
+     * ! 不限制大小寫, 但一定要有 {}, 不能用於命名的符號會被移除
+     *
+     * {Time} 發表時間
+     * {Title} 標題
+     * {Artist} 作者 | 繪師 ...
+     * {Source} 來源 => (Pixiv Fanbox) 之類的標籤
+     * 
+     * {Fill} 填充 => ! 只適用於檔名, 位置隨意 但 必須存在該值, 不得刪除
+     */
+    const FileName = {
+        FillValue: {
+            Filler: "0", // 填充元素 / 填料
+            Amount: "Auto", // 填充數量 [輸入 auto 或 任意數字]
+        },
+        CompressName: "({Artist}) {Title}", // 壓縮檔案名稱
+        FolderName: "{Title}", // 資料夾名稱
+        FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
+    };
+    /** ---------------------
      * 設置 json 輸出格式
      * 
      * Mode
@@ -71,7 +94,8 @@
         Use: false,
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
-    };
+    }
+    /* --------------------------------- */
     let lock = false;
     class Download {
         constructor(CM, MD, BT) {
@@ -79,13 +103,13 @@
             this.CompressMode = CM;
             this.ModeDisplay = MD;
             this.Button = BT;
+            this.Named_Data = null;
             this.OriginalTitle = () => {
                 const cache = document.title;
                 return cache.startsWith("✓ ") ? cache.slice(2) : cache;
             };
             this.isVideo = str => [ "MP4", "MOV", "AVI", "WMV", "FLV" ].includes(str.toUpperCase());
             this.worker = func.WorkerCreation(`
-                /* 使用 worker 是希望切換焦點後, 下載不受瀏覽器影響 */
                 let queue = [], processing=false;
                 onmessage = function(e) {
                     queue.push(e.data);
@@ -116,7 +140,6 @@
                     xhr.send();
                 }
 
-                /* 試錯一次就回傳 */
                 async function FetchRequest(index, url) {
                     try {
                         const response = await fetch(url);
@@ -132,34 +155,59 @@
                 }
             `);
         }
+        NameAnalysis(format) {
+            if (typeof format == "string") {
+                return format.split(/{([^}]+)}/g).filter(Boolean).map(data => {
+                    const LowerData = data.toLowerCase();
+                    const isWord = /^[a-zA-Z]+$/.test(LowerData);
+                    return isWord ? this.Named_Data[LowerData] ? this.Named_Data[LowerData]() || "None" : "None" : data;
+                }).join("");
+            } else if (typeof format == "object") {
+                const filler = String(format.Filler) || "0";
+                const amount = parseInt(format.Amount) || "auto";
+                return [ amount, filler ];
+            } else {}
+        }
         async DownloadTrigger() {
             this.Button.disabled = lock = true;
-            let DownloadData = new Map(), files, title, artist, interval = setInterval(() => {
-                files = func.$$("div.post__files");
-                title = func.$$("h1.post__title");
-                artist = func.$$("a.post__user-name");
-                if (files && title && artist) {
+            const selectors = [ ".post__files", ".post__title", ".post__user-name" ], DownloadData = new Map(), interval = setInterval(() => {
+                const found = selectors.map(selector => func.$$(selector));
+                if (found.every(e => {
+                    return e !== null && typeof e !== "undefined";
+                })) {
                     clearInterval(interval);
-                    title = func.IllegalCharacters(title.textContent).trim();
-                    artist = func.IllegalCharacters(artist.textContent).trim();
-                    const a = func.$$("a", true, files), img = func.$$("img", true, files), video = func.$$(".post__attachment a", true), folder = `${artist}_${title}`, data = a.length > 0 ? a : img, final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
+                    const [ files, title, artist ] = found;
+                    this.Named_Data = {
+                        fill: () => "fill",
+                        title: () => func.$$("span", false, title).textContent.trim(),
+                        artist: () => artist.textContent.trim(),
+                        source: () => title.querySelector(":nth-child(2)").textContent.trim(),
+                        time: () => {
+                            let published = func.$$(".post__published").cloneNode(true);
+                            published.firstElementChild.remove();
+                            return published.textContent.trim().split(" ")[0];
+                        }
+                    };
+                    const [ compress_name, folder_name, fill_name ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
+                    const a = func.$$("a", true, files), img = func.$$("img", true, files), video = func.$$(".post__attachment a", true), data = a.length > 0 ? a : img, final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
                     final_data.forEach((file, index) => {
                         DownloadData.set(index, file.href || file.src);
                     });
-                    Config.DeBug && func.log("Get Data", [ folder, DownloadData ]);
-                    this.CompressMode ? this.PackDownload(folder, title, DownloadData) : this.SeparDownload(title, DownloadData);
+                    Config.DeBug && func.log("Get Data", [ folder_name, DownloadData ]);
+                    this.CompressMode ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData) : this.SeparDownload(fill_name, DownloadData);
                 }
             }, 300);
             setTimeout(() => {
                 clearInterval(interval);
             }, 1e4);
         }
-        async PackDownload(Folder, File, Data) {
+        async PackDownload(CompressName, FolderName, FillName, Data) {
             let show, extension, progress = 0, Total = Data.size;
-            const Self = this, Zip = new JSZip(), Fill = func.GetFill(Total), TitleCache = this.OriginalTitle();
+            const Self = this, Zip = new JSZip(), TitleCache = this.OriginalTitle();
+            const FillValue = this.NameAnalysis(FileName.FillValue), Filler = FillValue[1], Amount = FillValue[0] == "auto" ? func.GetFill(Total) : FillValue[0];
             async function ForceDownload() {
                 Self.worker.terminate();
-                Self.Compression(Folder, Zip, TitleCache);
+                Self.Compression(CompressName, Zip, TitleCache);
             }
             func.Menu({
                 [language.RM_04]: {
@@ -177,7 +225,7 @@
                         Data.set(index, url);
                     } else {
                         extension = func.ExtensionName(url);
-                        Self.isVideo(extension) ? Zip.file(`${Folder}/${decodeURIComponent(url.split("?f=")[1])}`, blob) : Zip.file(`${Folder}/${File}_${func.Mantissa(index, Fill)}.${extension}`, blob);
+                        Self.isVideo(extension) ? Zip.file(`${FolderName}/${decodeURIComponent(url.split("?f=")[1])}`, blob) : Zip.file(`${FolderName}/${FillName.replace("fill", func.Mantissa(index, Amount, Filler))}.${extension}`, blob);
                     }
                     show = `[${++progress}/${Total}]`;
                     document.title = show;
@@ -186,7 +234,7 @@
                         Total = Data.size;
                         if (Total == 0) {
                             Self.worker.terminate();
-                            Self.Compression(Folder, Zip, TitleCache);
+                            Self.Compression(CompressName, Zip, TitleCache);
                         } else {
                             show = "Wait for failed re download";
                             document.title = show;
@@ -244,7 +292,7 @@
                 Config.DeBug && func.log("Download Successful", url));
             };
         }
-        async Compression(Folder, Data, Title) {
+        async Compression(Name, Data, Title) {
             this.ForceDownload = true;
             GM_unregisterMenuCommand("Enforce-1");
             Data.generateAsync({
@@ -257,7 +305,7 @@
                 document.title = `${progress.percent.toFixed(1)} %`;
                 this.Button.textContent = `${language.DS_06}: ${progress.percent.toFixed(1)} %`;
             }).then(zip => {
-                saveAs(zip, `${Folder}.zip`);
+                saveAs(zip, `${Name}.zip`);
                 document.title = `✓ ${Title}`;
                 this.Button.textContent = language.DS_08;
                 setTimeout(() => {
@@ -272,9 +320,10 @@
                 }, 6e3);
             });
         }
-        async SeparDownload(File, Data) {
+        async SeparDownload(FillName, Data) {
             let show, link, filename, extension, stop = false, progress = 0;
-            const Self = this, Process = [], Promises = [], Total = Data.size, Fill = func.GetFill(Total), TitleCache = this.OriginalTitle();
+            const Self = this, Process = [], Promises = [], Total = Data.size, TitleCache = this.OriginalTitle();
+            const FillValue = this.NameAnalysis(FileName.FillValue), Filler = FillValue[1], Amount = FillValue[0] == "auto" ? func.GetFill(Total) : FillValue[0];
             async function Stop() {
                 stop = true;
                 Process.forEach(process => process.abort());
@@ -291,7 +340,7 @@
                 }
                 link = Data.get(index);
                 extension = func.ExtensionName(link);
-                filename = Self.isVideo(extension) ? decodeURIComponent(link.split("?f=")[1]) : `${File}_${func.Mantissa(index, Fill)}.${extension}`;
+                filename = Self.isVideo(extension) ? decodeURIComponent(link.split("?f=")[1]) : `${FillName.replace("fill", func.Mantissa(index, Amount, Filler))}.${extension}`;
                 return new Promise((resolve, reject) => {
                     const download = GM_download({
                         url: link,
@@ -438,8 +487,14 @@
                 };
             };
             this.ToJson = async () => {
-                const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(this.JsonDict, null, 4));
+                const json = document.createElement("a"), Json_data = Object.assign({
+                    ["Meta-Data"]: {
+                        [language.CD_05]: this.Author,
+                        [language.CD_06]: this.GetTime(),
+                        [language.CD_07]: this.Source
+                    }
+                }, this.JsonDict);
+                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Json_data, null, 4));
                 json.download = `${this.Author}.json`;
                 json.click();
                 json.remove();
@@ -503,11 +558,6 @@
         async GetData() {
             if (this.Section) {
                 lock = true;
-                this.JsonDict["Meta-Data"] = {
-                    [language.CD_05]: this.Author,
-                    [language.CD_06]: this.GetTime(),
-                    [language.CD_07]: this.Source
-                };
                 for (const page of func.$$(".pagination-button-disabled b", true)) {
                     const number = Number(page.textContent);
                     if (number) {
