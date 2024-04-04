@@ -87,10 +87,22 @@ function DOM_Parsing(element, format) {
     }
 }
 
-function XpathSelect(xpathExpression) {
+function XpathSelector(xpathExpression) {
     const result = document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null).singleNodeValue;
     if (result) {
         console.log(result);
+    } else {
+        console.log("No matching element found for the given XPath expression.");
+    }
+}
+
+function XpathSelectorAll(xpathExpression) {
+    const result_box = [];
+    for (const node of document.evaluate(xpathExpression, document, null, XPathResult.FIRST_ORDERED_NODE_TYPE, null)) {
+        node.nodeType == 1 && result_box.push(node);
+    }
+    if (result_box.length > 0) {
+        console.log(result_box);
     } else {
         console.log("No matching element found for the given XPath expression.");
     }
