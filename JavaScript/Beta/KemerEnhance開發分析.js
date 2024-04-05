@@ -12,15 +12,24 @@
 // ==/UserScript==
 /* jshint esversion: 8 */
 
+/* 我需要的功能
+
+名稱的編輯
+名稱的變換
+
+可在搜尋頁直接點擊 標籤跳轉
+
+*/
+
 (async function() {
-    GM_registerMenuCommand('Settings', () => settings());
-    let options = await GM_getValue('options', {});
-    if (options.disable_arrow) disable_arrow();
     update_css(options, true);
+
     let name = document.querySelector('.user-header__profile span[itemprop="name"], .post__user .post__user-name');
     if (name) fix_header(name);
+
     let cards = document.querySelectorAll('.card-list__items .user-card');
     for (let card of cards) await fix_card(card);
+
     let lists = document.querySelector('.card-list__items');
     if (lists) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(node => queue.add(node)))).observe(lists, {childList: true, subtree: false});
   })();
@@ -119,6 +128,7 @@
   
   function fix_info(card, id) {
     let sites = {
+      Gumroad: "https://subscribestar.adult/" + "取得連結網址的最後",
       Pixiv: 'https://www.pixiv.net/users/{id}/artworks',
       Fanbox: 'https://www.pixiv.net/fanbox/creator/{id}',
       Fantia: 'https://fantia.jp/fanclubs/{id}/posts',
@@ -305,14 +315,3 @@
     else document.querySelector('.css_fix').remove();
     document.head.insertAdjacentHTML('beforeend', '<style class="css_fix">' + css_fix.replace(/{{(user_width|card_width|card_height):(\d+)}}/g, (all, p1, p2) => (options[p1] || p2) + 'px') + (options.untrim_square ? css_untrim : '') + '</style>');
   };
-  
-  function disable_arrow() {
-    const remove_css = doc => doc.querySelectorAll(".paginator .prev, .paginator .next").forEach(a => a.classList.remove("prev", "next"));
-    remove_css(document);
-    let page = document.querySelector('#page');
-    if (page) {
-      new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(node => {
-        if (node.tagName == 'MENU') remove_css(node);
-      }))).observe(page, {childList: true, subtree: true});
-    }
-  }
