@@ -24,35 +24,23 @@
 (async function() {
     update_css(options, true);
 
-    let name = document.querySelector('.user-header__profile span[itemprop="name"], .post__user .post__user-name');
+    // 用於找到用戶名稱, 第一個是找 user 也就是預覽頁面, 第二個是找 post 也就是 觀看頁面
+    let name = document.querySelector("span[itemprop='name'], a.post__user-name");
     if (name) fix_header(name);
 
-    let cards = document.querySelectorAll('.card-list__items .user-card');
+    // 用於搜尋頁面 https://kemono.su/artists
+    let cards = document.querySelectorAll(".card-list__items a");
     for (let card of cards) await fix_card(card);
+})();
+  
+  // 修復標題
+  function fix_header(name) {
+    let site = location.href.split('/user/').shift().split('/').pop();
+    let id = location.href.split('/user/').pop().split(/[/?]/).shift();
+    fix_name(name, id, site);
+  }
 
-    let lists = document.querySelector('.card-list__items');
-    if (lists) new MutationObserver(ms => ms.forEach(m => m.addedNodes.forEach(node => queue.add(node)))).observe(lists, {childList: true, subtree: false});
-  })();
-  
-  const queue = (function() {
-    let active, tasks = [];
-    return {
-      add: function (task) {
-        tasks.push(task);
-        if (!active) {
-          active = true;
-          this.next();
-        }
-      },
-      next: async function () {
-        let task = tasks.shift();
-        await fix_card(task);
-        if (tasks.length > 0) this.next();
-        else active = false;
-      }
-    };
-  })();
-  
+  // 修復卡片
   async function fix_card(card) {
     if (card && card.href) {
       let site = card.href.split('/user/').shift().split('/').pop();
@@ -68,13 +56,8 @@
       fix_info(card, id);
     }
   }
-  
-  function fix_header(name) {
-    let site = location.href.split('/user/').shift().split('/').pop();
-    let id = location.href.split('/user/').pop().split(/[/?]/).shift();
-    fix_name(name, id, site);
-  }
-  
+
+  // 修復名稱
   async function fix_name(name, id, site) {
     let name_org = name.innerText;
     let name_fix = (await GM_getValue(site, {}))[id];
@@ -126,6 +109,7 @@
     };
   }
   
+  // 修復資訊
   function fix_info(card, id) {
     let sites = {
       Gumroad: "https://subscribestar.adult/" + "取得連結網址的最後",
@@ -155,6 +139,7 @@
     }
   }
   
+  // 更新名稱
   function update_name(name, fix, org) {
     if (fix.indexOf('* ') == 0) name.classList.add('highlight');
     else name.classList.remove('highlight');
@@ -168,6 +153,7 @@
     }));
   }
   
+  // 保存數據
   async function save_name(id, name_fix, site, in_tag, is_remove) {
     if (in_tag) {
       let sites = await GM_getValue(site, {});
@@ -178,6 +164,7 @@
     }
   }
   
+  // 取得 pixiv 名稱
   async function get_pixiv_name(id) {
     let user_ajax = await GM_fetch('https://www.pixiv.net/ajax/user/' + id + '?full=1&lang=ja', {referer: "https://www.pixiv.net/"});
     if (user_ajax.status == 200) {
@@ -201,6 +188,7 @@
     });
   }
   
+  // 設定
   const settings = async function() {
     const $element = (parent, tag, style, content, css) => {
       let el = document.createElement(tag);
