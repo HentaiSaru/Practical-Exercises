@@ -49,7 +49,7 @@
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
         CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-        CardZoom: 1,        // 縮放預覽卡大小
+        CardZoom: 3,        // 縮放預覽卡大小 [mode: 1 = 單純放大 , 2 = 懸浮放大 , 3 = (1+2)]
     }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
         LinkSimplified: 1,  // 將下載連結簡化
@@ -197,10 +197,45 @@
         }
 
         /* 帖子預覽卡縮放 */
-        async CardZoom() {
-            api.AddStyle(`
-                * { --card-size: 12vw; }
-            `, "Effects");
+        async CardZoom(Mode) {
+            switch (Mode) {
+                case 2: case 3:
+                    api.AddStyle(`
+                        .post-card { margin: .3vw; }
+                        a.image-link {
+                            border-radius: 8px;
+                            border: 3px solid #fff6;
+                            transition: transform 0.4s;
+                        }
+                        a.image-link:hover {
+                            overflow: auto;
+                            z-index: 99999;
+                            background: #000;
+                            transform: scale(1.6, 1.5);
+                            border: 1px solid #fff6;
+                        }
+                        a.image-link:hover .post-card__image-container {
+                            position: relative;
+                        }
+                        a.image-link::-webkit-scrollbar {
+                            width: 0;
+                            height: 0;
+                        }
+                    `, "Effects");
+
+                    if (Mode == 2) {
+                        break;
+                    } else { // clse 3 禁止滾動
+                        api.AddStyle(`
+                            a.image-link:hover { overflow: hidden; }
+                        `, "Effects");
+                    }
+
+                default:
+                    api.AddStyle(`
+                        * { --card-size: 13vw; }
+                    `, "Effects");
+            }
         }
     }
 
