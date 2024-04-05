@@ -202,33 +202,30 @@
                 case 2: case 3:
                     api.AddStyle(`
                         .post-card { margin: .3vw; }
-                        a.image-link {
+                        .post-card a img { border-radius: 8px; }
+                        .post-card a {
                             border-radius: 8px;
                             border: 3px solid #fff6;
                             transition: transform 0.4s;
                         }
-                        a.image-link:hover {
+                        .post-card a:hover {
                             overflow: auto;
                             z-index: 99999;
                             background: #000;
-                            transform: scale(1.6, 1.5);
                             border: 1px solid #fff6;
+                            transform: scale(1.6, 1.5);
                         }
-                        a.image-link:hover .post-card__image-container {
-                            position: relative;
-                        }
-                        a.image-link::-webkit-scrollbar {
+                        .post-card a::-webkit-scrollbar {
                             width: 0;
                             height: 0;
+                        }
+                        .post-card a:hover .post-card__image-container {
+                            position: relative;
                         }
                     `, "Effects");
 
                     if (Mode == 2) {
                         break;
-                    } else { // clse 3 禁止滾動
-                        api.AddStyle(`
-                            a.image-link:hover { overflow: hidden; }
-                        `, "Effects");
                     }
 
                 default:
@@ -605,9 +602,9 @@
                             display: flex;
                             grid-gap: 0.5em;
                             position: relative;
+                            align-items: var(--local-align);
                             flex-flow: var(--local-flex-flow);
                             justify-content: var(--local-justify);
-                            align-items: var(--local-align);
                         }
                     `, "Preview-Effects");break;
 
