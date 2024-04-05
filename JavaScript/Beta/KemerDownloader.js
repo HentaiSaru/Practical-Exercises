@@ -832,10 +832,14 @@
                     try {
                         const CompressMode = func.store("get", "Compression", []);
                         const ModeDisplay = CompressMode ? language.DS_01 : language.DS_02;
+
                         // 創建 Span
-                        const spanElement = GM_addElement(Files[Files.length - 1], "span", {
-                            class: "File_Span", id: "ExDB"
-                        });
+                        Files = Array.from(Files).filter(file => file.textContent.trim() == "Files");
+                        if (Files.length == 0) {
+                            return;
+                        }
+
+                        const spanElement = GM_addElement(Files[0], "span", { class: "File_Span", id: "ExDB" });
                         // 創建 Svg
                         const setting = GM_addElement(spanElement, "svg", { class: "Setting_Button" });
                         setting.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="1.3rem" viewBox="0 0 512 512"><style>svg {fill: hsl(0, 0%, 45%);}</style>
