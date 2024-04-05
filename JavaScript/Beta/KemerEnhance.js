@@ -62,7 +62,7 @@
 
     }, api = new API();
 
-    let PF, CF, Lang; // 需要時才實例化
+    let SF, PF, CF, Lang; // 需要時才實例化
 
     /* ==================== 全域功能 ==================== */
     class Global_Function {
@@ -111,6 +111,12 @@
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
         }
+    }
+
+    /* ==================== 搜尋頁功能 ==================== */
+
+    class Search_Function {
+
     }
 
     /* ==================== 預覽頁功能 ==================== */
@@ -242,7 +248,7 @@
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
             let link, text;
-            const URL_F = /(?:https?:\/\/[^\s]+|[a-zA-Z0-9]+(?:\.[a-zA-Z0-9]+)\.com)/g, Protocol_F = /^(?!https?:\/\/)/;
+            const URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g, Protocol_F = /^(?!https?:\/\/)/;
             async function Analysis(father, text) {
                 father.innerHTML = text.replace(URL_F, url => {
                     return `<a href="${url.replace(Protocol_F, "https://")}" target="_blank">${decodeURIComponent(url).trim()}</a>`;
@@ -1060,14 +1066,17 @@
     class Enhance {
         constructor(url) {
             this.url = url;
-            this.DmsPage = /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/;
-            this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/;
+            this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
+            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/.+\/(user\/[^\/]+\/announcements)(\?.*)?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
-            this.M1 = () => this.ContentPage.test(this.url)
-            this.MS = () => this.Announcement.test(this.url)
-            this.M3 = () => this.PostsPage.test(this.url) || this.UserPage.test(this.url) || this.DmsPage.test(this.url)
+            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
+            this.Match = {
+                Search: this.SearchPage.test(this.url),
+                Content: this.ContentPage.test(this.url),
+                Announcement: this.Announcement.test(this.url),
+                AllPreview: this.PostsPage.test(this.url) || this.UserPage.test(this.url)
+            }
             this.USE = (Select, FuncName) => {Select > 0 ? FuncName(Select) : null}
         }
 
@@ -1092,9 +1101,10 @@
             }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call[func](set))}
 
             Start(Global);
-            if (this.M3()) {PF = new Preview_Function(); Start(Preview)}
-            else if (this.MS()) {CF = new Content_Function(); Start(Special);}
-            else if (this.M1()) {
+            if (this.Match.AllPreview) {PF = new Preview_Function(); Start(Preview)}
+            else if (this.Match.Search) {SF = new Search_Function(); console.log("搜尋頁待開發");}
+            else if (this.Match.Announcement) {CF = new Content_Function(); Start(Special);}
+            else if (this.Match.Content) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
                 Lang = DM.language(api.store("get", "language"));
