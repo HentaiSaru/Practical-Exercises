@@ -74,6 +74,7 @@
     if (name_fix && name_fix !== name_org) {
       update_name(name, name_fix, name_org);
     }
+
     let name_edit = document.createElement('label');
     name_edit.innerHTML = 'Edit';
     name_edit.classList.add('name_edit');
