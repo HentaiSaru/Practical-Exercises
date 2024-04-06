@@ -44,6 +44,7 @@
     const Global={ /* 全域功能 */
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
+        FixArtist: 1,       // 修復作者名稱
         BlockAds: 1,        // 封鎖廣告
     }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
@@ -62,10 +63,28 @@
 
     }, api = new API();
 
-    let SF, PF, CF, Lang; // 需要時才實例化
+    let PF, CF, Lang, url = document.URL; // 需要時才實例化
+
+    /* ==================== 頁面匹配 正則 ==================== */
+    const PM = (new class Page_Match {
+        constructor() {
+            this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
+            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
+            this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
+            this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
+            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
+            this.Match = {
+                Search: this.SearchPage.test(url),
+                Content: this.ContentPage.test(url),
+                Announcement: this.Announcement.test(url),
+                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url)
+            }
+        }
+    });
 
     /* ==================== 全域功能 ==================== */
     class Global_Function {
+
         /* 收縮側邊攔 */
         async SidebarCollapse() {
             api.AddStyle(`
@@ -93,6 +112,16 @@
             Notice ? Notice.remove() : null;
         }
 
+        /* 修復藝術家名稱 */
+        async FixArtist() {
+            if (PM.Match.Search) {
+                const items = api.$$(".card-list__items a", true);
+                console.log(items);
+            } else {
+
+            }
+        }
+
         /* (阻止/封鎖)廣告 */
         async BlockAds() {
             api.AddStyle(`.ad-container, .root--ujvuu {display: none !important}`, "Ad-blocking-style");
@@ -111,12 +140,6 @@
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
         }
-    }
-
-    /* ==================== 搜尋頁功能 ==================== */
-
-    class Search_Function {
-
     }
 
     /* ==================== 預覽頁功能 ==================== */
@@ -1063,48 +1086,34 @@
     }
 
     /* ==================== 增強調用 ==================== */
-    class Enhance {
-        constructor(url) {
-            this.url = url;
-            this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
-            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
-            this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
-            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
-            this.Match = {
-                Search: this.SearchPage.test(this.url),
-                Content: this.ContentPage.test(this.url),
-                Announcement: this.Announcement.test(this.url),
-                AllPreview: this.PostsPage.test(this.url) || this.UserPage.test(this.url)
-            }
-            this.USE = (Select, FuncName) => {Select > 0 ? FuncName(Select) : null}
-        }
-
+    class Enhance{
         async Run() {
             const Call = {
-                SidebarCollapse: s=> this.USE(s, GF.SidebarCollapse),
-                DeleteNotice: s=> this.USE(s, GF.DeleteNotice),
-                BlockAds: s=> this.USE(s, GF.BlockAds),
+                USE: (Select, FuncName) => {Select > 0 && FuncName(Select)},
 
-                QuickPostToggle: s=> this.USE(s, PF.QuickPostToggle),
-                NewTabOpens: s=> this.USE(s, PF.NewTabOpens),
-                CardText: s=> this.USE(s, PF.CardText),
-                CardZoom: s=> this.USE(s, PF.CardZoom),
+                SidebarCollapse: s=> Call.USE(s, GF.SidebarCollapse),
+                DeleteNotice: s=> Call.USE(s, GF.DeleteNotice),
+                FixArtist: s=> Call.USE(s, GF.FixArtist),
+                BlockAds: s=> Call.USE(s, GF.BlockAds),
 
-                TextToLink: s=> this.USE(s, CF.TextToLink),
-                LinkSimplified: s=> this.USE(s, CF.LinkSimplified),
-                OriginalImage: s=> this.USE(s, CF.OriginalImage),
-                VideoBeautify: s=> this.USE(s, CF.VideoBeautify),
-                CommentFormat: s=> this.USE(s, CF.CommentFormat),
-                ExtraButton: s=> this.USE(s, CF.ExtraButton)
+                QuickPostToggle: s=> Call.USE(s, PF.QuickPostToggle),
+                NewTabOpens: s=> Call.USE(s, PF.NewTabOpens),
+                CardText: s=> Call.USE(s, PF.CardText),
+                CardZoom: s=> Call.USE(s, PF.CardZoom),
+
+                TextToLink: s=> Call.USE(s, CF.TextToLink),
+                LinkSimplified: s=> Call.USE(s, CF.LinkSimplified),
+                OriginalImage: s=> Call.USE(s, CF.OriginalImage),
+                VideoBeautify: s=> Call.USE(s, CF.VideoBeautify),
+                CommentFormat: s=> Call.USE(s, CF.CommentFormat),
+                ExtraButton: s=> Call.USE(s, CF.ExtraButton)
 
             }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call[func](set))}
 
             Start(Global);
-            if (this.Match.AllPreview) {PF = new Preview_Function(); Start(Preview)}
-            else if (this.Match.Search) {SF = new Search_Function(); console.log("搜尋頁待開發");}
-            else if (this.Match.Announcement) {CF = new Content_Function(); Start(Special);}
-            else if (this.Match.Content) {
+            if (PM.Match.AllPreview) {PF = new Preview_Function(); Start(Preview)}
+            else if (PM.Match.Announcement) {CF = new Content_Function(); Start(Special);}
+            else if (PM.Match.Content) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
                 Lang = DM.language(api.store("get", "language"));
@@ -1116,7 +1125,7 @@
     const
     GF = new Global_Function(),
     DM = new Dependencies_And_Menu(),
-    EC = new Enhance(document.URL); EC.Run();
+    EC = new Enhance(); EC.Run();
 
     /* ==================== 通用 API ==================== */
 
