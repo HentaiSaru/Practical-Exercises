@@ -14,13 +14,13 @@
  * 1.
  *  class main extends Syntax {
  *       繼承此類...
- *       this.func(方法調用)
+ *       this.func(方法調用);
  *  }
  * 
  * 2.
  *  實利化調用
- *  const api = new Syntax()
- *  api.func()
+ *  const def = new Syntax();
+ *  def.func();
  */
 class Syntax {
     constructor() {
