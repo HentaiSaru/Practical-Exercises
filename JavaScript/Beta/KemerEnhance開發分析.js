@@ -33,14 +33,14 @@
     for (let card of cards) await fix_card(card);
 })();
   
-  // 修復標題
+  // 根據當前頁面的 URL 信息, 提取出用戶 ID 和所在網站,然後調用 fix_name() 函數來修復名稱
   function fix_header(name) {
     let site = location.href.split('/user/').shift().split('/').pop();
     let id = location.href.split('/user/').pop().split(/[/?]/).shift();
     fix_name(name, id, site);
   }
 
-  // 修復卡片
+  // 作用是修復用戶卡片的內容。它提取出用戶 ID 和所在網站,然後調用 fix_name() 函數來修復名稱,並調用 fix_info() 函數來修復其他信息
   async function fix_card(card) {
     if (card && card.href) {
       let site = card.href.split('/user/').shift().split('/').pop();
@@ -57,7 +57,7 @@
     }
   }
 
-  // 修復名稱
+  // 它首先從本地存儲中查找是否有之前保存的修改過的名稱,如果有就使用修改後的名稱,否則嘗試從 Pixiv 獲取用戶的真實名稱。它還添加了一個"編輯"按鈕,允許用戶手動編輯名稱,並將編輯結果保存到本地存儲中
   async function fix_name(name, id, site) {
     let name_org = name.innerText;
     let name_fix = (await GM_getValue(site, {}))[id];
@@ -109,7 +109,7 @@
     };
   }
   
-  // 修復資訊
+  // 修復用戶卡片上的其他信息,如服務網站鏈接和更新時間戳。它將服務網站名稱轉換為可點擊的鏈接,並根據更新時間計算出友好的時間顯示格式
   function fix_info(card, id) {
     let sites = {
       Gumroad: "https://subscribestar.adult/" + "取得連結網址的最後",
@@ -139,7 +139,7 @@
     }
   }
   
-  // 更新名稱
+  // 它的作用是更新用戶名稱的顯示。它根據修改後的名稱,加上一些特殊標記,並在原始名稱旁邊顯示一個小括號。它還會在名稱旁邊添加指向其他相關網站的鏈接。
   function update_name(name, fix, org) {
     if (fix.indexOf('* ') == 0) name.classList.add('highlight');
     else name.classList.remove('highlight');
@@ -153,7 +153,7 @@
     }));
   }
   
-  // 保存數據
+  // 它的作用是保存修改過的用戶名稱到本地存儲中。它根據傳入的參數,決定是在網站級別存儲還是在用戶級別存儲,並提供刪除存儲數據的功能
   async function save_name(id, name_fix, site, in_tag, is_remove) {
     if (in_tag) {
       let sites = await GM_getValue(site, {});
@@ -164,7 +164,7 @@
     }
   }
   
-  // 取得 pixiv 名稱
+  // 它的作用是從 Pixiv 網站獲取用戶的真實名稱。它使用 GM_fetch() 函數發送 AJAX 請求到 Pixiv 的 API 端點,並解析返回的 JSON 數據,提取出用戶的名稱
   async function get_pixiv_name(id) {
     let user_ajax = await GM_fetch('https://www.pixiv.net/ajax/user/' + id + '?full=1&lang=ja', {referer: "https://www.pixiv.net/"});
     if (user_ajax.status == 200) {
@@ -187,119 +187,42 @@
       });
     });
   }
-  
-  // 設定
-  const settings = async function() {
-    const $element = (parent, tag, style, content, css) => {
-      let el = document.createElement(tag);
-      if (style) el.style.cssText = style;
-      if (typeof content !== 'undefined') {
-        if (tag == 'input') {
-          if (typeof content == "boolean") {
-            el.type = 'checkbox';
-            el.checked = content
-          } else el.value = content;
-        } else el.innerHTML = content;
-      }
-      if (css) css.split(' ').forEach(c => el.classList.add(c));
-      parent.appendChild(el);
-      return el;
-    };
-    let wapper, wapper_close;
-    (wapper = document.querySelector('.settings-wapper')) === null || wapper.remove();
-    wapper = $element(document.body, 'div', 'position: fixed; left: 0px; top: 0px; width: 100%; height: 100%; background-color: #0009; z-index: 10;', null, 'settings-wapper');
-    wapper.onmousedown = e => {
-      wapper_close = e.target == wapper;
-    };
-    wapper.onmouseup = e => {
-      if (wapper_close && e.target == wapper) wapper.remove();
-    };
-    let dialog = $element(wapper, 'div', 'position: absolute; left: 50%; top: 50%; transform: translateX(-50%) translateY(-50%); width: fit-content; width: -moz-fit-content; background: #333; border: 1px solid #999; border-radius: 10px; box-shadow: 0 0 6px #999;');
-    let options = await GM_getValue('options', {});
-    const save_and_update = (key, val, da) => {
-      if (options[key] !== val) {
-        options[key] = val;
-        GM_setValue('options', options);
-        if (da) disable_arrow();
-        else update_css(options);
-      }
-    };
-    let disable_arrow_label = $element(dialog, 'label', 'display: block; margin: 20px;', 'Disable page switching with arrow keys');
-    let disable_arrow_input = $element(disable_arrow_label, 'input', 'float: left; margin-right: 8px;', options.disable_arrow || false);
-    disable_arrow_input.onchange = () => save_and_update('disable_arrow', disable_arrow_input.checked, true);
-    let untrim_square_label = $element(dialog, 'label', 'display: block; margin: 20px;', 'Untrim square thumbnails');
-    let untrim_square_input = $element(untrim_square_label, 'input', 'float: left; margin-right: 8px;', options.untrim_square || false);
-    untrim_square_input.onchange = () => save_and_update('untrim_square', untrim_square_input.checked);
-    let user_card_size = $element(dialog, 'div', 'display: block; margin: 20px;');
-    let user_card_size_label = $element(user_card_size, 'label', 'display: block; margin-bottom: 10px;', 'User card size');
-    let user_card_width_label = $element(user_card_size, 'label', 'margin-left: 20px;', 'Width');
-    let user_card_width_input = $element(user_card_width_label, 'input', 'margin-left: 10px; width: 60px;', options.user_width || 480);
-    user_card_width_input.onblur = () => save_and_update('user_width', user_card_width_input.value);
-    let post_card_size = $element(dialog, 'div', 'display: block; margin: 20px;');
-    let post_card_size_label = $element(post_card_size, 'label', 'display: block; margin-bottom: 10px;', 'Post thumbnail size');
-    let post_card_width_label = $element(post_card_size, 'label', 'margin-left: 20px;', 'Width');
-    let post_card_width_input = $element(post_card_width_label, 'input', 'margin-left: 10px; width: 60px;', options.card_width || 240);
-    post_card_width_input.onblur = () => save_and_update('card_width', post_card_width_input.value);
-    let post_card_height_label = $element(post_card_size, 'label', 'margin-left: 20px;', 'Height');
-    let post_card_height_input = $element(post_card_height_label, 'input', 'margin-left: 10px; width: 60px;', options.card_height || 240);
-    post_card_height_input.onblur = () => save_and_update('card_height', post_card_height_input.value);
-  };
-  
+
+  //它的作用是根據用戶的設置,動態更新頁面的 CSS 樣式。它包含了一個長的 CSS 字符串,定義了各種樣式規則,用於美化用戶名稱、編輯按鈕、引用鏈接等元素的顯示
   const update_css = function(options, is_init) {
     const css = `
-  .user-card {margin: .25em;}
-  .user-card__icon img {width: 100%; height: 100%;}
-  .user-card__info {flex-grow: 1;}
-  .user-card__info .user-card__service {display: inline-block; text-transform: capitalize;}
-  .user-card__info .user-card__name {display: block; color: #fff; border: unset; word-break: break-all;}
-  .user-card__info .user-card__name.highlight {color: #cf3; font-weight: bold;}
-  .user-card__info .name_edit {display: none; float: right;}
-  .user-card:hover .name_edit {display: block;}
-  .user-card__info textarea {display: block; color: #fff; font-size: 28px; min-height: unset; padding: 5px 2px;}
-  .user-card__info textarea ~ .user-card__name {display: none;}
-  
-  .user-header__profile span[itemprop="name"] {flex-grow: 1;}
-  .user-header__profile span[itemprop="name"].highlight {color: #cf3; font-weight: bold;}
-  .user-header__profile .name_edit {display: none; order: 1; margin-right: .5em;}
-  .user-header__profile:hover .name_edit {display: block;}
-  .user-header__profile .refer_link {order: 2; margin-right: .5em;}
-  .user-header__profile .name_org {flex-grow: 99; font-size: 11pt;}
-  .user-header__name textarea {display: block; color: #fff; font-size: 28px; min-height: unset; padding: 5px 2px; margin: 3px;}
-  .user-header__name textarea ~ .user-header__profile {display: none;}
-  
-  .post__user .post__user-name {display: block;}
-  .post__user .post__user-name.highlight {color: #cf3; font-weight: bold;}
-  .post__user .name_edit {display: none; position: absolute; right: .5em;}
-  .post__user:hover .name_edit {display: block;}
-  .post__user .refer_link {display: none;}
-  .post__user textarea {display: block; color: #fff; font-size: 1.25em; min-height: unset; width: 100%; resize: none; overflow: hidden; text-align: center;}
-  .post__user textarea ~ .post__user-name {display: none;}
-  
-  .name_org {color: #b3b3b3;}
-  .name_edit {font-size: 14px; color: #fff; background: #666; border-radius: 6px; padding: 4px 8px;}
-  textarea ~ .name_edit {display: none !important;}
-  .refer_link {background-color: #000;}
-  .refer_link .highlight {color: #cf3; font-weight: bold;}
-  `;
-    const css_fix = `
-  /* fix sidebar menu */
-  .global-sidebar-entry-item:not(:first-child) {margin-left: 1em;}
-  
-  /* fix post card style */
-  .card-list--phone  {--card-size: {{user_width:480}};}
-  .card-list--legacy {--card-size: {{card_width:240}};}
-  .post-card {margin: .5em; width: {{card_width:240}}; height: {{card_height:240}};}
-  .post-card > a {border: 1px solid #fff6; border-radius: 6px; overflow: hidden; margin: -1px; background: #000 !important;}
-  .post-card__header {font-size: 1.25em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;}
-  .post-card:hover .post-card__header {white-space: unset; word-break: break-all;}
-  .post-card__footer div {float: right; width: 5em; height: 1em; text-align: right; overflow: hidden;}
-  .post-card__footer div:before {content: '📌';}
-  `;
-    const css_untrim = `
-  /* untrim square */
-  .post-card__image {object-fit: contain;}
-  `;
-    if (is_init) document.head.insertAdjacentHTML('beforeend', '<style class="css_main">' + css + '</style>');
-    else document.querySelector('.css_fix').remove();
-    document.head.insertAdjacentHTML('beforeend', '<style class="css_fix">' + css_fix.replace(/{{(user_width|card_width|card_height):(\d+)}}/g, (all, p1, p2) => (options[p1] || p2) + 'px') + (options.untrim_square ? css_untrim : '') + '</style>');
-  };
+      .user-card {margin: .25em;}
+      .user-card__icon img {width: 100%; height: 100%;}
+      .user-card__info {flex-grow: 1;}
+      .user-card__info .user-card__service {display: inline-block; text-transform: capitalize;}
+      .user-card__info .user-card__name {display: block; color: #fff; border: unset; word-break: break-all;}
+      .user-card__info .user-card__name.highlight {color: #cf3; font-weight: bold;}
+      .user-card__info .name_edit {display: none; float: right;}
+      .user-card:hover .name_edit {display: block;}
+      .user-card__info textarea {display: block; color: #fff; font-size: 28px; min-height: unset; padding: 5px 2px;}
+      .user-card__info textarea ~ .user-card__name {display: none;}
+
+      .user-header__profile span[itemprop="name"] {flex-grow: 1;}
+      .user-header__profile span[itemprop="name"].highlight {color: #cf3; font-weight: bold;}
+      .user-header__profile .name_edit {display: none; order: 1; margin-right: .5em;}
+      .user-header__profile:hover .name_edit {display: block;}
+      .user-header__profile .refer_link {order: 2; margin-right: .5em;}
+      .user-header__profile .name_org {flex-grow: 99; font-size: 11pt;}
+      .user-header__name textarea {display: block; color: #fff; font-size: 28px; min-height: unset; padding: 5px 2px; margin: 3px;}
+      .user-header__name textarea ~ .user-header__profile {display: none;}
+
+      .post__user .post__user-name {display: block;}
+      .post__user .post__user-name.highlight {color: #cf3; font-weight: bold;}
+      .post__user .name_edit {display: none; position: absolute; right: .5em;}
+      .post__user:hover .name_edit {display: block;}
+      .post__user .refer_link {display: none;}
+      .post__user textarea {display: block; color: #fff; font-size: 1.25em; min-height: unset; width: 100%; resize: none; overflow: hidden; text-align: center;}
+      .post__user textarea ~ .post__user-name {display: none;}
+
+      .name_org {color: #b3b3b3;}
+      .name_edit {font-size: 14px; color: #fff; background: #666; border-radius: 6px; padding: 4px 8px;}
+      textarea ~ .name_edit {display: none !important;}
+      .refer_link {background-color: #000;}
+      .refer_link .highlight {color: #cf3; font-weight: bold;}
+    `;
+  }
