@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1342021/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1354861/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -61,7 +61,7 @@
     }, Special={ /* 預覽頁面的 announcements */
         TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
 
-    }, api = new API();
+    }, def = new Syntax();
 
     let PF, CF, Lang, url = document.URL; // 需要時才實例化
 
@@ -77,17 +77,54 @@
                 Search: this.SearchPage.test(url),
                 Content: this.ContentPage.test(url),
                 Announcement: this.Announcement.test(url),
-                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url)
+                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
+                Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
             }
         }
     });
 
     /* ==================== 全域功能 ==================== */
     class Global_Function {
+        constructor() {
+            this.fix_data = def.Storage(localStorage, "fix_record") || {};
+            this.fix_support = {
+                gumroad: "https://subscribestar.adult/" + "取得連結網址的最後",
+                pixiv: 'https://www.pixiv.net/users/{id}/artworks',
+                fanbox: 'https://www.pixiv.net/fanbox/creator/{id}',
+                fantia: 'https://fantia.jp/fanclubs/{id}/posts',
+                patreon: 'https://www.patreon.com/user?u={id}'
+            }
+
+            this.update_name = async(object, href, text) => {
+                const edit = GM_addElement("label", { 
+                    class: "edit_artist",
+                    textContent: "Edit"
+                })
+                object.parentNode.insertBefore(edit, object);
+                object.outerHTML = `<a href="${href}" class="user-card__name" target="_blank">${text}</a>`;
+            }
+
+            this.fix_name = async (id, name, site, link=false) => {
+                if (!this.fix_support.hasOwnProperty(site)) {
+                    this.update_name(name, link, name.textContent);
+                    return;
+                }
+
+                const record = this.fix_data[id] || name.textContent;
+
+                if (record) {
+                    if (link) {
+                        this.update_name(name, link, record);
+                    }
+                } else {
+                    const Name = name.textContent;
+                }
+            };
+        }
 
         /* 收縮側邊攔 */
         async SidebarCollapse() {
-            api.AddStyle(`
+            def.AddStyle(`
                 .global-sidebar {
                     opacity: 0;
                     height: 100%;
@@ -108,28 +145,74 @@
 
         /* 刪除公告通知 */
         async DeleteNotice() {
-            const Notice = api.$$("body > div.content-wrapper.shifted > a");
+            const Notice = def.$$("body > div.content-wrapper.shifted > a");
             Notice ? Notice.remove() : null;
         }
 
         /* 修復藝術家名稱 */
         async FixArtist() {
             if (PM.Match.Search) {
-                const items = api.$$(".card-list__items a", true);
-                console.log(items);
-            } else {
+                def.AddStyle(`
+                    .user-card__info {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    .user-card__info a {
+                        color: #fff;
+                        border-radius: 10px;
+                    }
+                    .user-card:hover a {
+                        background-color: ${PM.Match.Color};
+                    }
+                    .user-card:hover .edit_artist {
+                        display: block;
+                    }
+                    .user-card__info .edit_artist {
+                        position: absolute;
+                        top: 50%;
+                        right: 8%;
+                        display: none;
+                        transform: translateY(-50%);
 
+                        color: #fff;
+                        font-size: 20px;
+                        font-weight: 300;
+                        background: #666;
+                        padding: 4px 8px;
+                        border-radius: 8px;
+                        white-space: nowrap;
+                    }
+                `, "Effects");
+
+                def.Listen(window, "load", ()=> {
+                    const origin = `${location.origin}/`; // 取得域名前半段
+                    def.$$(".card-list__items a", true).forEach(items=> {
+                        const link = items.href;
+                        items.removeAttribute("href");
+
+                        const name = def.$$(".user-card__name", false, items);
+
+                        const parse = link.split(origin)[1].split("/");
+                        const site = parse[0]; // 來源站點
+                        const id = parse[2]; // 尾部 ID
+
+                        GF.fix_name(id, name, site, link);
+                    });
+                }, {once: true, passive: true});
+            } else {
+                const artist = def.$$("span[itemprop='name'], a.post__user-name");
             }
         }
 
         /* (阻止/封鎖)廣告 */
         async BlockAds() {
-            api.AddStyle(`.ad-container, .root--ujvuu {display: none !important}`, "Ad-blocking-style");
-            api.AddScript(`
+            def.AddStyle(`.ad-container, .root--ujvuu {display: none !important}`, "Ad-blocking-style");
+            def.AddScript(`
                 const XMLRequest = XMLHttpRequest.prototype.open;
                 const Ad_observer = new MutationObserver(() => {
                     XMLHttpRequest.prototype.open = function(method, url) {
-                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/api.php") {return}
+                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") {return}
                         XMLRequest.apply(this, arguments);
                     };
                     try {
@@ -149,22 +232,22 @@
             DM.Dependencies("Preview");
             let Old_data, New_data, item;
             async function Request(link) { // 請求數據
-                Old_data = api.$$("section");
-                item = api.$$("div.card-list__items");
+                Old_data = def.$$("section");
+                item = def.$$("div.card-list__items");
                 requestAnimationFrame(()=> {GM_addElement(item, "img", {class: "gif-overlay"})});
                 GM_xmlhttpRequest({
                     method: "GET",
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = api.$$("section", false, api.DomParse(response.responseText));
+                        New_data = def.$$("section", false, def.DomParse(response.responseText));
                         ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
                         history.pushState(null, null, link);
                     },
                     onerror: error => {Request(link)}
                 });
             }
-            api.Listen(document, "click", event => {
+            def.Listen(document, "click", event => {
                 const target = event.target.closest("menu a");
                 if (target) {
                     event.preventDefault();
@@ -175,7 +258,7 @@
 
         /* 將預覽頁面都變成開新分頁 */
         async NewTabOpens() {
-            api.Listen(document, "click", event => {
+            def.Listen(document, "click", event => {
                 const target = event.target.closest("article a");
                 if (target) {
                     event.preventDefault();
@@ -188,7 +271,7 @@
         async CardText(Mode) {
             switch (Mode) {
                 case 2:
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .post-card__header, .post-card__footer {
                             opacity: 0.4;
                             transition: opacity 0.3s;
@@ -199,7 +282,7 @@
                         }
                     `, "Effects");break;
                 default:
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .post-card__header {
                             opacity: 0;
                             z-index: 1;
@@ -229,7 +312,7 @@
         async CardZoom(Mode) {
             switch (Mode) {
                 case 2: case 3:
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .post-card { margin: .3vw; }
                         .post-card a img { border-radius: 8px; }
                         .post-card a {
@@ -258,7 +341,7 @@
                     }
 
                 default:
-                    api.AddStyle(`
+                    def.AddStyle(`
                         * { --card-size: 13vw; }
                     `, "Effects");
             }
@@ -280,15 +363,15 @@
             async function A_Analysis(A) { A.setAttribute("target", "_blank") }
             switch (Mode) {
                 case 2:
-                    api.WaitElem("div.card-list__items pre", true, 8, content => {
+                    def.WaitElem("div.card-list__items pre", true, 8, content => {
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
-                                api.$$("p", true, pre).forEach(p=> {
+                                def.$$("p", true, pre).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
 
-                                api.$$("a", true, pre).forEach(a=> {
+                                def.$$("a", true, pre).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -300,14 +383,14 @@
                         })
                     }, document, 600);break;
                 default:
-                    api.WaitElem("div.post__body", false, 8, body => {
-                        const article = api.$$("article", false, body);
-                        const content = api.$$("div.post__content", false, body);
+                    def.WaitElem("div.post__body", false, 8, body => {
+                        const article = def.$$("article", false, body);
+                        const content = def.$$("div.post__content", false, body);
 
                         if (article) {
-                            api.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
+                            def.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
                         } else if (content) {
-                            const pre = api.$$("pre", false, content);
+                            const pre = def.$$("pre", false, content);
 
                             if (pre) { // 單一個 Pre 標籤的狀態
                                 text = pre.textContent;
@@ -316,11 +399,11 @@
                                 // Array.from(document.querySelector("div.post__content").childNodes).forEach(nodes => {
                                     // console.log(nodes, nodes.nodeName, nodes.textContent);
                                 // })
-                                api.$$("p", true, content).forEach(p=> {
+                                def.$$("p", true, content).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
-                                api.$$("a", true, content).forEach(a=> {
+                                def.$$("a", true, content).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -332,7 +415,7 @@
 
         /* 下載連結簡化 */
         async LinkSimplified() {
-            api.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("a.post__attachment-link", true, 5, post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
@@ -343,12 +426,12 @@
 
         /* 影片美化 */
         async VideoBeautify(Mode) {
-            api.AddStyle(`
+            def.AddStyle(`
                 .video-title {margin-top: 0.5rem;}
                 .post-video {height: 50%; width: 60%;}
             `, "Effects");
-            api.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
-                api.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
+                def.WaitElem("a.post__attachment-link", true, 5, post => {
                     function VideoRendering({ stream }) {
                         return React.createElement("summary", {
                                 className: "video-title"
@@ -367,8 +450,8 @@
                         ));
                     }
                     parents.forEach(li => {
-                        let title = api.$$("summary", false, li),
-                        stream = api.$$("source", false, li);
+                        let title = def.$$("summary", false, li),
+                        stream = def.$$("source", false, li);
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
@@ -383,7 +466,7 @@
                                 }
                             });
                             ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
-                            li.insertBefore(title, api.$$("summary", false, li));
+                            li.insertBefore(title, def.$$("summary", false, li));
                         }
                     });
                 }, document.body, 600);
@@ -394,7 +477,7 @@
         async OriginalImage(Mode) {
             let img, a;
             DM.Dependencies("Postview");
-            api.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
+            def.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
                 function ImgRendering({ ID, href }) {
                     return React.createElement("div", {
                         id: ID,
@@ -404,10 +487,10 @@
                         src: href.href,
                         className: "Image-loading-indicator Image-style",
                         onLoad: function () {
-                            api.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
+                            def.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
                         },
                         onError: function () {
-                            Reload(api.$$(`#${ID} img`), 10);
+                            Reload(def.$$(`#${ID} img`), 10);
                         }
                     })
                     )
@@ -417,12 +500,12 @@
                     thumbnail.forEach((object, index) => {
                         setTimeout(()=> {
                             object.removeAttribute("class");
-                            a = api.$$("a", false, object);
+                            a = def.$$("a", false, object);
                             ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
                         }, index * 300);
                     });
                     // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                    api.AddListener(document, "click", event => {
+                    def.AddListener(document, "click", event => {
                         const target = event.target.matches(".Image-link img");
                         if (target && target.alt == "Loading Failed") {
                             const src = img.src;
@@ -436,8 +519,8 @@
                     if (index == thumbnail.length) {return}
                     const object = thumbnail[index];
                     object.removeAttribute("class");
-                    a = api.$$("a", false, object);
-                    img = api.$$("img", false, a);
+                    a = def.$$("a", false, object);
+                    img = def.$$("img", false, a);
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
                         src: a.href,
@@ -457,7 +540,7 @@
                         if (entry.isIntersecting) {
                             const object = entry.target;
                             observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: api.$$("a", false, object) }), object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: def.$$("a", false, object) }), object);
                             object.removeAttribute("class");
                         }
                     });
@@ -475,9 +558,9 @@
 
                     default:
                         if (document.visibilityState === "hidden") { // 當可見時才觸發快速自動原圖
-                            api.AddListener(document, "visibilitychange", ()=> {
+                            def.AddListener(document, "visibilitychange", ()=> {
                                 if (document.visibilityState === "visible") {
-                                    api.RemovListener(document, "visibilitychange"); FastAuto();
+                                    def.RemovListener(document, "visibilitychange"); FastAuto();
                                 }
                             })
                         } else {FastAuto()}
@@ -503,7 +586,7 @@
 
         /* 評論區樣式 */
         async CommentFormat() {
-            api.AddStyle(`
+            def.AddStyle(`
                 .post__comments {display: flex; flex-wrap: wrap;}
                 .post__comments>*:last-child {margin-bottom: 0.5rem;}
                 .comment {
@@ -529,12 +612,12 @@
                 CF.CommentFormat();
                 CF.ExtraButton();
                 // 刪除所有只有 br 標籤的元素
-                api.$$("div.post__content p", true).forEach(p=> {
+                def.$$("div.post__content p", true).forEach(p=> {
                     p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
                 })
                 // 刪除所有是圖片連結的 a
-                api.$$("div.post__content a", true).forEach(a=> {/\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()});
-                api.$$("h1.post__title").scrollIntoView(); // 滾動到上方
+                def.$$("div.post__content a", true).forEach(a=> {/\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()});
+                def.$$("h1.post__title").scrollIntoView(); // 滾動到上方
             }
             /* 切換頁面 */
             async function AjexReplace(url, old_main) {
@@ -543,28 +626,27 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = api.$$("main", false, api.DomParse(response.responseText));
+                        let New_main = def.$$("main", false, def.DomParse(response.responseText));
                         ReactDOM.render(React.createElement(Rendering, { content: New_main.innerHTML }), old_main);
                         history.pushState(null, null, url);
                         setTimeout(Initialization(), 500);
                     }
                 });
             }
-            api.WaitElem("h2.site-section__subheading", false, 8, comments => {
-                const prev = api.$$("a.post__nav-link.prev");
-                const next = api.$$("a.post__nav-link.next");
-                const color = location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
+            def.WaitElem("h2.site-section__subheading", false, 8, comments => {
+                const prev = def.$$("a.post__nav-link.prev");
+                const next = def.$$("a.post__nav-link.next");
 
                 const svg = document.createElement("svg");
                 svg.innerHTML = `
                     <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                        <style>svg{fill: ${color}}</style>
+                        <style>svg{fill: ${PM.Match.Color}}</style>
                         <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                     </svg>
                 `
-                api.Buffer.appendChild(svg);
-                api.Listen(svg, "click", () => {
-                    api.$$("header").scrollIntoView();
+                def.Buffer.appendChild(svg);
+                def.Listen(svg, "click", () => {
+                    def.$$("header").scrollIntoView();
                 }, { capture: true, passive: true })
 
                 try {
@@ -572,14 +654,14 @@
                     span.id = "next_box";
                     span.style = "float: right";
                     span.appendChild(next.cloneNode(true));
-                    api.Buffer.appendChild(span);
-                    api.Listen(api.$$("#next_box a"), "click", event => {
+                    def.Buffer.appendChild(span);
+                    def.Listen(def.$$("#next_box a"), "click", event => {
                         event.preventDefault();
-                        AjexReplace(next.href, api.$$("main"));
+                        AjexReplace(next.href, def.$$("main"));
                     }, { capture: true, once: true });
                 } catch {}
 
-                comments.appendChild(api.Buffer);
+                comments.appendChild(def.Buffer);
             }, document.body, 600);
         }
 
@@ -610,7 +692,7 @@
             switch (type) {
                 case "Preview":
                     /* 快速預覽樣式添加 */
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .gif-overlay {
                             top: 45%;
                             left: 50%;
@@ -641,13 +723,13 @@
                     /* 獲取設定 (宣告) */
                     DM.GetSet = {
                         MenuSet: () => {
-                            const data = api.store("get", "MenuSet") || [{
+                            const data = def.store("get", "MenuSet") || [{
                                 "MT": "2vh",
                                 "ML": "50vw",
                             }]; return data[0];
                         },
                         ImgSet: () => {
-                            const data = api.store("get", "ImgSet") || [{
+                            const data = def.store("get", "ImgSet") || [{
                                 "img_h": "auto",
                                 "img_w": "auto",
                                 "img_mw": "100%",
@@ -657,7 +739,7 @@
                     }
                     /* 載入原圖樣式 */
                     DM.Set = DM.GetSet.ImgSet();
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .Image-style {
                             display: block;
                             width: ${DM.Set.img_w};
@@ -673,12 +755,12 @@
                     `, "Custom-style");break;
 
                 case "Awesome":
-                    api.AddStyle(GM_getResourceText("font-awesome"), "font-awesome");break;
+                    def.AddStyle(GM_getResourceText("font-awesome"), "font-awesome");break;
 
                 case "Menu":
                     /* 載入菜單樣式 */
                     DM.Set = DM.GetSet.MenuSet();
-                    api.AddScript(`
+                    def.AddScript(`
                         function check(value) {
                             if (value.toString().length > 4 || value > 1000) {
                                 value = 1000;
@@ -688,7 +770,7 @@
                             return value || 0;
                         }
                     `);
-                    api.AddStyle(`
+                    def.AddStyle(`
                         .modal-background {
                             top: 0;
                             left: 0;
@@ -855,8 +937,8 @@
 
         /* 創建菜單 */
         async Menu() {
-            if (!api.$$(".modal-background")) {
-                DM.ImgRules = api.$$("#Custom-style").sheet.cssRules;
+            if (!def.$$(".modal-background")) {
+                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
                 DM.Set = DM.GetSet.ImgSet();
                 let parent, child, img_input, img_select, img_set, analyze;
                 const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
@@ -965,7 +1047,7 @@
                     });
                 }
                 // 語言選擇
-                $("#language").val(api.store("get", "language") || "")
+                $("#language").val(def.store("get", "language") || "")
                 $on("#language", "input change", function (event) {
                     event.stopPropagation();
                     const value = $(this).val();
@@ -1116,8 +1198,8 @@
             else if (PM.Match.Content) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
-                Lang = DM.language(api.store("get", "language"));
-                api.Menu({[Lang.RM_01]: ()=> DM.Menu()})
+                Lang = DM.language(def.store("get", "language"));
+                def.Menu({[Lang.RM_01]: { func: ()=> DM.Menu() }});
             }
         }
     }
