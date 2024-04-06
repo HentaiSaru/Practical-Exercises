@@ -86,38 +86,77 @@
     /* ==================== 全域功能 ==================== */
     class Global_Function {
         constructor() {
-            this.fix_data = def.Storage(localStorage, "fix_record") || {};
-            this.fix_support = {
-                gumroad: "https://subscribestar.adult/" + "取得連結網址的最後",
-                pixiv: 'https://www.pixiv.net/users/{id}/artworks',
-                fanbox: 'https://www.pixiv.net/fanbox/creator/{id}',
-                fantia: 'https://fantia.jp/fanclubs/{id}/posts',
-                patreon: 'https://www.patreon.com/user?u={id}'
+            this.new_data = () => def.Storage(localStorage, "fix_record") || {};
+            this.fix_data = null;
+            this.fix_tag_support = {
+                patreon: "https://www.patreon.com/user?u={id}",
+                fantia: "https://fantia.jp/fanclubs/{id}/posts",
+                pixiv: "https://www.pixiv.net/users/{id}/artworks",
+                fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
+
+                fansly: "https://fansly.com/{name}/posts",
+                gumroad: "https://subscribestar.adult/{name}",
+                onlyfans: "https://onlyfans.com/lopesariana/{name}",
+            }
+            this.fix_name_support = { pixiv: "", fanbox: "" }
+
+            this.save_record = async(key, value) => {
+                def.Storage(localStorage, "fix_record",
+                    Object.assign(this.new_data(), {[key]: value}) // 取得完整數據並合併
+                ); 
             }
 
-            this.update_name = async(object, href, text) => {
-                const edit = GM_addElement("label", { 
-                    class: "edit_artist",
-                    textContent: "Edit"
-                })
+            this.update_name = async(object, id, href, text) => {
+                const edit = GM_addElement("label", { id: id, class: "edit_artist", textContent: "Edit" });
                 object.parentNode.insertBefore(edit, object);
-                object.outerHTML = `<a href="${href}" class="user-card__name" target="_blank">${text}</a>`;
+                object.outerHTML = `<a jump="${href}" class="user-card__name">${text}</a>`;
+            }
+
+            // 取得數據
+            this.Get = async(url, headers={}) => {
+                return new Promise(resolve => {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: url,
+                        headers: headers,
+                        onload: response => resolve(response),
+                        onerror: () => resolve(),
+                        ontimeout: () => resolve()
+                    })
+                })
+            }
+
+            // 獲取 pixiv 名稱
+            this.get_pixiv_name = async(id) => {
+                const response = await this.Get(
+                    `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`,
+                    {referer: "https://www.pixiv.net/"}
+                );
+                if (response.status === 200) {
+                    const user = JSON.parse(response.responseText);
+                    let user_name = user.body.name;
+                    user_name = user_name.replace(/(c\d+)?([日月火水木金土]曜日?|[123１２３一二三]日目?)[東南西北]..?\d+\w?/i, '');
+                    user_name = user_name.replace(/[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi, '');
+                    user_name = user_name.replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, '').trim();
+                    return user_name;
+                } else {
+                    return undefined;
+                }
             }
 
             this.fix_name = async (id, name, site, link=false) => {
-                if (!this.fix_support.hasOwnProperty(site)) {
-                    this.update_name(name, link, name.textContent);
-                    return;
-                }
-
-                const record = this.fix_data[id] || name.textContent;
+                let record = this.fix_data[id];
 
                 if (record) {
-                    if (link) {
-                        this.update_name(name, link, record);
-                    }
+                    this.update_name(name, id, link, record);
                 } else {
-                    const Name = name.textContent;
+                    if (this.fix_name_support.hasOwnProperty(site)) {
+                        record = await this.get_pixiv_name(id) || name.textContent;
+                    } else {
+                        record = name.textContent;
+                    }
+                    this.update_name(name, id, link, record);
+                    this.save_record(id, record);
                 }
             };
         }
@@ -158,9 +197,24 @@
                         flex-direction: column;
                         align-items: flex-start;
                     }
+                    .user-card__name {
+                        cursor: pointer;
+                    }
                     .user-card__info a {
                         color: #fff;
                         border-radius: 10px;
+                    }
+                    .user-card__info .edit_textarea {
+                        color: #fff;
+                        display: block;
+                        font-size: 30px;
+                        padding: 6px 1px;
+                        line-height: 5vh;
+                        text-align: center;
+                    }
+                    .user-card__info .edit_textarea ~ .user-card__name,
+                    .user-card__info .edit_textarea ~ .edit_artist {
+                        display: none !important;
                     }
                     .user-card:hover a {
                         background-color: ${PM.Match.Color};
@@ -185,21 +239,57 @@
                     }
                 `, "Effects");
 
-                def.Listen(window, "load", ()=> {
-                    const origin = `${location.origin}/`; // 取得域名前半段
-                    def.$$(".card-list__items a", true).forEach(items=> {
-                        const link = items.href;
-                        items.removeAttribute("href");
+                // 檢測點擊
+                const card_items = def.$$(".card-list__items");
+                def.Listen(card_items, "pointerup", event=> {
+                    const target = event.target;
 
-                        const name = def.$$(".user-card__name", false, items);
+                    if (target.matches(".edit_artist")) {
+                        const display = target.nextElementSibling; // 取得下方的 a
+                        const text = GM_addElement("textarea", { 
+                            class: "edit_textarea",
+                            style: `height: ${display.scrollHeight + 10}px;`,
+                        });
 
-                        const parse = link.split(origin)[1].split("/");
-                        const site = parse[0]; // 來源站點
-                        const id = parse[2]; // 尾部 ID
+                        const original_name = display.textContent;
+                        text.value = original_name;
+                        display.parentNode.insertBefore(text, target);
 
-                        GF.fix_name(id, name, site, link);
-                    });
-                }, {once: true, passive: true});
+                        text.focus(); // 設置焦點
+                        text.scrollTop = 0; // 滾動到最上方
+                        def.Listen(text, "blur", ()=> {
+                            const change_name = text.value.trim();
+                            if (change_name != original_name) {
+                                display.textContent = change_name; // 修改顯示名
+                                GF.save_record(target.id, change_name); // 保存修改名
+                            }
+                            text.remove();
+                        }, { once: true, passive: true });
+                    } else if (target.matches(".user-card__name")) {
+                        GM_openInTab(target.getAttribute("jump"), { active: false, insert: true });
+                    }
+                });
+
+                const origin = `${location.origin}/`; // 取得域名前半段
+                async function FixAnalysis(items) {
+                    const link = items.href;
+                    items.removeAttribute("href");
+                    items.setAttribute("fix", true); // 添加修復標籤
+
+                    const name = def.$$(".user-card__name", false, items);
+                    const tag = def.$$(".user-card__service", false, items);
+                    const parse = link.split(origin)[1].split("/");
+                    const site = parse[0]; // 來源站點
+                    const id = parse[2]; // 尾部 ID
+
+                    GF.fix_name(id, name, site, link);
+                }
+
+                new MutationObserver(() => { // 監聽變換觸發
+                    GF.fix_data = GF.new_data(); // 觸發時重新抓取
+                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
+                }).observe(card_items, {childList: true, subtree: false});
+
             } else {
                 const artist = def.$$("span[itemprop='name'], a.post__user-name");
             }
