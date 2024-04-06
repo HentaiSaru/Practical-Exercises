@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         GrammarSimplified
-// @version      2024/04/04
+// @name         SyntaxSimplified
+// @version      2024/04/06
 // @author       HentaiSaru
-// @description  Simple syntax simplification function
+// @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
 // @match        *://*/*
 // ==/UserScript==
