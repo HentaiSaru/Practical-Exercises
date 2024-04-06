@@ -71,12 +71,13 @@
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
             this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
+            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
             this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
             this.Match = {
-                Search: this.SearchPage.test(url),
                 Content: this.ContentPage.test(url),
                 Announcement: this.Announcement.test(url),
+                Search: this.SearchPage.test(url) || this.LinksPage.test(url),
                 AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
                 Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
             }
@@ -285,11 +286,16 @@
                     GF.fix_name(id, name, site, link);
                 }
 
-                new MutationObserver(() => { // 監聽變換觸發
-                    GF.fix_data = GF.new_data(); // 觸發時重新抓取
-                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
-                }).observe(card_items, {childList: true, subtree: false});
 
+                if (PM.LinksPage.test(url)) {
+                    GF.fix_data = GF.new_data();
+                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
+                } else {
+                    new MutationObserver(() => { // 監聽變換觸發
+                        GF.fix_data = GF.new_data(); // 觸發時重新抓取
+                        def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
+                    }).observe(card_items, {childList: true, subtree: false});
+                }
             } else {
                 const artist = def.$$("span[itemprop='name'], a.post__user-name");
             }
