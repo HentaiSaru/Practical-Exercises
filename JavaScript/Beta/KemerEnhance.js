@@ -63,15 +63,15 @@
 
     }, def = new Syntax();
 
-    let PF, CF, Lang, url = document.URL; // 需要時才實例化
+    let PM, GF, PF, CF, DM, Lang, url = document.URL; // 需要時才實例化
 
     /* ==================== 頁面匹配 正則 ==================== */
-    const PM = (new class Page_Match {
+    PM = (new class Page_Match {
         constructor() {
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
             this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links$/;
+            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
             this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
             this.Match = {
@@ -85,32 +85,47 @@
     });
 
     /* ==================== 全域功能 ==================== */
-    class Global_Function {
+    GF = (new class Global_Function { // 因為當前寫的暫用調用方法, 該類中的函數無法直接使用 this 取得構造函數
         constructor() {
-            this.new_data = () => def.Storage(localStorage, "fix_record") || {};
             this.fix_data = null;
+            this.new_data = () => def.Storage(localStorage, "fix_record") || {};
             this.fix_tag_support = {
-                patreon: "https://www.patreon.com/user?u={id}",
-                fantia: "https://fantia.jp/fanclubs/{id}/posts",
-                pixiv: "https://www.pixiv.net/users/{id}/artworks",
-                fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
+                ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
+                Patreon: "https://www.patreon.com/user?u={id}",
+                Fantia: "https://fantia.jp/fanclubs/{id}/posts",
+                Pixiv: "https://www.pixiv.net/users/{id}/artworks",
+                Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
 
-                fansly: "https://fansly.com/{name}/posts",
-                gumroad: "https://subscribestar.adult/{name}",
-                onlyfans: "https://onlyfans.com/lopesariana/{name}",
+                NAME: /Fansly|OnlyFans/gi,
+                OnlyFans: "https://onlyfans.com/{name}",
+                Fansly: "https://fansly.com/{name}/posts",
             }
             this.fix_name_support = { pixiv: "", fanbox: "" }
 
-            this.save_record = async(key, value) => {
+            this.save_record = async(save) => {
                 def.Storage(localStorage, "fix_record",
-                    Object.assign(this.new_data(), {[key]: value}) // 取得完整數據並合併
+                    Object.assign(this.new_data(), save) // 取得完整數據並合併
                 ); 
             }
 
-            this.update_name = async(object, id, href, text) => {
-                const edit = GM_addElement("label", { id: id, class: "edit_artist", textContent: "Edit" });
-                object.parentNode.insertBefore(edit, object);
-                object.outerHTML = `<a jump="${href}" class="user-card__name">${text}</a>`;
+            this.fix_update = async(href, id, name_onj, tag_obj, text) => {
+                const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
+                name_onj.parentNode.insertBefore(edit, name_onj);
+                name_onj.outerHTML = `<fix_name jump="${href}">${text}</fix_name>`;
+
+                const tag_text = tag_obj.textContent;
+                const support_id = this.fix_tag_support.ID;
+                const support_name = this.fix_tag_support.NAME;
+
+                if (support_id.test(tag_text)) {
+                    tag_obj.innerHTML = tag_text.replace(support_id, tag => {
+                        return `<fix_tag jump="${this.fix_tag_support[tag].replace("{id}", id)}">${tag}</fix_tag>`;
+                    });
+                } else if (support_name.test(tag_text)) {
+                    tag_obj.innerHTML = tag_text.replace(support_name, tag => {
+                        return `<fix_tag jump="${this.fix_tag_support[tag].replace("{name}", id)}">${tag}</fix_tag>`;
+                    });
+                }
             }
 
             // 取得數據
@@ -130,8 +145,7 @@
             // 獲取 pixiv 名稱
             this.get_pixiv_name = async(id) => {
                 const response = await this.Get(
-                    `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`,
-                    {referer: "https://www.pixiv.net/"}
+                    `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`, {referer: "https://www.pixiv.net/"}
                 );
                 if (response.status === 200) {
                     const user = JSON.parse(response.responseText);
@@ -145,21 +159,24 @@
                 }
             }
 
-            this.fix_name = async (id, name, site, link=false) => {
-                let record = this.fix_data[id];
+            this.fix = async (object) => {
+                const {Url, TailId, Website, NameObject, TagObject} = object;
 
-                if (record) {
-                    this.update_name(name, id, link, record);
+                let Record = this.fix_data[TailId];
+
+                if (Record) {
+                    this.fix_update(Url, TailId, NameObject, TagObject, Record);
                 } else {
-                    if (this.fix_name_support.hasOwnProperty(site)) {
-                        record = await this.get_pixiv_name(id) || name.textContent;
+                    if (this.fix_name_support.hasOwnProperty(Website)) {
+                        Record = await this.get_pixiv_name(TailId) || NameObject.textContent;
+                        this.fix_update(Url, TailId, NameObject, TagObject, Record);
+                        this.save_record({[TailId]: Record}); // 每次遞迴都處理是不好的, 目前的架構不好修正
                     } else {
-                        record = name.textContent;
+                        Record = NameObject.textContent;
+                        this.fix_update(Url, TailId, NameObject, TagObject, Record);
                     }
-                    this.update_name(name, id, link, record);
-                    this.save_record(id, record);
                 }
-            };
+            }
         }
 
         /* 收縮側邊攔 */
@@ -191,114 +208,111 @@
 
         /* 修復藝術家名稱 */
         async FixArtist() {
-            if (PM.Match.Search) {
-                def.AddStyle(`
-                    .user-card__info {
-                        display: flex;
-                        flex-direction: column;
-                        align-items: flex-start;
-                    }
-                    .user-card__name {
-                        cursor: pointer;
-                    }
-                    .user-card__info a {
-                        color: #fff;
-                        border-radius: 10px;
-                    }
-                    .user-card__info .edit_textarea {
-                        color: #fff;
-                        display: block;
-                        font-size: 30px;
-                        padding: 6px 1px;
-                        line-height: 5vh;
-                        text-align: center;
-                    }
-                    .user-card__info .edit_textarea ~ .user-card__name,
-                    .user-card__info .edit_textarea ~ .edit_artist {
-                        display: none !important;
-                    }
-                    .user-card:hover a {
-                        background-color: ${PM.Match.Color};
-                    }
-                    .user-card:hover .edit_artist {
-                        display: block;
-                    }
-                    .user-card__info .edit_artist {
-                        position: absolute;
-                        top: 50%;
-                        right: 8%;
-                        display: none;
-                        transform: translateY(-50%);
+            GF.fix_data = GF.new_data(); // 獲取修復數據
+            DM.Dependencies("Global");
 
-                        color: #fff;
-                        font-size: 20px;
-                        font-weight: 300;
-                        background: #666;
-                        padding: 4px 8px;
-                        border-radius: 8px;
-                        white-space: nowrap;
-                    }
-                `, "Effects");
+            // 針對其餘頁面的修復
+            async function other_page_fix(artist=false) {
+                artist = artist || def.$$("span[itemprop='name']");
+                const a = artist.parentNode;
+                const href = a.href;
 
-                // 檢測點擊
-                const card_items = def.$$(".card-list__items");
-                def.Listen(card_items, "pointerup", event=> {
-                    const target = event.target;
+                const parse = href.split(`${new URL(href).origin}/`)[1].split("/");
 
-                    if (target.matches(".edit_artist")) {
-                        const display = target.nextElementSibling; // 取得下方的 a
-                        const text = GM_addElement("textarea", { 
-                            class: "edit_textarea",
-                            style: `height: ${display.scrollHeight + 10}px;`,
-                        });
-
-                        const original_name = display.textContent;
-                        text.value = original_name;
-                        display.parentNode.insertBefore(text, target);
-
-                        text.focus(); // 設置焦點
-                        text.scrollTop = 0; // 滾動到最上方
-                        def.Listen(text, "blur", ()=> {
-                            const change_name = text.value.trim();
-                            if (change_name != original_name) {
-                                display.textContent = change_name; // 修改顯示名
-                                GF.save_record(target.id, change_name); // 保存修改名
-                            }
-                            text.remove();
-                        }, { once: true, passive: true });
-                    } else if (target.matches(".user-card__name")) {
-                        GM_openInTab(target.getAttribute("jump"), { active: false, insert: true });
-                    }
+                await GF.fix({
+                    Url: href,
+                    TailId: parse[2],
+                    Website: parse[0],
+                    NameObject: artist,
+                    TagObject: ""
                 });
 
+                $(a).replaceWith(function() {
+                    return $("<fix_view>", {
+                        html: $(this).html(),
+                        class: "user-header__profile"
+                    })
+                });
+            }
+
+            // 是用於搜尋頁面, 與一些特殊預覽頁
+            if (PM.Match.Search) {
                 const origin = `${location.origin}/`; // 取得域名前半段
                 async function FixAnalysis(items) {
-                    const link = items.href;
-                    items.removeAttribute("href");
                     items.setAttribute("fix", true); // 添加修復標籤
 
-                    const name = def.$$(".user-card__name", false, items);
-                    const tag = def.$$(".user-card__service", false, items);
+                    const link = items.href;
                     const parse = link.split(origin)[1].split("/");
-                    const site = parse[0]; // 來源站點
-                    const id = parse[2]; // 尾部 ID
+                    def.$$("img", false, items).setAttribute("jump", link); // 圖片設置跳轉連結
+                    items.removeAttribute("href"); // 刪除原始跳轉連結
 
-                    GF.fix_name(id, name, site, link);
+                    GF.fix({
+                        Url: link, // 跳轉連結
+                        TailId: parse[2], // 尾部 id 標號
+                        Website: parse[0], // 網站
+                        NameObject: def.$$(".user-card__name", false, items), // 名稱物件
+                        TagObject: def.$$(".user-card__service", false, items) // 標籤物件
+                    });
                 }
 
-
-                if (PM.LinksPage.test(url)) {
-                    GF.fix_data = GF.new_data();
-                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
-                } else {
+                const card_items = def.$$(".card-list__items");
+                async function DynamicFix() { // 監聽動態修復
                     new MutationObserver(() => { // 監聽變換觸發
                         GF.fix_data = GF.new_data(); // 觸發時重新抓取
                         def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
                     }).observe(card_items, {childList: true, subtree: false});
                 }
+
+                if (PM.LinksPage.test(url)) {
+                    other_page_fix(); // 預覽頁的 名稱修復
+                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
+
+                    if (url.endsWith("new")) { DynamicFix() }
+                } else { DynamicFix() }
+
+            } else if (PM.Match.Content) {
+                const artist = def.$$("post__user-name");
+                const title = def.$$("h1 span:nth-child(2)");
+
+
             } else {
-                const artist = def.$$("span[itemprop='name'], a.post__user-name");
+                const artist = def.$$("span[itemprop='name']");
+                artist && other_page_fix(artist);
             }
+
+            // 監聽點擊
+            def.AddListener(document.body, "pointerdown", event=> {
+                const target = event.target;
+
+                if (target.matches("fix_edit")) {
+                    const display = target.nextElementSibling; // 取得下方的 name 元素
+                    const text = GM_addElement("textarea", { 
+                        class: "edit_textarea",
+                        style: `height: ${display.scrollHeight + 10}px;`,
+                    });
+
+                    const original_name = display.textContent;
+                    text.value = original_name;
+                    display.parentNode.insertBefore(text, target);
+
+                    text.scrollTop = 0; // 滾動到最上方
+                    setTimeout(() => {
+                        text.focus() // 設置焦點
+                        setTimeout(() => {
+                            def.Listen(text, "blur", ()=> {
+                                const change_name = text.value.trim();
+                                if (change_name != original_name) {
+                                    display.textContent = change_name; // 修改顯示名
+                                    GF.save_record({[target.id]: change_name}); // 保存修改名
+                                }
+                                text.remove();
+                            }, { once: true, passive: true });
+                        }, 400);
+                    }, 300);
+                } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
+                    GM_openInTab(target.getAttribute("jump"), { active: false, insert: true });
+                }
+            }, { capture: true, passive: true });
         }
 
         /* (阻止/封鎖)廣告 */
@@ -319,7 +333,7 @@
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
         }
-    }
+    })
 
     /* ==================== 預覽頁功能 ==================== */
     class Preview_Function {
@@ -764,7 +778,7 @@
     }
 
     /* ==================== 依賴項目與菜單 ==================== */
-    class Dependencies_And_Menu {
+    DM = (new class Dependencies_And_Menu {
         ImgRules = null;
         GetSet = null;
         Set = null;
@@ -779,6 +793,7 @@
         }
 
         /*
+            "Global" - 全域修復所需
             "Preview" - 帖子預覽頁所需
             "Postview" - 觀看帖子頁所需
             "Awesome" - 觀看帖子頁圖示
@@ -786,6 +801,85 @@
         */
         Dependencies(type) {
             switch (type) {
+                case "Global":
+                    const Color = PM.Match.Color;
+                    def.AddStyle(`
+                        /* 搜尋頁面的樣式 */
+                        fix_tag:hover { color: ${Color}; }
+                        .fancy-image__image, fix_name, fix_tag, fix_edit {
+                            cursor: pointer;
+                        }
+                        .user-card__info {
+                            display: flex;
+                            flex-direction: column;
+                            align-items: flex-start;
+                        }
+                        fix_name {
+                            color: #fff;
+                            font-size: 28px;
+                            font-weight: 500;
+                            max-width: 320px;
+                            overflow: hidden;
+                            padding: .25rem .1rem;
+                            border-radius: .25rem;
+                            white-space: nowrap;
+                            text-overflow: ellipsis;
+                        }
+                        .edit_artist {
+                            position: absolute;
+                            top: 36%;
+                            right: 8%;
+                            color: #fff;
+                            display: none;
+                            font-size: 14px;
+                            font-weight: 700;
+                            background: #666;
+                            white-space: nowrap;
+                            padding: .25rem .5rem;
+                            border-radius: .25rem;
+                            transform: translateY(-100%);
+                        }
+                        .edit_textarea {
+                            color: #fff;
+                            display: block;
+                            font-size: 30px;
+                            padding: 6px 1px;
+                            line-height: 5vh;
+                            text-align: center;
+                        }
+                        .user-card:hover .edit_artist {
+                            display: block;
+                        }
+                        .user-card:hover fix_name {
+                            background-color: ${Color};
+                        }
+                        .edit_textarea ~ fix_name,
+                        .edit_textarea ~ .edit_artist {
+                            display: none !important;
+                        }
+                    
+                        /* 預覽頁面的樣式 */
+                        fix_view fix_name {
+                            cursor: pointer;
+                            font-size: 2rem;
+                            font-weight: 700;
+                            padding: .25rem 3rem;
+                            border-radius: .25rem;
+                            transition: background-color 0.3s ease;
+                        }
+                        fix_view .edit_artist {
+                            top: 40%;
+                            right: 5%;
+                            transform: translateY(-80%);
+                        }
+                        fix_view:hover fix_name {
+                            background-color: ${Color};
+                        }
+                        fix_view:hover .edit_artist {
+                            display: block;
+                        }
+                    `, "Effects"); break;
+
                 case "Preview":
                     /* 快速預覽樣式添加 */
                     def.AddStyle(`
@@ -1261,10 +1355,14 @@
             };
             return Match[lang] || Match["en-US"];
         }
-    }
+    })
 
     /* ==================== 增強調用 ==================== */
-    class Enhance{
+    new class Enhance{
+        constructor() {
+            this.Run();
+        }
+
         async Run() {
             const Call = {
                 USE: (Select, FuncName) => {Select > 0 && FuncName(Select)},
@@ -1298,12 +1396,8 @@
                 def.Menu({[Lang.RM_01]: { func: ()=> DM.Menu() }});
             }
         }
-    }
 
-    const
-    GF = new Global_Function(),
-    DM = new Dependencies_And_Menu(),
-    EC = new Enhance(); EC.Run();
+    };
 
     /* ==================== 通用 API ==================== */
 
