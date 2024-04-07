@@ -4,13 +4,13 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.45-Beta
+// @version      0.0.46-Beta
 // @author       Canaan HS
-// @description        側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
-// @description:zh-TW  側邊欄收縮美化界面 , 自動加載原圖 , 簡易隱藏廣告 , 瀏覽翻頁優化 , 自動開新分頁 , 影片區塊優化 , 底部添加下一頁與回到頂部按鈕
-// @description:zh-CN  侧边栏收缩美化界面 , 自动加载原图 , 简易隐藏广告 , 浏览翻页优化 , 自动开新分页 , 影片区块优化 , 底部添加下一页与回到顶部按钮
-// @description:ja     サイドバーを縮小してインターフェースを美しくし、オリジナル画像を自動的に読み込み、広告を簡単に非表示にし、ページの閲覧とページめくりを最適化し、新しいページを自動的に開き、ビデオセクションを最適化し、下部に「次のページ」と「トップに戻る」ボタンを追加し。
-// @description:en     Collapse the sidebar to beautify the interface, automatically load original images, easily hide ads, optimize page browsing and flipping, automatically open new pages, optimize the video section, add next page and back to top buttons at the bottom.
+// @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
+// @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
+// @description:zh-CN  美化界面和重新排版，包括移除广告和多余的横幅，修正画师名称和编辑相关的资讯保存，自动载入原始图像，菜单设置图像大小间距，快捷键触发自动滚动，解析文本中的链接并转换为可点击的链接，快速的页面切换和跳转功能，并重新定向到新分頁
+// @description:ja     インターフェイスの美化と再配置、広告や余分なバナーの削除、イラストレーター名の修正と関連情報の保存の編集、オリジナル画像の自動読み込み、メニューでの画像のサイズと間隔の設定、ショートカットキーによる自動スクロールのトリガー、テキスト内のリンクの解析とクリック可能なリンクへの変換、高速なページ切り替えとジャンプ機能、新しいタブへのリダイレクト
+// @description:en     Beautify the interface and re-layout, including removing ads and redundant banners, correcting artist names and editing related information retention, automatically loading original images, setting image size and spacing in the menu, triggering automatic scrolling with hotkeys, parsing links in the text and converting them to clickable links, fast page switching and jumping functions, and redirecting to a new tab
 
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
@@ -48,6 +48,7 @@
         DeleteNotice: 1,    // 刪除上方公告
         FixArtist: 1,       // 修復作者名稱
         BlockAds: 1,        // 封鎖廣告
+        KeyScroll: 1,       // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
     }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
@@ -87,8 +88,11 @@
     });
 
     /* ==================== 全域功能 ==================== */
-    GF = (new class Global_Function { // 因為當前寫的暫用調用方法, 該類中的函數無法直接使用 this 取得構造函數
+    GF = (new class Global_Function { // 當前寫的暫用調用方法, 導致類中函數無法直接 this 取得構造函數
         constructor() {
+            this.ScrollPixels = 2;
+            this.ScrollInterval = 800;
+
             this.fix_data = null;
             this.new_data = () => def.Storage(localStorage, "fix_record") || {};
             this.fix_tag_support = {
@@ -113,7 +117,7 @@
             this.fix_update = async(href, id, name_onj, tag_obj, text) => {
                 const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
                 name_onj.parentNode.insertBefore(edit, name_onj);
-                name_onj.outerHTML = `<fix_name jump="${href}">${text}</fix_name>`;
+                name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
 
                 const tag_text = tag_obj.textContent;
                 const support_id = this.fix_tag_support.ID;
@@ -324,7 +328,7 @@
                     });
 
                     const original_name = display.textContent;
-                    text.value = original_name;
+                    text.value = original_name.trim();
                     display.parentNode.insertBefore(text, target);
 
                     text.scrollTop = 0; // 滾動到最上方
@@ -369,6 +373,77 @@
                 });
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
+        }
+
+        /* 快捷自動滾動 */
+        async KeyScroll(Mode) {
+            let Scroll, Up_scroll  = false, Down_scroll = false;
+
+            const TopDetected = def.Throttle_discard(()=>{
+                Up_scroll = window.scrollY == 0 ? false : true;
+            }, 1000);
+
+            const BottomDetected = def.Throttle_discard(()=>{
+                Down_scroll =
+                window.scrollY + window.innerHeight >= document.documentElement.scrollHeight ? false : true;
+            }, 1000);
+
+            switch (Mode) {
+                case 2:
+                    Scroll = (Move) => {
+                        const Interval = setInterval(()=> {
+                            if (!Up_scroll && !Down_scroll) {
+                                clearInterval(Interval);
+                            }
+
+                            if (Up_scroll && Move < 0) {
+                                window.scrollBy(0, Move);
+                                TopDetected();
+                            } else if (Down_scroll && Move > 0) {
+                                window.scrollBy(0, Move);
+                                BottomDetected();
+                            }
+                        }, GF.ScrollInterval);
+                    }
+                default:
+                    Scroll = (Move) => {
+                        if (Up_scroll && Move < 0) {
+                            window.scrollBy(0, Move);
+                            TopDetected();
+                            requestAnimationFrame(() => Scroll(Move));
+                        } else if (Down_scroll && Move > 0) {
+                            window.scrollBy(0, Move);
+                            BottomDetected();
+                            requestAnimationFrame(() => Scroll(Move));
+                        }
+                    }
+            }
+
+            const UP_ScrollSpeed = GF.ScrollPixels * -1;
+            def.Listen(window, "keydown", def.Throttle_discard(event => {
+                const key = event.key;
+                if (key == "ArrowUp") {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    if (Up_scroll) {
+                        Up_scroll = false;
+                    } else if (!Up_scroll || Down_scroll) {
+                        Down_scroll = false;
+                        Up_scroll = true;
+                        Scroll(UP_ScrollSpeed);
+                    }
+                } else if (key == "ArrowDown") {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    if (Down_scroll) {
+                        Down_scroll = false;
+                    } else if (Up_scroll || !Down_scroll) {
+                        Up_scroll = false;
+                        Down_scroll = true;
+                        Scroll(GF.ScrollPixels);
+                    }
+                }
+            }, 100), { capture: true });
         }
     })
 
@@ -1457,6 +1532,7 @@
                 DeleteNotice: s=> Call.USE(s, GF.DeleteNotice),
                 FixArtist: s=> Call.USE(s, GF.FixArtist),
                 BlockAds: s=> Call.USE(s, GF.BlockAds),
+                KeyScroll: s=> Call.USE(s, GF.KeyScroll),
 
                 QuickPostToggle: s=> Call.USE(s, PF.QuickPostToggle),
                 NewTabOpens: s=> Call.USE(s, PF.NewTabOpens),
