@@ -39,6 +39,8 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
+//Todo  已經被增加功能到 變成狗屎代碼了 等未來有時間重構
+
 (function () {
     /* (0 = false | 1 = true | 2~n = mode) */
     const Global={ /* 全域功能 */
@@ -208,76 +210,106 @@
 
         /* 修復藝術家名稱 */
         async FixArtist() {
+            const origin = `${location.origin}/`; // 取得域名前半段
             GF.fix_data = GF.new_data(); // 獲取修復數據
             DM.Dependencies("Global");
 
+            // 針對 搜尋頁, 那種有許多用戶卡的
+            async function search_page_fix(items) {
+                items.setAttribute("fix", true); // 添加修復標籤
+
+                const link = items.href;
+                const img = def.$$("img", false, items);
+                const parse = link.split(origin)[1].split("/");
+                img.setAttribute("jump", link); // 圖片設置跳轉連結
+                img.removeAttribute("src");
+                items.removeAttribute("href"); // 刪除原始跳轉連結
+
+                GF.fix({
+                    Url: link, // 跳轉連結
+                    TailId: parse[2], // 尾部 id 標號
+                    Website: parse[0], // 網站
+                    NameObject: def.$$(".user-card__name", false, items), // 名稱物件
+                    TagObject: def.$$(".user-card__service", false, items) // 標籤物件
+                });
+            }
+
             // 針對其餘頁面的修復
-            async function other_page_fix(artist=false) {
-                artist = artist || def.$$("span[itemprop='name']");
-                const a = artist.parentNode;
-                const href = a.href;
+            async function other_page_fix(artist, tag="", href=null, reTag="<fix_view>") {
+                try {
+                    const parent = artist.parentNode;
+                    const url = href || parent.href;
 
-                const parse = href.split(`${new URL(href).origin}/`)[1].split("/");
+                    const parse = url.split(`${new URL(url).origin}/`)[1].split("/");
 
-                await GF.fix({
-                    Url: href,
-                    TailId: parse[2],
-                    Website: parse[0],
-                    NameObject: artist,
-                    TagObject: ""
-                });
+                    await GF.fix({
+                        Url: url,
+                        TailId: parse[2],
+                        Website: parse[0],
+                        NameObject: artist,
+                        TagObject: tag
+                    });
 
-                $(a).replaceWith(function() {
-                    return $("<fix_view>", {
-                        html: $(this).html(),
-                        class: "user-header__profile"
-                    })
-                });
+                    
+                    $(parent).replaceWith(function() {
+                        return $(reTag, { html: $(this).html()})
+                    });
+                } catch {} // 防止動態監聽進行二次操作時的錯誤 (因為 DOM 已經被修改)
+            }
+
+            // 監聽動態修復
+            async function DynamicFix(Listen, Operat,  Mode=null) {
+                const observer = new MutationObserver(() => { // 監聽變換觸發
+                    GF.fix_data = GF.new_data(); // 觸發時重新抓取
+                    const wait = setInterval(()=> { // 為了確保找到 Operat 元素
+                        const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
+                        if (operat) {
+                            clearInterval(wait);
+                            switch (Mode) {
+                                case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
+                                    other_page_fix(operat);
+                                    setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
+                                        observer.disconnect();
+                                        observer.observe(Listen.children[0], {childList: true, subtree: false});
+                                    }, 300);
+                                    break;
+                                default: // 針對搜尋頁的動態監聽
+                                    def.$$("a", true, operat).forEach(items=> { // 沒有修復標籤的才修復
+                                        !items.getAttribute("fix") && search_page_fix(items);
+                                    });
+                            }
+                        }
+                    });
+                })
+                observer.observe(Listen, {childList: true, subtree: false});
             }
 
             // 是用於搜尋頁面, 與一些特殊預覽頁
             if (PM.Match.Search) {
-                const origin = `${location.origin}/`; // 取得域名前半段
-                async function FixAnalysis(items) {
-                    items.setAttribute("fix", true); // 添加修復標籤
-
-                    const link = items.href;
-                    const parse = link.split(origin)[1].split("/");
-                    def.$$("img", false, items).setAttribute("jump", link); // 圖片設置跳轉連結
-                    items.removeAttribute("href"); // 刪除原始跳轉連結
-
-                    GF.fix({
-                        Url: link, // 跳轉連結
-                        TailId: parse[2], // 尾部 id 標號
-                        Website: parse[0], // 網站
-                        NameObject: def.$$(".user-card__name", false, items), // 名稱物件
-                        TagObject: def.$$(".user-card__service", false, items) // 標籤物件
-                    });
-                }
-
                 const card_items = def.$$(".card-list__items");
-                async function DynamicFix() { // 監聽動態修復
-                    new MutationObserver(() => { // 監聽變換觸發
-                        GF.fix_data = GF.new_data(); // 觸發時重新抓取
-                        def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
-                    }).observe(card_items, {childList: true, subtree: false});
-                }
-
                 if (PM.LinksPage.test(url)) {
-                    other_page_fix(); // 預覽頁的 名稱修復
-                    def.$$("a", true, card_items).forEach(items=> { FixAnalysis(items) });
+                    const artist = def.$$("span[itemprop='name']");
+                    artist && other_page_fix(artist); // 預覽頁的 名稱修復
 
-                    if (url.endsWith("new")) { DynamicFix() }
-                } else { DynamicFix() }
+                    def.$$("a", true, card_items).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
+                    url.endsWith("new") && DynamicFix(card_items, card_items); // 針對 links/new 頁面的 card
+                } else { DynamicFix(card_items, card_items) }
 
             } else if (PM.Match.Content) {
-                const artist = def.$$("post__user-name");
+                const artist = def.$$(".post__user-name");
                 const title = def.$$("h1 span:nth-child(2)");
-
-
+                other_page_fix(artist, title, artist.href, "<fix_cont>");
             } else {
                 const artist = def.$$("span[itemprop='name']");
-                artist && other_page_fix(artist);
+                if(artist) {
+                    other_page_fix(artist);
+
+                    if (Preview.QuickPostToggle > 0) { // 有開啟該功能才需要動態監聽
+                        setTimeout(()=> {
+                            DynamicFix(def.$$("section"), "span[itemprop='name']", 1);
+                        }, 300);
+                    }
+                }
             }
 
             // 監聽點擊
@@ -298,7 +330,7 @@
                     text.scrollTop = 0; // 滾動到最上方
                     setTimeout(() => {
                         text.focus() // 設置焦點
-                        setTimeout(() => {
+                        setTimeout(() => { // 避免還沒設置好焦點就觸發
                             def.Listen(text, "blur", ()=> {
                                 const change_name = text.value.trim();
                                 if (change_name != original_name) {
@@ -307,10 +339,15 @@
                                 }
                                 text.remove();
                             }, { once: true, passive: true });
-                        }, 400);
+                        }, 50);
                     }, 300);
                 } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
-                    GM_openInTab(target.getAttribute("jump"), { active: false, insert: true });
+                    const jump = target.getAttribute("jump");
+                    if (!target.parentNode.matches("fix_cont")) {
+                        jump && GM_openInTab(jump, { active: false });
+                    } else { // 內容頁面的不開新分頁
+                        jump && location.assign(jump);
+                    }
                 }
             }, { capture: true, passive: true });
         }
@@ -343,7 +380,7 @@
             let Old_data, New_data, item;
             async function Request(link) { // 請求數據
                 Old_data = def.$$("section");
-                item = def.$$("div.card-list__items");
+                item = def.$$(".card-list__items");
                 requestAnimationFrame(()=> {GM_addElement(item, "img", {class: "gif-overlay"})});
                 GM_xmlhttpRequest({
                     method: "GET",
@@ -714,13 +751,21 @@
         async ExtraButton() {
             DM.Dependencies("Awesome");
             /* Ajex換頁的初始化 */
-            async function Initialization() {
-                CF.TextToLink();
-                CF.LinkSimplified();
-                CF.VideoBeautify();
-                CF.OriginalImage();
-                CF.CommentFormat();
-                CF.ExtraButton();
+            async function Initialization() { // 真的寫的很爛
+                const Call = {
+                    USE: (Select, FuncName) => {Select > 0 && FuncName(Select)},
+                    FixArtist: s=> Call.USE(s, GF.FixArtist),
+                    TextToLink: s=> Call.USE(s, CF.TextToLink),
+                    LinkSimplified: s=> Call.USE(s, CF.LinkSimplified),
+                    OriginalImage: s=> Call.USE(s, CF.OriginalImage),
+                    VideoBeautify: s=> Call.USE(s, CF.VideoBeautify),
+                    CommentFormat: s=> Call.USE(s, CF.CommentFormat),
+                    ExtraButton: s=> Call.USE(s, CF.ExtraButton)
+                }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set))}
+
+                Start(Global);
+                Start(Content);
+
                 // 刪除所有只有 br 標籤的元素
                 def.$$("div.post__content p", true).forEach(p=> {
                     p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
@@ -763,11 +808,19 @@
                     const span = document.createElement("span");
                     span.id = "next_box";
                     span.style = "float: right";
-                    span.appendChild(next.cloneNode(true));
+
+                    const next_btn = next.cloneNode(true);
+                    next_btn.setAttribute("jump", next_btn.href);
+                    next_btn.removeAttribute("href");
+
+                    span.appendChild(next_btn);
                     def.Buffer.appendChild(span);
-                    def.Listen(def.$$("#next_box a"), "click", event => {
-                        event.preventDefault();
-                        AjexReplace(next.href, def.$$("main"));
+
+                    def.Listen(next_btn, "click", ()=> {
+                        AjexReplace(
+                            next_btn.getAttribute("jump"),
+                            def.$$("main")
+                        );
                     }, { capture: true, once: true });
                 } catch {}
 
@@ -859,8 +912,12 @@
                         }
                     
                         /* 預覽頁面的樣式 */
+                        fix_view {
+                            display: flex;
+                            flex-flow: wrap;
+                            align-items: center;
+                        }
                         fix_view fix_name {
-                            cursor: pointer;
                             font-size: 2rem;
                             font-weight: 700;
                             padding: .25rem 3rem;
@@ -878,7 +935,28 @@
                         fix_view:hover .edit_artist {
                             display: block;
                         }
-                    `, "Effects"); break;
+
+                        /* 內容頁面的樣式 */
+                        fix_cont {
+                            display: flex;
+                            justify-content: space-around;
+                        }
+                        fix_cont fix_name {
+                            color: ${Color};
+                            font-size: 1.25em;
+                            display: inline-block;
+                        }
+                        fix_cont .edit_artist {
+                            top: 95%;
+                            right: -10%;
+                        }
+                        fix_cont:hover fix_name {
+                            background-color: #fff;
+                        }
+                        fix_cont:hover .edit_artist {
+                            display: block;
+                        }
+                    `, "Global-Effects"); break;
 
                 case "Preview":
                     /* 快速預覽樣式添加 */
@@ -945,7 +1023,15 @@
                     `, "Custom-style");break;
 
                 case "Awesome":
-                    def.AddStyle(GM_getResourceText("font-awesome"), "font-awesome");break;
+                    def.AddStyle(`
+                        ${GM_getResourceText("font-awesome")}
+                        #next_box a {
+                            cursor: pointer;
+                        }
+                        #next_box a:hover {
+                            background-color: ${PM.Match.Color};
+                        }
+                    `, "font-awesome");break;
 
                 case "Menu":
                     /* 載入菜單樣式 */
@@ -1384,7 +1470,7 @@
                 CommentFormat: s=> Call.USE(s, CF.CommentFormat),
                 ExtraButton: s=> Call.USE(s, CF.ExtraButton)
 
-            }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call[func](set))}
+            }, Start = async(Type) => {Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set))}
 
             Start(Global);
             if (PM.Match.AllPreview) {PF = new Preview_Function(); Start(Preview)}
