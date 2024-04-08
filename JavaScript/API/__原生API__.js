@@ -307,7 +307,7 @@ class Collection {
 /* ==================================================== */
 
 /**
- ** { 簡化查找 DOM 的 API [並非最高效率的寫法] }
+ ** { 簡化查找 DOM 的 API }
  * 
  * @param {string} Selector - 查找元素
  * @param {boolean} All     - 是否查找全部
@@ -315,17 +315,28 @@ class Collection {
  * @returns {element}       - DOM 元素
  * 
  * @example
- * 獲取 = $$("要找的DOM", 使否查找所有, 查找的來源)
+ * 獲取 = $$("要找的DOM", {使否查找所有, 查找的來源})
  */
-function $$(Selector, All=false, Source=document) {
-    const slice = Selector.slice(1), analyze = [".", "#", " ", "="].some(m => {return slice.includes(m)}) ? " " : Selector[0];
-    switch (analyze) {
-        case "#": return Source.getElementById(slice);
-        case " ": return All ? Source.querySelectorAll(Selector):Source.querySelector(Selector);
-        case ".": Selector = Source.getElementsByClassName(slice);break;
-        default: Selector = Source.getElementsByTagName(Selector);
-    }
-    return All ? Array.from(Selector) : Selector[0];
+function $$(select, {all=false, source=document} = {}) {
+    const query = {
+        Match: /[ .#=:]/,
+        "#": (source, select, all) => source.getElementById(select.slice(1)),
+        ".": (source, select, all) => {
+            const query = source.getElementsByClassName(select.slice(1));
+            return all ? Array.from(query) : query[0];
+        },
+        "tag": (source, select, all) => {
+            const query = source.getElementsByTagName(select); 
+            return all ? Array.from(query) : query[0];
+        },
+        "default": (source, select, all) => {
+            return all
+            ? source.querySelectorAll(select)
+            : source.querySelector(select);
+        }
+    }, type = !query.Match.test(select) ? "tag"
+    : query.Match.test(select.slice(1)) ? "default" : select[0];
+    return query[type](source, select, all);
 }
 
 /* ==================================================== */
@@ -379,7 +390,7 @@ async function AddScript(Rule, ID="New-Script") {
 
 /* ==================================================== */
 // ListenerRecord 是用來記錄添加的, 監聽器
-let ListenerRecord = new Map(), listen;
+let ListenerRecord = {};
 
 /**
  ** { 添加 監聽器 API }
@@ -395,12 +406,12 @@ let ListenerRecord = new Map(), listen;
  * }, {})
  */
 async function AddListener(element, type, listener, add={}) {
-    if (!ListenerRecord.has(element) || !ListenerRecord.get(element).has(type)) {
+    if (!ListenerRecord[element]?.[type]) {
         element.addEventListener(type, listener, add);
-        if (!ListenerRecord.has(element)) {
-            ListenerRecord.set(element, new Map());
+        if (!ListenerRecord[element]) {
+            ListenerRecord[element] = {};
         }
-        ListenerRecord.get(element).set(type, listener);
+        ListenerRecord[element][type] = listener;
     }
 }
 
@@ -422,8 +433,8 @@ async function AddListener(element, type, listener, add={}) {
  async function Listen(element, type, listener, add={}, callback=null) {
     try {
         element.addEventListener(type, listener, add);
-        if (callback) {callback(true)}
-    } catch {if (callback) {callback(false)}}
+        callback && callback(true);
+    } catch {callback && callback(false)}
 }
 
 /**
@@ -437,10 +448,10 @@ async function AddListener(element, type, listener, add={}) {
  * RemovListener("元素", "click")
  */
 async function RemovListener(element, type) {
-    if (ListenerRecord.has(element) && ListenerRecord.get(element).has(type)) {
-        listen = ListenerRecord.get(element).get(type);
-        element.removeEventListener(type, listen);
-        ListenerRecord.get(element).delete(type);
+    const Listen = ListenerRecord[element]?.[type];
+    if (Listen) {
+        element.removeEventListener(type, Listen);
+        delete ListenerRecord[element][type];
     }
 }
 
@@ -460,21 +471,21 @@ async function RemovListener(element, type) {
  *      console.log(call);
  * }, document)
  */
-async function WaitElem(selector, all, timeout, callback, object=document.body) {
+async function WaitElem(selector, all, timeout, callback, {object=document.body, throttle=0} = {}) {
     let timer, element, result;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(this.Throttle_discard(() => {
         element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-        result = all ? element.length > 0 : element;
+        result = all ? element.length > 0 && Array.from(element).every(item=> {
+            return item !== null && typeof item !== "undefined";
+        }) : element;
         if (result) {
             observer.disconnect();
             clearTimeout(timer);
             callback(element);
         }
-    });
+    }, throttle));
     observer.observe(object, { childList: true, subtree: true });
-    timer = setTimeout(() => {
-        observer.disconnect();
-    }, (1000 * timeout));
+    timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
 }
 
 //! 查找的部份可用 switch 或 if 切換, 匹配類型自由搭配
@@ -494,20 +505,18 @@ async function WaitElem(selector, all, timeout, callback, object=document.body) 
  *      const [元素1, 元素2, 元素3] = call;
  * }, document)
  */
-async function WaitMap(selectors, timeout, callback, object=document.body) {
+async function WaitMap(selectors, timeout, callback, {object=document.body, throttle=0} = {}) {
     let timer, elements;
-    const observer = new MutationObserver(() => {
+    const observer = new MutationObserver(this.Throttle_discard(() => {
         elements = selectors.map(selector => document.querySelector(selector))
-        if (elements.every(element => element)) {
+        if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
             observer.disconnect();
             clearTimeout(timer);
             callback(elements);
         }
-    });
+    }, throttle));
     observer.observe(object, { childList: true, subtree: true });
-    timer = setTimeout(() => {
-        observer.disconnect();
-    }, (1000 * timeout));
+    timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
 }
 
 /* ==================================================== */
@@ -560,15 +569,15 @@ async function log(label, type="log") {
     const style = {
         group: `padding: 5px;color: #ffffff;font-weight: bold;border-radius: 5px;background-color: #54d6f7;`,
         text: `padding: 3px;color: #ffffff;border-radius: 2px;background-color: #1dc52b;`
-    }, template = {
+    }, print = {
         log: label=> console.log(`%c${label}`, style.text),
         warn: label=> console.warn(`%c${label}`, style.text),
         error: label=> console.error(`%c${label}`, style.text),
         count: label=> console.count(label),
     }
-    type = typeof type === "string" && template[type] ? type : type = "log";
+    type = typeof type === "string" && print[type] ? type : type = "log";
     console.groupCollapsed("%c___ 開發除錯 ___", style.group);
-    template[type](label);
+    print[type](label);
     console.groupEnd();
 }
 
@@ -583,18 +592,18 @@ async function log(label, type="log") {
  * log("標籤", "打印文字", "打印類型")
  */
 async function log(group=null, label="print", type="log") {
-    const template = {
+    const print = {
         log: label=> console.log(label),
         warn: label=> console.warn(label),
         error: label=> console.error(label),
         count: label=> console.count(label),
     }
-    type = typeof type === "string" && template[type] ? type : type = "log";
+    type = typeof type === "string" && print[type] ? type : type = "log";
     if (group == null) {
-        template[type](label);
+        print[type](label);
     } else {
         console.groupCollapsed(group);
-        template[type](label);
+        print[type](label);
         console.groupEnd();
     }
 }
