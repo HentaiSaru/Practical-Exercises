@@ -259,7 +259,7 @@ class Syntax {
      */
     async WaitElem(selector, all, timeout, callback, {object=document.body, throttle=0}={}) {
         let timer, element, result;
-        const observer = new MutationObserver(this.Throttle_discard(() => {
+        const observer = new MutationObserver(this.Throttle(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
             result = all ? element.length > 0 && Array.from(element).every(item=> {
                 return item !== null && typeof item !== "undefined";
@@ -291,7 +291,7 @@ class Syntax {
      */
     async WaitMap(selectors, timeout, callback, {object=document.body, throttle=0}={}) {
         let timer, elements;
-        const observer = new MutationObserver(this.Throttle_discard(() => {
+        const observer = new MutationObserver(this.Throttle(() => {
             elements = selectors.map(selector => document.querySelector(selector))
             if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                 observer.disconnect();
@@ -341,54 +341,51 @@ class Syntax {
     }
 
     /**
-     ** { 節流函數 [不會遺棄觸發] }
+     ** { 防抖函數 Debounce, 只會在停止呼叫後觸發, 持續呼叫就會一直重置 }
      * @param {function} func - 要觸發的函數
      * @param {number} delay - 延遲的時間ms
      * @returns {function}
      * 
      * @example
-     * a = throttle(()=> {}, 100);
+     * a = Debounce(()=> {}, 100);
      * a();
      * 
      * function b(n) {
-     *      throttle(b(n), 100);
+     *      Debounce(b(n), 100);
      * }
      * 
-     * document.addEventListener("pointermove", throttle(()=> {
+     * document.addEventListener("pointermove", Debounce(()=> {
      *  
      * }), 100)
      */
-    Throttle(func, delay) {
+    Debounce(func, delay=0) {
         let timer = null;
-        return function() {
-            let context=this, args=arguments;
-            if (timer == null) {
-                timer = setTimeout(function() {
-                    func.apply(context, args);
-                    timer = null;
-                }, delay);
-            }
-        };
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                func(...args);
+            }, delay);
+        }
     }
 
     /**
-     ** { 節流函數 [會丟棄觸發] }
+     ** { 節流函數, 立即觸發, 後續按照指定的速率運行, 期間多餘的觸發將會被丟棄 }
      * @param {function} func - 要觸發的函數
      * @param {number} delay - 延遲的時間ms
      * @returns {function}
      * 
      * @example
-     * 與上方相同
+     * 與上方相同只是改成 Throttle()
      */
-    Throttle_discard(func, delay) {
+    Throttle(func, delay) {
         let lastTime = 0;
-        return function() {
-            const context = this, args = arguments, now = Date.now();
+        return (...args) => {
+            const now = Date.now();
             if ((now - lastTime) >= delay) {
-                func.apply(context, args);
                 lastTime = now;
+                func(...args);
             }
-        };
+        }
     }
 
     /**
