@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1354861/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1356840/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -86,7 +86,7 @@
             this.ScrollPixels = 2;
             this.ScrollInterval = 800;
             this.fix_data = null;
-            this.new_data = () => def.Storage(localStorage, "fix_record") || {};
+            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || {};
             this.fix_tag_support = {
                 ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                 Patreon: "https://www.patreon.com/user?u={id}",
@@ -102,7 +102,7 @@
                 fanbox: ""
             };
             this.save_record = async save => {
-                def.Storage(localStorage, "fix_record", Object.assign(this.new_data(), save));
+                def.Storage("fix_record", {storage: localStorage, value: Object.assign(this.new_data(), save)});
             };
             this.fix_update = async (href, id, name_onj, tag_obj, text) => {
                 const edit = GM_addElement("fix_edit", {
@@ -207,7 +207,7 @@
             async function search_page_fix(items) {
                 items.setAttribute("fix", true);
                 const link = items.href;
-                const img = def.$$("img", false, items);
+                const img = def.$$("img", {source: items});
                 const parse = link.split(origin)[1].split("/");
                 img.setAttribute("jump", link);
                 img.removeAttribute("src");
@@ -216,8 +216,8 @@
                     Url: link,
                     TailId: parse[2],
                     Website: parse[0],
-                    NameObject: def.$$(".user-card__name", false, items),
-                    TagObject: def.$$(".user-card__service", false, items)
+                    NameObject: def.$$(".user-card__name", {source: items}),
+                    TagObject: def.$$(".user-card__service", {source: items})
                 });
             }
             async function other_page_fix(artist, tag = "", href = null, reTag = "<fix_view>") {
@@ -259,7 +259,7 @@
                                 break;
 
                               default:
-                                def.$$("a", true, operat).forEach(items => {
+                                def.$$("a", {all: true, source: operat}).forEach(items => {
                                     !items.getAttribute("fix") && search_page_fix(items);
                                 });
                             }
@@ -276,7 +276,7 @@
                 if (PM.LinksPage.test(url)) {
                     const artist = def.$$("span[itemprop='name']");
                     artist && other_page_fix(artist);
-                    def.$$("a", true, card_items).forEach(items => {
+                    def.$$("a", {all: true, source: card_items}).forEach(items => {
                         search_page_fix(items);
                     });
                     url.endsWith("new") && DynamicFix(card_items, card_items);
@@ -444,7 +444,7 @@
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = def.$$("section", false, def.DomParse(response.responseText));
+                        New_data = def.$$("section", {source: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_data.innerHTML
                         }), Old_data);
@@ -575,11 +575,11 @@
                 def.WaitElem("div.card-list__items pre", true, 8, content => {
                     content.forEach(pre => {
                         if (pre.childNodes.length > 1) {
-                            def.$$("p", true, pre).forEach(p => {
+                            def.$$("p", {all: true, source: pre}).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
-                            def.$$("a", true, pre).forEach(a => {
+                            def.$$("a", {all: true, source: pre}).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
                             });
@@ -588,34 +588,34 @@
                             URL_F.test(text) && Analysis(pre, text);
                         }
                     });
-                }, document, 600);
+                }, {object: document, throttle: 600});
                 break;
 
               default:
                 def.WaitElem("div.post__body", false, 8, body => {
-                    const article = def.$$("article", false, body);
-                    const content = def.$$("div.post__content", false, body);
+                    const article = def.$$("article", {source: body});
+                    const content = def.$$("div.post__content", {source: body});
                     if (article) {
-                        def.$$("span.choice-text", true, article).forEach(span => {
+                        def.$$("span.choice-text", {all: true, source: article}).forEach(span => {
                             Analysis(span, span.textContent);
                         });
                     } else if (content) {
-                        const pre = def.$$("pre", false, content);
+                        const pre = def.$$("pre", {source: content});
                         if (pre) {
                             text = pre.textContent;
                             URL_F.test(text) && Analysis(pre, text);
                         } else {
-                            def.$$("p", true, content).forEach(p => {
+                            def.$$("p", {all: true, source: content}).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
-                            def.$$("a", true, content).forEach(a => {
+                            def.$$("a", {all: true, source: content}).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
                             });
                         }
                     }
-                }, document.body, 600);
+                }, {throttle: 600});
             }
         }
         async LinkSimplified() {
@@ -625,7 +625,7 @@
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
                 });
-            }, document.body, 600);
+            }, {throttle: 600});
         }
         async VideoBeautify(Mode) {
             def.AddStyle(`
@@ -652,7 +652,7 @@
                         })));
                     }
                     parents.forEach(li => {
-                        let title = def.$$("summary", false, li), stream = def.$$("source", false, li);
+                        let title = def.$$("summary", {source: li}), stream = def.$$("source", {source: li});
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
@@ -670,11 +670,11 @@
                             ReactDOM.render(React.createElement(VideoRendering, {
                                 stream: stream
                             }), li);
-                            li.insertBefore(title, def.$$("summary", false, li));
+                            li.insertBefore(title, def.$$("summary", {source: li}));
                         }
                     });
-                }, document.body, 600);
-            }, document.body, 600);
+                }, {throttle: 600});
+            }, {throttle: 600});
         }
         async OriginalImage(Mode) {
             let img, a;
@@ -703,7 +703,7 @@
                     thumbnail.forEach((object, index) => {
                         setTimeout(() => {
                             object.removeAttribute("class");
-                            a = def.$$("a", false, object);
+                            a = def.$$("a", {source: object});
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: `IMG-${index}`,
                                 href: a
@@ -728,8 +728,8 @@
                     }
                     const object = thumbnail[index];
                     object.removeAttribute("class");
-                    a = def.$$("a", false, object);
-                    img = def.$$("img", false, a);
+                    a = def.$$("a", {source: object});
+                    img = def.$$("img", {source: a});
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
                         src: a.href
@@ -750,7 +750,7 @@
                             observer.unobserve(object);
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: object.alt,
-                                href: def.$$("a", false, object)
+                                href: def.$$("a", {source: object})
                             }), object);
                             object.removeAttribute("class");
                         }
@@ -782,7 +782,7 @@
                         FastAuto();
                     }
                 }
-            }, document.body, 600);
+            }, {throttle: 600});
             async function Reload(Img, Retry) {
                 if (Retry > 0) {
                     setTimeout(() => {
@@ -835,12 +835,12 @@
                 };
                 Start(Global);
                 Start(Content);
-                def.$$("div.post__content p", true).forEach(p => {
+                def.$$("div.post__content p", {all: true}).forEach(p => {
                     p.childNodes.forEach(node => {
                         node.nodeName == "BR" && node.parentNode.remove();
                     });
                 });
-                def.$$("div.post__content a", true).forEach(a => {
+                def.$$("div.post__content a", {all: true}).forEach(a => {
                     /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
                 });
                 def.$$("h1.post__title").scrollIntoView();
@@ -851,7 +851,7 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = def.$$("main", false, def.DomParse(response.responseText));
+                        let New_main = def.$$("main", {source: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_main.innerHTML
                         }), old_main);
@@ -894,7 +894,7 @@
                     });
                 } catch {}
                 comments.appendChild(def.Buffer);
-            }, document.body, 600);
+            }, {throttle: 600});
         }
     }
     DM = new class Dependencies_And_Menu {
