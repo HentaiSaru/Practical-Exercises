@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1354861/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1356845/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -94,7 +94,7 @@
             this.ScrollInterval = 800;
 
             this.fix_data = null;
-            this.new_data = () => def.Storage(localStorage, "fix_record") || {};
+            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || {};
             this.fix_tag_support = {
                 ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                 Patreon: "https://www.patreon.com/user?u={id}",
@@ -109,9 +109,12 @@
             this.fix_name_support = { pixiv: "", fanbox: "" }
 
             this.save_record = async(save) => {
-                def.Storage(localStorage, "fix_record",
-                    Object.assign(this.new_data(), save) // 取得完整數據並合併
-                ); 
+                def.Storage("fix_record", 
+                    {
+                        storage: localStorage,
+                        value: Object.assign(this.new_data(), save) // 取得完整數據並合併
+                    }
+                );
             }
 
             this.fix_update = async(href, id, name_onj, tag_obj, text) => {
@@ -223,7 +226,7 @@
                 items.setAttribute("fix", true); // 添加修復標籤
 
                 const link = items.href;
-                const img = def.$$("img", false, items);
+                const img = def.$$("img", {source: items});
                 const parse = link.split(origin)[1].split("/");
                 img.setAttribute("jump", link); // 圖片設置跳轉連結
                 img.removeAttribute("src");
@@ -233,8 +236,8 @@
                     Url: link, // 跳轉連結
                     TailId: parse[2], // 尾部 id 標號
                     Website: parse[0], // 網站
-                    NameObject: def.$$(".user-card__name", false, items), // 名稱物件
-                    TagObject: def.$$(".user-card__service", false, items) // 標籤物件
+                    NameObject: def.$$(".user-card__name", {source: items}), // 名稱物件
+                    TagObject: def.$$(".user-card__service", {source: items}) // 標籤物件
                 });
             }
 
@@ -278,7 +281,7 @@
                                     }, 300);
                                     break;
                                 default: // 針對搜尋頁的動態監聽
-                                    def.$$("a", true, operat).forEach(items=> { // 沒有修復標籤的才修復
+                                    def.$$("a", {all: true, source: operat}).forEach(items=> { // 沒有修復標籤的才修復
                                         !items.getAttribute("fix") && search_page_fix(items);
                                     });
                             }
@@ -291,18 +294,20 @@
             // 是用於搜尋頁面, 與一些特殊預覽頁
             if (PM.Match.Search) {
                 const card_items = def.$$(".card-list__items");
+
                 if (PM.LinksPage.test(url)) {
                     const artist = def.$$("span[itemprop='name']");
                     artist && other_page_fix(artist); // 預覽頁的 名稱修復
 
-                    def.$$("a", true, card_items).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
+                    def.$$("a", {all: true, source: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
                     url.endsWith("new") && DynamicFix(card_items, card_items); // 針對 links/new 頁面的 card
                 } else { DynamicFix(card_items, card_items) }
 
-            } else if (PM.Match.Content) {
+            } else if (PM.Match.Content) { // 是內容頁面
                 const artist = def.$$(".post__user-name");
                 const title = def.$$("h1 span:nth-child(2)");
                 other_page_fix(artist, title, artist.href, "<fix_cont>");
+
             } else {
                 const artist = def.$$("span[itemprop='name']");
                 if(artist) {
@@ -462,7 +467,7 @@
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = def.$$("section", false, def.DomParse(response.responseText));
+                        New_data = def.$$("section", {source: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
                         history.pushState(null, null, link);
                     },
@@ -588,12 +593,12 @@
                     def.WaitElem("div.card-list__items pre", true, 8, content => {
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
-                                def.$$("p", true, pre).forEach(p=> {
+                                def.$$("p", {all: true, source: pre}).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
 
-                                def.$$("a", true, pre).forEach(a=> {
+                                def.$$("a", {all: true, source: pre}).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -603,16 +608,16 @@
                                 URL_F.test(text) && Analysis(pre, text);
                             }
                         })
-                    }, document, 600);break;
+                    }, {object: document, throttle: 600});break;
                 default:
                     def.WaitElem("div.post__body", false, 8, body => {
-                        const article = def.$$("article", false, body);
-                        const content = def.$$("div.post__content", false, body);
+                        const article = def.$$("article", {source: body});
+                        const content = def.$$("div.post__content", {source: body});
 
                         if (article) {
-                            def.$$("span.choice-text", true, article).forEach(span => {Analysis(span, span.textContent)});
+                            def.$$("span.choice-text", {all: true, source: article}).forEach(span => {Analysis(span, span.textContent)});
                         } else if (content) {
-                            const pre = def.$$("pre", false, content);
+                            const pre = def.$$("pre", {source: content});
 
                             if (pre) { // 單一個 Pre 標籤的狀態
                                 text = pre.textContent;
@@ -621,17 +626,17 @@
                                 // Array.from(document.querySelector("div.post__content").childNodes).forEach(nodes => {
                                     // console.log(nodes, nodes.nodeName, nodes.textContent);
                                 // })
-                                def.$$("p", true, content).forEach(p=> {
+                                def.$$("p", {all: true, source: content}).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
-                                def.$$("a", true, content).forEach(a=> {
+                                def.$$("p", {all: true, source: content}).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
                             }
                         }
-                    }, document.body, 600);
+                    }, {throttle: 600});
             }
         }
 
@@ -642,8 +647,8 @@
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
-                })
-            }, document.body, 600);
+                });
+            }, {throttle: 600});
         }
 
         /* 影片美化 */
@@ -672,8 +677,8 @@
                         ));
                     }
                     parents.forEach(li => {
-                        let title = def.$$("summary", false, li),
-                        stream = def.$$("source", false, li);
+                        let title = def.$$("summary", {source: li}),
+                        stream = def.$$("source", {source: li});
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
@@ -688,11 +693,11 @@
                                 }
                             });
                             ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
-                            li.insertBefore(title, def.$$("summary", false, li));
+                            li.insertBefore(title, def.$$("summary", {source: li}));
                         }
                     });
-                }, document.body, 600);
-            }, document.body, 600);
+                }, {throttle: 600});
+            }, {throttle: 600});
         }
 
         /* 載入原圖 */
@@ -722,7 +727,7 @@
                     thumbnail.forEach((object, index) => {
                         setTimeout(()=> {
                             object.removeAttribute("class");
-                            a = def.$$("a", false, object);
+                            a = def.$$("a", {source: object});
                             ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
                         }, index * 300);
                     });
@@ -741,8 +746,8 @@
                     if (index == thumbnail.length) {return}
                     const object = thumbnail[index];
                     object.removeAttribute("class");
-                    a = def.$$("a", false, object);
-                    img = def.$$("img", false, a);
+                    a = def.$$("a", {source: object});
+                    img = def.$$("img", {source: a});
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
                         src: a.href,
@@ -762,7 +767,7 @@
                         if (entry.isIntersecting) {
                             const object = entry.target;
                             observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: def.$$("a", false, object) }), object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: def.$$("a", {source: object}) }), object);
                             object.removeAttribute("class");
                         }
                     });
@@ -787,7 +792,7 @@
                             })
                         } else {FastAuto()}
                 }
-            }, document.body, 600);
+            }, {throttle: 600});
 
             /* 載入原圖 (死圖重試) */
             async function Reload(Img, Retry) {
@@ -842,11 +847,11 @@
                 Start(Content);
 
                 // 刪除所有只有 br 標籤的元素
-                def.$$("div.post__content p", true).forEach(p=> {
+                def.$$("div.post__content p", {all: true}).forEach(p=> {
                     p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
                 })
                 // 刪除所有是圖片連結的 a
-                def.$$("div.post__content a", true).forEach(a=> {/\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()});
+                def.$$("div.post__content a", {all: true}).forEach(a=> {/\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()});
                 def.$$("h1.post__title").scrollIntoView(); // 滾動到上方
             }
             /* 切換頁面 */
@@ -856,7 +861,7 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = def.$$("main", false, def.DomParse(response.responseText));
+                        let New_main = def.$$("main", {source: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, { content: New_main.innerHTML }), old_main);
                         history.pushState(null, null, url);
                         setTimeout(Initialization(), 500);
