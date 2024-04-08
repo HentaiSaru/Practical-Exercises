@@ -94,7 +94,8 @@
             this.ScrollInterval = 800;
 
             this.fix_data = null;
-            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || {};
+            this.save_data = new Map();
+            this.fix_name_support = { pixiv: undefined, fanbox: undefined }
             this.fix_tag_support = {
                 ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                 Patreon: "https://www.patreon.com/user?u={id}",
@@ -106,16 +107,22 @@
                 OnlyFans: "https://onlyfans.com/{name}",
                 Fansly: "https://fansly.com/{name}/posts",
             }
-            this.fix_name_support = { pixiv: "", fanbox: "" }
 
-            this.save_record = async(save) => {
-                def.Storage("fix_record", 
-                    {
-                        storage: localStorage,
-                        value: Object.assign(this.new_data(), save) // 取得完整數據並合併
-                    }
-                );
+            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || new Map();
+            this.fix_url = (url) => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
+
+            this.save_record = async(id, name) => {
+                // def.Storage("fix_record",
+                    // {
+                        // storage: localStorage,
+                        // value: Object.assign(this.new_data(), save) // 取得完整數據並合併
+                    // }
+                // );
             }
+
+            this.save_test = def.Debounce(() => {
+                console.log(this.save_data.size, this.save_data);
+            });
 
             this.fix_update = async(href, id, name_onj, tag_obj, text) => {
                 const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
@@ -179,7 +186,9 @@
                     if (this.fix_name_support.hasOwnProperty(Website)) {
                         Record = await this.get_pixiv_name(TailId) || NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
-                        this.save_record({[TailId]: Record}); // 每次遞迴都處理是不好的, 目前的架構不好修正
+                        this.save_data.set(TailId, Record);
+                        this.save_test();
+                        //this.save_record(TailId, Record); // 每次遞迴都處理是不好的, 目前的架構不好修正
                     } else {
                         Record = NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
@@ -217,23 +226,22 @@
 
         /* 修復藝術家名稱 */
         async FixArtist() {
-            const origin = `${location.origin}/`; // 取得域名前半段
             GF.fix_data = GF.new_data(); // 獲取修復數據
-            DM.Dependencies("Global");
+            DM.Dependencies("Global"); // 載入依賴樣式
 
             // 針對 搜尋頁, 那種有許多用戶卡的
             async function search_page_fix(items) {
                 items.setAttribute("fix", true); // 添加修復標籤
 
-                const link = items.href;
+                const url = items.href;
                 const img = def.$$("img", {source: items});
-                const parse = link.split(origin)[1].split("/");
-                img.setAttribute("jump", link); // 圖片設置跳轉連結
-                img.removeAttribute("src");
+                const parse = GF.fix_url(url);
+                img.setAttribute("jump", url); // 圖片設置跳轉連結
                 items.removeAttribute("href"); // 刪除原始跳轉連結
+                img.removeAttribute("src"); // 刪除圖片跳轉連結
 
                 GF.fix({
-                    Url: link, // 跳轉連結
+                    Url: url, // 跳轉連結
                     TailId: parse[2], // 尾部 id 標號
                     Website: parse[0], // 網站
                     NameObject: def.$$(".user-card__name", {source: items}), // 名稱物件
@@ -246,8 +254,7 @@
                 try {
                     const parent = artist.parentNode;
                     const url = href || parent.href;
-
-                    const parse = url.split(`${new URL(url).origin}/`)[1].split("/");
+                    const parse = GF.fix_url(url);
 
                     await GF.fix({
                         Url: url,
