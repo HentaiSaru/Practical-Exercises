@@ -80,9 +80,9 @@ class Syntax {
      * $$("查找元素", {all:true, source:變更來源})
      */
     $$(select, {all=false, source=document}={}) {
-        const type = !query.Match.test(select) ? "tag"
-        : query.Match.test(select.slice(1)) ? "default" : select[0];
-        return query[type](source, select, all);
+        const type = !this.query.Match.test(select) ? "tag"
+        : this.query.Match.test(select.slice(1)) ? "default" : select[0];
+        return this.query[type](source, select, all);
     }
 
     /**
