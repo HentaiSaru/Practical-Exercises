@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/06
+// @version      2024/04/09
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -24,15 +24,49 @@
  */
 class Syntax {
     constructor() {
-        this.Buffer = document.createDocumentFragment();
-        this.ListenerRecord = new Map();
+        this.ListenerRecord = {};
         this.Parser = new DOMParser();
-        this.Template = {
+        this.Buffer = document.createDocumentFragment();
+        this.print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
             error: label=> console.error(label),
             count: label=> console.count(label),
-        }
+        };
+        this.query = {
+            Match: /[ .#=:]/,
+            "#": (source, select, all) => source.getElementById(select.slice(1)),
+            ".": (source, select, all) => {
+                const query = source.getElementsByClassName(select.slice(1));
+                return all ? Array.from(query) : query[0];
+            },
+            "tag": (source, select, all) => {
+                const query = source.getElementsByTagName(select); 
+                return all ? Array.from(query) : query[0];
+            },
+            "default": (source, select, all) => {
+                return all
+                ? source.querySelectorAll(select)
+                : source.querySelector(select);
+            }
+        };
+        this.formula = {
+            Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
+            String: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+            Number: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : Number(key),
+            Array: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+            Object: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+            Boolean: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+            Date: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify(value)), true) : new Date(key),
+            Map: (storage, key, value) =>
+                value ? (storage.setItem(key, JSON.stringify([...value])), true) : new Map(JSON.parse(key))
+        };
     }
 
     /**
@@ -41,16 +75,14 @@ class Syntax {
      * @param {boolean} All     - 是否查找全部
      * @param {element} Source  - 查找來源
      * @returns {element}       - DOM 元素
+     * 
+     * @example
+     * $$("查找元素", {all:true, source:變更來源})
      */
-    $$(Selector, All=false, Source=document) {
-        const slice = Selector.slice(1), analyze = [".", "#", " ", "=", ":"].some(m => {return slice.includes(m)}) ? " " : Selector[0];
-        switch (analyze) {
-            case "#": return Source.getElementById(slice);
-            case " ": return All ? Source.querySelectorAll(Selector):Source.querySelector(Selector);
-            case ".": Selector = Source.getElementsByClassName(slice);break;
-            default: Selector = Source.getElementsByTagName(Selector);
-        }
-        return All ? Array.from(Selector) : Selector[0];
+    $$(select, {all=false, source=document}={}) {
+        const type = !query.Match.test(select) ? "tag"
+        : query.Match.test(select.slice(1)) ? "default" : select[0];
+        return query[type](source, select, all);
     }
 
     /**
@@ -165,12 +197,12 @@ class Syntax {
      * @param {object} add     - 附加功能
      */
     async AddListener(element, type, listener, add={}) {
-        if (!this.ListenerRecord.has(element) || !this.ListenerRecord.get(element).has(type)) {
+        if (!this.ListenerRecord[element]?.[type]) {
             element.addEventListener(type, listener, add);
-            if (!this.ListenerRecord.has(element)) {
-                this.ListenerRecord.set(element, new Map());
+            if (!this.ListenerRecord[element]) {
+                this.ListenerRecord[element] = {};
             }
-            this.ListenerRecord.get(element).set(type, listener);
+            this.ListenerRecord[element][type] = listener;
         }
     }
 
@@ -180,10 +212,10 @@ class Syntax {
      * @param {string} type     - 監聽器類型
      */
     async RemovListener(element, type) {
-        if (this.ListenerRecord.has(element) && this.ListenerRecord.get(element).has(type)) {
-            const listen = this.ListenerRecord.get(element).get(type);
-            element.removeEventListener(type, listen);
-            this.ListenerRecord.get(element).delete(type);
+        const Listen = this.ListenerRecord[element]?.[type];
+        if (Listen) {
+            element.removeEventListener(type, Listen);
+            delete this.ListenerRecord[element][type];
         }
     }
 
@@ -205,8 +237,8 @@ class Syntax {
     async Listen(element, type, listener, add={}, callback=null) {
         try {
             element.addEventListener(type, listener, add);
-            if (callback) {callback(true)}
-        } catch {if (callback) {callback(false)}}
+            callback && callback(true);
+        } catch {callback && callback(false)}
     }
 
     /**
@@ -223,9 +255,9 @@ class Syntax {
      * WaitElem("元素", false, 1, call => {
      *      後續操作...
      *      console.log(call);
-     * }, document, 100)
+     * }, {object:document, throttle:100})
      */
-    async WaitElem(selector, all, timeout, callback, object=document.body, throttle=0) {
+    async WaitElem(selector, all, timeout, callback, {object=document.body, throttle=0}={}) {
         let timer, element, result;
         const observer = new MutationObserver(this.Throttle_discard(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
@@ -255,9 +287,9 @@ class Syntax {
      * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), call => {
      *      全部找到後續操作...
      *      const [元素1, 元素2, 元素3] = call;
-     * }, document, 100)
+     * }, {object:document, throttle:100})
      */
-    async WaitMap(selectors, timeout, callback, object=document.body, throttle=0) {
+    async WaitMap(selectors, timeout, callback, {object=document.body, throttle=0}={}) {
         let timer, elements;
         const observer = new MutationObserver(this.Throttle_discard(() => {
             elements = selectors.map(selector => document.querySelector(selector))
@@ -278,11 +310,11 @@ class Syntax {
      * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
      */
     async log(group=null, label="print", type="log") {
-        type = typeof type === "string" && this.Template[type] ? type : type = "log";
-        if (group == null) {this.Template[type](label)}
+        type = typeof type === "string" && this.print[type] ? type : type = "log";
+        if (group == null) {this.print[type](label)}
         else {
             console.groupCollapsed(group);
-            this.Template[type](label);
+            this.print[type](label);
             console.groupEnd();
         }
     }
@@ -410,36 +442,17 @@ class Syntax {
      * @example
      * 支援的類型 (String, Number, Array, Object, Boolean, Date, Map)
      * 
-     *  Storage(sessionStorage, "會話數據", 123)
-     *  Storage(sessionStorage, "會話數據")
+     *  Storage("會話數據", {value: 123})
+     *  Storage("會話數據")
      * 
-     *  Storage(localStorage, "本地數據", 123)
-     *  Storage(localStorage, "本地數據")
+     *  Storage("本地數據", {value:123, storage: localStorage})
+     *  Storage("本地數據", {storage: localStorage})
      */
-    Storage(storage, key, value=null) {
-        let data,
-        Formula = {
-            Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
-            String: (parse) =>
-                parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Number: (parse) =>
-                parse ? Number(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Array: (parse) =>
-                parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Object: (parse) =>
-                parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Boolean: (parse) =>
-                parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Date: (parse) =>
-                parse ? new Date(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-            Map: (parse) =>
-                parse
-                ? new Map(JSON.parse(parse))
-                : (storage.setItem(key, JSON.stringify([...value])), true),
-        };
-        return null != value
-            ? Formula[Formula.Type(value)]()
-            : !!(data = storage.getItem(key)) && Formula[Formula.Type(JSON.parse(data))](data);
+    Storage(key, {value=null, storage=sessionStorage}={}) {
+        let data;
+        return value != null
+            ? this.formula[this.formula.Type(value)](storage, key, value)
+            : !!(data = storage.getItem(key)) && this.formula[this.formula.Type(JSON.parse(data))](storage, data);
     }
 
     /* ========== 油猴的 API ========== */
@@ -461,7 +474,7 @@ class Syntax {
      * 數據A = store("get", "資料A")
      * store("sjs", "資料B", "數據B")
      */
-    store(operation, key=null, value=null) {
+    store(operat, key=null, value=null) {
         const verify = val => (val !== void 0 ? val : null);
         return {
             del: (key) => GM_deleteValue(key),
@@ -470,7 +483,7 @@ class Syntax {
             get: (key, defaultValue) => verify(GM_getValue(key, defaultValue)),
             sjs: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
             gjs: (key, defaultValue) => JSON.parse(verify(GM_getValue(key, defaultValue)))
-        }[operation](key, value);
+        }[operat](key, value);
     }
 
     /**
