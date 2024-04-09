@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1356845/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1356897/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -108,21 +108,22 @@
                 Fansly: "https://fansly.com/{name}/posts",
             }
 
-            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || new Map();
+            this.new_data = () => new Map(def.Storage("fix_record", {storage: localStorage})) || new Map();
             this.fix_url = (url) => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
 
-            this.save_record = async(id, name) => {
-                // def.Storage("fix_record",
-                    // {
-                        // storage: localStorage,
-                        // value: Object.assign(this.new_data(), save) // 取得完整數據並合併
-                    // }
-                // );
+            this.save_record = async(save) => {
+                await def.Storage("fix_record",
+                    {
+                        storage: localStorage,
+                        value: new Map([...this.new_data(), ...save]) // 取得完整數據並合併
+                    }
+                );
+                this.save_data.clear();
             }
 
-            this.save_test = def.Debounce(() => {
-                console.log(this.save_data.size, this.save_data);
-            });
+            this.save_work = def.Debounce(() => {
+                this.save_record(this.save_data);
+            }, 1000);
 
             this.fix_update = async(href, id, name_onj, tag_obj, text) => {
                 const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
@@ -178,7 +179,7 @@
             this.fix = async (object) => {
                 const {Url, TailId, Website, NameObject, TagObject} = object;
 
-                let Record = this.fix_data[TailId];
+                let Record = this.fix_data.get(TailId);
 
                 if (Record) {
                     this.fix_update(Url, TailId, NameObject, TagObject, Record);
@@ -186,9 +187,8 @@
                     if (this.fix_name_support.hasOwnProperty(Website)) {
                         Record = await this.get_pixiv_name(TailId) || NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
-                        this.save_data.set(TailId, Record);
-                        this.save_test();
-                        //this.save_record(TailId, Record); // 每次遞迴都處理是不好的, 目前的架構不好修正
+                        this.save_data.set(TailId, Record); // 添加數據
+                        this.save_work(); // 呼叫保存工作
                     } else {
                         Record = NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
@@ -351,7 +351,7 @@
                                 const change_name = text.value.trim();
                                 if (change_name != original_name) {
                                     display.textContent = change_name; // 修改顯示名
-                                    GF.save_record({[target.id]: change_name}); // 保存修改名
+                                    GF.save_record(new Map([[target.id, change_name]])); // 保存修改名
                                 }
                                 text.remove();
                             }, { once: true, passive: true });
@@ -391,11 +391,11 @@
         async KeyScroll(Mode) {
             let Scroll, Up_scroll  = false, Down_scroll = false;
 
-            const TopDetected = def.Throttle_discard(()=>{
+            const TopDetected = def.Throttle(()=>{
                 Up_scroll = window.scrollY == 0 ? false : true;
             }, 1000);
 
-            const BottomDetected = def.Throttle_discard(()=>{
+            const BottomDetected = def.Throttle(()=>{
                 Down_scroll =
                 window.scrollY + window.innerHeight >= document.documentElement.scrollHeight ? false : true;
             }, 1000);
@@ -432,7 +432,7 @@
             }
 
             const UP_ScrollSpeed = GF.ScrollPixels * -1;
-            def.Listen(window, "keydown", def.Throttle_discard(event => {
+            def.Listen(window, "keydown", def.Throttle(event => {
                 const key = event.key;
                 if (key == "ArrowUp") {
                     event.stopImmediatePropagation();
