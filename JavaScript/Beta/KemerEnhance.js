@@ -47,13 +47,14 @@
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
         FixArtist: 1,       // 修復作者名稱
+        BackToTop: 1,       // 翻頁後回到頂部
         BlockAds: 1,        // 封鎖廣告
         KeyScroll: 1,       // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
     }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
         CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-        CardZoom: 3,        // 縮放預覽卡大小 [mode: 1 = 單純放大 , 2 = 懸浮放大 , 3 = (1+2)]
+        CardZoom: 1,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
     }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
         LinkSimplified: 1,  // 將下載連結簡化
@@ -90,11 +91,10 @@
                 Height: ()=> window.innerHeight,
                 Agent: ()=> navigator.userAgent,
                 _Type: undefined,
-                Type: function() {
-                    if (this._Type) { return this._Type }
-                    this._Type = (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768)
-                        ? "Mobile" : "Desktop";
-                    return this._Type;
+                Type: ()=> {
+                    return this.Device._Type = this.Device._Type ? this.Device._Type
+                        : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agent()) || this.Device.Width() < 768
+                        ? "Mobile" : "Desktop");
                 }
             };
         }
@@ -346,8 +346,12 @@
                 }
             }
 
+            // 動態調整監聽類型
+            const Device = PM.Device.Type();
+            const Listener = Device == "Mobile" ? "pointerup" : "pointerdown";
+
             // 監聽點擊
-            def.AddListener(document.body, "pointerdown", event=> {
+            def.AddListener(document.body, Listener, event=> {
                 const target = event.target;
 
                 if (target.matches("fix_edit")) {
@@ -377,12 +381,22 @@
                     }, 300);
                 } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
                     const jump = target.getAttribute("jump");
-                    if (!target.parentNode.matches("fix_cont")) {
-                        jump && GM_openInTab(jump, { active: false, insert: false });
-                    } else { // 內容頁面的不開新分頁
-                        jump && location.assign(jump);
+                    if (!target.parentNode.matches("fix_cont") && jump) {
+                        console.log(Device);
+                        PM.Match.Search && Device == "Mobile"
+                            ? location.assign(jump)
+                            : GM_openInTab(jump, { active: false, insert: false });
+                    } else if (jump) { // 內容頁面
+                        location.assign(jump);
                     }
                 }
+            }, { capture: true, passive: true });
+        }
+
+        /* 翻頁回到頂部 */
+        async BackToTop() {
+            def.AddListener(document.body, "pointerup", event=> {
+                event.target.closest("menu:nth-child(2)") && def.$$("menu").scrollIntoView();
             }, { capture: true, passive: true });
         }
 
@@ -397,8 +411,8 @@
                         XMLRequest.apply(this, arguments);
                     };
                     try {
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                         document.querySelector(".root--ujvuu button").click();
+                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                     } catch {}
                 });
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
@@ -452,7 +466,7 @@
             }
 
             const UP_ScrollSpeed = GF.ScrollPixels * -1;
-            def.Listen(window, "keydown", def.Throttle(event => {
+            def.AddListener(window, "keydown", def.Throttle(event => {
                 const key = event.key;
                 if (key == "ArrowUp") {
                     event.stopImmediatePropagation();
@@ -501,7 +515,7 @@
                     onerror: error => {Request(link)}
                 });
             }
-            def.Listen(document, "click", event => {
+            def.Listen(document.body, "click", event => {
                 const target = event.target.closest("menu a");
                 if (target) {
                     event.preventDefault();
@@ -565,15 +579,8 @@
         /* 帖子預覽卡縮放 */
         async CardZoom(Mode) {
             switch (Mode) {
-                case 2: case 3:
+                case 2:
                     def.AddStyle(`
-                        .post-card { margin: .3vw; }
-                        .post-card a img { border-radius: 8px; }
-                        .post-card a {
-                            border-radius: 8px;
-                            border: 3px solid #fff6;
-                            transition: transform 0.4s;
-                        }
                         .post-card a:hover {
                             overflow: auto;
                             z-index: 99999;
@@ -590,13 +597,16 @@
                         }
                     `, "Effects");
 
-                    if (Mode == 2) {
-                        break;
-                    }
-
                 default:
                     def.AddStyle(`
                         * { --card-size: 13vw; }
+                        .post-card { margin: .3vw; }
+                        .post-card a img { border-radius: 8px; }
+                        .post-card a {
+                            border-radius: 8px;
+                            border: 3px solid #fff6;
+                            transition: transform 0.4s;
+                        }
                     `, "Effects");
             }
         }
@@ -759,7 +769,7 @@
                         }, index * 300);
                     });
                     // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                    def.AddListener(document, "click", event => {
+                    def.AddListener(document.body, "click", event => {
                         const target = event.target.matches(".Image-link img");
                         if (target && target.alt == "Loading Failed") {
                             const src = img.src;
@@ -813,10 +823,8 @@
                     default:
                         if (document.visibilityState === "hidden") { // 當可見時才觸發快速自動原圖
                             def.AddListener(document, "visibilitychange", ()=> {
-                                if (document.visibilityState === "visible") {
-                                    def.RemovListener(document, "visibilitychange"); FastAuto();
-                                }
-                            })
+                                document.visibilityState === "visible" && FastAuto();
+                            }, { once: true });
                         } else {FastAuto()}
                 }
             }, {throttle: 600});
@@ -1114,6 +1122,7 @@
                     }
                     /* 載入原圖樣式 */
                     DM.Set = DM.GetSet.ImgSet();
+                    const Width = PM.Device.Width() / 2;
                     def.AddStyle(`
                         .Image-style {
                             display: block;
@@ -1123,9 +1132,14 @@
                             max-width: ${DM.Set.img_mw};
                         }
                         .Image-loading-indicator {
-                            min-height: 60vh;
-                            min-width: 60vW;
+                            min-width: 50vW;
+                            min-height: 50vh;
+                            max-width: ${Width}px;
+                            max-height: ${(Width * 9) / 16}px;
                             border: 1px solid #fafafa;
+                        }
+                        .Image-loading-indicator:hover {
+                            cursor: pointer;
                         }
                     `, "Custom-style");break;
 
@@ -1559,6 +1573,7 @@
                 SidebarCollapse: s=> Call.USE(s, GF.SidebarCollapse),
                 DeleteNotice: s=> Call.USE(s, GF.DeleteNotice),
                 FixArtist: s=> Call.USE(s, GF.FixArtist),
+                BackToTop: s=> Call.USE(s, GF.BackToTop),
                 BlockAds: s=> Call.USE(s, GF.BlockAds),
                 KeyScroll: s=> Call.USE(s, GF.KeyScroll),
 
