@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/09
+// @version      2024/04/10
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -53,18 +53,18 @@ class Syntax {
         this.formula = {
             Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
             String: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Number: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : Number(key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true) : Number(key),
             Array: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true)
-                : (key = JSON.parse(key), Array.isArray(key[0]) ? new Map(key) : key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true)
+                    : (key = JSON.parse(key), Array.isArray(key[0]) ? new Map(key) : key),
             Object: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Boolean: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Date: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : new Date(key),
+                value != null ? (storage.setItem(key, JSON.stringify(value)), true) : new Date(key),
             Map: (storage, key, value) =>
                 (storage.setItem(key, JSON.stringify([...value])), true)
         };
