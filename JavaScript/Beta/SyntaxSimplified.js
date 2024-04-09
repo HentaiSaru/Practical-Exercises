@@ -57,7 +57,8 @@ class Syntax {
             Number: (storage, key, value) =>
                 value ? (storage.setItem(key, JSON.stringify(value)), true) : Number(key),
             Array: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
+                value ? (storage.setItem(key, JSON.stringify(value)), true)
+                : (key = JSON.parse(key), Array.isArray(key[0]) ? new Map(key) : key),
             Object: (storage, key, value) =>
                 value ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Boolean: (storage, key, value) =>
@@ -65,7 +66,7 @@ class Syntax {
             Date: (storage, key, value) =>
                 value ? (storage.setItem(key, JSON.stringify(value)), true) : new Date(key),
             Map: (storage, key, value) =>
-                value ? (storage.setItem(key, JSON.stringify([...value])), true) : new Map(JSON.parse(key))
+                (storage.setItem(key, JSON.stringify([...value])), true)
         };
     }
 
@@ -358,7 +359,7 @@ class Syntax {
      *  
      * }), 100)
      */
-    Debounce(func, delay=0) {
+    Debounce(func, delay=500) {
         let timer = null;
         return (...args) => {
             clearTimeout(timer);
