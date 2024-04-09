@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.46-Beta
+// @version      0.0.46
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1356840/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1356919/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -79,6 +79,20 @@
                 AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
                 Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
             };
+            this.Device = {
+                sY: () => window.scrollY,
+                Width: () => window.innerWidth,
+                Height: () => window.innerHeight,
+                Agent: () => navigator.userAgent,
+                _Type: undefined,
+                Type: function() {
+                    if (this._Type) {
+                        return this._Type;
+                    }
+                    this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768 ? "Mobile" : "Desktop";
+                    return this._Type;
+                }
+            };
         }
     }();
     GF = new class Global_Function {
@@ -86,7 +100,11 @@
             this.ScrollPixels = 2;
             this.ScrollInterval = 800;
             this.fix_data = null;
-            this.new_data = () => def.Storage("fix_record", {storage: localStorage}) || {};
+            this.save_data = new Map();
+            this.fix_name_support = {
+                pixiv: undefined,
+                fanbox: undefined
+            };
             this.fix_tag_support = {
                 ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                 Patreon: "https://www.patreon.com/user?u={id}",
@@ -97,13 +115,20 @@
                 OnlyFans: "https://onlyfans.com/{name}",
                 Fansly: "https://fansly.com/{name}/posts"
             };
-            this.fix_name_support = {
-                pixiv: "",
-                fanbox: ""
-            };
+            this.new_data = () => def.Storage("fix_record_v2", {
+                storage: localStorage
+            }) || new Map();
+            this.fix_url = url => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
             this.save_record = async save => {
-                def.Storage("fix_record", {storage: localStorage, value: Object.assign(this.new_data(), save)});
+                await def.Storage("fix_record_v2", {
+                    storage: localStorage,
+                    value: new Map([ ...this.new_data(), ...save ])
+                });
+                this.save_data.clear();
             };
+            this.save_work = def.Debounce(() => {
+                this.save_record(this.save_data);
+            }, 1e3);
             this.fix_update = async (href, id, name_onj, tag_obj, text) => {
                 const edit = GM_addElement("fix_edit", {
                     id: id,
@@ -160,16 +185,15 @@
                     NameObject,
                     TagObject
                 } = object;
-                let Record = this.fix_data[TailId];
+                let Record = this.fix_data.get(TailId);
                 if (Record) {
                     this.fix_update(Url, TailId, NameObject, TagObject, Record);
                 } else {
                     if (this.fix_name_support.hasOwnProperty(Website)) {
                         Record = await this.get_pixiv_name(TailId) || NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
-                        this.save_record({
-                            [TailId]: Record
-                        });
+                        this.save_data.set(TailId, Record);
+                        this.save_work();
                     } else {
                         Record = NameObject.textContent;
                         this.fix_update(Url, TailId, NameObject, TagObject, Record);
@@ -178,6 +202,9 @@
             };
         }
         async SidebarCollapse() {
+            if (PM.Device.Type() == "Mobile") {
+                return;
+            }
             def.AddStyle(`
                 .global-sidebar {
                     opacity: 0;
@@ -201,30 +228,35 @@
             Notice ? Notice.remove() : null;
         }
         async FixArtist() {
-            const origin = `${location.origin}/`;
             GF.fix_data = GF.new_data();
             DM.Dependencies("Global");
             async function search_page_fix(items) {
                 items.setAttribute("fix", true);
-                const link = items.href;
-                const img = def.$$("img", {source: items});
-                const parse = link.split(origin)[1].split("/");
-                img.setAttribute("jump", link);
-                img.removeAttribute("src");
+                const url = items.href;
+                const img = def.$$("img", {
+                    source: items
+                });
+                const parse = GF.fix_url(url);
+                img.setAttribute("jump", url);
                 items.removeAttribute("href");
+                img.removeAttribute("src");
                 GF.fix({
-                    Url: link,
+                    Url: url,
                     TailId: parse[2],
                     Website: parse[0],
-                    NameObject: def.$$(".user-card__name", {source: items}),
-                    TagObject: def.$$(".user-card__service", {source: items})
+                    NameObject: def.$$(".user-card__name", {
+                        source: items
+                    }),
+                    TagObject: def.$$(".user-card__service", {
+                        source: items
+                    })
                 });
             }
             async function other_page_fix(artist, tag = "", href = null, reTag = "<fix_view>") {
                 try {
                     const parent = artist.parentNode;
                     const url = href || parent.href;
-                    const parse = url.split(`${new URL(url).origin}/`)[1].split("/");
+                    const parse = GF.fix_url(url);
                     await GF.fix({
                         Url: url,
                         TailId: parse[2],
@@ -259,7 +291,10 @@
                                 break;
 
                               default:
-                                def.$$("a", {all: true, source: operat}).forEach(items => {
+                                def.$$("a", {
+                                    all: true,
+                                    source: operat
+                                }).forEach(items => {
                                     !items.getAttribute("fix") && search_page_fix(items);
                                 });
                             }
@@ -276,7 +311,10 @@
                 if (PM.LinksPage.test(url)) {
                     const artist = def.$$("span[itemprop='name']");
                     artist && other_page_fix(artist);
-                    def.$$("a", {all: true, source: card_items}).forEach(items => {
+                    def.$$("a", {
+                        all: true,
+                        source: card_items
+                    }).forEach(items => {
                         search_page_fix(items);
                     });
                     url.endsWith("new") && DynamicFix(card_items, card_items);
@@ -317,9 +355,7 @@
                                 const change_name = text.value.trim();
                                 if (change_name != original_name) {
                                     display.textContent = change_name;
-                                    GF.save_record({
-                                        [target.id]: change_name
-                                    });
+                                    GF.save_record(new Map([ [ target.id, change_name ] ]));
                                 }
                                 text.remove();
                             }, {
@@ -361,12 +397,15 @@
             `, "Ad-blocking-script");
         }
         async KeyScroll(Mode) {
+            if (PM.Device.Type() == "Mobile") {
+                return;
+            }
             let Scroll, Up_scroll = false, Down_scroll = false;
-            const TopDetected = def.Throttle_discard(() => {
-                Up_scroll = window.scrollY == 0 ? false : true;
+            const TopDetected = def.Throttle(() => {
+                Up_scroll = PM.Device.sY() == 0 ? false : true;
             }, 1e3);
-            const BottomDetected = def.Throttle_discard(() => {
-                Down_scroll = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight ? false : true;
+            const BottomDetected = def.Throttle(() => {
+                Down_scroll = PM.Device.sY() + PM.Device.Height() >= document.documentElement.scrollHeight ? false : true;
             }, 1e3);
             switch (Mode) {
               case 2:
@@ -399,7 +438,7 @@
                 };
             }
             const UP_ScrollSpeed = GF.ScrollPixels * -1;
-            def.Listen(window, "keydown", def.Throttle_discard(event => {
+            def.Listen(window, "keydown", def.Throttle(event => {
                 const key = event.key;
                 if (key == "ArrowUp") {
                     event.stopImmediatePropagation();
@@ -444,7 +483,9 @@
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = def.$$("section", {source: def.DomParse(response.responseText)});
+                        New_data = def.$$("section", {
+                            source: def.DomParse(response.responseText)
+                        });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_data.innerHTML
                         }), Old_data);
@@ -575,11 +616,17 @@
                 def.WaitElem("div.card-list__items pre", true, 8, content => {
                     content.forEach(pre => {
                         if (pre.childNodes.length > 1) {
-                            def.$$("p", {all: true, source: pre}).forEach(p => {
+                            def.$$("p", {
+                                all: true,
+                                source: pre
+                            }).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
-                            def.$$("a", {all: true, source: pre}).forEach(a => {
+                            def.$$("a", {
+                                all: true,
+                                source: pre
+                            }).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
                             });
@@ -588,34 +635,54 @@
                             URL_F.test(text) && Analysis(pre, text);
                         }
                     });
-                }, {object: document, throttle: 600});
+                }, {
+                    object: document,
+                    throttle: 600
+                });
                 break;
 
               default:
                 def.WaitElem("div.post__body", false, 8, body => {
-                    const article = def.$$("article", {source: body});
-                    const content = def.$$("div.post__content", {source: body});
+                    const article = def.$$("article", {
+                        source: body
+                    });
+                    const content = def.$$("div.post__content", {
+                        source: body
+                    });
                     if (article) {
-                        def.$$("span.choice-text", {all: true, source: article}).forEach(span => {
+                        def.$$("span.choice-text", {
+                            all: true,
+                            source: article
+                        }).forEach(span => {
                             Analysis(span, span.textContent);
                         });
                     } else if (content) {
-                        const pre = def.$$("pre", {source: content});
+                        const pre = def.$$("pre", {
+                            source: content
+                        });
                         if (pre) {
                             text = pre.textContent;
                             URL_F.test(text) && Analysis(pre, text);
                         } else {
-                            def.$$("p", {all: true, source: content}).forEach(p => {
+                            def.$$("p", {
+                                all: true,
+                                source: content
+                            }).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
-                            def.$$("a", {all: true, source: content}).forEach(a => {
+                            def.$$("p", {
+                                all: true,
+                                source: content
+                            }).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
                             });
                         }
                     }
-                }, {throttle: 600});
+                }, {
+                    throttle: 600
+                });
             }
         }
         async LinkSimplified() {
@@ -625,7 +692,9 @@
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
                 });
-            }, {throttle: 600});
+            }, {
+                throttle: 600
+            });
         }
         async VideoBeautify(Mode) {
             def.AddStyle(`
@@ -652,7 +721,11 @@
                         })));
                     }
                     parents.forEach(li => {
-                        let title = def.$$("summary", {source: li}), stream = def.$$("source", {source: li});
+                        let title = def.$$("summary", {
+                            source: li
+                        }), stream = def.$$("source", {
+                            source: li
+                        });
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
@@ -670,11 +743,17 @@
                             ReactDOM.render(React.createElement(VideoRendering, {
                                 stream: stream
                             }), li);
-                            li.insertBefore(title, def.$$("summary", {source: li}));
+                            li.insertBefore(title, def.$$("summary", {
+                                source: li
+                            }));
                         }
                     });
-                }, {throttle: 600});
-            }, {throttle: 600});
+                }, {
+                    throttle: 600
+                });
+            }, {
+                throttle: 600
+            });
         }
         async OriginalImage(Mode) {
             let img, a;
@@ -703,7 +782,9 @@
                     thumbnail.forEach((object, index) => {
                         setTimeout(() => {
                             object.removeAttribute("class");
-                            a = def.$$("a", {source: object});
+                            a = def.$$("a", {
+                                source: object
+                            });
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: `IMG-${index}`,
                                 href: a
@@ -728,8 +809,12 @@
                     }
                     const object = thumbnail[index];
                     object.removeAttribute("class");
-                    a = def.$$("a", {source: object});
-                    img = def.$$("img", {source: a});
+                    a = def.$$("a", {
+                        source: object
+                    });
+                    img = def.$$("img", {
+                        source: a
+                    });
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
                         src: a.href
@@ -750,7 +835,9 @@
                             observer.unobserve(object);
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: object.alt,
-                                href: def.$$("a", {source: object})
+                                href: def.$$("a", {
+                                    source: object
+                                })
                             }), object);
                             object.removeAttribute("class");
                         }
@@ -782,7 +869,9 @@
                         FastAuto();
                     }
                 }
-            }, {throttle: 600});
+            }, {
+                throttle: 600
+            });
             async function Reload(Img, Retry) {
                 if (Retry > 0) {
                     setTimeout(() => {
@@ -835,12 +924,16 @@
                 };
                 Start(Global);
                 Start(Content);
-                def.$$("div.post__content p", {all: true}).forEach(p => {
+                def.$$("div.post__content p", {
+                    all: true
+                }).forEach(p => {
                     p.childNodes.forEach(node => {
                         node.nodeName == "BR" && node.parentNode.remove();
                     });
                 });
-                def.$$("div.post__content a", {all: true}).forEach(a => {
+                def.$$("div.post__content a", {
+                    all: true
+                }).forEach(a => {
                     /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
                 });
                 def.$$("h1.post__title").scrollIntoView();
@@ -851,7 +944,9 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = def.$$("main", {source: def.DomParse(response.responseText)});
+                        let New_main = def.$$("main", {
+                            source: def.DomParse(response.responseText)
+                        });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_main.innerHTML
                         }), old_main);
@@ -894,7 +989,7 @@
                     });
                 } catch {}
                 comments.appendChild(def.Buffer);
-            }, {throttle: 600});
+            }, document.body, 600);
         }
     }
     DM = new class Dependencies_And_Menu {
@@ -1109,12 +1204,8 @@
                 DM.Set = DM.GetSet.MenuSet();
                 def.AddScript(`
                         function check(value) {
-                            if (value.toString().length > 4 || value > 1000) {
-                                value = 1000;
-                            } else if (value < 0) {
-                                value = 0;
-                            }
-                            return value || 0;
+                            return value.toString().length > 4 || value > 1000
+                                ? 1000 : value < 0 ? "" : value;
                         }
                     `);
                 def.AddStyle(`
