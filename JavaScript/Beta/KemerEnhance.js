@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1356897/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1356919/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -83,7 +83,20 @@
                 Search: this.SearchPage.test(url) || this.LinksPage.test(url),
                 AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
                 Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
-            }
+            };
+            this.Device = {
+                sY: ()=> window.scrollY,
+                Width: ()=> window.innerWidth,
+                Height: ()=> window.innerHeight,
+                Agent: ()=> navigator.userAgent,
+                _Type: undefined,
+                Type: function() {
+                    if (this._Type) { return this._Type }
+                    this._Type = (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768)
+                        ? "Mobile" : "Desktop";
+                    return this._Type;
+                }
+            };
         }
     });
 
@@ -108,11 +121,11 @@
                 Fansly: "https://fansly.com/{name}/posts",
             }
 
-            this.new_data = () => new Map(def.Storage("fix_record", {storage: localStorage})) || new Map();
+            this.new_data = () => def.Storage("fix_record_v2", {storage: localStorage}) || new Map();
             this.fix_url = (url) => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
 
             this.save_record = async(save) => {
-                await def.Storage("fix_record",
+                await def.Storage("fix_record_v2",
                     {
                         storage: localStorage,
                         value: new Map([...this.new_data(), ...save]) // 取得完整數據並合併
@@ -199,6 +212,7 @@
 
         /* 收縮側邊攔 */
         async SidebarCollapse() {
+            if (PM.Device.Type() == "Mobile") { return }
             def.AddStyle(`
                 .global-sidebar {
                     opacity: 0;
@@ -389,15 +403,17 @@
 
         /* 快捷自動滾動 */
         async KeyScroll(Mode) {
+            if (PM.Device.Type() == "Mobile") { return }
+
             let Scroll, Up_scroll  = false, Down_scroll = false;
 
             const TopDetected = def.Throttle(()=>{
-                Up_scroll = window.scrollY == 0 ? false : true;
+                Up_scroll = PM.Device.sY() == 0 ? false : true;
             }, 1000);
 
             const BottomDetected = def.Throttle(()=>{
                 Down_scroll =
-                window.scrollY + window.innerHeight >= document.documentElement.scrollHeight ? false : true;
+                PM.Device.sY() + PM.Device.Height() >= document.documentElement.scrollHeight ? false : true;
             }, 1000);
 
             switch (Mode) {
@@ -1125,12 +1141,8 @@
                     DM.Set = DM.GetSet.MenuSet();
                     def.AddScript(`
                         function check(value) {
-                            if (value.toString().length > 4 || value > 1000) {
-                                value = 1000;
-                            } else if (value < 0) {
-                                value = 0;
-                            }
-                            return value || 0;
+                            return value.toString().length > 4 || value > 1000
+                                ? 1000 : value < 0 ? "" : value;
                         }
                     `);
                     def.AddStyle(`
