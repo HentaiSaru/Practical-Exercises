@@ -741,7 +741,7 @@ function Runtime(time=null, log=true) {
  *  Storage(localStorage, "本地數據", 123)
  *  Storage(localStorage, "本地數據")
  */
-function Storage(storage, key, value=null) {
+ function Storage(storage, key, value=null) {
     let data,
     Formula = {
         Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
@@ -749,18 +749,17 @@ function Storage(storage, key, value=null) {
             parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
         Number: (parse) =>
             parse ? Number(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-        Array: (parse) =>
-            parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
+        Array: (parse) => 
+            !parse
+            ? (storage.setItem(key, JSON.stringify(value)), true)
+            : (parse = JSON.parse(parse), Array.isArray(parse[0]) ? new Map(parse) : parse),
         Object: (parse) =>
             parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
         Boolean: (parse) =>
             parse ? JSON.parse(parse) : (storage.setItem(key, JSON.stringify(value)), true),
         Date: (parse) =>
             parse ? new Date(parse) : (storage.setItem(key, JSON.stringify(value)), true),
-        Map: (parse) =>
-            parse
-            ? new Map(JSON.parse(parse))
-            : (storage.setItem(key, JSON.stringify([...value])), true),
+        Map: () => (storage.setItem(key, JSON.stringify([...value])), true),
     };
     return null != value
         ? Formula[Formula.Type(value)]()
