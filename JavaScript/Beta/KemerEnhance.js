@@ -122,7 +122,11 @@
             }
 
             this.new_data = () => def.Storage("fix_record_v2", {storage: localStorage}) || new Map();
-            this.fix_url = (url) => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
+            this.fix_url = (url) => {
+                url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
+                url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")); // 排除不必要字串
+                return url.length >= 3 ? [url[0], url[2]] : url
+            }
 
             this.save_record = async(save) => {
                 await def.Storage("fix_record_v2",
@@ -256,7 +260,7 @@
 
                 GF.fix({
                     Url: url, // 跳轉連結
-                    TailId: parse[2], // 尾部 id 標號
+                    TailId: parse[1], // 尾部 id 標號
                     Website: parse[0], // 網站
                     NameObject: def.$$(".user-card__name", {source: items}), // 名稱物件
                     TagObject: def.$$(".user-card__service", {source: items}) // 標籤物件
@@ -272,7 +276,7 @@
 
                     await GF.fix({
                         Url: url,
-                        TailId: parse[2],
+                        TailId: parse[1],
                         Website: parse[0],
                         NameObject: artist,
                         TagObject: tag
@@ -374,7 +378,7 @@
                 } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
                     const jump = target.getAttribute("jump");
                     if (!target.parentNode.matches("fix_cont")) {
-                        jump && GM_openInTab(jump, { active: false });
+                        jump && GM_openInTab(jump, { active: false, insert: false });
                     } else { // 內容頁面的不開新分頁
                         jump && location.assign(jump);
                     }
@@ -512,7 +516,7 @@
                 const target = event.target.closest("article a");
                 if (target) {
                     event.preventDefault();
-                    GM_openInTab(target.href, { active: false, insert: true });
+                    GM_openInTab(target.href, { active: false, insert: false });
                 }
             }, {capture: true})
         }

@@ -118,7 +118,11 @@
             this.new_data = () => def.Storage("fix_record_v2", {
                 storage: localStorage
             }) || new Map();
-            this.fix_url = url => url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/).splice(1).map(url => url.replace(/\..*/, ""));
+            this.fix_url = url => {
+                url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/);
+                url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, ""));
+                return url.length >= 3 ? [ url[0], url[2] ] : url;
+            };
             this.save_record = async save => {
                 await def.Storage("fix_record_v2", {
                     storage: localStorage,
@@ -242,7 +246,7 @@
                 img.removeAttribute("src");
                 GF.fix({
                     Url: url,
-                    TailId: parse[2],
+                    TailId: parse[1],
                     Website: parse[0],
                     NameObject: def.$$(".user-card__name", {
                         source: items
@@ -259,7 +263,7 @@
                     const parse = GF.fix_url(url);
                     await GF.fix({
                         Url: url,
-                        TailId: parse[2],
+                        TailId: parse[1],
                         Website: parse[0],
                         NameObject: artist,
                         TagObject: tag
@@ -368,7 +372,8 @@
                     const jump = target.getAttribute("jump");
                     if (!target.parentNode.matches("fix_cont")) {
                         jump && GM_openInTab(jump, {
-                            active: false
+                            active: false,
+                            insert: false
                         });
                     } else {
                         jump && location.assign(jump);
@@ -513,7 +518,7 @@
                     event.preventDefault();
                     GM_openInTab(target.href, {
                         active: false,
-                        insert: true
+                        insert: false
                     });
                 }
             }, {
