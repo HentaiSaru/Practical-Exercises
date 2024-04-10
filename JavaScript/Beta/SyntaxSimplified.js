@@ -458,7 +458,7 @@ class Syntax {
         let data;
         return value != null
             ? this.formula[this.formula.Type(value)](storage, key, value)
-            : !!(data = storage.getItem(key)) && this.formula[this.formula.Type(JSON.parse(data))](storage, data) || error;
+            : (data = storage.getItem(key), data != undefined ? this.formula[this.formula.Type(JSON.parse(data))](storage, data) : error);
     }
 
     /* ========== 油猴的 API ========== */
