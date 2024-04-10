@@ -46,13 +46,13 @@
     class Detection {
         constructor() {
             /* 對 DOM 查找進行節流 */
-            this.Throttle_discard = (func, delay) => {
+            this.Throttle = (func, delay) => {
                 let lastTime = 0;
-                return function() {
-                    const context = this, args = arguments, now = Date.now();
+                return (...args) => {
+                    const now = Date.now();
                     if ((now - lastTime) >= delay) {
-                        func.apply(context, args);
                         lastTime = now;
+                        func(...args);
                     }
                 }
             }
@@ -96,7 +96,7 @@
             /* 展示進度於標題 */
             this.ShowTitle = async display => {
                 this.config.ProgressDisplay = !1;
-                (new MutationObserver(this.Throttle_discard(()=> {
+                (new MutationObserver(this.Throttle(()=> {
                     document.title != display && (document.title = display);
                 }, 100))).observe(document.head, {childList: !0, subtree: !0});
                 // 不加也行, 但避免沒轉變的意外
@@ -116,17 +116,18 @@
         static async Ran() { /* true = !0, false = !1, 固定數字例如: 1000 = 1e3 = 1 * 10^3; e 代表 10 */
             let Allbox, state, title, // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
             data=[], deal=!0, dynamic=new Detection(), self=dynamic.config;
-            const observer = new MutationObserver(dynamic.Throttle_discard(() => {
+            const observer = new MutationObserver(dynamic.Throttle(() => {
                 Allbox = deal && document.querySelectorAll(self.AllProgress);
                 if (Allbox.length > 0 && deal) {
                     deal=!1; Allbox.forEach(box=> {
                         dynamic.TimeComparison(box, box.querySelector(self.ActivityTime).textContent,
-                        NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
-                            if (title) {return true}
-                            NotExpired.querySelectorAll(self.ProgressBar).forEach(progress=> data.push(+progress.textContent));
-                            title = data.length > 0 ? dynamic.ProgressParse(data) : !1;
-                            state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
-                        })
+                            NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
+                                if (title) {return true}
+                                NotExpired.querySelectorAll(self.ProgressBar).forEach(progress=> data.push(+progress.textContent));
+                                title = data.length > 0 ? dynamic.ProgressParse(data) : !1;
+                                state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
+                            }
+                        )
                     })
                 }
 
@@ -260,15 +261,24 @@
                             self.RestartLiveMute && dir.VideoMute(NewWindow);
                             self.TryStayActive && StayActive(NewWindow.document);
                         } else {
-                            function Language(display) {
-                                const language = {
-                                    "zh-TW": [{title: "搜尋失敗", text: "找不到啟用掉落的頻道"}],
-                                    "zh-CN": [{title: "搜索失败", text: "找不到启用掉落的频道"}],
-                                    "en-US": [{title: "Search failed", text: "Can't find a channel with drops enabled"}],
-                                    "ja": [{title: "検索失敗", text: "ドロップが有効なチャンネルが見つかりません"}],
-                                    "ko": [{title: "검색 실패", text: "드롭이 활성화된 채널을 찾을 수 없습니다"}],
+                            function Language(lang) {
+                                const Display = {
+                                    Simplified: {title: "搜索失败", text: "找不到启用掉落的频道"},
+                                    Traditional: {title: "搜尋失敗", text: "找不到啟用掉落的頻道"},
+                                    Korea: {title: "검색 실패", text: "드롭이 활성화된 채널을 찾을 수 없습니다"},
+                                    Japan: {title: "検索失敗", text: "ドロップが有効なチャンネルが見つかりません"},
+                                    English: {title: "Search failed", text: "Can't find a channel with drops enabled"},
+                                }, Match = {
+                                    "ko": Display.Korea,
+                                    "ja": Display.Japan,
+                                    "en-US": Display.English,
+                                    "zh-CN": Display.Simplified,
+                                    "zh-SG": Display.Simplified,
+                                    "zh-TW": Display.Traditional,
+                                    "zh-HK": Display.Traditional,
+                                    "zh-MO": Display.Traditional,
                                 }
-                                return language.hasOwnProperty(display) ? language[display][0] : language["en-US"][0];
+                                return Match[lang] || Match["en-US"];
                             }
                             const show = Language(navigator.language);
                             GM_notification({title: show.title, text: show.text});
