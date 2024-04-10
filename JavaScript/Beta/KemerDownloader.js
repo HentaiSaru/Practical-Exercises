@@ -36,23 +36,23 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1356919/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1357395/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
 /**
 * 修改思路 (什麼時候有空不知道)
-* 
+*
 * 功能設置: 操作系統通知(開關按鈕)/ 下載完成後自動關閉(開關按鈕)/ 實驗功能(開關按鈕)
 * 一鍵開帖延遲(輸入框/毫秒)/ 實驗下載延遲(輸入框/毫秒)
-* 
+*
 * 功能選擇:
 * 下載模式選擇(按鈕)
 * Json 實驗下載功能(按鈕)
 * 開啟當前所有頁面(按鈕)
 * 進階 Json 輸出格式設置
-* 
+*
 * 添加功能:
 * 下載時檔名格式選擇
 * 壓縮下載時選擇是否需多一個資料夾
@@ -74,7 +74,7 @@
 
     /** ---------------------
      * 暫時的 檔名修改方案
-     * 
+     *
      * 根據要添加的元素修改字串
      * 中間的間隔可用任意字符
      *
@@ -84,7 +84,7 @@
      * {Title} 標題
      * {Artist} 作者 | 繪師 ...
      * {Source} 來源 => (Pixiv Fanbox) 之類的標籤
-     * 
+     *
      * {Fill} 填充 => ! 只適用於檔名, 位置隨意 但 必須存在該值, 不得刪除
      */
     const FileName = {
@@ -99,13 +99,13 @@
 
     /** ---------------------
      * 設置 json 輸出格式
-     * 
+     *
      * Mode
      * 排除模式: "FilterMode" -> 預設為全部使用, 設置排除的項目
      * 僅有模式: "OnlyMode" -> 預設為全部不使用, 設置使用的項目
-     * 
+     *
      * ----------------------
-     * 
+     *
      * Settings
      * 原始連結: "orlink"
      * 圖片數量: "imgnb"
@@ -481,7 +481,7 @@
 
             /**
              * 傳入數據生成列表物件
-             * 
+             *
              * @param {string} ol - 原始連結
              * @param {string} pn - 圖片數量
              * @param {string} vn - 影片數量
@@ -639,7 +639,7 @@
                         postMessage({ index, title, url, text: "", error: true });
                     });
                 }
-            `);        
+            `);
         }
 
         /* 初始化獲取數據 */
@@ -827,7 +827,7 @@
                 if (Files.length > 0) {
                     clearInterval(IntervalFind);
                     try {
-                        const CompressMode = def.Storage("Compression", {storage: localStorage}) || true;
+                        const CompressMode = def.Storage("Compression", {storage: localStorage, error: true});
                         const ModeDisplay = CompressMode ? Lang.DS_01 : Lang.DS_02;
 
                         // 創建 Span
@@ -880,8 +880,7 @@
 
         /* 下載模式切換 */
         async DownloadModeSwitch() {
-            const Comp =  def.Storage("Compression", {storage: localStorage}) || true;
-            if (Comp){
+            if (def.Storage("Compression", {storage: localStorage, error: true})){
                 def.Storage("Compression", {storage: localStorage, value: false});
                 if (Config.NotiFication) {
                     GM_notification({
