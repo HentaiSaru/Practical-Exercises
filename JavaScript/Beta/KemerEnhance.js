@@ -40,7 +40,8 @@
 // ==/UserScript==
 
 //Todo  已經被增加功能到 變成狗屎代碼了 等未來有時間重構
-//! 製作對於 下載頁面出現 (browse »), 滑鼠懸浮時, 直接顯示其內容
+//! 修正 BackToTop 對於搜尋頁的, 上方觸發滾動問題
+//! 製作對於 下載頁面出現 (browse »), 滑鼠懸浮時, 直接顯示其內容 https://kemono.su/fanbox/user/4537818/post/1712841
 
 (function () {
     /* (0 = false | 1 = true | 2~n = mode) */
