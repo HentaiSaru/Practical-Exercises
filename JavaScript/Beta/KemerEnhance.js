@@ -40,6 +40,7 @@
 // ==/UserScript==
 
 //Todo  已經被增加功能到 變成狗屎代碼了 等未來有時間重構
+//! 製作對於 下載頁面出現 (browse »), 滑鼠懸浮時, 直接顯示其內容
 
 (function () {
     /* (0 = false | 1 = true | 2~n = mode) */
@@ -129,7 +130,6 @@
             }
 
             this.save_record = async(save) => {
-                const time = def.Runtime();
                 await def.Storage("fix_record_v2",
                     {
                         storage: localStorage,
@@ -137,7 +137,6 @@
                     }
                 );
                 this.save_data.clear();
-                def.Runtime(time, "數據更新耗時:");
             }
 
             this.save_work = def.Debounce(() => {
@@ -384,7 +383,6 @@
                 } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
                     const jump = target.getAttribute("jump");
                     if (!target.parentNode.matches("fix_cont") && jump) {
-                        console.log(Device);
                         PM.Match.Search && Device == "Mobile"
                             ? location.assign(jump)
                             : GM_openInTab(jump, { active: false, insert: false });
