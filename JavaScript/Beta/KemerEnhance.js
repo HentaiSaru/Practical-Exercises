@@ -1551,10 +1551,9 @@
                     MIS_01:"Image Height", MIS_02:"Image Width", MIS_03:"Maximum Image Width", MIS_04:"Image Spacing Height"
                 }
             }, Match = {
-                "zh-TW": Display["Traditional"], "zh-HK": Display["Traditional"], "zh-MO": Display["Traditional"],
-                "zh-CN": Display["Simplified"], "zh-SG": Display["Simplified"],
-                "en-US": Display["English"],
-                "ja": Display["Japan"],
+                "zh-TW": Display.Traditional, "zh-HK": Display.Traditional, "zh-MO": Display.Traditional,
+                "zh-CN": Display.Simplified, "zh-SG": Display.Simplified,
+                "en-US": Display.English, "ja": Display.Japan,
             };
             return Match[lang] || Match["en-US"];
         }
