@@ -271,8 +271,12 @@ class Syntax {
                 callback(element);
             }
         }, throttle));
+
         observer.observe(object, { childList: true, subtree: true });
-        timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
+        timer = setTimeout(() => {
+            observer.disconnect();
+            callback(element);
+        }, (1000 * timeout));
     }
 
     /**
@@ -300,8 +304,12 @@ class Syntax {
                 callback(elements);
             }
         }, throttle));
+
         observer.observe(object, { childList: true, subtree: true });
-        timer = setTimeout(() => {observer.disconnect()}, (1000 * timeout));
+        timer = setTimeout(() => {
+            observer.disconnect();
+            callback(elements);
+        }, (1000 * timeout));
     }
 
     /**
@@ -443,14 +451,14 @@ class Syntax {
      *  Storage("會話數據", {value: 123})
      *  Storage("會話數據")
      * 
-     *  Storage("本地數據", {value:123, storage: localStorage})
+     *  Storage("本地數據", {value: 123, storage: localStorage})
      *  Storage("本地數據", {storage: localStorage})
      */
-    Storage(key, {value=null, storage=sessionStorage}={}) {
+    Storage(key, {storage=sessionStorage, value=null, error=undefined}={}) {
         let data;
         return value != null
             ? this.formula[this.formula.Type(value)](storage, key, value)
-            : !!(data = storage.getItem(key)) && this.formula[this.formula.Type(JSON.parse(data))](storage, data);
+            : !!(data = storage.getItem(key)) && this.formula[this.formula.Type(JSON.parse(data))](storage, data) || error;
     }
 
     /* ========== 油猴的 API ========== */
