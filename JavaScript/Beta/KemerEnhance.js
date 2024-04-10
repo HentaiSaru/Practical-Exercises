@@ -40,8 +40,6 @@
 // ==/UserScript==
 
 //Todo  已經被增加功能到 變成狗屎代碼了 等未來有時間重構
-//! 修正 BackToTop 對於搜尋頁的, 上方觸發滾動問題
-//! 製作對於 下載頁面出現 (browse »), 滑鼠懸浮時, 直接顯示其內容 https://kemono.su/fanbox/user/4537818/post/1712841
 
 (function () {
     /* (0 = false | 1 = true | 2~n = mode) */
@@ -59,7 +57,7 @@
         CardZoom: 1,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
     }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
-        LinkSimplified: 1,  // 將下載連結簡化
+        LinkBeautify: 1,    // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
         VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
         OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
@@ -397,7 +395,7 @@
         /* 翻頁回到頂部 */
         async BackToTop() {
             def.AddListener(document.body, "pointerup", event=> {
-                event.target.closest("menu:nth-child(2)") && def.$$("menu").scrollIntoView();
+                event.target.closest("#paginator-bottom") && def.$$("menu").scrollIntoView();
             }, { capture: true, passive: true });
         }
 
@@ -615,7 +613,6 @@
 
     /* ==================== 內容頁功能 ==================== */
     class Content_Function {
-
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
             let link, text;
@@ -678,15 +675,56 @@
             }
         }
 
-        /* 下載連結簡化 */
-        async LinkSimplified() {
+        /* 懸浮於 browse » 標籤時, 直接展示文件 */
+        async LinkBeautify() {
             def.WaitElem("a.post__attachment-link", true, 5, post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
-                });
+
+                    const browse = link.nextElementSibling;
+                    if (browse) {
+                        browse.style.position = "relative";
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: browse.href,
+                            onload: response => {
+                                const main = def.$$("main", {source: def.DomParse(response.responseText)});
+                                const View = GM_addElement("Viewer", {class: "View"});
+                                const Buffer = document.createDocumentFragment();
+
+                                def.$$("br", {all: true, source: main}).forEach(br => { // 取得 br 數據
+                                    Buffer.append(
+                                        document.createTextNode(br.previousSibling.textContent.trim()), br
+                                    );
+                                })
+
+                                View.appendChild(Buffer);
+                                browse.appendChild(View);
+                            }
+                        })
+                    }
+                })
             }, {throttle: 600});
+            def.AddStyle(`
+                .View {
+                    top: -10px;
+                    padding: 10%;
+                    display: none;
+                    overflow: auto;
+                    color: #f2f2f2;
+                    font-size: 14px;
+                    font-weight: 600;
+                    position: absolute;
+                    white-space: nowrap;
+                    border-radius: .5rem;
+                    left: calc(100% + 10px);
+                    border: 1px solid #737373;
+                    background-color: #3b3e44;
+                }
+                a:hover .View { display: block }
+            `, "Effects");
         }
 
         /* 影片美化 */
@@ -941,7 +979,7 @@
                 } catch {}
 
                 comments.appendChild(def.Buffer);
-            }, document.body, 600);
+            }, {throttle: 600});
         }
 
     }
@@ -957,8 +995,8 @@
             img_w: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.width = value}),
             img_mw: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.maxWidth = value}),
             img_gap: value => requestAnimationFrame(()=> {DM.ImgRules[0].style.margin = `${value} auto`}),
-            MT: value => requestAnimationFrame(()=> {DM.ImgRules[3].style.top = value}),
-            ML: value => requestAnimationFrame(()=> {DM.ImgRules[3].style.left = value})
+            MT: value => requestAnimationFrame(()=> {DM.ImgRules[4].style.top = value}),
+            ML: value => requestAnimationFrame(()=> {DM.ImgRules[4].style.left = value})
         }
 
         /*
@@ -1583,7 +1621,7 @@
                 CardZoom: s=> Call.USE(s, PF.CardZoom),
 
                 TextToLink: s=> Call.USE(s, CF.TextToLink),
-                LinkSimplified: s=> Call.USE(s, CF.LinkSimplified),
+                LinkBeautify: s=> Call.USE(s, CF.LinkBeautify),
                 OriginalImage: s=> Call.USE(s, CF.OriginalImage),
                 VideoBeautify: s=> Call.USE(s, CF.VideoBeautify),
                 CommentFormat: s=> Call.USE(s, CF.CommentFormat),
