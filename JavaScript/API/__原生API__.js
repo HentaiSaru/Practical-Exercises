@@ -89,6 +89,7 @@ class Collection {
  * 監聽類型:
  *? 滑鼠事件 / 對應手機端指針
  * [滑鼠點擊]: "click"
+ * [滑鼠點兩下]: "dblclick"
  * [滑鼠滾動]: "scroll"
  * [滑鼠放開]: "mouseup" / "pointerup"
  * [滑鼠按下]: "mousedown" / "pointerdown"
@@ -120,16 +121,18 @@ class Collection {
  * event.preventDefault() 防止默認行為, 例如跳轉, 送出表單等
  * event.stopPropagation() 防止事件傳播, 用於事件只作用在特定元素
  * event.stopImmediatePropagation() 與上方功能類似, 並防止呼叫其他相同事件類型的事件監聽器
+ * 
  * event.type 觸發的事件類型
  * event.target 獲取事件物件
  * event.currentTarget 獲取事件觸發元素
+ * 
  * event.key 獲取鍵盤相關鍵值
  * event.keyCode 鍵排按鈕的 code 碼
  * event.clientX 獲取滑鼠觸發的座標
  * event.clientY
  * })
  * 
- * 附加功能:
+ * 附加選項:
  * { capture: true } 立即觸發, 預設是冒泡階段才觸發
  * { once: true } 一次性監聽, 觸發後立即移除
  * { passive: true } 被動模式, 當監聽器不會使用, preventDefault() 取消默認, 添加該參數可提高性能
