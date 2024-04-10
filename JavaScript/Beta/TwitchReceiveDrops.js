@@ -176,8 +176,8 @@
     /* 重啟邏輯 */
     class RestartLive {
         constructor() {
-            /* 重啟直播的影片靜音(持續執行 15 秒) */
-            this.VideoMute = async window => {
+            /* 重啟直播的靜音(持續執行 15 秒) */
+            this.LiveMute = async window => {
                 let video;
                 const Interval = setInterval(() => {
                     video = window.document.querySelector("video");
@@ -187,6 +187,20 @@
                         setTimeout(()=> {clearInterval(SilentInterval)}, 1.5e4);
                     }
                 }, 5e2);
+            }
+
+            /* 直播自動最低畫質 (未完成) */
+            this.LiveLowQuality = async window => {
+                const settings = window.document.querySelector("[data-a-target='player-settings-button']").click();
+                setTimeout(() => {
+                    window.document.querySelector("[data-a-target='player-settings-menu-item-quality']").click()
+                    setTimeout(() => {
+                        window.document.querySelector("[data-a-target='player-settings-menu']").lastElementChild.click()
+                        setTimeout(() => {
+                            settings.click();
+                        }, 500);
+                    }, 500);
+                }, 500);
             }
 
             this.config = Object.assign(Config, {
@@ -235,7 +249,7 @@
 
                             } else if (Nowlive) {
                                 clearInterval(Interval);
-                                self.RestartLiveMute && dir.VideoMute(NewWindow);
+                                self.RestartLiveMute && dir.LiveMute(NewWindow);
                                 self.TryStayActive && StayActive(NewWindow.document);
 
                             }
@@ -258,7 +272,7 @@
 
                         if (index != -1) {
                             article[index].querySelector(self.WatchLiveLink).click();
-                            self.RestartLiveMute && dir.VideoMute(NewWindow);
+                            self.RestartLiveMute && dir.LiveMute(NewWindow);
                             self.TryStayActive && StayActive(NewWindow.document);
                         } else {
                             function Language(lang) {
