@@ -343,9 +343,9 @@ class Syntax {
      * let start = Runtime();
      * Runtime(start, true);
      */
-    Runtime(time=null, log=true) {
+    Runtime(time=null, show="Elapsed Time:", log=true) {
         return !time? Date.now(): log?
-        console.log("\x1b[1m\x1b[36m%s\x1b[0m", `Elapsed Time: ${((Date.now()-time)/1e3)}s`):
+        console.log("\x1b[1m\x1b[36m%s\x1b[0m", `${show} ${((Date.now()-time)/1e3)}s`):
         (Date.now() - time);
     }
 
