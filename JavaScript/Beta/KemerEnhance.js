@@ -129,6 +129,7 @@
             }
 
             this.save_record = async(save) => {
+                const time = def.Runtime();
                 await def.Storage("fix_record_v2",
                     {
                         storage: localStorage,
@@ -136,6 +137,7 @@
                     }
                 );
                 this.save_data.clear();
+                def.Runtime(time, "數據更新耗時:");
             }
 
             this.save_work = def.Debounce(() => {
