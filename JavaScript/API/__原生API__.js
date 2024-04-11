@@ -632,22 +632,35 @@ function Interval(trigger, time) {
 /* ==================================================== */
 
 /**
- ** { 監聽對象, 並呼叫函數 }
+ ** { 持續監聽對象, 並運行函數 (用於持續監聽, 無清除) }
  *
- * @param {string} Mark      - 監聽標記, 避免重複創建
- * @param {element} Target   - 觸發的監聽對象
- * @param {function} Trigger - 觸發的函數
+ * @param {element} object - 觀察對象
+ * @param {function} trigger - 觸發函數
+ * @param {object}
+ * mark - 創建標記, 用於避免重複創建
+ * subtree - 觀察 目標節點及其所有後代節點的變化
+ * childList - 觀察 目標節點的子節點數量的變化
+ * characterData - 觀察 目標節點的屬性值的變化
  * 
  * @example
- * Observer("標記", document, 觸發函數);
+ * Observer("", ()=> {}, {mark: "創建", childList: false, characterData: true})
  */
-const ObservreMark = new Map();
-async function Observer(Mark, Target, Trigger) {
-    if (!ObservreMark.has(Mark)) {
-        ObservreMark.set(Mark, true);
-        const observer = new MutationObserver(() => {Trigger()});
-        observer.observe(Target, { childList: true, subtree: true });
+const obMark = new Map();
+async function Observer(object, trigger, {
+    mark=false,
+    subtree=true,
+    childList=true,
+    characterData=false
+}={}) {
+    if (mark) {
+        if (obMark.has(mark)) {return}
+        else {obMark.set(mark, true)}
     }
+    (new MutationObserver(() => {trigger()})).observe(object, {
+        subtree: subtree,
+        childList: childList,
+        characterData: characterData,
+    });
 }
 
 /* ==================================================== */
