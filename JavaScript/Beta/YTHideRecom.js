@@ -135,7 +135,8 @@
                         } else {
                             if (this.store("get", "Title")) {
                                 Title_observer.observe(title, {childList: true, subtree: false});
-                                this.Dev && this.log("隱藏標題", this.Runtime(this.StartTime));
+                                this.Dev && this.log("隱藏標題", this.Runtime(this.StartTime))
+                                document.title = "Hide";
                             }
 
                             // 推薦播放隱藏
@@ -159,7 +160,6 @@
                                 });
                             }
                         }
-                        document.querySelector("h1 [dir='auto']")
 
                         // 註冊快捷鍵
                         this.RemovListener(document, "keydown");
