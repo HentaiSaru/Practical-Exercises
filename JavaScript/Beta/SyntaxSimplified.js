@@ -24,6 +24,7 @@
  */
 class Syntax {
     constructor() {
+        this.obMark = {};
         this.ListenerRecord = {};
         this.Parser = new DOMParser();
         this.Buffer = document.createDocumentFragment();
@@ -240,6 +241,37 @@ class Syntax {
             element.addEventListener(type, listener, add);
             callback && callback(true);
         } catch {callback && callback(false)}
+    }
+
+    /**
+     ** { 持續監聽對象, 並運行函數 (用於持續監聽, 無清除) }
+     *
+     * @param {element} object - 觀察對象
+     * @param {function} trigger - 觸發函數
+     * @param {object}
+     * mark - 創建標記, 用於避免重複創建
+     * subtree - 觀察 目標節點及其所有後代節點的變化
+     * childList - 觀察 目標節點的子節點數量的變化
+     * characterData - 觀察 目標節點的屬性值的變化
+     * 
+     * @example
+     * Observer("", ()=> {}, {mark: "創建", childList: false, characterData: true})
+     */
+    async Observer(object, trigger, {
+        mark=false,
+        subtree=true,
+        childList=true,
+        characterData=false
+    }={}) {
+        if (mark) {
+            if (this.obMark[mark]) {return}
+            else {this.obMark[mark] = true}
+        }
+        (new MutationObserver(() => {trigger()})).observe(object, {
+            subtree: subtree,
+            childList: childList,
+            characterData: characterData,
+        });
     }
 
     /**
@@ -490,6 +522,32 @@ class Syntax {
             sjs: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
             gjs: (key, defaultValue) => JSON.parse(verify(GM_getValue(key, defaultValue)))
         }[operat](key, value);
+    }
+
+    /**
+     * { 監聽保存值的變化 }
+     * 
+     * // @grant GM_addValueChangeListener
+     * @param {array} object - 一個可遍歷的, 標籤對象物件
+     * @param {object} callback - 回條函數
+     * 
+     * @example
+     * 回條對象
+     * key - 觸發的對象 key
+     * ov - 對象舊值
+     * nv - 對象新值
+     * far - 是否是其他窗口觸發
+     * 
+     * storeListen(["key1", "key2"], call=> {
+     *      console.log(call.Key, call.nv);
+     * })
+     */
+    async storeListen(object, callback) {
+        object.forEach(label => {
+            GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
+                callback({key: Key, ov: old_value, nv: new_value, far: remote});
+            })
+        })
     }
 
     /**
