@@ -258,7 +258,13 @@ class Syntax {
      * @paeam {*} {callback} - 觀察對象, 觀察參數
      * 
      * @example
-     * Observer("", ()=> {}, {mark: "標記", childList: false, characterData: true})
+     * Observer("觀察對象", ()=> {
+     *      運行邏輯...
+     * }, {mark: "標記", childList: false, characterData: true}, back=> {
+     *      如果需要進行額外操作
+     *      const observer = back.ob;
+     *      const options = back.op;
+     * })
      */
     async Observer(object, trigger, {
         mark=false,
@@ -521,9 +527,9 @@ class Syntax {
             de: key => GM_deleteValue(key),
             al: () => storeMatch.verify(GM_listValues()),
             s: (key, value) => GM_setValue(key, value),
-            g: (key) => storeMatch.verify(GM_getValue(key)),
+            g: (key) => storeMatch.verify(GM_getValue(key, null)),
             sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
-            gj: (key) => JSON.parse(storeMatch.verify(GM_getValue(key)))
+            gj: (key) => JSON.parse(storeMatch.verify(GM_getValue(key, null)))
         }
         return storeMatch[operat](key, value);
     }
