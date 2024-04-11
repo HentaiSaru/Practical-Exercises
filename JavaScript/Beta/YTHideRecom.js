@@ -26,7 +26,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1357530/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358741/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -61,10 +61,10 @@
             this.HideJudgment = async (Element, setValue=null) => {
                 if (Element.style.display == "none" || this.Transform) {
                     Element.style.display = "block";
-                    setValue && this.store("set", setValue, false);
+                    setValue && this.store("s", setValue, false);
                 } else {
                     Element.style.display = "none";
-                    setValue && this.store("set", setValue, true);
+                    setValue && this.store("s", setValue, true);
                 }
             }
 
@@ -123,38 +123,38 @@
 
                         // 持續修正
                         const Title_observer = new MutationObserver(()=> {
-                            document.title != "Hide" && (document.title = "Hide");
+                            document.title != "..." && (document.title = "...");
                         });
 
                         // 極簡化
-                        if (this.store("get", "Minimalist")) {
+                        if (this.store("g", "Minimalist")) {
                             this.StyleConverter([document.body], "overflow", "hidden");
                             this.StyleConverter([end, below, secondary, related], "display", "none", this.Dev).then(Success => {
                                 Success && this.log("極簡化", this.Runtime(this.StartTime));
                             });
                         } else {
-                            if (this.store("get", "Title")) {
+                            if (this.store("g", "Title")) {
                                 Title_observer.observe(title, {childList: true, subtree: false});
                                 this.Dev && this.log("隱藏標題", this.Runtime(this.StartTime))
-                                document.title = "Hide";
+                                document.title = "...";
                             }
 
                             // 推薦播放隱藏
-                            if (this.store("get", "RecomViewing")) {
+                            if (this.store("g", "RecomViewing")) {
                                 this.StyleConverter([secondary, related], "display", "none", this.Dev).then(Success => {
                                     Success && this.log("隱藏推薦觀看", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 評論區
-                            if (this.store("get", "Comment")) {
+                            if (this.store("g", "Comment")) {
                                 this.StyleConverter([comments], "display", "none", this.Dev).then(Success => {
                                     Success && this.log("隱藏留言區", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 功能選項區
-                            if (this.store("get", "FunctionBar")) {
+                            if (this.store("g", "FunctionBar")) {
                                 this.StyleConverter([actions], "display", "none", this.Dev).then(Success => {
                                     Success && this.log("隱藏功能選項", this.Runtime(this.StartTime));
                                 });
@@ -166,23 +166,23 @@
                         this.AddListener(document, "keydown", event => {
                             if (this.HK.MinimaList(event)) {
                                 event.preventDefault();
-                                if (this.store("get", "Minimalist")) {
-                                    this.store("set", "Minimalist", false);
+                                if (this.store("g", "Minimalist")) {
+                                    this.store("s", "Minimalist", false);
                                     this.StyleConverter([document.body], "overflow", "auto");
                                     this.StyleConverter([end, below, secondary, related], "display", "block");
                                 } else {
-                                    this.store("set", "Minimalist", true);
+                                    this.store("s", "Minimalist", true);
                                     this.StyleConverter([document.body], "overflow", "hidden");
                                     this.StyleConverter([end, below, secondary, related], "display", "none");
                                 }
                             } else if (this.HK.Title(event)) {
                                 event.preventDefault();
-                                document.title = document.title == "Hide" ? (
+                                document.title = document.title == "..." ? (
                                     Title_observer.disconnect(),
-                                    this.store("set", "Title", false), this.$$("h1 [dir='auto']").textContent
+                                    this.store("s", "Title", false), this.$$("h1 [dir='auto']").textContent
                                 ) : (
                                     Title_observer.observe(title, {childList: true, subtree: false}),
-                                    this.store("set", "Title", true), "Hide"
+                                    this.store("s", "Title", true), "..."
                                 );
                             } else if (this.HK.RecomViewing(event)) {
                                 event.preventDefault();
@@ -205,58 +205,46 @@
 
                         if (this.Con.GlobalChange) {
                             // 動態全局修改
-                            const self = this;
-                            ["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"].forEach(label=> {
-                            /**
-                             * 第一個值為監聽的標籤
-                             * 
-                             * 函數:
-                             * key = 監聽的 Key 值
-                             * old_value = 原始的值
-                             * new_value = 變化的值
-                             * remote = 當前腳本修改的, 為 false , 其他頁面修改, 為 true
-                             */
-                                GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
-                                if (remote) {
-                                    switch (Key) {
+                            this.storeListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {
+                                if (call.far) {
+                                    switch (call.Key) {
                                         case "Minimalist":
-                                            if (new_value) {
-                                                self.StyleConverter([document.body], "overflow", "hidden");
-                                                self.StyleConverter([end, below, secondary, related], "display", "none");
+                                            if (call.nv) {
+                                                this.StyleConverter([document.body], "overflow", "hidden");
+                                                this.StyleConverter([end, below, secondary, related], "display", "none");
                                             } else {
-                                                self.StyleConverter([document.body], "overflow", "auto");
-                                                self.StyleConverter([end, below, secondary, related], "display", "block");
+                                                this.StyleConverter([document.body], "overflow", "auto");
+                                                this.StyleConverter([end, below, secondary, related], "display", "block");
                                             }
                                             break;
                                         case "Title":
-                                            document.title = new_value ? (
+                                            document.title = call.nv ? (
                                                 Title_observer.observe(title, {childList: true, subtree: false}),
-                                                "Hide"
+                                                "..."
                                             ) : (
                                                     Title_observer.disconnect(),
-                                                    self.$$("h1 [dir='auto']").textContent
+                                                    this.$$("h1 [dir='auto']").textContent
                                             );
                                             break;
                                         case "RecomViewing":
                                             if (inner.childElementCount > 1) {
-                                                self.HideJudgment(secondary);
-                                                self.HideJudgment(related);
-                                                self.Transform = false;
+                                                this.HideJudgment(secondary);
+                                                this.HideJudgment(related);
+                                                this.Transform = false;
                                             } else {
-                                                self.HideJudgment(related);
-                                                self.Transform = true;
+                                                this.HideJudgment(related);
+                                                this.Transform = true;
                                             }
                                             break;
                                         case "Comment":
-                                            self.HideJudgment(comments);
+                                            this.HideJudgment(comments);
                                             break;
                                         case "FunctionBar":
-                                            self.HideJudgment(actions);
+                                            this.HideJudgment(actions);
                                             break;
                                     }
                                 }
-                                })
-                            });
+                            })
                         }
                     }, {throttle: 200});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
@@ -268,7 +256,7 @@
                     }
                     this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 20, playlist=> {
                         // 播放清單資訊
-                        if (this.store("get", "ListDesc")) {
+                        if (this.store("g", "ListDesc")) {
                             this.StyleConverter([playlist], "display", "none", this.Dev).then(Success => {
                                 Success && this.log("隱藏播放清單資訊", this.Runtime(this.StartTime));
                             });
