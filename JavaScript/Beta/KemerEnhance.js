@@ -33,7 +33,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1357530/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358543/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -291,7 +291,7 @@
 
             // 監聽動態修復
             async function DynamicFix(Listen, Operat,  Mode=null) {
-                const observer = new MutationObserver(() => { // 監聽變換觸發
+                def.Observer(Listen, ()=> {
                     GF.fix_data = GF.new_data(); // 觸發時重新抓取
                     const wait = setInterval(()=> { // 為了確保找到 Operat 元素
                         const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
@@ -312,8 +312,7 @@
                             }
                         }
                     });
-                })
-                observer.observe(Listen, {childList: true, subtree: false});
+                }, {subtree: false});
             }
 
             // 是用於搜尋頁面, 與一些特殊預覽頁
