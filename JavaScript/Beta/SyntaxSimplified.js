@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/11
+// @version      2024/04/12
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
 // @match        *://*/*
+// @license      MIT
 // ==/UserScript==
 
 /**
@@ -24,7 +25,7 @@
  */
 class Syntax {
     constructor() {
-        this.obMark = {};
+        this.Mark = {};
         this.ListenerRecord = {};
         this.Parser = new DOMParser();
         this.Buffer = document.createDocumentFragment();
@@ -247,13 +248,14 @@ class Syntax {
     }
 
     /**
-     ** { 持續監聽對象, 並運行函數 (用於持續監聽, 無清除) }
+     ** { 持續監聽對象, 並運行函數 (用於持續監聽) }
      * @param {element} object          - 觀察對象
      * @param {function} trigger        - 觸發函數
      * @param {string} {mark}           - 創建標記, 用於避免重複創建
      * @param {boolean} {subtree}       - 觀察 目標節點及其所有後代節點的變化
      * @param {boolean} {childList}     - 觀察 目標節點的子節點數量的變化
      * @param {boolean} {characterData} - 觀察 目標節點的屬性值的變化
+     * @paeam {*} callback - 觀察對象, 觀察參數
      * 
      * @example
      * Observer("", ()=> {}, {mark: "標記", childList: false, characterData: true})
@@ -263,16 +265,15 @@ class Syntax {
         subtree=true,
         childList=true,
         characterData=false
-    }={}) {
+    }={}, callback=null) {
         if (mark) {
-            if (this.obMark[mark]) {return}
-            else {this.obMark[mark] = true}
+            if (this.Mark[mark]) {return}
+            else {this.Mark[mark] = true}
         }
-        (new MutationObserver(() => {trigger()})).observe(object, {
-            subtree: subtree,
-            childList: childList,
-            characterData: characterData,
-        });
+        const op = {subtree: subtree, childList: childList, characterData: characterData};
+        const ob = new MutationObserver(() => {trigger()});
+        ob.observe(object, op);
+        callback && callback(ob, op);
     }
 
     /**
@@ -547,9 +548,12 @@ class Syntax {
      */
     async storeListen(object, callback) {
         object.forEach(label => {
-            GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
-                callback({key: Key, ov: old_value, nv: new_value, far: remote});
-            })
+            if (!this.Mark[label]) {
+                this.Mark[label] = true;
+                GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
+                    callback({key: Key, ov: old_value, nv: new_value, far: remote});
+                })
+            }
         })
     }
 
