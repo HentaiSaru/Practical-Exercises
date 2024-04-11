@@ -645,7 +645,7 @@ function Interval(trigger, time) {
  * @example
  * Observer("", ()=> {}, {mark: "創建", childList: false, characterData: true})
  */
-const obMark = new Map();
+const obMark = {};
 async function Observer(object, trigger, {
     mark=false,
     subtree=true,
@@ -653,8 +653,8 @@ async function Observer(object, trigger, {
     characterData=false
 }={}) {
     if (mark) {
-        if (obMark.has(mark)) {return}
-        else {obMark.set(mark, true)}
+        if (obMark[mark]) {return}
+        else {obMark[mark] = true}
     }
     (new MutationObserver(() => {trigger()})).observe(object, {
         subtree: subtree,
