@@ -255,7 +255,7 @@ class Syntax {
      * @param {boolean} {subtree}       - 觀察 目標節點及其所有後代節點的變化
      * @param {boolean} {childList}     - 觀察 目標節點的子節點數量的變化
      * @param {boolean} {characterData} - 觀察 目標節點的屬性值的變化
-     * @paeam {*} callback - 觀察對象, 觀察參數
+     * @paeam {*} {callback} - 觀察對象, 觀察參數
      * 
      * @example
      * Observer("", ()=> {}, {mark: "標記", childList: false, characterData: true})
@@ -273,7 +273,7 @@ class Syntax {
         const op = {subtree: subtree, childList: childList, characterData: characterData};
         const ob = new MutationObserver(() => {trigger()});
         ob.observe(object, op);
-        callback && callback(ob, op);
+        callback && callback({ob, op});
     }
 
     /**
@@ -551,7 +551,7 @@ class Syntax {
             if (!this.Mark[label]) {
                 this.Mark[label] = true;
                 GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
-                    callback({key: Key, ov: old_value, nv: new_value, far: remote});
+                    callback({Key, ov: old_value, nv: new_value, far: remote});
                 })
             }
         })
