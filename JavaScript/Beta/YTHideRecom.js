@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.29
+// @version      0.0.30
 // @author       HentaiSaru
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -24,23 +24,30 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_registerMenuCommand
+// @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1341419/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1357530/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
     const HotKey = {
+        Title: k => k.altKey && k.key == "t", // 標題
         MinimaList: k => k.ctrlKey && k.key == "z", // 極簡化
         RecomViewing: k => k.altKey && k.key == "1", // 推薦觀看
         Comment: k => k.altKey && k.key == "2", // 留言區
         FunctionBar: k => k.altKey && k.key == "3", // 功能區
         ListDesc: k => k.altKey && k.key == "4" // 播放清單資訊
+
+    }, Config = {
+        GlobalChange: true, // 全局同時修改
+
     }
 
-    class Tool extends API {
-        constructor(hotKey) {
+    class Tool extends Syntax {
+        constructor(key, set) {
             super();
-            this.HK = hotKey;
+            this.HK = key;
+            this.Con = set;
             this.Dev = false;
             this.Language = language(navigator.language);
             this.Video = /^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/; // 影片播放區
@@ -78,8 +85,9 @@
         }
 
         async Injection() {
-            const observer = new MutationObserver(this.Throttle_discard(() => {
+            const observer = new MutationObserver(this.Throttle(() => {
                 const URL = document.URL;
+
                 if (this.Video.test(URL) && !document.body.hasAttribute("Video-Tool-Injection") && this.$$("div#columns")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
@@ -91,24 +99,32 @@
                     // 結尾推薦樣式
                     if (!this.$$("#Video-Tool-Hide")) {
                         this.AddStyle(`
-                            .ytp-ce-element{
+                            .ytp-ce-element {
                                 display: none !important;
                             }
                             #player.ytd-watch-flexy:hover .ytp-ce-element {
                                 display: block !important;
+                            }
+                            .ytp-show-tiles .ytp-videowall-still {
+                                cursor: pointer;
                             }
                         `, "Video-Tool-Hide");
                     }
 
                     // 等待影片頁面需隱藏的數據
                     this.WaitMap([
-                        "#end", "#below",
+                        "title", "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
                     ], 20, element => {
                         let [
-                            end, below, secondary, inner, related, comments, actions
+                            title, end, below, secondary, inner, related, comments, actions
                         ] = element;
+
+                        // 持續修正
+                        const Title_observer = new MutationObserver(()=> {
+                            document.title != "Hide" && (document.title = "Hide");
+                        });
 
                         // 極簡化
                         if (this.store("get", "Minimalist")) {
@@ -117,18 +133,25 @@
                                 Success && this.log("極簡化", this.Runtime(this.StartTime));
                             });
                         } else {
+                            if (this.store("get", "Title")) {
+                                Title_observer.observe(title, {childList: true, subtree: false});
+                                this.Dev && this.log("隱藏標題", this.Runtime(this.StartTime));
+                            }
+
                             // 推薦播放隱藏
                             if (this.store("get", "RecomViewing")) {
                                 this.StyleConverter([secondary, related], "display", "none", this.Dev).then(Success => {
                                     Success && this.log("隱藏推薦觀看", this.Runtime(this.StartTime));
                                 });
                             }
+
                             // 評論區
                             if (this.store("get", "Comment")) {
                                 this.StyleConverter([comments], "display", "none", this.Dev).then(Success => {
                                     Success && this.log("隱藏留言區", this.Runtime(this.StartTime));
                                 });
                             }
+
                             // 功能選項區
                             if (this.store("get", "FunctionBar")) {
                                 this.StyleConverter([actions], "display", "none", this.Dev).then(Success => {
@@ -136,6 +159,7 @@
                                 });
                             }
                         }
+                        document.querySelector("h1 [dir='auto']")
 
                         // 註冊快捷鍵
                         this.RemovListener(document, "keydown");
@@ -151,6 +175,15 @@
                                     this.StyleConverter([document.body], "overflow", "hidden");
                                     this.StyleConverter([end, below, secondary, related], "display", "none");
                                 }
+                            } else if (this.HK.Title(event)) {
+                                event.preventDefault();
+                                document.title = document.title == "Hide" ? (
+                                    Title_observer.disconnect(),
+                                    this.store("set", "Title", false), this.$$("h1 [dir='auto']").textContent
+                                ) : (
+                                    Title_observer.observe(title, {childList: true, subtree: false}),
+                                    this.store("set", "Title", true), "Hide"
+                                );
                             } else if (this.HK.RecomViewing(event)) {
                                 event.preventDefault();
                                 if (inner.childElementCount > 1) {
@@ -168,8 +201,64 @@
                                 event.preventDefault();
                                 this.HideJudgment(actions, "FunctionBar");
                             } 
-                        });
-                    });
+                        }, {capture: true});
+
+                        if (this.Con.GlobalChange) {
+                            // 動態全局修改
+                            const self = this;
+                            ["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"].forEach(label=> {
+                            /**
+                             * 第一個值為監聽的標籤
+                             * 
+                             * 函數:
+                             * key = 監聽的 Key 值
+                             * old_value = 原始的值
+                             * new_value = 變化的值
+                             * remote = 當前腳本修改的, 為 false , 其他頁面修改, 為 true
+                             */
+                            GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
+                                if (remote) {
+                                    switch (Key) {
+                                        case "Minimalist":
+                                            if (new_value) {
+                                                self.StyleConverter([document.body], "overflow", "hidden");
+                                                self.StyleConverter([end, below, secondary, related], "display", "none");
+                                            } else {
+                                                self.StyleConverter([document.body], "overflow", "auto");
+                                                self.StyleConverter([end, below, secondary, related], "display", "block");
+                                            }
+                                            break;
+                                        case "Title":
+                                            document.title = new_value ? (
+                                                Title_observer.observe(title, {childList: true, subtree: false}),
+                                                "Hide"
+                                            ) : (
+                                                    Title_observer.disconnect(),
+                                                    self.$$("h1 [dir='auto']").textContent
+                                            );
+                                            break;
+                                        case "RecomViewing":
+                                            if (inner.childElementCount > 1) {
+                                                self.HideJudgment(secondary);
+                                                self.HideJudgment(related);
+                                                self.Transform = false;
+                                            } else {
+                                                self.HideJudgment(related);
+                                                self.Transform = true;
+                                            }
+                                            break;
+                                        case "Comment":
+                                            self.HideJudgment(comments);
+                                            break;
+                                        case "FunctionBar":
+                                            self.HideJudgment(actions);
+                                            break;
+                                    }
+                                }
+                            })
+                            });
+                        }
+                    }, {throttle: 200});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
@@ -191,17 +280,17 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    })
+                    }, {throttle: 200});
                 }
-            }, 800));
+            }, 600));
+
             this.AddListener(document, "DOMContentLoaded", ()=> {
-                observer.observe(document, {childList: true, subtree: true});
-                this.RemovListener(document, "DOMContentLoaded");
-            });
+                observer.observe(document, {childList: true, characterData: true, subtree: true});
+            }, {once: true});
         }
     }
 
-    const tool = new Tool(HotKey);
+    const tool = new Tool(HotKey, Config);
     tool.Injection();
 
     function language(language) {
@@ -209,20 +298,22 @@
             "zh-TW": ["📜 預設熱鍵",
                 `@ 功能失效時 [請重新整理] =>
 
-(Alt + 1) :  隱藏推薦播放
-(Alt + 2) :  隱藏留言區
-(Alt + 3) :  隱藏功能列表
-(Alt + 4) :  隱藏播放清單資訊
-(Ctrl + Z) : 使用極簡化`
+(Alt + 1)：隱藏推薦播放
+(Alt + 2)：隱藏留言區
+(Alt + 3)：隱藏功能列表
+(Alt + 4)：隱藏播放清單資訊
+(Alt + T)：隱藏標題文字
+(Ctrl + Z)：使用極簡化`
             ],
             "zh-CN": ["📜 预设热键",
                 `@ 功能失效时 [请重新整理] =>
 
-(Alt + 1) :  隐藏推荐播放
-(Alt + 2) :  隐藏评论区
-(Alt + 3) :  隐藏功能列表
-(Alt + 4) :  隐藏播放清单资讯
-(Ctrl + Z) : 使用极简化`
+(Alt + 1)：隐藏推荐播放
+(Alt + 2)：隐藏评论区
+(Alt + 3)：隐藏功能列表
+(Alt + 4)：隐藏播放清单资讯
+(Alt + T)：隐藏标题文字
+(Ctrl + Z)：使用极简化`
             ],
             "ja": ["📜 デフォルトホットキー",
                 `@ 机能が无効になった场合 [ページを更新してください] =>
@@ -231,25 +322,28 @@
 (Alt + 2)：コメントエリアを非表示にする
 (Alt + 3)：机能リストを非表示にする
 (Alt + 4)：プレイリスト情报を非表示にする
+(Alt + T)：タイトル文字を隠す
 (Ctrl + Z)：シンプル化を使用する`
             ],
             "en-US": ["📜 Default Hotkeys",
                 `@ If functionalities fail [Please refresh] =>
 
-(Alt + 1): Hide recommended playback
-(Alt + 2): Hide comments section
-(Alt + 3): Hide feature list
-(Alt + 4): Hide playlist info
-(Ctrl + Z): Use Simplification`
+(Alt + 1)：Hide recommended playback
+(Alt + 2)：Hide comments section
+(Alt + 3)：Hide feature list
+(Alt + 4)：Hide playlist info
+(Alt + T)：Hide Title Text
+(Ctrl + Z)：Use Simplification`
             ],
             "ko": ["📜 기본 단축키",
                 `@ 기능이 작동하지 않을 때 [새로 고침하세요] =>
 
-(Alt + 1) : 추천 재생 숨기기
-(Alt + 2) : 댓글 영역 숨기기
-(Alt + 3) : 기능 목록 숨기기
-(Alt + 4) : 재생 목록 정보 숨기기
-(Ctrl + Z) : 간소화 사용`
+(Alt + 1)：추천 재생 숨기기
+(Alt + 2)：댓글 영역 숨기기
+(Alt + 3)：기능 목록 숨기기
+(Alt + 4)：재생 목록 정보 숨기기
+(Alt + T)：제목 텍스트 숨기기
+(Ctrl + Z)：간소화 사용`
             ]};
 
         return display[language] || display["en-US"];
