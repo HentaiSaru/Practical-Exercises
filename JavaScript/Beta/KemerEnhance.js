@@ -292,7 +292,7 @@
 
             // 監聽動態修復
             async function DynamicFix(Listen, Operat,  Mode=null) {
-                const observer = new MutationObserver(() => {
+                /*const observer = new MutationObserver(() => {
                     GF.fix_data = GF.new_data(); // 觸發時重新抓取
                     const wait = setInterval(()=> { // 為了確保找到 Operat 元素
                         const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
@@ -313,8 +313,32 @@
                             }
                         }
                     })
+                });*/
+                //observer.observe(Listen, {childList: true, subtree: false});
+                def.Observer(Listen, ()=> {
+                    GF.fix_data = GF.new_data(); // 觸發時重新抓取
+                    const wait = setInterval(()=> { // 為了確保找到 Operat 元素
+                        const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
+                        if (operat) {
+                            clearInterval(wait);
+                            switch (Mode) {
+                                case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
+                                    other_page_fix(operat);
+                                    setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
+                                        observer.disconnect();
+                                        observer.observe(Listen.children[0], {childList: true, subtree: false});
+                                    }, 300);
+                                    break;
+                                default: // 針對搜尋頁的動態監聽
+                                    def.$$("a", {all: true, root: operat}).forEach(items=> { // 沒有修復標籤的才修復
+                                        !items.getAttribute("fix") && search_page_fix(items);
+                                    });
+                            }
+                        }
+                    })
+                }, {subtree: false}, observer => {
+                    console.log(observer);
                 });
-                observer.observe(Listen, {childList: true, subtree: false});
             }
 
             // 是用於搜尋頁面, 與一些特殊預覽頁
