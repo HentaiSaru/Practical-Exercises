@@ -83,3 +83,29 @@ function store(operate, key, orig=null){
 }
 
 /* ==================================================== */
+
+/**
+ * { 監聽保存值的變化 }
+ * 
+ * // @grant GM_addValueChangeListener
+ * @param {array} object - 一個可遍歷的, 標籤對象物件
+ * @param {object} callback - 回條函數
+ * 
+ * @example
+ * 回條對象
+ * key - 觸發的對象 key
+ * ov - 對象舊值
+ * nv - 對象新值
+ * far - 是否是其他窗口觸發
+ * 
+ * storeListen(["key1", "key2"], call=> {
+ *      console.log(call.Key, call.nv);
+ * })
+ */
+async function storeListen(object, callback) {
+    object.forEach(label => {
+        GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
+            callback({key: Key, ov: old_value, nv: new_value, far: remote});
+        })
+    })
+}
