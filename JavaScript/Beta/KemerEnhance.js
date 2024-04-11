@@ -30,10 +30,11 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
+// @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1358543/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358604/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -121,7 +122,7 @@
                 Fansly: "https://fansly.com/{name}/posts",
             }
 
-            this.new_data = () => def.Storage("fix_record_v2", {storage: localStorage}) || new Map();
+            this.new_data = () => def.Storage("fix_record_v2", {type: localStorage}) || new Map();
             this.fix_url = (url) => {
                 url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
                 url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")); // 排除不必要字串
@@ -131,7 +132,7 @@
             this.save_record = async(save) => {
                 await def.Storage("fix_record_v2",
                     {
-                        storage: localStorage,
+                        type: localStorage,
                         value: new Map([...this.new_data(), ...save]) // 取得完整數據並合併
                     }
                 );
@@ -252,7 +253,7 @@
                 items.setAttribute("fix", true); // 添加修復標籤
 
                 const url = items.href;
-                const img = def.$$("img", {source: items});
+                const img = def.$$("img", {root: items});
                 const parse = GF.fix_url(url);
                 img.setAttribute("jump", url); // 圖片設置跳轉連結
                 items.removeAttribute("href"); // 刪除原始跳轉連結
@@ -262,8 +263,8 @@
                     Url: url, // 跳轉連結
                     TailId: parse[1], // 尾部 id 標號
                     Website: parse[0], // 網站
-                    NameObject: def.$$(".user-card__name", {source: items}), // 名稱物件
-                    TagObject: def.$$(".user-card__service", {source: items}) // 標籤物件
+                    NameObject: def.$$(".user-card__name", {root: items}), // 名稱物件
+                    TagObject: def.$$(".user-card__service", {root: items}) // 標籤物件
                 });
             }
 
@@ -291,7 +292,7 @@
 
             // 監聽動態修復
             async function DynamicFix(Listen, Operat,  Mode=null) {
-                def.Observer(Listen, ()=> {
+                const observer = new MutationObserver(() => {
                     GF.fix_data = GF.new_data(); // 觸發時重新抓取
                     const wait = setInterval(()=> { // 為了確保找到 Operat 元素
                         const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
@@ -306,13 +307,14 @@
                                     }, 300);
                                     break;
                                 default: // 針對搜尋頁的動態監聽
-                                    def.$$("a", {all: true, source: operat}).forEach(items=> { // 沒有修復標籤的才修復
+                                    def.$$("a", {all: true, root: operat}).forEach(items=> { // 沒有修復標籤的才修復
                                         !items.getAttribute("fix") && search_page_fix(items);
                                     });
                             }
                         }
-                    });
-                }, {subtree: false});
+                    })
+                });
+                observer.observe(Listen, {childList: true, subtree: false});
             }
 
             // 是用於搜尋頁面, 與一些特殊預覽頁
@@ -323,7 +325,7 @@
                     const artist = def.$$("span[itemprop='name']");
                     artist && other_page_fix(artist); // 預覽頁的 名稱修復
 
-                    def.$$("a", {all: true, source: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
+                    def.$$("a", {all: true, root: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
                     url.endsWith("new") && DynamicFix(card_items, card_items); // 針對 links/new 頁面的 card
                 } else { DynamicFix(card_items, card_items) }
 
@@ -506,7 +508,7 @@
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = def.$$("section", {source: def.DomParse(response.responseText)});
+                        New_data = def.$$("section", {root: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
                         history.pushState(null, null, link);
                     },
@@ -627,12 +629,12 @@
                     def.WaitElem("div.card-list__items pre", true, 8, content => {
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
-                                def.$$("p", {all: true, source: pre}).forEach(p=> {
+                                def.$$("p", {all: true, root: pre}).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
 
-                                def.$$("a", {all: true, source: pre}).forEach(a=> {
+                                def.$$("a", {all: true, root: pre}).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -645,13 +647,13 @@
                     }, {object: document, throttle: 600});break;
                 default:
                     def.WaitElem("div.post__body", false, 8, body => {
-                        const article = def.$$("article", {source: body});
-                        const content = def.$$("div.post__content", {source: body});
+                        const article = def.$$("article", {root: body});
+                        const content = def.$$("div.post__content", {root: body});
 
                         if (article) {
-                            def.$$("span.choice-text", {all: true, source: article}).forEach(span => {Analysis(span, span.textContent)});
+                            def.$$("span.choice-text", {all: true, root: article}).forEach(span => {Analysis(span, span.textContent)});
                         } else if (content) {
-                            const pre = def.$$("pre", {source: content});
+                            const pre = def.$$("pre", {root: content});
 
                             if (pre) { // 單一個 Pre 標籤的狀態
                                 text = pre.textContent;
@@ -660,11 +662,11 @@
                                 // Array.from(document.querySelector("div.post__content").childNodes).forEach(nodes => {
                                     // console.log(nodes, nodes.nodeName, nodes.textContent);
                                 // })
-                                def.$$("p", {all: true, source: content}).forEach(p=> {
+                                def.$$("p", {all: true, root: content}).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
-                                def.$$("p", {all: true, source: content}).forEach(a=> {
+                                def.$$("p", {all: true, root: content}).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -689,11 +691,11 @@
                             method: "GET",
                             url: browse.href,
                             onload: response => {
-                                const main = def.$$("main", {source: def.DomParse(response.responseText)});
+                                const main = def.$$("main", {root: def.DomParse(response.responseText)});
                                 const View = GM_addElement("Viewer", {class: "View"});
                                 const Buffer = document.createDocumentFragment();
 
-                                def.$$("br", {all: true, source: main}).forEach(br => { // 取得 br 數據
+                                def.$$("br", {all: true, root: main}).forEach(br => { // 取得 br 數據
                                     Buffer.append(
                                         document.createTextNode(br.previousSibling.textContent.trim()), br
                                     );
@@ -752,8 +754,8 @@
                         ));
                     }
                     parents.forEach(li => {
-                        let title = def.$$("summary", {source: li}),
-                        stream = def.$$("source", {source: li});
+                        let title = def.$$("summary", {root: li}),
+                        stream = def.$$("source", {root: li});
                         if (title && stream) {
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
@@ -768,7 +770,7 @@
                                 }
                             });
                             ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
-                            li.insertBefore(title, def.$$("summary", {source: li}));
+                            li.insertBefore(title, def.$$("summary", {root: li}));
                         }
                     });
                 }, {throttle: 600});
@@ -802,7 +804,7 @@
                     thumbnail.forEach((object, index) => {
                         setTimeout(()=> {
                             object.removeAttribute("class");
-                            a = def.$$("a", {source: object});
+                            a = def.$$("a", {root: object});
                             ReactDOM.render(React.createElement(ImgRendering, { ID: `IMG-${index}`, href: a }), object);
                         }, index * 300);
                     });
@@ -821,8 +823,8 @@
                     if (index == thumbnail.length) {return}
                     const object = thumbnail[index];
                     object.removeAttribute("class");
-                    a = def.$$("a", {source: object});
-                    img = def.$$("img", {source: a});
+                    a = def.$$("a", {root: object});
+                    img = def.$$("img", {root: a});
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
                         src: a.href,
@@ -842,7 +844,7 @@
                         if (entry.isIntersecting) {
                             const object = entry.target;
                             observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: def.$$("a", {source: object}) }), object);
+                            ReactDOM.render(React.createElement(ImgRendering, { ID: object.alt, href: def.$$("a", {root: object}) }), object);
                             object.removeAttribute("class");
                         }
                     });
@@ -934,7 +936,7 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = def.$$("main", {source: def.DomParse(response.responseText)});
+                        let New_main = def.$$("main", {root: def.DomParse(response.responseText)});
                         ReactDOM.render(React.createElement(Rendering, { content: New_main.innerHTML }), old_main);
                         history.pushState(null, null, url);
                         setTimeout(Initialization(), 500);
@@ -1144,13 +1146,13 @@
                     /* 獲取設定 (宣告) */
                     DM.GetSet = {
                         MenuSet: () => {
-                            const data = def.store("get", "MenuSet") || [{
+                            const data = def.store("g", "MenuSet") || [{
                                 "MT": "2vh",
                                 "ML": "50vw",
                             }]; return data[0];
                         },
                         ImgSet: () => {
-                            const data = def.store("get", "ImgSet") || [{
+                            const data = def.store("g", "ImgSet") || [{
                                 "img_h": "auto",
                                 "img_w": "auto",
                                 "img_mw": "100%",
@@ -1454,8 +1456,6 @@
                 $(document.body).append(menu);
                 $(".modal-interface").draggable({ cursor: "grabbing" });
                 $(".modal-interface").tabs();
-                // 關閉菜單
-                function Menu_Close() {$(".modal-background").remove()}
                 // 圖片設置菜單
                 async function PictureSettings() {
                     $on(".Image-input-settings", "input change", function (event) {
@@ -1478,14 +1478,16 @@
                     });
                 }
                 // 語言選擇
-                $("#language").val(def.store("get", "language") || "")
+                $("#language").val(def.store("g", "language", null, ""))
                 $on("#language", "input change", function (event) {
                     event.stopPropagation();
-                    const value = $(this).val();
-                    Lang = DM.language(value);
-                    GM_setValue("language", value);
                     $("#language").off("input change");
-                    Menu_Close();
+
+                    const value = $(this).val(); // 取得選擇
+                    Lang = DM.language(value);
+                    def.store("s", "language", value);
+
+                    Menu_Save();
                     DM.Menu();
                 });
                 // 監聽菜單的點擊事件
@@ -1537,23 +1539,33 @@
                             else {set_value = `${img_input.val()}${img_select.val()}`}
                             save[img_input.attr("id")] = set_value;
                         })
-                        GM_setValue("ImgSet", [save]);
-
-                        // 保存菜單位置資訊
-                        save = {};
-                        const menu_location = $(".modal-interface");
-                        const top = menu_location.css("top");
-                        const left = menu_location.css("left");
-                        save["MT"] = top; save["ML"] = left;
-                        GM_setValue("MenuSet", [save]);
-                        // 設置到樣式表內 不用重整可以直接改變
-                        DM.styleRules["MT"](top);
-                        DM.styleRules["ML"](left);
-                        Menu_Close();
-
-                    // 關閉菜單
+                        def.store("s", "ImgSet", [save]); // 保存圖片設置
+                        Menu_Save(); // 保存菜單位置資訊
                     } else if (id == "closure") {Menu_Close()}
-                })
+                });
+
+                // 關閉菜單
+                async function Menu_Close() {
+                    $(".modal-background").off();
+                    $(".modal-background").remove();
+                }
+
+                // 保存菜單
+                function Menu_Save() {
+                    const menu_interface = $(".modal-interface"); // 取出菜單位置數據
+                    const top = menu_interface.css("top");
+                    const left = menu_interface.css("left");
+                    def.store("s", "MenuSet", [{MT: top, ML: left}]); // 保存數據
+                    // 設置到樣式表內 不用重整可以直接改變
+                    DM.styleRules["MT"](top);
+                    DM.styleRules["ML"](left);
+                    Menu_Close();
+                }
+
+                // 監聽保存值變化
+                def.storeListen(["MenuSet", "ImgSet", "language"], call=> {
+                    console.log(call);
+                });
             }
         }
 
@@ -1634,7 +1646,7 @@
             else if (PM.Match.Content) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
-                Lang = DM.language(def.store("get", "language"));
+                Lang = DM.language(def.store("g", "language"));
                 def.Menu({[Lang.RM_01]: { func: ()=> DM.Menu() }});
             }
         }
