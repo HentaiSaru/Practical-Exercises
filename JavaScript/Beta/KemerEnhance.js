@@ -34,7 +34,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1358604/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358675/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -1364,14 +1364,38 @@
                             padding: 0px;
                             margin: 0px;
                         }
-                    `, "Custom-style");break;
+                    `, "Custom-style");
+
+                    // 監聽保存值變化 (建立動態樣式表)
+                    DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
+                    def.storeListen(["MenuSet", "ImgSet", "language"], call=> {
+                        if (call.far) {
+                            let nv = call.nv;
+                            switch (call.key) {
+                                case "MenuSet":
+                                    nv = nv[0];
+                                    DM.styleRules["MT"](nv.MT);
+                                    DM.styleRules["ML"](nv.ML);
+                                    break;
+                                case "ImgSet":
+                                    nv = nv[0];
+                                    DM.styleRules["img_h"](nv.img_h);
+                                    DM.styleRules["img_w"](nv.img_w);
+                                    DM.styleRules["img_mw"](nv.img_mw);
+                                    DM.styleRules["img_gap"](nv.img_gap);
+                                    break;
+                                case "language":
+                                    Lang = DM.language(nv);
+                            }
+                        }
+                    });
+                    break;
             }
         }
 
         /* 創建菜單 */
         async Menu() {
             if (!def.$$(".modal-background")) {
-                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
                 DM.Set = DM.GetSet.ImgSet();
                 let parent, child, img_input, img_select, img_set, analyze;
                 const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
@@ -1561,11 +1585,6 @@
                     DM.styleRules["ML"](left);
                     Menu_Close();
                 }
-
-                // 監聽保存值變化
-                def.storeListen(["MenuSet", "ImgSet", "language"], call=> {
-                    console.log(call);
-                });
             }
         }
 
