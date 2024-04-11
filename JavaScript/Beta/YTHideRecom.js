@@ -216,7 +216,7 @@
                              * new_value = 變化的值
                              * remote = 當前腳本修改的, 為 false , 其他頁面修改, 為 true
                              */
-                            GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
+                                GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
                                 if (remote) {
                                     switch (Key) {
                                         case "Minimalist":
@@ -255,7 +255,7 @@
                                             break;
                                     }
                                 }
-                            })
+                                })
                             });
                         }
                     }, {throttle: 200});
