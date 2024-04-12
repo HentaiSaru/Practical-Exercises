@@ -669,7 +669,7 @@
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
-                                def.$$("p", {all: true, root: content}).forEach(a=> {
+                                def.$$("a", {all: true, root: content}).forEach(a=> {
                                     link = a.href;
                                     link ? A_Analysis(a) : Analysis(a, a.textContent);
                                 })
@@ -1392,7 +1392,7 @@
                                     break;
 
                                 case "language":
-                                    Lang = DM.language(nv);
+                                    MenuLangSwitch(nv);
                             }
                         }
                     });
@@ -1515,7 +1515,7 @@
                     $("#language").off("input change");
 
                     const value = $(this).val(); // 取得選擇
-                    Lang = DM.language(value);
+                    MenuLangSwitch(value);
                     def.store("s", "language", value);
 
                     Menu_Save();
@@ -1672,8 +1672,7 @@
             else if (PM.Match.Content) {
                 CF = new Content_Function(); Start(Content);
                 DM.Dependencies("Menu");
-                Lang = DM.language(def.store("g", "language"));
-                def.Menu({[Lang.RM_01]: { func: ()=> DM.Menu() }});
+                MenuLangSwitch(def.store("g", "language"));
             }
         }
 
@@ -1684,6 +1683,12 @@
     /* 渲染 */
     function Rendering({ content }) {
         return React.createElement("div", { dangerouslySetInnerHTML: { __html: content } });
+    }
+
+    /* 創建菜單與 語言切換 */
+    function MenuLangSwitch(lang) {
+        Lang = DM.language(lang);
+        def.Menu({[Lang.RM_01]: { func: ()=> DM.Menu() }});
     }
 
     /* 添加監聽 (jquery) */
