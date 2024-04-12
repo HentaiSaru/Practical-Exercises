@@ -5,7 +5,7 @@
 // @name:en      Pornhub Mouse Hide
 // @name:ja      Pornhub マウス非表示
 // @name:ko      Pornhub 마우스 숨기기
-// @version      0.0.5
+// @version      0.0.6
 // @author       HentaiSaru
 
 // @description         電腦端滑鼠於影片區塊上停留一段時間，會隱藏滑鼠遊標和進度條，滑鼠再次移動時將重新顯示，手機端在影片區塊向右滑，會觸發影片加速，滑越多加越多最高16倍，放開後恢復正常速度。
@@ -29,82 +29,68 @@
     (new class Pornhub_Hide {
         constructor() {
             this.StyalRules = null;
-            this.ListenerRecord = new Map();
+            this.ListenerRecord = {};
             this.display = async(ms, ps) => {
                 requestAnimationFrame(() =>{
-                    this.StyalRules[0].style.cursor = ms;
-                    this.StyalRules[1].style.display = ps;
+                    this.StyalRules[0].style.setProperty("cursor", ms, "important");
+                    this.StyalRules[1].style.setProperty("display", ps, "important");
                 })
             }
             this.Device = {
-                Width: ()=> {return window.innerWidth},
-                Agent: ()=> {return navigator.userAgent},
+                sY: ()=> window.scrollY,
+                Width: ()=> window.innerWidth,
+                Height: ()=> window.innerHeight,
+                Agent: ()=> navigator.userAgent,
                 _Type: undefined,
-                Type: function() {
-                    if (this._Type) {
-                        return this._Type;
-                    } else if (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768) {
-                        this._Type = "Mobile";
-                    } else {
-                        this._Type = "Desktop";
-                    }
-                    return this._Type;
+                Type: ()=> {
+                    return this.Device._Type = this.Device._Type ? this.Device._Type
+                        : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agent()) || this.Device.Width() < 768
+                        ? "Mobile" : "Desktop");
                 }
             }
             this.throttle = (func, delay) => {
-                let timer = null;
-                return function() {
-                    let context=this, args=arguments;
-                    if (timer == null) {
-                        timer = setTimeout(function() {
-                            func.apply(context, args);
-                            timer = null;
-                        }, delay);
-                    }
-                };
-            }
-            this.throttle_discard = (func, delay) => {
                 let lastTime = 0;
-                return function() {
-                    const context = this, args = arguments, now = Date.now();
+                return (...args) => {
+                    const now = Date.now();
                     if ((now - lastTime) >= delay) {
-                        func.apply(context, args);
                         lastTime = now;
+                        func(...args);
                     }
-                };
-            };
+                }
+            }
             this.FindObjects = this.Device.Type() == "Desktop" ? ".video-wrapper div" : this.Device.Type() == "Mobile" ? ".mgp_videoWrapper" : ".video-wrapper div";
         }
 
         async AddListener(element, type, listener, add={}) {
-            if (!this.ListenerRecord.has(element) || !this.ListenerRecord.get(element).has(type)) {
+            if (!this.ListenerRecord[element]?.[type]) {
                 element.addEventListener(type, listener, add);
-                if (!this.ListenerRecord.has(element)) {
-                    this.ListenerRecord.set(element, new Map());
+                if (!this.ListenerRecord[element]) {
+                    this.ListenerRecord[element] = {};
                 }
-                this.ListenerRecord.get(element).set(type, listener);
+                this.ListenerRecord[element][type] = listener;
             }
         }
 
         async RemovListener(element, type) {
-            if (this.ListenerRecord.has(element) && this.ListenerRecord.get(element).has(type)) {
-                const listen = this.ListenerRecord.get(element).get(type);
-                element.removeEventListener(type, listen);
-                this.ListenerRecord.get(element).delete(type);
+            const Listen = this.ListenerRecord[element]?.[type];
+            if (Listen) {
+                element.removeEventListener(type, Listen);
+                delete this.ListenerRecord[element][type];
             }
         }
 
-        async WaitMap(selectors, timeout, callback) {
+        async WaitMap(selectors, timeout, callback, {object=document, throttle=0}={}) {
             let timer, elements;
-            const observer = new MutationObserver(() => {
+            const observer = new MutationObserver(this.throttle(() => {
                 elements = selectors.map(selector => document.querySelector(selector))
-                if (elements.every(element => {return element !== null && typeof "undefined"})) {
+                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                     observer.disconnect();
                     clearTimeout(timer);
                     callback(elements);
                 }
-            });
-            observer.observe(document, { childList: true, subtree: true });
+            }, throttle));
+    
+            observer.observe(object, { childList: true, subtree: true });
             timer = setTimeout(() => {
                 observer.disconnect();
                 console.log("\x1b[1m\x1b[31m%s\x1b[0m", "Injection Failed");
@@ -136,7 +122,7 @@
                     }, { passive: true });
 
                     // 移動在目標上觸發隱形與重置
-                    self.AddListener(target, "pointermove", self.throttle_discard(()=> {TriggerHide()}, 200), { passive: true });
+                    self.AddListener(target, "pointermove", self.throttle(()=> {TriggerHide()}, 200), { passive: true });
 
                     // 點擊在目標上觸發隱形與重置
                     self.AddListener(target, "pointerdown", () => {TriggerHide()}, { passive: true });
@@ -178,7 +164,7 @@
                 } else {
                     console.log("\x1b[1m\x1b[31m%s\x1b[0m", "Injection Failed");
                 }
-            })
+            }, {throttle: 300});
         }
     }).Injection();
 })();
