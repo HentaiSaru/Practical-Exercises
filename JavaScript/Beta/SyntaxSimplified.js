@@ -240,11 +240,11 @@ class Syntax {
      *      console.log(註冊狀態)
      * })
      */
-    async Listen(element, type, listener, add={}, callback=null) {
+    async Listen(element, type, listener, add={}, resolve=null) {
         try {
             element.addEventListener(type, listener, add);
-            callback && callback(true);
-        } catch {callback && callback(false)}
+            resolve && resolve(true);
+        } catch {resolve && resolve(false)}
     }
 
     /**
@@ -287,17 +287,18 @@ class Syntax {
      * @param {string} selector   - 等待元素
      * @param {boolean} all       - 是否多選
      * @param {number} timeout    - 等待超時 (秒數)
-     * @param {function} callback - 回條函式
+     * @param {function} resolve  - 完成回條
      * @param {Element} {object}  - 監聽的 DOM 物件 (預設 body)
+     * @param {boolean} {reject}  - 超時後是否回傳
      * @param {number} {throttle} - 對監聽觸發進行節流 (毫秒)
      * 
      * @example
-     * WaitElem("元素", false, 1, call => {
+     * WaitElem("元素", false, 1, solve => {
      *      全部找到... | 超時過後...
-     *      console.log(call);
+     *      console.log(solve);
      * }, {object: document, throttle: 100})
      */
-    async WaitElem(selector, all, timeout, callback, {object=document.body, throttle=0}={}) {
+    async WaitElem(selector, all, timeout, resolve, {object=document.body, reject=false, throttle=0}={}) {
         let timer, element, result;
         const observer = new MutationObserver(this.Throttle(() => {
             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
@@ -307,14 +308,14 @@ class Syntax {
             if (result) {
                 observer.disconnect();
                 clearTimeout(timer);
-                callback(element);
+                resolve(element);
             }
         }, throttle));
 
         observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-            callback(element);
+            reject && resolve(element);
         }, (1000 * timeout));
     }
 
@@ -322,31 +323,32 @@ class Syntax {
      * * { 等待元素出現 (Map 物件版) }
      * @param {string} selector   - 等待元素
      * @param {number} timeout    - 等待超時 (秒數)
-     * @param {function} callback - 回條函式
+     * @param {function} resolve  - 完成回條
      * @param {Element} {object}  - 監聽的 DOM 物件 (預設 body)
+     * @param {boolean} {reject}  - 超時後是否回傳
      * @param {number} {throttle} - 對監聽觸發進行節流 (毫秒)
      * 
      * @example
-     * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), call => {
+     * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), solve => {
      *      全部找到... | 超時過後...
-     *      const [元素1, 元素2, 元素3] = call;
+     *      const [元素1, 元素2, 元素3] = solve;
      * }, {object: document, throttle: 100})
      */
-    async WaitMap(selectors, timeout, callback, {object=document.body, throttle=0}={}) {
+    async WaitMap(selectors, timeout, resolve, {object=document.body, reject=false, throttle=0}={}) {
         let timer, elements;
         const observer = new MutationObserver(this.Throttle(() => {
             elements = selectors.map(selector => document.querySelector(selector))
             if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                 observer.disconnect();
                 clearTimeout(timer);
-                callback(elements);
+                resolve(elements);
             }
         }, throttle));
 
         observer.observe(object, { childList: true, subtree: true });
         timer = setTimeout(() => {
             observer.disconnect();
-            callback(elements);
+            reject && resolve(elements);
         }, (1000 * timeout));
     }
 
