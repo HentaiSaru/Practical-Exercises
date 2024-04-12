@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.46
+// @version      0.0.47
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -30,10 +30,11 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
+// @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1356919/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358741/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -45,16 +46,17 @@
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
         FixArtist: 1,       // 修復作者名稱
+        BackToTop: 1,       // 翻頁後回到頂部
         BlockAds: 1,        // 封鎖廣告
         KeyScroll: 1,       // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
     }, Preview={ /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
         CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-        CardZoom: 3,        // 縮放預覽卡大小 [mode: 1 = 單純放大 , 2 = 懸浮放大 , 3 = (1+2)]
+        CardZoom: 2,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
     }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
-        LinkSimplified: 1,  // 將下載連結簡化
+        LinkBeautify: 1,    // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
         VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
         OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
@@ -63,6 +65,7 @@
         TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
 
     }, def = new Syntax();
+    /* ============================================ */
     let PM, GF, PF, CF, DM, Lang, url = document.URL;
     PM = new class Page_Match {
         constructor() {
@@ -85,12 +88,8 @@
                 Height: () => window.innerHeight,
                 Agent: () => navigator.userAgent,
                 _Type: undefined,
-                Type: function() {
-                    if (this._Type) {
-                        return this._Type;
-                    }
-                    this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agent()) || this.Width() < 768 ? "Mobile" : "Desktop";
-                    return this._Type;
+                Type: () => {
+                    return this.Device._Type = this.Device._Type ? this.Device._Type : this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agent()) || this.Device.Width() < 768 ? "Mobile" : "Desktop";
                 }
             };
         }
@@ -116,7 +115,7 @@
                 Fansly: "https://fansly.com/{name}/posts"
             };
             this.new_data = () => def.Storage("fix_record_v2", {
-                storage: localStorage
+                type: localStorage
             }) || new Map();
             this.fix_url = url => {
                 url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/);
@@ -125,7 +124,7 @@
             };
             this.save_record = async save => {
                 await def.Storage("fix_record_v2", {
-                    storage: localStorage,
+                    type: localStorage,
                     value: new Map([ ...this.new_data(), ...save ])
                 });
                 this.save_data.clear();
@@ -238,7 +237,7 @@
                 items.setAttribute("fix", true);
                 const url = items.href;
                 const img = def.$$("img", {
-                    source: items
+                    root: items
                 });
                 const parse = GF.fix_url(url);
                 img.setAttribute("jump", url);
@@ -249,10 +248,10 @@
                     TailId: parse[1],
                     Website: parse[0],
                     NameObject: def.$$(".user-card__name", {
-                        source: items
+                        root: items
                     }),
                     TagObject: def.$$(".user-card__service", {
-                        source: items
+                        root: items
                     })
                 });
             }
@@ -275,8 +274,9 @@
                     });
                 } catch {}
             }
-            async function DynamicFix(Listen, Operat, Mode = null) {
-                const observer = new MutationObserver(() => {
+            async function dynamic_fix(Listen, Operat, Mode = null) {
+                let observer, options;
+                def.Observer(Listen, () => {
                     GF.fix_data = GF.new_data();
                     const wait = setInterval(() => {
                         const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
@@ -287,27 +287,25 @@
                                 other_page_fix(operat);
                                 setTimeout(() => {
                                     observer.disconnect();
-                                    observer.observe(Listen.children[0], {
-                                        childList: true,
-                                        subtree: false
-                                    });
+                                    observer.observe(Listen.children[0], options);
                                 }, 300);
                                 break;
 
                               default:
                                 def.$$("a", {
                                     all: true,
-                                    source: operat
+                                    root: operat
                                 }).forEach(items => {
                                     !items.getAttribute("fix") && search_page_fix(items);
                                 });
                             }
                         }
                     });
-                });
-                observer.observe(Listen, {
-                    childList: true,
+                }, {
                     subtree: false
+                }, back => {
+                    observer = back.ob;
+                    options = back.op;
                 });
             }
             if (PM.Match.Search) {
@@ -317,13 +315,13 @@
                     artist && other_page_fix(artist);
                     def.$$("a", {
                         all: true,
-                        source: card_items
+                        root: card_items
                     }).forEach(items => {
                         search_page_fix(items);
                     });
-                    url.endsWith("new") && DynamicFix(card_items, card_items);
+                    url.endsWith("new") && dynamic_fix(card_items, card_items);
                 } else {
-                    DynamicFix(card_items, card_items);
+                    dynamic_fix(card_items, card_items);
                 }
             } else if (PM.Match.Content) {
                 const artist = def.$$(".post__user-name");
@@ -335,12 +333,14 @@
                     other_page_fix(artist);
                     if (Preview.QuickPostToggle > 0) {
                         setTimeout(() => {
-                            DynamicFix(def.$$("section"), "span[itemprop='name']", 1);
+                            dynamic_fix(def.$$("section"), "span[itemprop='name']", 1);
                         }, 300);
                     }
                 }
             }
-            def.AddListener(document.body, "pointerdown", event => {
+            const Device = PM.Device.Type();
+            const Listener = Device == "Mobile" ? "pointerup" : "pointerdown";
+            def.AddListener(document.body, Listener, event => {
                 const target = event.target;
                 if (target.matches("fix_edit")) {
                     const display = target.nextElementSibling;
@@ -370,15 +370,23 @@
                     }, 300);
                 } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
                     const jump = target.getAttribute("jump");
-                    if (!target.parentNode.matches("fix_cont")) {
-                        jump && GM_openInTab(jump, {
+                    if (!target.parentNode.matches("fix_cont") && jump) {
+                        PM.Match.Search && Device == "Mobile" ? location.assign(jump) : GM_openInTab(jump, {
                             active: false,
                             insert: false
                         });
-                    } else {
-                        jump && location.assign(jump);
+                    } else if (jump) {
+                        location.assign(jump);
                     }
                 }
+            }, {
+                capture: true,
+                passive: true
+            });
+        }
+        async BackToTop() {
+            def.AddListener(document.body, "pointerup", event => {
+                event.target.closest("#paginator-bottom") && def.$$("menu").scrollIntoView();
             }, {
                 capture: true,
                 passive: true
@@ -394,8 +402,8 @@
                         XMLRequest.apply(this, arguments);
                     };
                     try {
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                         document.querySelector(".root--ujvuu button").click();
+                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                     } catch {}
                 });
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
@@ -443,7 +451,7 @@
                 };
             }
             const UP_ScrollSpeed = GF.ScrollPixels * -1;
-            def.Listen(window, "keydown", def.Throttle(event => {
+            def.AddListener(window, "keydown", def.Throttle(event => {
                 const key = event.key;
                 if (key == "ArrowUp") {
                     event.stopImmediatePropagation();
@@ -489,7 +497,7 @@
                     nocache: false,
                     onload: response => {
                         New_data = def.$$("section", {
-                            source: def.DomParse(response.responseText)
+                            root: def.DomParse(response.responseText)
                         });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_data.innerHTML
@@ -501,7 +509,7 @@
                     }
                 });
             }
-            def.Listen(document, "click", event => {
+            def.Listen(document.body, "click", event => {
                 const target = event.target.closest("menu a");
                 if (target) {
                     event.preventDefault();
@@ -569,15 +577,7 @@
         async CardZoom(Mode) {
             switch (Mode) {
               case 2:
-              case 3:
                 def.AddStyle(`
-                        .post-card { margin: .3vw; }
-                        .post-card a img { border-radius: 8px; }
-                        .post-card a {
-                            border-radius: 8px;
-                            border: 3px solid #fff6;
-                            transition: transform 0.4s;
-                        }
                         .post-card a:hover {
                             overflow: auto;
                             z-index: 99999;
@@ -593,13 +593,17 @@
                             position: relative;
                         }
                     `, "Effects");
-                if (Mode == 2) {
-                    break;
-                }
 
               default:
                 def.AddStyle(`
                         * { --card-size: 13vw; }
+                        .post-card { margin: .3vw; }
+                        .post-card a img { border-radius: 8px; }
+                        .post-card a {
+                            border-radius: 8px;
+                            border: 3px solid #fff6;
+                            transition: transform 0.4s;
+                        }
                     `, "Effects");
             }
         }
@@ -623,14 +627,14 @@
                         if (pre.childNodes.length > 1) {
                             def.$$("p", {
                                 all: true,
-                                source: pre
+                                root: pre
                             }).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
                             def.$$("a", {
                                 all: true,
-                                source: pre
+                                root: pre
                             }).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
@@ -649,21 +653,21 @@
               default:
                 def.WaitElem("div.post__body", false, 8, body => {
                     const article = def.$$("article", {
-                        source: body
+                        root: body
                     });
                     const content = def.$$("div.post__content", {
-                        source: body
+                        root: body
                     });
                     if (article) {
                         def.$$("span.choice-text", {
                             all: true,
-                            source: article
+                            root: article
                         }).forEach(span => {
                             Analysis(span, span.textContent);
                         });
                     } else if (content) {
                         const pre = def.$$("pre", {
-                            source: content
+                            root: content
                         });
                         if (pre) {
                             text = pre.textContent;
@@ -671,14 +675,14 @@
                         } else {
                             def.$$("p", {
                                 all: true,
-                                source: content
+                                root: content
                             }).forEach(p => {
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
                             def.$$("p", {
                                 all: true,
-                                source: content
+                                root: content
                             }).forEach(a => {
                                 link = a.href;
                                 link ? A_Analysis(a) : Analysis(a, a.textContent);
@@ -690,16 +694,59 @@
                 });
             }
         }
-        async LinkSimplified() {
+        async LinkBeautify() {
             def.WaitElem("a.post__attachment-link", true, 5, post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
                     link.textContent = link.textContent.replace("Download", "").trim();
+                    const browse = link.nextElementSibling;
+                    if (browse) {
+                        browse.style.position = "relative";
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: browse.href,
+                            onload: response => {
+                                const main = def.$$("main", {
+                                    root: def.DomParse(response.responseText)
+                                });
+                                const View = GM_addElement("Viewer", {
+                                    class: "View"
+                                });
+                                const Buffer = document.createDocumentFragment();
+                                def.$$("br", {
+                                    all: true,
+                                    root: main
+                                }).forEach(br => {
+                                    Buffer.append(document.createTextNode(br.previousSibling.textContent.trim()), br);
+                                });
+                                View.appendChild(Buffer);
+                                browse.appendChild(View);
+                            }
+                        });
+                    }
                 });
             }, {
                 throttle: 600
             });
+            def.AddStyle(`
+                .View {
+                    top: -10px;
+                    padding: 10%;
+                    display: none;
+                    overflow: auto;
+                    color: #f2f2f2;
+                    font-size: 14px;
+                    font-weight: 600;
+                    position: absolute;
+                    white-space: nowrap;
+                    border-radius: .5rem;
+                    left: calc(100% + 10px);
+                    border: 1px solid #737373;
+                    background-color: #3b3e44;
+                }
+                a:hover .View { display: block }
+            `, "Effects");
         }
         async VideoBeautify(Mode) {
             def.AddStyle(`
@@ -727,9 +774,9 @@
                     }
                     parents.forEach(li => {
                         let title = def.$$("summary", {
-                            source: li
+                            root: li
                         }), stream = def.$$("source", {
-                            source: li
+                            root: li
                         });
                         if (title && stream) {
                             post.forEach(link => {
@@ -749,7 +796,7 @@
                                 stream: stream
                             }), li);
                             li.insertBefore(title, def.$$("summary", {
-                                source: li
+                                root: li
                             }));
                         }
                     });
@@ -788,7 +835,7 @@
                         setTimeout(() => {
                             object.removeAttribute("class");
                             a = def.$$("a", {
-                                source: object
+                                root: object
                             });
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: `IMG-${index}`,
@@ -796,7 +843,7 @@
                             }), object);
                         }, index * 300);
                     });
-                    def.AddListener(document, "click", event => {
+                    def.AddListener(document.body, "click", event => {
                         const target = event.target.matches(".Image-link img");
                         if (target && target.alt == "Loading Failed") {
                             const src = img.src;
@@ -815,10 +862,10 @@
                     const object = thumbnail[index];
                     object.removeAttribute("class");
                     a = def.$$("a", {
-                        source: object
+                        root: object
                     });
                     img = def.$$("img", {
-                        source: a
+                        root: a
                     });
                     Object.assign(img, {
                         className: "Image-loading-indicator Image-style",
@@ -841,7 +888,7 @@
                             ReactDOM.render(React.createElement(ImgRendering, {
                                 ID: object.alt,
                                 href: def.$$("a", {
-                                    source: object
+                                    root: object
                                 })
                             }), object);
                             object.removeAttribute("class");
@@ -865,10 +912,9 @@
                   default:
                     if (document.visibilityState === "hidden") {
                         def.AddListener(document, "visibilitychange", () => {
-                            if (document.visibilityState === "visible") {
-                                def.RemovListener(document, "visibilitychange");
-                                FastAuto();
-                            }
+                            document.visibilityState === "visible" && FastAuto();
+                        }, {
+                            once: true
                         });
                     } else {
                         FastAuto();
@@ -919,7 +965,7 @@
                     },
                     FixArtist: s => Call.USE(s, GF.FixArtist),
                     TextToLink: s => Call.USE(s, CF.TextToLink),
-                    LinkSimplified: s => Call.USE(s, CF.LinkSimplified),
+                    LinkBeautify: s => Call.USE(s, CF.LinkBeautify),
                     OriginalImage: s => Call.USE(s, CF.OriginalImage),
                     VideoBeautify: s => Call.USE(s, CF.VideoBeautify),
                     CommentFormat: s => Call.USE(s, CF.CommentFormat),
@@ -950,7 +996,7 @@
                     nocache: false,
                     onload: response => {
                         let New_main = def.$$("main", {
-                            source: def.DomParse(response.responseText)
+                            root: def.DomParse(response.responseText)
                         });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_main.innerHTML
@@ -994,7 +1040,9 @@
                     });
                 } catch {}
                 comments.appendChild(def.Buffer);
-            }, document.body, 600);
+            }, {
+                throttle: 600
+            });
         }
     }
     DM = new class Dependencies_And_Menu {
@@ -1015,10 +1063,10 @@
                 DM.ImgRules[0].style.margin = `${value} auto`;
             }),
             MT: value => requestAnimationFrame(() => {
-                DM.ImgRules[3].style.top = value;
+                DM.ImgRules[4].style.top = value;
             }),
             ML: value => requestAnimationFrame(() => {
-                DM.ImgRules[3].style.left = value;
+                DM.ImgRules[4].style.left = value;
             })
         };
         Dependencies(type) {
@@ -1160,14 +1208,14 @@
               case "Postview":
                 DM.GetSet = {
                     MenuSet: () => {
-                        const data = def.store("get", "MenuSet") || [ {
+                        const data = def.store("g", "MenuSet") || [ {
                             MT: "2vh",
                             ML: "50vw"
                         } ];
                         return data[0];
                     },
                     ImgSet: () => {
-                        const data = def.store("get", "ImgSet") || [ {
+                        const data = def.store("g", "ImgSet") || [ {
                             img_h: "auto",
                             img_w: "auto",
                             img_mw: "100%",
@@ -1177,6 +1225,7 @@
                     }
                 };
                 DM.Set = DM.GetSet.ImgSet();
+                const Width = PM.Device.Width() / 2;
                 def.AddStyle(`
                         .Image-style {
                             display: block;
@@ -1186,9 +1235,14 @@
                             max-width: ${DM.Set.img_mw};
                         }
                         .Image-loading-indicator {
-                            min-height: 60vh;
-                            min-width: 60vW;
+                            min-width: 50vW;
+                            min-height: 50vh;
+                            max-width: ${Width}px;
+                            max-height: ${Width * 9 / 16}px;
                             border: 1px solid #fafafa;
+                        }
+                        .Image-loading-indicator:hover {
+                            cursor: pointer;
                         }
                     `, "Custom-style");
                 break;
@@ -1375,12 +1429,35 @@
                             margin: 0px;
                         }
                     `, "Custom-style");
+                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
+                def.storeListen([ "MenuSet", "ImgSet", "language" ], call => {
+                    if (call.far) {
+                        let nv = call.nv;
+                        switch (call.key) {
+                          case "MenuSet":
+                            nv = nv[0];
+                            DM.styleRules["MT"](nv.MT);
+                            DM.styleRules["ML"](nv.ML);
+                            break;
+
+                          case "ImgSet":
+                            nv = nv[0];
+                            DM.styleRules["img_h"](nv.img_h);
+                            DM.styleRules["img_w"](nv.img_w);
+                            DM.styleRules["img_mw"](nv.img_mw);
+                            DM.styleRules["img_gap"](nv.img_gap);
+                            break;
+
+                          case "language":
+                            Lang = DM.language(nv);
+                        }
+                    }
+                });
                 break;
             }
         }
         async Menu() {
             if (!def.$$(".modal-background")) {
-                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
                 DM.Set = DM.GetSet.ImgSet();
                 let parent, child, img_input, img_select, img_set, analyze;
                 const img_data = [ DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap ];
@@ -1466,9 +1543,6 @@
                     cursor: "grabbing"
                 });
                 $(".modal-interface").tabs();
-                function Menu_Close() {
-                    $(".modal-background").remove();
-                }
                 async function PictureSettings() {
                     $on(".Image-input-settings", "input change", function(event) {
                         event.stopPropagation();
@@ -1489,14 +1563,14 @@
                         }
                     });
                 }
-                $("#language").val(def.store("get", "language") || "");
+                $("#language").val(def.store("g", "language", null, ""));
                 $on("#language", "input change", function(event) {
                     event.stopPropagation();
+                    $("#language").off("input change");
                     const value = $(this).val();
                     Lang = DM.language(value);
-                    GM_setValue("language", value);
-                    $("#language").off("input change");
-                    Menu_Close();
+                    def.store("s", "language", value);
+                    Menu_Save();
                     DM.Menu();
                 });
                 let save = {}, set_value;
@@ -1544,21 +1618,28 @@
                             }
                             save[img_input.attr("id")] = set_value;
                         });
-                        GM_setValue("ImgSet", [ save ]);
-                        save = {};
-                        const menu_location = $(".modal-interface");
-                        const top = menu_location.css("top");
-                        const left = menu_location.css("left");
-                        save["MT"] = top;
-                        save["ML"] = left;
-                        GM_setValue("MenuSet", [ save ]);
-                        DM.styleRules["MT"](top);
-                        DM.styleRules["ML"](left);
-                        Menu_Close();
+                        def.store("s", "ImgSet", [ save ]);
+                        Menu_Save();
                     } else if (id == "closure") {
                         Menu_Close();
                     }
                 });
+                async function Menu_Close() {
+                    $(".modal-background").off();
+                    $(".modal-background").remove();
+                }
+                function Menu_Save() {
+                    const menu_interface = $(".modal-interface");
+                    const top = menu_interface.css("top");
+                    const left = menu_interface.css("left");
+                    def.store("s", "MenuSet", [ {
+                        MT: top,
+                        ML: left
+                    } ]);
+                    DM.styleRules["MT"](top);
+                    DM.styleRules["ML"](left);
+                    Menu_Close();
+                }
             }
         }
         language(lang) {
@@ -1632,13 +1713,13 @@
                     MIS_04: "Image Spacing Height"
                 }
             }, Match = {
-                "zh-TW": Display["Traditional"],
-                "zh-HK": Display["Traditional"],
-                "zh-MO": Display["Traditional"],
-                "zh-CN": Display["Simplified"],
-                "zh-SG": Display["Simplified"],
-                "en-US": Display["English"],
-                ja: Display["Japan"]
+                "zh-TW": Display.Traditional,
+                "zh-HK": Display.Traditional,
+                "zh-MO": Display.Traditional,
+                "zh-CN": Display.Simplified,
+                "zh-SG": Display.Simplified,
+                "en-US": Display.English,
+                ja: Display.Japan
             };
             return Match[lang] || Match["en-US"];
         }
@@ -1655,6 +1736,7 @@
                 SidebarCollapse: s => Call.USE(s, GF.SidebarCollapse),
                 DeleteNotice: s => Call.USE(s, GF.DeleteNotice),
                 FixArtist: s => Call.USE(s, GF.FixArtist),
+                BackToTop: s => Call.USE(s, GF.BackToTop),
                 BlockAds: s => Call.USE(s, GF.BlockAds),
                 KeyScroll: s => Call.USE(s, GF.KeyScroll),
                 QuickPostToggle: s => Call.USE(s, PF.QuickPostToggle),
@@ -1662,7 +1744,7 @@
                 CardText: s => Call.USE(s, PF.CardText),
                 CardZoom: s => Call.USE(s, PF.CardZoom),
                 TextToLink: s => Call.USE(s, CF.TextToLink),
-                LinkSimplified: s => Call.USE(s, CF.LinkSimplified),
+                LinkBeautify: s => Call.USE(s, CF.LinkBeautify),
                 OriginalImage: s => Call.USE(s, CF.OriginalImage),
                 VideoBeautify: s => Call.USE(s, CF.VideoBeautify),
                 CommentFormat: s => Call.USE(s, CF.CommentFormat),
@@ -1681,7 +1763,7 @@
                 CF = new Content_Function();
                 Start(Content);
                 DM.Dependencies("Menu");
-                Lang = DM.language(def.store("get", "language"));
+                Lang = DM.language(def.store("g", "language"));
                 def.Menu({
                     [Lang.RM_01]: {
                         func: () => DM.Menu()
