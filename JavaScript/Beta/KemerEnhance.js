@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.46
+// @version      0.0.47
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -34,7 +34,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1358675/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1358741/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -55,7 +55,7 @@
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
         CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-        CardZoom: 1,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+        CardZoom: 2,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
     }, Content={ /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
         LinkBeautify: 1,    // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
@@ -68,7 +68,7 @@
 
     }, def = new Syntax();
 
-    let PM, GF, PF, CF, DM, Lang, url = document.URL; // 需要時才實例化
+    let PM, GF, PF, CF, DM, Lang, url=document.URL; // 需要時才實例化
 
     /* ==================== 頁面匹配 正則 ==================== */
     PM = (new class Page_Match {
@@ -291,30 +291,8 @@
             }
 
             // 監聽動態修復
-            async function DynamicFix(Listen, Operat,  Mode=null) {
-                /*const observer = new MutationObserver(() => {
-                    GF.fix_data = GF.new_data(); // 觸發時重新抓取
-                    const wait = setInterval(()=> { // 為了確保找到 Operat 元素
-                        const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
-                        if (operat) {
-                            clearInterval(wait);
-                            switch (Mode) {
-                                case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
-                                    other_page_fix(operat);
-                                    setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
-                                        observer.disconnect();
-                                        observer.observe(Listen.children[0], {childList: true, subtree: false});
-                                    }, 300);
-                                    break;
-                                default: // 針對搜尋頁的動態監聽
-                                    def.$$("a", {all: true, root: operat}).forEach(items=> { // 沒有修復標籤的才修復
-                                        !items.getAttribute("fix") && search_page_fix(items);
-                                    });
-                            }
-                        }
-                    })
-                });*/
-                //observer.observe(Listen, {childList: true, subtree: false});
+            async function dynamic_fix(Listen, Operat,  Mode=null) {
+                let observer, options;
                 def.Observer(Listen, ()=> {
                     GF.fix_data = GF.new_data(); // 觸發時重新抓取
                     const wait = setInterval(()=> { // 為了確保找到 Operat 元素
@@ -326,7 +304,7 @@
                                     other_page_fix(operat);
                                     setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
                                         observer.disconnect();
-                                        observer.observe(Listen.children[0], {childList: true, subtree: false});
+                                        observer.observe(Listen.children[0], options);
                                     }, 300);
                                     break;
                                 default: // 針對搜尋頁的動態監聽
@@ -336,8 +314,9 @@
                             }
                         }
                     })
-                }, {subtree: false}, observer => {
-                    console.log(observer);
+                }, {subtree: false}, back => {
+                    observer = back.ob;
+                    options = back.op;
                 });
             }
 
@@ -350,8 +329,8 @@
                     artist && other_page_fix(artist); // 預覽頁的 名稱修復
 
                     def.$$("a", {all: true, root: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
-                    url.endsWith("new") && DynamicFix(card_items, card_items); // 針對 links/new 頁面的 card
-                } else { DynamicFix(card_items, card_items) }
+                    url.endsWith("new") && dynamic_fix(card_items, card_items); // 針對 links/new 頁面的 card
+                } else { dynamic_fix(card_items, card_items) }
 
             } else if (PM.Match.Content) { // 是內容頁面
                 const artist = def.$$(".post__user-name");
@@ -365,7 +344,7 @@
 
                     if (Preview.QuickPostToggle > 0) { // 有開啟該功能才需要動態監聽
                         setTimeout(()=> {
-                            DynamicFix(def.$$("section"), "span[itemprop='name']", 1);
+                            dynamic_fix(def.$$("section"), "span[itemprop='name']", 1);
                         }, 300);
                     }
                 }
@@ -935,7 +914,7 @@
                     USE: (Select, FuncName) => {Select > 0 && FuncName(Select)},
                     FixArtist: s=> Call.USE(s, GF.FixArtist),
                     TextToLink: s=> Call.USE(s, CF.TextToLink),
-                    LinkSimplified: s=> Call.USE(s, CF.LinkSimplified),
+                    LinkBeautify: s=> Call.USE(s, CF.LinkBeautify),
                     OriginalImage: s=> Call.USE(s, CF.OriginalImage),
                     VideoBeautify: s=> Call.USE(s, CF.VideoBeautify),
                     CommentFormat: s=> Call.USE(s, CF.CommentFormat),
