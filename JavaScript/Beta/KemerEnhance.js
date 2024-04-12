@@ -1011,9 +1011,10 @@
             "Menu" - 創建菜單時所需
         */
         Dependencies(type) {
+            let Color, Width;
             switch (type) {
                 case "Global":
-                    const Color = PM.Match.Color;
+                    Color = PM.Match.Color;
                     def.AddStyle(`
                         /* 搜尋頁面的樣式 */
                         fix_tag:hover { color: ${Color}; }
@@ -1068,7 +1069,7 @@
                         .edit_textarea ~ .edit_artist {
                             display: none !important;
                         }
-                    
+
                         /* 預覽頁面的樣式 */
                         fix_view {
                             display: flex;
@@ -1114,10 +1115,10 @@
                         fix_cont:hover .edit_artist {
                             display: block;
                         }
-                    `, "Global-Effects"); break;
+                        `, "Global-Effects");
+                    break;
 
                 case "Preview":
-                    /* 快速預覽樣式添加 */
                     def.AddStyle(`
                         .gif-overlay {
                             top: 45%;
@@ -1143,29 +1144,30 @@
                             flex-flow: var(--local-flex-flow);
                             justify-content: var(--local-justify);
                         }
-                    `, "Preview-Effects");break;
-
+                    `, "Preview-Effects");
+                    break;
+    
                 case "Postview":
-                    /* 獲取設定 (宣告) */
                     DM.GetSet = {
                         MenuSet: () => {
-                            const data = def.store("g", "MenuSet") || [{
-                                "MT": "2vh",
-                                "ML": "50vw",
-                            }]; return data[0];
+                            const data = def.store("g", "MenuSet") || [ {
+                                MT: "2vh",
+                                ML: "50vw"
+                            } ];
+                            return data[0];
                         },
                         ImgSet: () => {
-                            const data = def.store("g", "ImgSet") || [{
-                                "img_h": "auto",
-                                "img_w": "auto",
-                                "img_mw": "100%",
-                                "img_gap": "0px",
-                            }]; return data[0];
-                        },
-                    }
-                    /* 載入原圖樣式 */
+                            const data = def.store("g", "ImgSet") || [ {
+                                img_h: "auto",
+                                img_w: "auto",
+                                img_mw: "100%",
+                                img_gap: "0px"
+                            } ];
+                            return data[0];
+                        }
+                    };
                     DM.Set = DM.GetSet.ImgSet();
-                    const Width = PM.Device.Width() / 2;
+                    Width = PM.Device.Width() / 2;
                     def.AddStyle(`
                         .Image-style {
                             display: block;
@@ -1178,13 +1180,14 @@
                             min-width: 50vW;
                             min-height: 50vh;
                             max-width: ${Width}px;
-                            max-height: ${(Width * 9) / 16}px;
+                            max-height: ${Width * 9 / 16}px;
                             border: 1px solid #fafafa;
                         }
                         .Image-loading-indicator:hover {
                             cursor: pointer;
                         }
-                    `, "Custom-style");break;
+                        `, "Custom-style");
+                    break;
 
                 case "Awesome":
                     def.AddStyle(`
@@ -1195,183 +1198,182 @@
                         #next_box a:hover {
                             background-color: ${PM.Match.Color};
                         }
-                    `, "font-awesome");break;
-
+                    `, "font-awesome");
+                    break;
+    
                 case "Menu":
-                    /* 載入菜單樣式 */
                     DM.Set = DM.GetSet.MenuSet();
                     def.AddScript(`
-                        function check(value) {
-                            return value.toString().length > 4 || value > 1000
-                                ? 1000 : value < 0 ? "" : value;
-                        }
+                            function check(value) {
+                                return value.toString().length > 4 || value > 1000
+                                    ? 1000 : value < 0 ? "" : value;
+                            }
                     `);
                     def.AddStyle(`
-                        .modal-background {
-                            top: 0;
-                            left: 0;
-                            width: 100%;
-                            height: 100%;
-                            display: flex;
-                            z-index: 9999;
-                            overflow: auto;
-                            position: fixed;
-                            pointer-events: none;
-                        }
-                        /* 模態介面 */
-                        .modal-interface {
-                            top: ${DM.Set.MT};
-                            left: ${DM.Set.ML};
-                            margin: 0;
-                            display: flex;
-                            overflow: auto;
-                            position: fixed;
-                            border-radius: 5px;
-                            pointer-events: auto;
-                            background-color: #2C2E3E;
-                            border: 3px solid #EE2B47;
-                        }
-                        /* 模態內容盒 */
-                        .modal-box {
-                            padding: 0.5rem;
-                            height: 50vh;
-                            width: 32vw;
-                        }
-                        /* 菜單框架 */
-                        .menu {
-                            width: 5.5vw;
-                            overflow: auto;
-                            text-align: center;
-                            vertical-align: top;
-                            border-radius: 2px;
-                            border: 2px solid #F6F6F6;
-                        }
-                        /* 菜單文字標題 */
-                        .menu-text {
-                            color: #EE2B47;
-                            cursor: default;
-                            padding: 0.2rem;
-                            margin: 0.3rem;
-                            margin-bottom: 1.5rem;
-                            white-space: nowrap;
-                            border-radius: 10px;
-                            border: 4px solid #f05d73;
-                            background-color: #1f202c;
-                        }
-                        /* 菜單選項按鈕 */
-                        .menu-options {
-                            cursor: pointer;
-                            font-size: 1.4rem;
-                            color: #F6F6F6;
-                            font-weight: bold;
-                            border-radius: 5px;
-                            margin-bottom: 1.2rem;
-                            border: 5px inset #EE2B47;
-                            background-color: #6e7292;
-                            transition: color 0.8s, background-color 0.8s;
-                        }
-                        .menu-options:hover {
-                            color: #EE2B47;
-                            background-color: #F6F6F6;
-                        }
-                        .menu-options:disabled {
-                            color: #6e7292;
-                            cursor: default;
-                            background-color: #c5c5c5;
-                            border: 5px inset #faa5b2;
-                        }
-                        /* 設置內容框架 */
-                        .content {
-                            height: 48vh;
-                            width: 28vw;
-                            overflow: auto;
-                            padding: 0px 1rem;
-                            border-radius: 2px;
-                            vertical-align: top;
-                            border-top: 2px solid #F6F6F6;
-                            border-right: 2px solid #F6F6F6;
-                        }
-                        .narrative { color: #EE2B47; }
-                        .Image-input-settings {
-                            width: 8rem;
-                            color: #F6F6F6;
-                            text-align: center;
-                            font-size: 1.5rem;
-                            border-radius: 15px;
-                            border: 3px inset #EE2B47;
-                            background-color: #202127;
-                        }
-                        .Image-input-settings:disabled {
-                            border: 3px inset #faa5b2;
-                            background-color: #5a5a5a;
-                        }
-                        /* 底部按鈕框架 */
-                        .button-area {
-                            display: flex;
-                            padding: 0.3rem;
-                            border-left: none;
-                            border-radius: 2px;
-                            border: 2px solid #F6F6F6;
-                            justify-content: space-between;
-                        }
-                        .button-area select {
-                            color: #F6F6F6;
-                            margin-right: 1.5rem;
-                            border: 3px inset #EE2B47;
-                            background-color: #6e7292;
-                        }
-                        /* 底部選項 */
-                        .button-options {
-                            color: #F6F6F6;
-                            cursor: pointer;
-                            font-size: 0.8rem;
-                            font-weight: bold;
-                            border-radius: 10px;
-                            white-space: nowrap;
-                            background-color: #6e7292;
-                            border: 3px inset #EE2B47;
-                            transition: color 0.5s, background-color 0.5s;
-                        }
-                        .button-options:hover {
-                            color: #EE2B47;
-                            background-color: #F6F6F6;
-                        }
-                        .button-space { margin: 0 0.6rem; }
-                        .form-hidden {
-                            opacity: 0;
-                            height: 0;
-                            width: 0;
-                            overflow: hidden;
-                            transition: opacity 0.8s, height 0.8s, width 0.8s;
-                        }
-                        .toggle-menu {
-                            height: 0;
-                            width: 0;
-                            padding: 0;
-                            margin: 0;
-                        }
-                        /* 整體框線 */
-                        table, td {
-                            margin: 0px;
-                            padding: 0px;
-                            overflow: auto;
-                            border-spacing: 0px;
-                        }
-                        .modal-background p { 
-                            display: flex;
-                            flex-wrap: nowrap;
-                        }
-                        option { color: #F6F6F6; }
-                        ul {
-                            list-style: none;
-                            padding: 0px;
-                            margin: 0px;
-                        }
+                            .modal-background {
+                                top: 0;
+                                left: 0;
+                                width: 100%;
+                                height: 100%;
+                                display: flex;
+                                z-index: 9999;
+                                overflow: auto;
+                                position: fixed;
+                                pointer-events: none;
+                            }
+                            /* 模態介面 */
+                            .modal-interface {
+                                top: ${DM.Set.MT};
+                                left: ${DM.Set.ML};
+                                margin: 0;
+                                display: flex;
+                                overflow: auto;
+                                position: fixed;
+                                border-radius: 5px;
+                                pointer-events: auto;
+                                background-color: #2C2E3E;
+                                border: 3px solid #EE2B47;
+                            }
+                            /* 模態內容盒 */
+                            .modal-box {
+                                padding: 0.5rem;
+                                height: 50vh;
+                                width: 32vw;
+                            }
+                            /* 菜單框架 */
+                            .menu {
+                                width: 5.5vw;
+                                overflow: auto;
+                                text-align: center;
+                                vertical-align: top;
+                                border-radius: 2px;
+                                border: 2px solid #F6F6F6;
+                            }
+                            /* 菜單文字標題 */
+                            .menu-text {
+                                color: #EE2B47;
+                                cursor: default;
+                                padding: 0.2rem;
+                                margin: 0.3rem;
+                                margin-bottom: 1.5rem;
+                                white-space: nowrap;
+                                border-radius: 10px;
+                                border: 4px solid #f05d73;
+                                background-color: #1f202c;
+                            }
+                            /* 菜單選項按鈕 */
+                            .menu-options {
+                                cursor: pointer;
+                                font-size: 1.4rem;
+                                color: #F6F6F6;
+                                font-weight: bold;
+                                border-radius: 5px;
+                                margin-bottom: 1.2rem;
+                                border: 5px inset #EE2B47;
+                                background-color: #6e7292;
+                                transition: color 0.8s, background-color 0.8s;
+                            }
+                            .menu-options:hover {
+                                color: #EE2B47;
+                                background-color: #F6F6F6;
+                            }
+                            .menu-options:disabled {
+                                color: #6e7292;
+                                cursor: default;
+                                background-color: #c5c5c5;
+                                border: 5px inset #faa5b2;
+                            }
+                            /* 設置內容框架 */
+                            .content {
+                                height: 48vh;
+                                width: 28vw;
+                                overflow: auto;
+                                padding: 0px 1rem;
+                                border-radius: 2px;
+                                vertical-align: top;
+                                border-top: 2px solid #F6F6F6;
+                                border-right: 2px solid #F6F6F6;
+                            }
+                            .narrative { color: #EE2B47; }
+                            .Image-input-settings {
+                                width: 8rem;
+                                color: #F6F6F6;
+                                text-align: center;
+                                font-size: 1.5rem;
+                                border-radius: 15px;
+                                border: 3px inset #EE2B47;
+                                background-color: #202127;
+                            }
+                            .Image-input-settings:disabled {
+                                border: 3px inset #faa5b2;
+                                background-color: #5a5a5a;
+                            }
+                            /* 底部按鈕框架 */
+                            .button-area {
+                                display: flex;
+                                padding: 0.3rem;
+                                border-left: none;
+                                border-radius: 2px;
+                                border: 2px solid #F6F6F6;
+                                justify-content: space-between;
+                            }
+                            .button-area select {
+                                color: #F6F6F6;
+                                margin-right: 1.5rem;
+                                border: 3px inset #EE2B47;
+                                background-color: #6e7292;
+                            }
+                            /* 底部選項 */
+                            .button-options {
+                                color: #F6F6F6;
+                                cursor: pointer;
+                                font-size: 0.8rem;
+                                font-weight: bold;
+                                border-radius: 10px;
+                                white-space: nowrap;
+                                background-color: #6e7292;
+                                border: 3px inset #EE2B47;
+                                transition: color 0.5s, background-color 0.5s;
+                            }
+                            .button-options:hover {
+                                color: #EE2B47;
+                                background-color: #F6F6F6;
+                            }
+                            .button-space { margin: 0 0.6rem; }
+                            .form-hidden {
+                                opacity: 0;
+                                height: 0;
+                                width: 0;
+                                overflow: hidden;
+                                transition: opacity 0.8s, height 0.8s, width 0.8s;
+                            }
+                            .toggle-menu {
+                                height: 0;
+                                width: 0;
+                                padding: 0;
+                                margin: 0;
+                            }
+                            /* 整體框線 */
+                            table, td {
+                                margin: 0px;
+                                padding: 0px;
+                                overflow: auto;
+                                border-spacing: 0px;
+                            }
+                            .modal-background p {
+                                display: flex;
+                                flex-wrap: nowrap;
+                            }
+                            option { color: #F6F6F6; }
+                            ul {
+                                list-style: none;
+                                padding: 0px;
+                                margin: 0px;
+                            }
                     `, "Custom-style");
-
-                    // 監聽保存值變化 (建立動態樣式表)
+                    document.querySelector("#Custom-style").sheet.cssRules[0]
                     DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
-                    def.storeListen(["MenuSet", "ImgSet", "language"], call=> {
+                    def.storeListen(["MenuSet", "ImgSet", "language" ], call => {
                         if (call.far) {
                             let nv = call.nv;
                             switch (call.key) {
@@ -1380,6 +1382,7 @@
                                     DM.styleRules["MT"](nv.MT);
                                     DM.styleRules["ML"](nv.ML);
                                     break;
+
                                 case "ImgSet":
                                     nv = nv[0];
                                     DM.styleRules["img_h"](nv.img_h);
@@ -1387,6 +1390,7 @@
                                     DM.styleRules["img_mw"](nv.img_mw);
                                     DM.styleRules["img_gap"](nv.img_gap);
                                     break;
+
                                 case "language":
                                     Lang = DM.language(nv);
                             }

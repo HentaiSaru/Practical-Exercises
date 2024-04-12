@@ -549,15 +549,15 @@ class Syntax {
      * far - 是否是其他窗口觸發
      * 
      * storeListen(["key1", "key2"], call=> {
-     *      console.log(call.Key, call.nv);
+     *      console.log(call.key, call.nv);
      * })
      */
     async storeListen(object, callback) {
         object.forEach(label => {
             if (!this.Mark[label]) {
                 this.Mark[label] = true;
-                GM_addValueChangeListener(label, function(Key, old_value, new_value, remote) {
-                    callback({Key, ov: old_value, nv: new_value, far: remote});
+                GM_addValueChangeListener(label, function(key, old_value, new_value, remote) {
+                    callback({key, ov: old_value, nv: new_value, far: remote});
                 })
             }
         })
