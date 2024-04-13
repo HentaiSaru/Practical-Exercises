@@ -19,8 +19,11 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
+// @grant        GM_addValueChangeListener
+// @require      https://update.greasyfork.org/scripts/487608/1359945/SyntaxSimplified.js
 // ==/UserScript==
+
+//! 添加全局修改
 
 (function() {
     if (/^(http|https):\/\/(?!chrome\/|about\/).*$/i.test(document.URL)) {
@@ -44,13 +47,15 @@
                         // 添加網域到排除列表
                         this.BannedDomains.push(domain);
                     }
-                    this.store("set", "BannedDomains", this.BannedDomains);
+                    this.store("s", "BannedDomains", this.BannedDomains);
                     location.reload();
                 }
 
                 /* 開始註冊選單 */
                 this.StatusMenu = async(name) => {
-                    this.Menu({[name]: ()=> this.BannedDomain(this.Domain)});
+                    this.Menu({
+                        [name]: {func: ()=> this.BannedDomain(this.Domain)}
+                    });
                 }
 
                 /* 註冊快捷鍵(開啟菜單) */
@@ -58,8 +63,9 @@
                     this.Listen(document, "keydown", event => {
                         if (event.altKey && event.key.toUpperCase() == "B") {this.IncrementalSetting()}
                     }, { passive: true, capture: true }, state => {
-                        const Elapsed = `${(Date.now() - time).toFixed(2)}ms`;
-                        state ? this.log("Hotkey Success", Elapsed) : this.log("Hotkey Failed", Elapsed);
+                        state
+                        ? this.Runtime(time, "Hotkey Success", {style: "\x1b[1m\x1b[32m%s\x1b[0m"})
+                        : this.Runtime(time, "Hotkey Failed", {style: "\x1b[1m\x1b[31m%s\x1b[0m"});
                     });
                 }
 
@@ -72,16 +78,18 @@
             /* 監聽注入 */
             async Injection() {
                 if (!this.ExcludeStatus) {
-                    let tume = Date.now();
-                    const observer = new MutationObserver(() => {
-                        this.FindMain(this.$$("video", true), media=> {
+                    const time = this.Runtime();
+                    this.Observer(document.head, ()=> {
+                        this.FindMain(this.$$("video", {all: true}), media=> {
                             if (media && !media.hasAttribute("Media-Audio-Booster")) {
-                                observer.disconnect();
-                                this.Trigger(media, tume);
+                                this.MediaObserver.disconnect();
+                                this.Trigger(media, time);
                             }
-                        });
+                        })
+                    }, {mark: "Audio-Booster"}, back=> {
+                        this.MediaObserver = back.ob;
+                        this.ObserverOptions = back.op;
                     });
-                    observer.observe(document.head, { childList: true, subtree: true });
                     this.StatusMenu(this.Display.MD);
                 } else {
                     this.StatusMenu(this.Display.MS);
@@ -91,7 +99,7 @@
             /* 找到元素後觸發操作 */
             async Trigger(media, time) {
                 try {
-                    this.Increase = this.store("get", this.Domain) || 1.0; // 重製增量
+                    this.Increase = this.store("g", this.Domain) || 1.0; // 重製增量
                     this.Booster = this.BoosterLogic(media, this.Increase, time); // 重新添加節點
 
                     if (!this.StyleTag) {
@@ -150,6 +158,7 @@
                         }
                         .Booster-Slider {width: 350px;}
                         div input {cursor: pointer;}
+                        #sound-save {cursor: pointer;}
                         `);
                     }
                 } catch (error) {
@@ -204,22 +213,24 @@
 
                     // 完成後創建菜單
                     this.Menu({
-                        [this.Display.MK]: ()=> alert(this.Display.MKT),
-                        [this.Display.MM]: ()=> this.IncrementalSetting()
-                    });
-                    this.MenuHotkey(time);
+                        [this.Display.MK]: {func: ()=> alert(this.Display.MKT)},
+                        [this.Display.MM]: {func: ()=> this.IncrementalSetting()}
+                    }, "Menu", 2);
 
                     // 顯示完成添加
                     this.log(
                         this.Display.BT3,
                         {
                             "Booster Media : ": media,
-                            "Elapsed Time : ": `${(Date.now() - time).toFixed(2)}ms`
+                            "Elapsed Time : ": `${(Date.now()-time)/1e3}s`
                         }
                     );
 
+                    this.MenuHotkey(time);
                     // 最終確認完成後, 再次添加監聽器, 5秒後
-                    media.hasAttribute("Media-Audio-Booster") && setTimeout(()=> {this.Injection()}, 5e3);
+                    media.hasAttribute("Media-Audio-Booster") && setTimeout(()=> {
+                        this.MediaObserver.observe(document.head, this.ObserverOptions);
+                    }, 5e3);
 
                     return {
                         // 設置音量
@@ -261,7 +272,7 @@
 
                     // 監聽設定拉條
                     let Current;
-                    this.AddListener(slider, "input", event => {
+                    this.Listen(slider, "input", event => {
                         requestAnimationFrame(()=> {
                             Current = event.target.value;
                             CurrentValue.textContent = Current;
@@ -271,56 +282,63 @@
 
                     // 監聽保存關閉
                     const Modal = this.$$(".Booster-Modal-Background");
-                    this.AddListener(Modal, "click", click => {
+                    this.Listen(Modal, "click", click => {
                         click.stopPropagation();
                         const target = click.target;
                         if (target.id === "sound-save") {
                             const value = parseFloat(slider.value);
                             this.Increase = value;
-                            this.store("set", this.Domain, value);
-                            Modal.classList.add("Booster-Modal-Background-Closur");
-                            setTimeout(()=> {Modal.remove()}, 1200);
-                        } else if (target.className === "Booster-Modal-Background") {
-                            Modal.classList.add("Booster-Modal-Background-Closur");
-                            setTimeout(()=> {Modal.remove()}, 1200);
-                        }
+                            this.store("s", this.Domain, value);
+                            DeleteMenu();
+                        } else if (target.className === "Booster-Modal-Background") {DeleteMenu()}
                     }, { capture: true });
 
+                    function DeleteMenu() {
+                        Modal.classList.add("Booster-Modal-Background-Closur");
+                        setTimeout(()=> {Modal.remove()}, 1200);
+                    }
                 }
             }
 
             /* 語言 */
-            Language(language) {
-                const display = {
-                    "zh-TW": [{
-                        "MS": "✅ 啟用增幅", "MD": "❌ 禁用增幅",
-                        "MK": "📜 菜單熱鍵", "MM": "🛠️ 調整菜單",
-                        "MKT": "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)",
-                        "BT1": "不支援音頻增強節點", "BT2": "添加增強節點失敗",
-                        "BT3": "添加增強節點成功", "BT4": "增強失敗",
-                        "ST": "音量增強", "S1": "增強倍數 ", "S2": " 倍",
-                        "SS": "保存設置",
-                    }],
-                    "zh-CN": [{
-                        "MS": "✅ 启用增幅", "MD": "❌ 禁用增幅",
-                        "MK": "📜 菜单热键", "MM": "🛠️ 调整菜单",
-                        "MKT": "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)",
-                        "BT1": "不支援音频增强节点", "BT2": "添加增强节点失败",
-                        "BT3": "添加增强节点成功", "BT4": "增强失败",
-                        "ST": "音量增强", "S1": "增强倍数 ", "S2": " 倍",
-                        "SS": "保存设置",
-                    }],
-                    "en-US": [{
-                        "MS": "✅ Enable Boost", "MD": "❌ Disable Boost",
-                        "MK": "📜 Menu Hotkey", "MM": "🛠️ Adjust Menu",
-                        "MKT": "Hotkey to Call Menu Adjustments!!\n\nShortcut: (Alt + B)",
-                        "BT1": "Audio enhancement node not supported", "BT2": "Failed to add enhancement node",
-                        "BT3": "Enhancement node added successfully", "BT4": "Enhancement failed",
-                        "ST": "Volume Boost", "S1": "Boost Level ", "S2": " X",
-                        "SS": "Save Settings",
-                    }],
-                }
-                return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
+            Language(lang) {
+                const Display = {
+                    Traditional: {
+                        MS: "✅ 啟用增幅", MD: "❌ 禁用增幅",
+                        MK: "📜 菜單熱鍵", MM: "🛠️ 調整菜單",
+                        MKT: "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)",
+                        BT1: "不支援音頻增強節點", BT2: "添加增強節點失敗",
+                        BT3: "添加增強節點成功", BT4: "增強失敗",
+                        ST: "音量增強", S1: "增強倍數 ", S2: " 倍",
+                        SS: "保存設置",
+                    },
+                    Simplified: {
+                        MS: "✅ 启用增幅", MD: "❌ 禁用增幅",
+                        MK: "📜 菜单热键", MM: "🛠️ 调整菜单",
+                        MKT: "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)",
+                        BT1: "不支援音频增强节点", BT2: "添加增强节点失败",
+                        BT3: "添加增强节点成功", BT4: "增强失败",
+                        ST: "音量增强", S1: "增强倍数 ", S2: " 倍",
+                        SS: "保存设置",
+                    },
+                    English: {
+                        MS: "✅ Enable Boost", MD: "❌ Disable Boost",
+                        MK: "📜 Menu Hotkey", MM: "🛠️ Adjust Menu",
+                        MKT: "Hotkey to Call Menu Adjustments!!\n\nShortcut: (Alt + B)",
+                        BT1: "Audio enhancement node not supported", BT2: "Failed to add enhancement node",
+                        BT3: "Enhancement node added successfully", BT4: "Enhancement failed",
+                        ST: "Volume Boost", S1: "Boost Level ", S2: " X",
+                        SS: "Save Settings",
+                    }
+                }, Match = {
+                    "zh-TW": Display.Traditional,
+                    "zh-HK": Display.Traditional,
+                    "zh-MO": Display.Traditional,
+                    "zh-CN": Display.Simplified,
+                    "zh-SG": Display.Simplified,
+                    "en-US": Display.English,
+                };
+                return Match[lang] || Match["en-US"];
             }
         }).Injection();
     }
