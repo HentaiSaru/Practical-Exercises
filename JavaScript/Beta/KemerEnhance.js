@@ -1373,7 +1373,7 @@
                     `, "Custom-style");
                     document.querySelector("#Custom-style").sheet.cssRules[0]
                     DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
-                    def.storeListen(["MenuSet", "ImgSet", "language" ], call => {
+                    def.storeListen(["MenuSet", "ImgSet", "language"], call => {
                         if (call.far) {
                             let nv = call.nv;
                             switch (call.key) {
