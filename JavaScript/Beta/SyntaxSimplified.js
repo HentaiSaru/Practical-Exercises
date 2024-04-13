@@ -268,18 +268,19 @@ class Syntax {
      */
     async Observer(object, trigger, {
         mark=false,
+        throttle=0,
         subtree=true,
         childList=true,
-        characterData=false
+        characterData=false,
     }={}, callback=null) {
         if (mark) {
             if (this.Mark[mark]) {return}
             else {this.Mark[mark] = true}
         }
         const op = {subtree: subtree, childList: childList, characterData: characterData};
-        const ob = new MutationObserver(() => {trigger()});
+        const ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
         ob.observe(object, op);
-        callback && callback({ob, op});
+        callback && callback({ob, operat});
     }
 
     /**
