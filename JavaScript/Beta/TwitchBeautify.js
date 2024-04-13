@@ -5,7 +5,7 @@
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
 // @version      0.0.21
-// @author       HentaiSaru
+// @author       Canaan HS
 // @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
 // @description:zh-CN   美化 Twitch 观看画面 , 懒人自动点击 , 主页自动暂停静音自动播放视频

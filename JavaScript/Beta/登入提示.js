@@ -6,7 +6,7 @@
 // @name:ko
 // @name:en
 // @version      0.0.1
-// @author       HentiSaru
+// @author       Canaan HS
 // @description         無
 // @description:zh-TW
 // @description:zh-CN

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         影片音量增強器
 // @version      0.0.33
-// @author       HentaiSaru
+// @author       Canaan HS
 // @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音 或是 沒有效果，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-CN 增强影片音量上限，最高增幅至 20 倍。有些不支援的网站，影片会没声音，禁用增幅即可。命令选单有时有 BUG 会多创建一个，但不影响原功能使用。
@@ -19,13 +19,12 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
-// @require      https://update.greasyfork.org/scripts/487608/1337297/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
-    const Support = /^(http|https):\/\/(?!chrome\/|about\/).*$/i;
-    if (Support.test(document.URL)) {
-        (new class Main extends API {
+    if (/^(http|https):\/\/(?!chrome\/|about\/).*$/i.test(document.URL)) {
+        (new class Main extends Syntax {
             constructor() {
                 super();
                 this.Booster = null;
@@ -33,7 +32,7 @@
                 this.StyleTag = false;
                 this.Domain = location.hostname;
                 this.Display = this.Language(navigator.language);
-                this.BannedDomains = this.store("get", "BannedDomains", []);
+                this.BannedDomains = this.store("g", "BannedDomains", []);
                 this.ExcludeStatus = this.BannedDomains.includes(this.Domain);
 
                 /* 禁止網域 */

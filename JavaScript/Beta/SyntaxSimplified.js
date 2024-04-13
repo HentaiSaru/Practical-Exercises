@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/12
+// @version      2024/04/13
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -515,23 +515,23 @@ class Syntax {
      * // @grant GM_deleteValue
      * 
      * @param {string} operate - 操作類型 ("s", "g", "sj", "gj", "de", "al")
-     * @param {string} key     - 操作數據索引Key
-     * @param {*} value        - 要保存的值
+     * @param {string} key     - 操作數據索引 Key
+     * @param {*} value        - 要保存的值, 如果是取得操作, 就是空值時的回傳
      * @returns {data}         - 獲取的數據值
      *
      * @example
-     * 數據A = store("get", "資料A")
-     * store("sjs", "資料B", "數據B")
+     * 數據A = store("g", "資料A", null)
+     * store("sj", "資料B", "數據B")
      */
-    store(operat, key=null, value=null, error=null) {
+    store(operat, key=null, value=null) {
         const storeMatch = {
-            verify: val => val !== void 0 ? val : error,
+            verify: val => val !== void 0 ? val : false,
             de: key => GM_deleteValue(key),
             al: () => storeMatch.verify(GM_listValues()),
             s: (key, value) => GM_setValue(key, value),
-            g: (key) => storeMatch.verify(GM_getValue(key, null)),
+            g: (key, value) => storeMatch.verify(GM_getValue(key, value)),
             sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
-            gj: (key) => JSON.parse(storeMatch.verify(GM_getValue(key, null)))
+            gj: (key, value) => JSON.parse(storeMatch.verify(GM_getValue(key, value)))
         }
         return storeMatch[operat](key, value);
     }
