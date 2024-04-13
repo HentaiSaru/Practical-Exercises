@@ -34,7 +34,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1358880/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
@@ -680,7 +680,7 @@
                                 text = p.textContent;
                                 URL_F.test(text) && Analysis(p, text);
                             });
-                            def.$$("p", {
+                            def.$$("a", {
                                 all: true,
                                 root: content
                             }).forEach(a => {
@@ -1072,9 +1072,9 @@
         Dependencies(type) {
             let Color, Width;
             switch (type) {
-                case "Global":
-                    Color = PM.Match.Color;
-                    def.AddStyle(`
+              case "Global":
+                Color = PM.Match.Color;
+                def.AddStyle(`
                         /* 搜尋頁面的樣式 */
                         fix_tag:hover { color: ${Color}; }
                         .fancy-image__image, fix_name, fix_tag, fix_edit {
@@ -1175,10 +1175,10 @@
                             display: block;
                         }
                         `, "Global-Effects");
-                    break;
+                break;
 
-                case "Preview":
-                    def.AddStyle(`
+              case "Preview":
+                def.AddStyle(`
                         .gif-overlay {
                             top: 45%;
                             left: 50%;
@@ -1204,30 +1204,30 @@
                             justify-content: var(--local-justify);
                         }
                     `, "Preview-Effects");
-                    break;
-    
-                case "Postview":
-                    DM.GetSet = {
-                        MenuSet: () => {
-                            const data = def.store("g", "MenuSet") || [ {
-                                MT: "2vh",
-                                ML: "50vw"
-                            } ];
-                            return data[0];
-                        },
-                        ImgSet: () => {
-                            const data = def.store("g", "ImgSet") || [ {
-                                img_h: "auto",
-                                img_w: "auto",
-                                img_mw: "100%",
-                                img_gap: "0px"
-                            } ];
-                            return data[0];
-                        }
-                    };
-                    DM.Set = DM.GetSet.ImgSet();
-                    Width = PM.Device.Width() / 2;
-                    def.AddStyle(`
+                break;
+
+              case "Postview":
+                DM.GetSet = {
+                    MenuSet: () => {
+                        const data = def.store("g", "MenuSet") || [ {
+                            MT: "2vh",
+                            ML: "50vw"
+                        } ];
+                        return data[0];
+                    },
+                    ImgSet: () => {
+                        const data = def.store("g", "ImgSet") || [ {
+                            img_h: "auto",
+                            img_w: "auto",
+                            img_mw: "100%",
+                            img_gap: "0px"
+                        } ];
+                        return data[0];
+                    }
+                };
+                DM.Set = DM.GetSet.ImgSet();
+                Width = PM.Device.Width() / 2;
+                def.AddStyle(`
                         .Image-style {
                             display: block;
                             width: ${DM.Set.img_w};
@@ -1246,10 +1246,10 @@
                             cursor: pointer;
                         }
                         `, "Custom-style");
-                    break;
+                break;
 
-                case "Awesome":
-                    def.AddStyle(`
+              case "Awesome":
+                def.AddStyle(`
                         ${GM_getResourceText("font-awesome")}
                         #next_box a {
                             cursor: pointer;
@@ -1258,17 +1258,17 @@
                             background-color: ${PM.Match.Color};
                         }
                     `, "font-awesome");
-                    break;
-    
-                case "Menu":
-                    DM.Set = DM.GetSet.MenuSet();
-                    def.AddScript(`
+                break;
+
+              case "Menu":
+                DM.Set = DM.GetSet.MenuSet();
+                def.AddScript(`
                             function check(value) {
                                 return value.toString().length > 4 || value > 1000
                                     ? 1000 : value < 0 ? "" : value;
                             }
                     `);
-                    def.AddStyle(`
+                def.AddStyle(`
                             .modal-background {
                                 top: 0;
                                 left: 0;
@@ -1430,32 +1430,32 @@
                                 margin: 0px;
                             }
                     `, "Custom-style");
-                    document.querySelector("#Custom-style").sheet.cssRules[0]
-                    DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
-                    def.storeListen(["MenuSet", "ImgSet", "language" ], call => {
-                        if (call.far) {
-                            let nv = call.nv;
-                            switch (call.key) {
-                                case "MenuSet":
-                                    nv = nv[0];
-                                    DM.styleRules["MT"](nv.MT);
-                                    DM.styleRules["ML"](nv.ML);
-                                    break;
+                document.querySelector("#Custom-style").sheet.cssRules[0];
+                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
+                def.storeListen([ "MenuSet", "ImgSet", "language" ], call => {
+                    if (call.far) {
+                        let nv = call.nv;
+                        switch (call.key) {
+                          case "MenuSet":
+                            nv = nv[0];
+                            DM.styleRules["MT"](nv.MT);
+                            DM.styleRules["ML"](nv.ML);
+                            break;
 
-                                case "ImgSet":
-                                    nv = nv[0];
-                                    DM.styleRules["img_h"](nv.img_h);
-                                    DM.styleRules["img_w"](nv.img_w);
-                                    DM.styleRules["img_mw"](nv.img_mw);
-                                    DM.styleRules["img_gap"](nv.img_gap);
-                                    break;
+                          case "ImgSet":
+                            nv = nv[0];
+                            DM.styleRules["img_h"](nv.img_h);
+                            DM.styleRules["img_w"](nv.img_w);
+                            DM.styleRules["img_mw"](nv.img_mw);
+                            DM.styleRules["img_gap"](nv.img_gap);
+                            break;
 
-                                case "language":
-                                    Lang = DM.language(nv);
-                            }
+                          case "language":
+                            MenuLangSwitch(nv);
                         }
-                    });
-                    break;
+                    }
+                });
+                break;
             }
         }
         async Menu() {
@@ -1570,7 +1570,7 @@
                     event.stopPropagation();
                     $("#language").off("input change");
                     const value = $(this).val();
-                    Lang = DM.language(value);
+                    MenuLangSwitch(value);
                     def.store("s", "language", value);
                     Menu_Save();
                     DM.Menu();
@@ -1765,12 +1765,7 @@
                 CF = new Content_Function();
                 Start(Content);
                 DM.Dependencies("Menu");
-                Lang = DM.language(def.store("g", "language"));
-                def.Menu({
-                    [Lang.RM_01]: {
-                        func: () => DM.Menu()
-                    }
-                });
+                MenuLangSwitch(def.store("g", "language"));
             }
         }
     }();
@@ -1780,6 +1775,14 @@
         return React.createElement("div", {
             dangerouslySetInnerHTML: {
                 __html: content
+            }
+        });
+    }
+    function MenuLangSwitch(lang) {
+        Lang = DM.language(lang);
+        def.Menu({
+            [Lang.RM_01]: {
+                func: () => DM.Menu()
             }
         });
     }
