@@ -23,8 +23,6 @@
 // @require      https://update.greasyfork.org/scripts/487608/1359945/SyntaxSimplified.js
 // ==/UserScript==
 
-//! 添加全局修改
-
 (function() {
     if (/^(http|https):\/\/(?!chrome\/|about\/).*$/i.test(document.URL)) {
         (new class Main extends Syntax {
@@ -86,7 +84,7 @@
                                 this.Trigger(media, time);
                             }
                         })
-                    }, {mark: "Audio-Booster"}, back=> {
+                    }, {mark: "Audio-Booster", throttle: 300}, back=> {
                         this.MediaObserver = back.ob;
                         this.ObserverOptions = back.op;
                     });
@@ -231,6 +229,13 @@
                     media.hasAttribute("Media-Audio-Booster") && setTimeout(()=> {
                         this.MediaObserver.observe(document.head, this.ObserverOptions);
                     }, 5e3);
+
+                    // 監聽保存值變化
+                    this.storeListen([this.Domain], call=> {
+                        if (call.far && call.key == this.Domain) { // 由遠端且觸發網域相同
+                            this.Booster.setVolume(call.nv);
+                        }
+                    });
 
                     return {
                         // 設置音量
