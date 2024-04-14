@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         影片音量增強器
-// @version      0.0.33
+// @version      0.0.34
 // @author       Canaan HS
 // @description  增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音 或是 沒有效果，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
 // @description:zh-TW 增強影片音量上限，最高增幅至 20 倍，有些不支援的網站，影片會沒聲音禁用增幅即可，命令選單有時有 BUG 會多創建一個，但不影響原功能使用。
@@ -20,7 +20,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
-// @require      https://update.greasyfork.org/scripts/487608/1360112/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360115/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
