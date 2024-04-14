@@ -26,7 +26,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1358741/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360115/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -246,7 +246,7 @@
                                 }
                             })
                         }
-                    }, {throttle: 200});
+                    }, {throttle: 300});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
@@ -268,11 +268,11 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    }, {throttle: 200});
+                    }, {throttle: 300});
                 }
-            }, 600));
+            }, 500));
 
-            this.AddListener(document, "DOMContentLoaded", ()=> {
+            this.Listen(document, "DOMContentLoaded", ()=> {
                 observer.observe(document, {childList: true, characterData: true, subtree: true});
             }, {once: true});
         }
