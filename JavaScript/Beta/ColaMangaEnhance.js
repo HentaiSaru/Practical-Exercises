@@ -218,8 +218,8 @@
             this.AdCleanup = setInterval(() => {iframe = this.$$("iframe:not(#Iframe-Comics)"); iframe && iframe.remove()}, 600);
             if (this.Device.Type() == "Desktop") {
                 this.AddStyle(`
-                    body {pointer-events: none;}
-                    body .mh_wrap, span.mh_btn:not(.contact), #Iframe-Comics {pointer-events: auto;}
+                    html {pointer-events: none !important;}
+                    .mh_wrap, span.mh_btn:not(.contact), #Iframe-Comics {pointer-events: auto;}
                 `, "Inject-Blocking-Ads");
 
             } else if (this.Device.Type() == "Mobile") {
