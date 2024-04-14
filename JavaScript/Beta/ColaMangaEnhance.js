@@ -64,7 +64,7 @@
     (new class Manga extends API {
         constructor() {
             super();
-            this.ScrollSpeed = 2; // 像素, 越高越快
+            this.ScrollPixels = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.WaitPicture = 1500; // 等待圖片載入時間
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
@@ -175,15 +175,17 @@
 
             /* 自動滾動 (邏輯修改) */
             this.scroll = (move) => {
-                if (this.Up_scroll && move < 0) {
-                    this.TopDetected();
-                    window.scrollBy(0, move);
-                    requestAnimationFrame(() => this.scroll(move));
-                } else if (this.Down_scroll && move > 0) {
-                    this.BottomDetected();
-                    window.scrollBy(0, move);
-                    requestAnimationFrame(() => this.scroll(move));
-                }
+                requestAnimationFrame(() => {
+                    if (this.Up_scroll && move < 0) {
+                        window.scrollBy(0, move);
+                        this.TopDetected();
+                        this.scroll(move);
+                    } else if (this.Down_scroll && move > 0) {
+                        window.scrollBy(0, move);
+                        this.BottomDetected();
+                        this.scroll(move);
+                    }
+                })
             };
 
             /* 自動翻頁獲取觀察對象 */
@@ -264,10 +266,10 @@
             if (this.Device.Type() == "Desktop") {
                 if (mode == 3 && this.IsMainPage) {
                     this.Down_scroll = this.storage("scroll");
-                    this.Down_scroll && this.scroll(this.ScrollSpeed);
+                    this.Down_scroll && this.scroll(this.ScrollPixels);
                 }
 
-                const UP_ScrollSpeed = this.ScrollSpeed * -1;
+                const UP_ScrollSpeed = this.ScrollPixels * -1;
                 this.Listen(window, "keydown", event => {
                     const key = event.key;
                     if (key == "ArrowLeft" && !this.JumpTrigger) {
@@ -301,7 +303,7 @@
                             this.Up_scroll = false;
                             this.Down_scroll = true;
                             this.storage("scroll", true);
-                            this.scroll(this.ScrollSpeed);
+                            this.scroll(this.ScrollPixels);
                         }
                     }
                 }, { capture: true });
