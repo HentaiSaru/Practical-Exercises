@@ -280,7 +280,7 @@ class Syntax {
         const op = {subtree: subtree, childList: childList, characterData: characterData};
         const ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
         ob.observe(object, op);
-        callback && callback({ob, operat});
+        callback && callback({ob, op});
     }
 
     /**

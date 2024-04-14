@@ -20,7 +20,7 @@
 // @grant        GM_addStyle
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
-// @require      https://update.greasyfork.org/scripts/487608/1359945/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360112/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
