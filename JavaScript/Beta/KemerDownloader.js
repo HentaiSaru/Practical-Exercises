@@ -230,8 +230,10 @@
                     ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                     const
+                        a = def.$$("a", {all: true, source: files}),
+                        img = def.$$("img", {all: true, source: files}),
                         video = def.$$(".post__attachment a", {all: true}),
-                        data = def.$$("a, img", {all: true, source: files}),
+                        data = a.length > 0 ? a : img,
                         final_data = Config.ContainsVideo ? [...data, ...video] : data;
                     final_data.forEach((file, index) => {
                         DownloadData.set(index, (file.href || file.src));
