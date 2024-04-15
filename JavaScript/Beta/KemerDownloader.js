@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.19
+// @version      0.0.20
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -36,7 +36,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1360852/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360859/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -230,11 +230,12 @@
                     ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                     const
-                        a = def.$$("a", {all: true, root: files}),
-                        img = def.$$("img", {all: true, root: files}),
+                        data = [...files.children].map(child => // 這種寫法適應於還未完全載入原圖時
+                            def.$$("a", {root: child}) || def.$$("img", {root: child})
+                        ),
                         video = def.$$(".post__attachment a", {all: true}),
-                        data = a.length > 0 ? a : img,
                         final_data = Config.ContainsVideo ? [...data, ...video] : data;
+
                     final_data.forEach((file, index) => {
                         DownloadData.set(index, (file.href || file.src));
                     });
