@@ -24,12 +24,14 @@
 
 // @run-at       document-start
 // @grant        window.close
+// @grant        GM_info
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_notification
+// @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
@@ -38,6 +40,8 @@
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
 // @require      https://update.greasyfork.org/scripts/487608/1360859/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+
+// @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
@@ -63,7 +67,7 @@
     const def = new Syntax(), Lang = language(navigator.language);
 
     const Config = {
-        DeBug: false, // 顯示請求資訊, 與錯誤資訊
+        DeBug: true, // 顯示請求資訊, 與錯誤資訊
         NotiFication: true, // 操作時 系統通知
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
@@ -338,9 +342,6 @@
                     },
                     onerror: () => {
                         Request_update(index, url, "", true);
-                    },
-                    ontimeout: () => {
-                        Request_update(index, url, "", true);
                     }
                 })
             }
@@ -429,6 +430,7 @@
                     const download = GM_download({
                         url: link,
                         name: filename,
+                        conflictAction: "overwrite",
                         onload: () => {
                             Config.DeBug && def.log("Download Successful", link);
                             show = `[${++progress}/${Total}]`;
@@ -444,13 +446,6 @@
                         },
                         onerror: () => {
                             Config.DeBug && def.log("Download Error", link);
-                            setTimeout(()=> {
-                                reject();
-                                Request(index);
-                            }, 1500);
-                        },
-                        ontimeout: () => {
-                            Config.DeBug && def.log("Download Timeout", link);
                             setTimeout(()=> {
                                 reject();
                                 Request(index);
@@ -606,7 +601,7 @@
                     GM_notification({
                         title: Lang.NF_04,
                         text: Lang.NF_05,
-                        image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                        image: GM_getResourceURL("json-processing"),
                         timeout: 2000
                     });
                 }
@@ -701,7 +696,7 @@
                 GM_notification({
                     title: Lang.NF_02,
                     text: `${Lang.NF_03} : ${this.Pages}`,
-                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                    image: GM_getResourceURL("json-processing"),
                     timeout: 800
                 });
             }
@@ -834,6 +829,10 @@
                     `, "Download-button-style");
                 }
             }
+
+            // 下載模式 native, disabled, browser
+            GM_info.downloadMode = "browser";
+            GM_info.isIncognito = true;
         }
 
         /* 按鈕創建 */
