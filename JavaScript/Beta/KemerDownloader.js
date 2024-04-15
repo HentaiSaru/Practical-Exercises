@@ -36,7 +36,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1357530/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360633/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
@@ -213,7 +213,7 @@
 
                     this.Named_Data = { // 建立數據
                         fill: ()=> "fill",
-                        title: ()=> def.$$("span", {source: title}).textContent.trim(),
+                        title: ()=> def.$$("span", {root: title}).textContent.trim(),
                         artist: ()=> artist.textContent.trim(),
                         source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
                         time: ()=> {
@@ -230,8 +230,8 @@
                     ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                     const
-                        a = def.$$("a", {all: true, source: files}),
-                        img = def.$$("img", {all: true, source: files}),
+                        a = def.$$("a", {all: true, root: files}),
+                        img = def.$$("img", {all: true, root: files}),
                         video = def.$$(".post__attachment a", {all: true}),
                         data = a.length > 0 ? a : img,
                         final_data = Config.ContainsVideo ? [...data, ...video] : data;
@@ -670,7 +670,7 @@
                 nocache: false,
                 onload: response => {
                     const DOM = def.DomParse(response.responseText);
-                    this.GetPageData(def.$$("section", {source: DOM}));
+                    this.GetPageData(def.$$("section", {root: DOM}));
                 }
             })
         }
@@ -678,7 +678,7 @@
         /* 獲取主頁元素 */
         async GetPageData(section) {
             let title, link;
-            const item = def.$$(".card-list__items article", {all: true, source: section});
+            const item = def.$$(".card-list__items article", {all: true, root: section});
 
             if (Config.NotiFication) {
                 GM_notification({
@@ -692,8 +692,8 @@
             // 遍歷數據
             this.progress = 0;
             for (const [index, card] of item.entries()) {
-                link = def.$$("a", {source: card}).href;
-                title = def.$$(".post-card__header", {source: card}).textContent.trim() || `Untitled_${String(this.progress+1).padStart(2, "0")}`;
+                link = def.$$("a", {root: card}).href;
+                title = def.$$(".post-card__header", {root: card}).textContent.trim() || `Untitled_${String(this.progress+1).padStart(2, "0")}`;
 
                 if (Config.ExperimentalDownload) {
                     this.worker.postMessage({ index: index, title: title, url: link });
@@ -705,7 +705,7 @@
             }
 
 
-            const menu = def.$$("a.pagination-button-after-current", {source: section});
+            const menu = def.$$("a.pagination-button-after-current", {root: section});
             if (Config.ExperimentalDownload) { // 使用較蠢的方式處理
 
                 const ILength = item.length,
@@ -740,11 +740,11 @@
                     const DOM = def.DomParse(text);
 
                     const original_link = url,
-                        pictures_number = def.$$("div.post__thumbnail", {all: true, source: DOM}).length,
-                        video_number = def.$$('ul[style*="text-align: center;list-style-type: none;"] li', {all: true, source: DOM}).length,
-                        mega_link = def.$$("div.post__content strong", {all: true, source: DOM});
+                        pictures_number = def.$$("div.post__thumbnail", {all: true, root: DOM}).length,
+                        video_number = def.$$('ul[style*="text-align: center;list-style-type: none;"] li', {all: true, root: DOM}).length,
+                        mega_link = def.$$("div.post__content strong", {all: true, root: DOM});
 
-                    def.$$("a.post__attachment-link", {all: true, source: DOM}).forEach(link => {
+                    def.$$("a.post__attachment-link", {all: true, root: DOM}).forEach(link => {
                         const analyze = decodeURIComponent(link.href).split("?f="),
                             download_link = analyze[0],
                             download_name = analyze[1];
@@ -829,7 +829,7 @@
                 if (Files.length > 0) {
                     clearInterval(IntervalFind);
                     try {
-                        const CompressMode = def.Storage("Compression", {storage: localStorage, error: true});
+                        const CompressMode = def.Storage("Compression", {type: localStorage, error: true});
                         const ModeDisplay = CompressMode ? Lang.DS_01 : Lang.DS_02;
 
                         // 創建 Span
@@ -882,8 +882,8 @@
 
         /* 下載模式切換 */
         async DownloadModeSwitch() {
-            if (def.Storage("Compression", {storage: localStorage, error: true})){
-                def.Storage("Compression", {storage: localStorage, value: false});
+            if (def.Storage("Compression", {type: localStorage, error: true})){
+                def.Storage("Compression", {type: localStorage, value: false});
                 if (Config.NotiFication) {
                     GM_notification({
                         title: Lang.NF_01,
@@ -892,7 +892,7 @@
                     });
                 }
             } else {
-                def.Storage("Compression", {storage: localStorage, value: true});
+                def.Storage("Compression", {type: localStorage, value: true});
                 if (Config.NotiFication) {
                     GM_notification({
                         title: Lang.NF_01,
@@ -907,12 +907,11 @@
 
         /* 注入檢測創建 [ 檢測頁面創建按鈕, 創建菜單 ] */
         async Injection() {
-            const observer = new MutationObserver(def.Throttle(() => {
+            def.Observer(document, ()=> {
                 try {
                     (this.Page.Content && !def.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
                 } catch {}
-            }, 300));
-            observer.observe(document, {childList: true, subtree: true});
+            }, {throttle: 300});
 
             if (this.Page.Content) {
                 def.Menu({
