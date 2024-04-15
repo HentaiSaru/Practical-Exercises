@@ -26,7 +26,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1360115/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360633/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -88,10 +88,10 @@
             const observer = new MutationObserver(this.Throttle(() => {
                 const URL = document.URL;
 
-                if (this.Video.test(URL) && !document.body.hasAttribute("Video-Tool-Injection") && this.$$("div#columns")) {
+                if (this.Video.test(URL) && !document.body.hasAttribute("Hide-Tool") && this.$$("div#columns")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
-                    this.SetAttri("Video-Tool-Injection", true);
+                    this.SetAttri("Hide-Tool", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
@@ -116,11 +116,10 @@
                         "title", "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
-                    ], 10, element => {
+                    ], element => {
                         let [
                             title, end, below, secondary, inner, related, comments, actions
                         ] = element;
-                        this.log("檢查", element);
 
                         // 持續修正
                         const Title_observer = new MutationObserver(()=> {
@@ -208,7 +207,7 @@
                             // 動態全局修改
                             this.storeListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {
                                 if (call.far) {
-                                    switch (call.Key) {
+                                    switch (call.key) {
                                         case "Minimalist":
                                             if (call.nv) {
                                                 this.StyleConverter([document.body], "overflow", "hidden");
@@ -247,7 +246,7 @@
                                 }
                             })
                         }
-                    }, {throttle: 300, reject: true});
+                    }, {throttle: 300, characterData: true, timeoutResult: true});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
@@ -255,7 +254,7 @@
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
-                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 10, playlist=> {
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist=> {
                         // 播放清單資訊
                         if (this.store("g", "ListDesc")) {
                             this.StyleConverter([playlist], "display", "none", this.Dev).then(Success => {
@@ -269,12 +268,12 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    }, {throttle: 300, reject: true});
+                    }, {throttle: 300, characterData: true, timeoutResult: true});
                 }
-            }, 500));
+            }, 600));
 
             this.Listen(document, "DOMContentLoaded", ()=> {
-                observer.observe(document, {childList: true, characterData: true, subtree: true});
+                observer.observe(document, {subtree: true, childList: true, characterData: true});
             }, {once: true});
         }
     }
