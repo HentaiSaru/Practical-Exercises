@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.19
+// @version      0.0.20
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -36,13 +36,13 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1357530/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1360859/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
-
 (function() {
     const def = new Syntax(), Lang = language(navigator.language);
+
     const Config = {
         DeBug: false, // 顯示請求資訊, 與錯誤資訊
         NotiFication: true, // 操作時 系統通知
@@ -98,7 +98,7 @@
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
     }
-    /* ------------------- */
+
     let lock = false;
     class Download {
         constructor(CM, MD, BT) {
@@ -183,7 +183,7 @@
                     this.Named_Data = {
                         fill: () => "fill",
                         title: () => def.$$("span", {
-                            source: title
+                            root: title
                         }).textContent.trim(),
                         artist: () => artist.textContent.trim(),
                         source: () => title.querySelector(":nth-child(2)").textContent.trim(),
@@ -194,11 +194,12 @@
                         }
                     };
                     const [ compress_name, folder_name, fill_name ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-                    const video = def.$$(".post__attachment a", {
+                    const data = [ ...files.children ].map(child => def.$$("a", {
+                        root: child
+                    }) || def.$$("img", {
+                        root: child
+                    })), video = def.$$(".post__attachment a", {
                         all: true
-                    }), data = def.$$("a, img", {
-                        all: true,
-                        source: files
                     }), final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
                     final_data.forEach((file, index) => {
                         DownloadData.set(index, file.href || file.src);
@@ -593,7 +594,7 @@
                 onload: response => {
                     const DOM = def.DomParse(response.responseText);
                     this.GetPageData(def.$$("section", {
-                        source: DOM
+                        root: DOM
                     }));
                 }
             });
@@ -602,7 +603,7 @@
             let title, link;
             const item = def.$$(".card-list__items article", {
                 all: true,
-                source: section
+                root: section
             });
             if (Config.NotiFication) {
                 GM_notification({
@@ -615,10 +616,10 @@
             this.progress = 0;
             for (const [ index, card ] of item.entries()) {
                 link = def.$$("a", {
-                    source: card
+                    root: card
                 }).href;
                 title = def.$$(".post-card__header", {
-                    source: card
+                    root: card
                 }).textContent.trim() || `Untitled_${String(this.progress + 1).padStart(2, "0")}`;
                 if (Config.ExperimentalDownload) {
                     this.worker.postMessage({
@@ -632,7 +633,7 @@
                 await def.sleep(10);
             }
             const menu = def.$$("a.pagination-button-after-current", {
-                source: section
+                root: section
             });
             if (Config.ExperimentalDownload) {
                 const ILength = item.length, wait = setInterval(() => {
@@ -666,17 +667,17 @@
                     const DOM = def.DomParse(text);
                     const original_link = url, pictures_number = def.$$("div.post__thumbnail", {
                         all: true,
-                        source: DOM
+                        root: DOM
                     }).length, video_number = def.$$('ul[style*="text-align: center;list-style-type: none;"] li', {
                         all: true,
-                        source: DOM
+                        root: DOM
                     }).length, mega_link = def.$$("div.post__content strong", {
                         all: true,
-                        source: DOM
+                        root: DOM
                     });
                     def.$$("a.post__attachment-link", {
                         all: true,
-                        source: DOM
+                        root: DOM
                     }).forEach(link => {
                         const analyze = decodeURIComponent(link.href).split("?f="), download_link = analyze[0], download_name = analyze[1];
                         data_box[download_name] = download_link;
@@ -767,7 +768,7 @@
                     clearInterval(IntervalFind);
                     try {
                         const CompressMode = def.Storage("Compression", {
-                            storage: localStorage,
+                            type: localStorage,
                             error: true
                         });
                         const ModeDisplay = CompressMode ? Lang.DS_01 : Lang.DS_02;
@@ -831,11 +832,11 @@
         }
         async DownloadModeSwitch() {
             if (def.Storage("Compression", {
-                storage: localStorage,
+                type: localStorage,
                 error: true
             })) {
                 def.Storage("Compression", {
-                    storage: localStorage,
+                    type: localStorage,
                     value: false
                 });
                 if (Config.NotiFication) {
@@ -847,7 +848,7 @@
                 }
             } else {
                 def.Storage("Compression", {
-                    storage: localStorage,
+                    type: localStorage,
                     value: true
                 });
                 if (Config.NotiFication) {
@@ -862,14 +863,12 @@
             this.ButtonCreation();
         }
         async Injection() {
-            const observer = new MutationObserver(def.Throttle(() => {
+            def.Observer(document, () => {
                 try {
                     this.Page.Content && !def.$$("section").hasAttribute("Download-Button-Created") && this.ButtonCreation();
                 } catch {}
-            }, 300));
-            observer.observe(document, {
-                childList: true,
-                subtree: true
+            }, {
+                throttle: 300
             });
             if (this.Page.Content) {
                 def.Menu({
