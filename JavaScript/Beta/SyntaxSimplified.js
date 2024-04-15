@@ -33,6 +33,7 @@ class Syntax {
         this.print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
+            trace: label=> console.trace(label),
             error: label=> console.error(label),
             count: label=> console.count(label),
         };
@@ -450,11 +451,11 @@ class Syntax {
      * @param {*} label - 打印的元素
      * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
      */
-    async log(group=null, label="print", type="log") {
+    async log(group=null, label="print", {type="log", collapsed=true}={}) {
         type = typeof type === "string" && this.print[type] ? type : type = "log";
         if (group == null) {this.print[type](label)}
         else {
-            console.groupCollapsed(group);
+            collapsed ? console.groupCollapsed(group) : console.group(group);
             this.print[type](label);
             console.groupEnd();
         }
