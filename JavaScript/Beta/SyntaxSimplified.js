@@ -569,7 +569,7 @@ class Syntax {
         // 使用排除過濾出剩下的索引, 並按照順序進行排序
         const final_obj = [...result].filter(index => !exclude.has(index) && index < len && index >= 0).sort((a, b) => a - b);
         // 回傳最終的索引物件
-        return final_obj.map(index => obj[index]);
+        return final_obj.map(index => object[index]);
     }
 
     /**
