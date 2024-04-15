@@ -336,7 +336,10 @@
                         ? Request_update(index, url, blob)
                         : Request_update(index, url, blob, true);
                     },
-                    onerror: error => {
+                    onerror: () => {
+                        Request_update(index, url, "", true);
+                    },
+                    ontimeout: () => {
                         Request_update(index, url, "", true);
                     }
                 })
@@ -433,8 +436,21 @@
                             Self.Button.textContent = `${Lang.DS_05} ${show}`;
                             resolve();
                         },
+                        onprogress: (progress) => {
+                            Config.DeBug && def.log("Download Progress", {
+                                Index: index,
+                                Progress: `${progress.loaded}/${progress.total}`
+                            });
+                        },
                         onerror: () => {
-                            Config.DeBug && def.log("Download Failed", link);
+                            Config.DeBug && def.log("Download Error", link);
+                            setTimeout(()=> {
+                                reject();
+                                Request(index);
+                            }, 1500);
+                        },
+                        ontimeout: () => {
+                            Config.DeBug && def.log("Download Timeout", link);
                             setTimeout(()=> {
                                 reject();
                                 Request(index);
