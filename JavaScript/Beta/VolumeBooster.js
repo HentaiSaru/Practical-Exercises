@@ -33,19 +33,19 @@
                 this.StyleTag = false;
                 this.Domain = location.hostname;
                 this.Display = this.Language(navigator.language);
-                this.BannedDomains = this.store("g", "BannedDomains", []);
-                this.ExcludeStatus = this.BannedDomains.includes(this.Domain);
+                this.BannedDomains = this.store("g", "BannedDomains_v2", {});
+                this.ExcludeStatus = this.BannedDomains[this.Domain];
 
                 /* 禁止網域 */
                 this.BannedDomain = async(domain) => {
                     if (this.ExcludeStatus) {
                         // 從排除列表刪除網域
-                        this.BannedDomains = this.BannedDomains.filter(d => {return d != domain});
+                        delete this.BannedDomains[domain];
                     } else {
                         // 添加網域到排除列表
-                        this.BannedDomains.push(domain);
+                        this.BannedDomains[domain] = true;
                     }
-                    this.store("s", "BannedDomains", this.BannedDomains);
+                    this.store("s", "BannedDomains_v2", this.BannedDomains);
                     location.reload();
                 }
 
@@ -75,7 +75,7 @@
 
             /* 監聽注入 */
             async Injection() {
-                if (!this.ExcludeStatus) {
+                if (!await this.ExcludeStatus) {
                     const time = this.Runtime();
                     this.Observer(document.head, ()=> {
                         this.FindMain(this.$$("video", {all: true}), media=> {
