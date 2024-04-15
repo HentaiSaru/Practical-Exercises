@@ -116,10 +116,11 @@
                         "title", "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
-                    ], 20, element => {
+                    ], 10, element => {
                         let [
                             title, end, below, secondary, inner, related, comments, actions
                         ] = element;
+                        this.log("檢查", element);
 
                         // 持續修正
                         const Title_observer = new MutationObserver(()=> {
@@ -246,7 +247,7 @@
                                 }
                             })
                         }
-                    }, {throttle: 300});
+                    }, {throttle: 300, reject: true});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
                     this.Dev && (this.StartTime = this.Runtime());
 
@@ -254,7 +255,7 @@
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
-                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 20, playlist=> {
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", false, 10, playlist=> {
                         // 播放清單資訊
                         if (this.store("g", "ListDesc")) {
                             this.StyleConverter([playlist], "display", "none", this.Dev).then(Success => {
@@ -268,7 +269,7 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    }, {throttle: 300});
+                    }, {throttle: 300, reject: true});
                 }
             }, 500));
 
