@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/14
+// @version      2024/04/15
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -23,6 +23,7 @@
  *  const def = new Syntax();
  *  def.func();
  */
+
 class Syntax {
     constructor() {
         this.Mark = {};
@@ -43,7 +44,7 @@ class Syntax {
                 return all ? Array.from(query) : query[0];
             },
             "tag": (source, select, all) => {
-                const query = source.getElementsByTagName(select); 
+                const query = source.getElementsByTagName(select);
                 return all ? Array.from(query) : query[0];
             },
             "default": (source, select, all) => {
@@ -78,7 +79,7 @@ class Syntax {
      * @param {boolean} {all}   - 是否查找全部
      * @param {element} {root}  - 查找來源
      * @returns {element}       - DOM 元素
-     * 
+     *
      * @example
      * $$("查找元素", {all: true, root: 查找來源})
      */
@@ -90,7 +91,7 @@ class Syntax {
 
     /**
      * * { 解析請求後的頁面, 成可查詢的 html 文檔 }
-     * @param {htnl} html - 要解析成 html 的文檔 
+     * @param {htnl} html - 要解析成 html 的文檔
      * @returns {htnl}    - html 文檔
      */
     DomParse(html) {
@@ -108,9 +109,9 @@ class Syntax {
 
     /**
      ** { 取得下載圖片時的填充量 }
-     * @param {object} pages - 下載的圖片連結物件 
+     * @param {object} pages - 下載的圖片連結物件
      * @returns {number}     - 返回填充的值
-     * 
+     *
      * @example
      * const box = [下載圖片的連結]
      * const Fill = GetFill(box);
@@ -177,7 +178,7 @@ class Syntax {
             new_style.id = ID;
             document.head.appendChild(new_style);
         }
-        new_style.appendChild(document.createTextNode(Rule));
+        new_style.textContent += Rule;
     }
 
     /**
@@ -192,7 +193,7 @@ class Syntax {
             new_script.id = ID;
             document.head.appendChild(new_script);
         }
-        new_script.appendChild(document.createTextNode(Rule));
+        new_script += Rule;
     }
 
     /**
@@ -232,7 +233,7 @@ class Syntax {
      * @param {*} listener     - 監聽後操作
      * @param {object} add     - 附加功能
      * @returns {boolean}      - 回傳添加狀態
-     * 
+     *
      * @example
      * Listen("監聽元素", "監聽類型", 觸發 => {
      *      觸發... 其他操作
@@ -256,7 +257,7 @@ class Syntax {
      * @param {boolean} {childList}     - 觀察 目標節點的子節點數量的變化
      * @param {boolean} {characterData} - 觀察 目標節點的屬性值的變化
      * @paeam {*} {callback} - 觀察對象, 觀察參數
-     * 
+     *
      * @example
      * Observer("觀察對象", ()=> {
      *      運行邏輯...
@@ -284,73 +285,163 @@ class Syntax {
     }
 
     /**
-     * * { 等待元素出現 }
-     * @param {string} selector   - 等待元素
-     * @param {boolean} all       - 是否多選
-     * @param {number} timeout    - 等待超時 (秒數)
-     * @param {function} resolve  - 完成回條
-     * @param {Element} {object}  - 監聽的 DOM 物件 (預設 body)
-     * @param {boolean} {reject}  - 超時後是否回傳
-     * @param {number} {throttle} - 對監聽觸發進行節流 (毫秒)
-     * 
+     ** { 等待元素出現 }
+     * @param {string} selector - 查找的物件
+     * @param {function} found  - 找到後的回條
+     *
+     * 選項設置 (以下為預設值)
+     * {
+     *     raf: false, - 是否使用 requestAnimationFrame 查找
+     *     all: false, - 使否使用多查找
+     *     timeout: 8, - 查找的超時時間
+     *     throttle: 50, - 針對 MutationObserver 的節流
+     *     subtree: true, - MutationObserver 觀察 目標節點及其所有後代節點的變化
+     *     childList: true, - MutationObserver 觀察 目標節點的子節點數量的變化
+     *     characterData: false, - MutationObserver 觀察 目標節點的屬性值的變化
+     *     timeoutResult: false, - 超時是否回傳找到的結果
+     *     object: document.body, - MutationObserver 的觀察對象
+     * }
+     *
      * @example
-     * WaitElem("元素", false, 1, solve => {
-     *      全部找到... | 超時過後...
-     *      console.log(solve);
-     * }, {object: document, throttle: 100})
+     * WaitElem("元素", found=> {
+     *      console.log(found); 找到的元素
+     * }, {設置參數});
      */
-    async WaitElem(selector, all, timeout, resolve, {object=document.body, reject=false, throttle=0}={}) {
+    async WaitElem(selector, found, {
+        raf=false,
+        all=false,
+        timeout=8,
+        throttle=50,
+        subtree=true,
+        childList=true,
+        characterData=false,
+        timeoutResult=false,
+        object=document.body,
+    }={}) {
         let timer, element, result;
-        const observer = new MutationObserver(this.Throttle(() => {
-            element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-            result = all ? element.length > 0 && Array.from(element).every(item=> {
-                return item !== null && typeof item !== "undefined";
-            }) : element;
-            if (result) {
-                observer.disconnect();
-                clearTimeout(timer);
-                resolve(element);
-            }
-        }, throttle));
 
-        observer.observe(object, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-            reject && resolve(element);
-        }, (1000 * timeout));
+        if (raf) {
+            let AnimationFrame;
+
+            const query = () => {
+                element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                result = all ? element.length > 0 : element;
+                if (result) {
+                    cancelAnimationFrame(AnimationFrame);
+                    clearTimeout(timer);
+                    found(element);
+                } else {
+                    AnimationFrame = requestAnimationFrame(query);
+                }
+            };
+
+            AnimationFrame = requestAnimationFrame(query);
+
+            timer = setTimeout(() => {
+                cancelAnimationFrame(AnimationFrame);
+                timeoutResult && found(element);
+            }, (1000 * timeout));
+
+        } else {
+            const observer = new MutationObserver(this.Throttle(() => {
+                element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                result = all ? element.length > 0 : element;
+                if (result) {
+                    observer.disconnect();
+                    clearTimeout(timer);
+                    found(element);
+                }
+            }, throttle));
+
+            observer.observe(object, {
+                subtree: subtree,
+                childList: childList,
+                characterData: characterData
+            });
+
+            timer = setTimeout(() => {
+                observer.disconnect();
+                timeoutResult && found(element);
+            }, (1000 * timeout));
+        }
     }
 
     /**
-     * * { 等待元素出現 (Map 物件版) }
-     * @param {string} selector   - 等待元素
-     * @param {number} timeout    - 等待超時 (秒數)
-     * @param {function} resolve  - 完成回條
-     * @param {Element} {object}  - 監聽的 DOM 物件 (預設 body)
-     * @param {boolean} {reject}  - 超時後是否回傳
-     * @param {number} {throttle} - 對監聽觸發進行節流 (毫秒)
-     * 
+     ** { 等待元素出現 (Map 物件版) }
+     * @param {string} selectors - 查找的物件
+     * @param {function} found  - 找到後的回條
+     *
+     * 選項設置 (以下為預設值)
+     * {
+     *     raf: false, - 是否使用 requestAnimationFrame 查找
+     *     timeout: 8, - 查找的超時時間
+     *     throttle: 50, - 針對 MutationObserver 的節流
+     *     subtree: true, - MutationObserver 觀察 目標節點及其所有後代節點的變化
+     *     childList: true, - MutationObserver 觀察 目標節點的子節點數量的變化
+     *     characterData: false, - MutationObserver 觀察 目標節點的屬性值的變化
+     *     timeoutResult: false, - 超時是否回傳找到的結果
+     *     object: document.body, - MutationObserver 的觀察對象
+     * }
+     *
      * @example
-     * WaitElem(["元素1", "元素2", "元素3"], 等待時間(秒), solve => {
-     *      全部找到... | 超時過後...
-     *      const [元素1, 元素2, 元素3] = solve;
-     * }, {object: document, throttle: 100})
+     * WaitMap(["元素1", "元素2", "元素3"], found=> {
+     *      const [e1, e2, e3] = found;
+     * }, {設置參數});
      */
-    async WaitMap(selectors, timeout, resolve, {object=document.body, reject=false, throttle=0}={}) {
+    async WaitMap(selectors, found, {
+        raf=false,
+        timeout=8,
+        throttle=50,
+        subtree=true,
+        childList=true,
+        characterData=false,
+        timeoutResult=false,
+        object=document.body,
+    }={}) {
         let timer, elements;
-        const observer = new MutationObserver(this.Throttle(() => {
-            elements = selectors.map(selector => document.querySelector(selector))
-            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                observer.disconnect();
-                clearTimeout(timer);
-                resolve(elements);
-            }
-        }, throttle));
 
-        observer.observe(object, { childList: true, subtree: true });
-        timer = setTimeout(() => {
-            observer.disconnect();
-            reject && resolve(elements);
-        }, (1000 * timeout));
+        if (raf) {
+            let AnimationFrame;
+
+            const query = () => {
+                elements = selectors.map(selector => document.querySelector(selector));
+                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                    cancelAnimationFrame(AnimationFrame);
+                    clearTimeout(timer);
+                    found(elements);
+                } else {
+                    AnimationFrame = requestAnimationFrame(query);
+                }
+            };
+
+            AnimationFrame = requestAnimationFrame(query);
+
+            timer = setTimeout(() => {
+                cancelAnimationFrame(AnimationFrame);
+                timeoutResult && found(elements);
+            }, (1000 * timeout));
+
+        } else {
+            const observer = new MutationObserver(this.Throttle(() => {
+                elements = selectors.map(selector => document.querySelector(selector));
+                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                    observer.disconnect();
+                    clearTimeout(timer);
+                    found(elements);
+                }
+            }, throttle));
+
+            observer.observe(object, {
+                subtree: subtree,
+                childList: childList,
+                characterData: characterData
+            });
+
+            timer = setTimeout(() => {
+                observer.disconnect();
+                timeoutResult && found(elements);
+            }, (1000 * timeout));
+        }
     }
 
     /**
@@ -375,14 +466,14 @@ class Syntax {
      * @param {string} show - 顯示的說明文字
      * @param {string} {style} - 展示的風格
      * @param {boolean} {log} - 是否直接打印
-     * 
+     *
      * @returns {Date.now()}
-     * 
+     *
      * @example
      * let start = Runtime();
      * let end = Runtime(start);
      * console.log(end);
-     * 
+     *
      * let start = Runtime();
      * Runtime(start, true);
      */
@@ -397,17 +488,17 @@ class Syntax {
      * @param {function} func - 要觸發的函數
      * @param {number} delay - 延遲的時間ms
      * @returns {function}
-     * 
+     *
      * @example
      * a = Debounce(()=> {}, 100);
      * a();
-     * 
+     *
      * function b(n) {
      *      Debounce(b(n), 100);
      * }
-     * 
+     *
      * document.addEventListener("pointermove", Debounce(()=> {
-     *  
+     *
      * }), 100)
      */
     Debounce(func, delay=500) {
@@ -425,7 +516,7 @@ class Syntax {
      * @param {function} func - 要觸發的函數
      * @param {number} delay - 延遲的時間ms
      * @returns {function}
-     * 
+     *
      * @example
      * 與上方相同只是改成 Throttle()
      */
@@ -442,11 +533,11 @@ class Syntax {
 
     /**
      * 解析範圍進行設置 (索引從 1 開始)
-     * 
+     *
      * @param {string} scope  - 設置的索引範圍 [1, 2, 3-5, 6~10, -4, !8]
      * @param {object} object - 需要設置範圍的物件
      * @returns {object}      - 回傳設置完成的物件
-     * 
+     *
      * @example
      * object = ScopeParsing("", object);
      */
@@ -474,7 +565,7 @@ class Syntax {
                 exclude.add(Number(str.slice(1)-1));
             }
         }
-    
+
         // 使用排除過濾出剩下的索引, 並按照順序進行排序
         const final_obj = [...result].filter(index => !exclude.has(index) && index < len && index >= 0).sort((a, b) => a - b);
         // 回傳最終的索引物件
@@ -488,7 +579,7 @@ class Syntax {
      * @param {*} {value}  - 存儲的 value 值
      * @param {*} {error}  - 當不存在此值是要回傳的
      * @returns {*}        - 回傳保存的值
-     * 
+     *
      * @example
      * 支援的類型 (String, Number, Array, Object, Boolean, Date, Map)
      *
@@ -509,12 +600,12 @@ class Syntax {
 
     /**
      ** { 操作存储空間 (精簡版) }
-     * 
+     *
      * // @grant GM_setValue
      * // @grant GM_getValue
      * // @grant GM_listValues
      * // @grant GM_deleteValue
-     * 
+     *
      * @param {string} operate - 操作類型 ("s", "g", "sj", "gj", "de", "al")
      * @param {string} key     - 操作數據索引 Key
      * @param {*} value        - 要保存的值, 如果是取得操作, 就是空值時的回傳
@@ -539,18 +630,18 @@ class Syntax {
 
     /**
      ** { 監聽保存值的變化 }
-     * 
+     *
      * // @grant GM_addValueChangeListener
      * @param {array} object    - 一個可遍歷的, 標籤對象物件
      * @param {object} callback - 回條函數
-     * 
+     *
      * @example
      * 回條對象
      * key - 觸發的對象 key
      * ov - 對象舊值
      * nv - 對象新值
      * far - 是否是其他窗口觸發
-     * 
+     *
      * storeListen(["key1", "key2"], call=> {
      *      console.log(call.key, call.nv);
      * })
@@ -568,9 +659,9 @@ class Syntax {
 
     /**
      ** { 菜單註冊 API }
-     * 
+     *
      * // @grant GM_registerMenuCommand
-     * 
+     *
      * @param {object} Item  - 創建菜單的物件
      * @param {string} ID    - 創建菜單的 ID
      * @param {number} Index - 創建菜單的 ID 的 編號 (設置從多少開始)
