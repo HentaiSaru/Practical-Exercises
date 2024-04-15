@@ -41,11 +41,11 @@ class Syntax {
             "#": (source, select) => source.getElementById(select.slice(1)),
             ".": (source, select, all) => {
                 const query = source.getElementsByClassName(select.slice(1));
-                return all ? Array.from(query) : query[0];
+                return all ? [...query] : query[0];
             },
             "tag": (source, select, all) => {
                 const query = source.getElementsByTagName(select);
-                return all ? Array.from(query) : query[0];
+                return all ? [...query] : query[0];
             },
             "default": (source, select, all) => {
                 return all
