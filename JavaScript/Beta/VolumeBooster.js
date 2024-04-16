@@ -18,8 +18,10 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        GM_getResourceURL
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
+// @resource     Img https://cdn-icons-png.flaticon.com/512/8298/8298181.png
 // @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
 // ==/UserScript==
 
@@ -281,7 +283,7 @@
                             <h2 style="color: #3754f8;">${this.Display.ST}</h2>
                             <div style="margin:1rem auto 1rem auto;">
                                 <div class="Booster-Multiplier">
-                                    <span><img src="https://cdn-icons-png.flaticon.com/512/8298/8298181.png" width="5%">${this.Display.S1}</span><span id="Booster-CurrentValue">${this.Increase}</span><span>${this.Display.S2}</span>
+                                    <span><img src="${GM_getResourceURL("Img")}" width="5%">${this.Display.S1}</span><span id="Booster-CurrentValue">${this.Increase}</span><span>${this.Display.S2}</span>
                                 </div>
                                 <input type="range" id="Adjustment-Sound-Enhancement" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
                             </div>
