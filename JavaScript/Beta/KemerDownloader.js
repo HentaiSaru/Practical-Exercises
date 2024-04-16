@@ -38,7 +38,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1360859/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -67,7 +67,7 @@
     const def = new Syntax(), Lang = language(navigator.language);
 
     const Config = {
-        DeBug: true, // 顯示請求資訊, 與錯誤資訊
+        DeBug: false, // 顯示請求資訊, 與錯誤資訊
         NotiFication: true, // 操作時 系統通知
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
@@ -244,7 +244,7 @@
                         DownloadData.set(index, (file.href || file.src));
                     });
 
-                    Config.DeBug && def.log("Get Data", [folder_name, DownloadData]);
+                    Config.DeBug && def.log("Get Data", [folder_name, DownloadData], {collapsed: false});
 
                     this.CompressMode
                         ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
@@ -356,8 +356,8 @@
             this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
-                ? (Request(index, url), (Config.DeBug && def.log("Download Failed", url)))
-                : (Request_update(index, url, blob), (Config.DeBug && def.log("Download Successful", url)));
+                ? (Request(index, url), (Config.DeBug && def.log("Download Failed", url, {collapsed: false})))
+                : (Request_update(index, url, blob), (Config.DeBug && def.log("Download Successful", url, {collapsed: false})));
             }
         }
 
@@ -432,7 +432,7 @@
                         name: filename,
                         conflictAction: "overwrite",
                         onload: () => {
-                            Config.DeBug && def.log("Download Successful", link);
+                            Config.DeBug && def.log("Download Successful", link, {collapsed: false});
                             show = `[${++progress}/${Total}]`;
                             document.title = show;
                             Self.Button.textContent = `${Lang.DS_05} ${show}`;
@@ -442,10 +442,10 @@
                             Config.DeBug && def.log("Download Progress", {
                                 Index: index,
                                 Progress: `${progress.loaded}/${progress.total}`
-                            });
+                            }, {collapsed: false});
                         },
                         onerror: () => {
-                            Config.DeBug && def.log("Download Error", link);
+                            Config.DeBug && def.log("Download Error", link, {collapsed: false});
                             setTimeout(()=> {
                                 reject();
                                 Request(index);
@@ -775,10 +775,10 @@
                         this.SortMap.set(index, {title: title, box: box});
                     }
 
-                    Config.DeBug && def.log("Request Successful", this.SortMap);
+                    Config.DeBug && def.log("Request Successful", this.SortMap, {collapsed: false});
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
-                    Config.DeBug && def.log("Request Failed", {title: title, url: url});
+                    Config.DeBug && def.log("Request Failed", {title: title, url: url}, {collapsed: false});
                     await def.sleep(1000);
                     this.worker.postMessage({ index: index, title: title, url: url });
                 }
