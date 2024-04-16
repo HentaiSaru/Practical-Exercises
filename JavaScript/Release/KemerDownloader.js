@@ -24,22 +24,27 @@
 
 // @run-at       document-start
 // @grant        window.close
+// @grant        GM_info
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
 // @grant        GM_openInTab
 // @grant        GM_addElement
 // @grant        GM_notification
+// @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1360859/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+
+// @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
+
 (function() {
     const def = new Syntax(), Lang = language(navigator.language);
 
@@ -204,7 +209,9 @@
                     final_data.forEach((file, index) => {
                         DownloadData.set(index, file.href || file.src);
                     });
-                    Config.DeBug && def.log("Get Data", [ folder_name, DownloadData ]);
+                    Config.DeBug && def.log("Get Data", [ folder_name, DownloadData ], {
+                        collapsed: false
+                    });
                     this.CompressMode ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData) : this.SeparDownload(fill_name, DownloadData);
                 }
             }, 300);
@@ -222,7 +229,7 @@
             }
             def.Menu({
                 [Lang.RM_04]: {
-                    def: () => ForceDownload(),
+                    func: () => ForceDownload(),
                     hotkey: "d"
                 }
             }, "Enforce");
@@ -280,7 +287,7 @@
                         const blob = response.response;
                         blob instanceof Blob && blob.size > 0 ? Request_update(index, url, blob) : Request_update(index, url, blob, true);
                     },
-                    onerror: error => {
+                    onerror: () => {
                         Request_update(index, url, "", true);
                     }
                 });
@@ -299,8 +306,11 @@
                     blob,
                     error
                 } = e.data;
-                error ? (Request(index, url), Config.DeBug && def.log("Download Failed", url)) : (Request_update(index, url, blob), 
-                Config.DeBug && def.log("Download Successful", url));
+                error ? (Request(index, url), Config.DeBug && def.log("Download Failed", url, {
+                    collapsed: false
+                })) : (Request_update(index, url, blob), Config.DeBug && def.log("Download Successful", url, {
+                    collapsed: false
+                }));
             };
         }
         async Compression(Name, Data, Title) {
@@ -333,7 +343,7 @@
         }
         async SeparDownload(FillName, Data) {
             let show, link, filename, extension, stop = false, progress = 0;
-            const Self = this, Process = [], Promises = [], Total = Data.size, TitleCache = this.OriginalTitle();
+            const Self = this, Process = [], Promises = [], Total = Data.size, ShowTracking = {}, DownloadTracking = {}, TitleCache = this.OriginalTitle();
             const FillValue = this.NameAnalysis(FileName.FillValue), Filler = FillValue[1], Amount = FillValue[0] == "auto" ? def.GetFill(Total) : FillValue[0];
             async function Stop() {
                 stop = true;
@@ -341,7 +351,7 @@
             }
             def.Menu({
                 [Lang.RM_05]: {
-                    def: () => Stop(),
+                    func: () => Stop(),
                     hotkey: "s"
                 }
             }, "Abort");
@@ -353,18 +363,37 @@
                 extension = def.ExtensionName(link);
                 filename = Self.isVideo(extension) ? decodeURIComponent(link.split("?f=")[1]) : `${FillName.replace("fill", def.Mantissa(index, Amount, Filler))}.${extension}`;
                 return new Promise((resolve, reject) => {
-                    const download = GM_download({
-                        url: link,
-                        name: filename,
-                        onload: () => {
-                            Config.DeBug && def.log("Download Successful", link);
+                    const completed = () => {
+                        if (!ShowTracking[index]) {
+                            ShowTracking[index] = true;
+                            Config.DeBug && def.log("Download Successful", link, {
+                                collapsed: false
+                            });
                             show = `[${++progress}/${Total}]`;
                             document.title = show;
                             Self.Button.textContent = `${Lang.DS_05} ${show}`;
                             resolve();
+                        }
+                    };
+                    const download = GM_download({
+                        url: link,
+                        name: filename,
+                        conflictAction: "overwrite",
+                        onprogress: progress => {
+                            Config.DeBug && def.log("Download Progress", {
+                                Index: index,
+                                ImgUrl: link,
+                                Progress: `${progress.loaded}/${progress.total}`
+                            }, {
+                                collapsed: false
+                            });
+                            DownloadTracking[index] = progress.loaded == progress.total;
+                            DownloadTracking[index] && completed();
                         },
                         onerror: () => {
-                            Config.DeBug && def.log("Download Failed", link);
+                            Config.DeBug && def.log("Download Error", link, {
+                                collapsed: false
+                            });
                             setTimeout(() => {
                                 reject();
                                 Request(index);
@@ -513,7 +542,7 @@
                     GM_notification({
                         title: Lang.NF_04,
                         text: Lang.NF_05,
-                        image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                        image: GM_getResourceURL("json-processing"),
                         timeout: 2e3
                     });
                 }
@@ -609,7 +638,7 @@
                 GM_notification({
                     title: Lang.NF_02,
                     text: `${Lang.NF_03} : ${this.Pages}`,
-                    image: "https://cdn-icons-png.flaticon.com/512/2582/2582087.png",
+                    image: GM_getResourceURL("json-processing"),
                     timeout: 800
                 });
             }
@@ -698,12 +727,16 @@
                             box: box
                         });
                     }
-                    Config.DeBug && def.log("Request Successful", this.SortMap);
+                    Config.DeBug && def.log("Request Successful", this.SortMap, {
+                        collapsed: false
+                    });
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
                     Config.DeBug && def.log("Request Failed", {
                         title: title,
                         url: url
+                    }, {
+                        collapsed: false
                     });
                     await def.sleep(1e3);
                     this.worker.postMessage({
@@ -755,6 +788,8 @@
                     `, "Download-button-style");
                 }
             };
+            GM_info.downloadMode = "browser";
+            GM_info.isIncognito = true;
         }
         async ButtonCreation() {
             def.$$("section").setAttribute("Download-Button-Created", true);
@@ -792,10 +827,10 @@
                             passive: true
                         });
                         Button = GM_addElement(spanElement, "button", {
-                            class: "Download_Button"
+                            class: "Download_Button",
+                            textContent: lock ? Lang.DS_10 : ModeDisplay
                         });
                         Button.disabled = lock;
-                        Button.textContent = lock ? Lang.DS_10 : ModeDisplay;
                         def.Listen(Button, "click", () => {
                             let Instantiate = null;
                             Instantiate = new Download(CompressMode, ModeDisplay, Button);
