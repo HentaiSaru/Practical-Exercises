@@ -277,7 +277,7 @@
             }
 
             def.Menu({
-                [Lang.RM_04]: {def: ()=> ForceDownload(), hotkey: "d"}
+                [Lang.RM_04]: {func: ()=> ForceDownload(), hotkey: "d"}
             }, "Enforce");
 
             // 更新請求狀態
@@ -403,6 +403,8 @@
                 Process = [],
                 Promises = [],
                 Total = Data.size,
+                ShowTracking = {},
+                DownloadTracking = {},
                 TitleCache = this.OriginalTitle();
             const
                 FillValue = this.NameAnalysis(FileName.FillValue),
@@ -416,7 +418,7 @@
             }
 
             def.Menu({
-                [Lang.RM_05]: {def: ()=> Stop(), hotkey: "s"}
+                [Lang.RM_05]: {func: ()=> Stop(), hotkey: "s"}
             }, "Abort");
 
             async function Request(index) {
@@ -427,22 +429,34 @@
                 ? decodeURIComponent(link.split("?f=")[1])
                 : `${FillName.replace("fill", def.Mantissa(index, Amount, Filler))}.${extension}`;
                 return new Promise((resolve, reject) => {
+
+                    const completed = () => {
+                        if (!ShowTracking[index]) { // 多一個判斷是因為, 他有可能同樣的重複呼叫多次
+                            ShowTracking[index] = true;
+
+                            Config.DeBug && def.log("Download Successful", link, {collapsed: false});
+
+                            show = `[${++progress}/${Total}]`;
+                            document.title = show;
+
+                            Self.Button.textContent = `${Lang.DS_05} ${show}`;
+                            resolve();
+                        }
+                    };
+
                     const download = GM_download({
                         url: link,
                         name: filename,
                         conflictAction: "overwrite",
-                        onload: () => {
-                            Config.DeBug && def.log("Download Successful", link, {collapsed: false});
-                            show = `[${++progress}/${Total}]`;
-                            document.title = show;
-                            Self.Button.textContent = `${Lang.DS_05} ${show}`;
-                            resolve();
-                        },
                         onprogress: (progress) => {
                             Config.DeBug && def.log("Download Progress", {
                                 Index: index,
+                                ImgUrl: link,
                                 Progress: `${progress.loaded}/${progress.total}`
                             }, {collapsed: false});
+
+                            DownloadTracking[index] = (progress.loaded == progress.total);
+                            DownloadTracking[index] && completed();
                         },
                         onerror: () => {
                             Config.DeBug && def.log("Download Error", link, {collapsed: false});
@@ -452,6 +466,7 @@
                             }, 1500);
                         }
                     });
+
                     Process.push(download);
                 });
             }
