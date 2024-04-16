@@ -27,6 +27,7 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_addElement
+// @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
@@ -37,6 +38,8 @@
 // @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
+
+// @resource     loading https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
@@ -1133,7 +1136,7 @@
                             background-position: center;
                             background-repeat: no-repeat;
                             transform: translate(-50%, -50%);
-                            background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+                            background-image: url("${GM_getResourceURL('loading')}");
                         }
                         .card-list__items {
                             gap: 0.5em;
