@@ -2,16 +2,17 @@
 // @name         Twitch Beautify
 // @name:zh-TW   Twitch Beautify
 // @name:zh-CN   Twitch Beautify
+// @name:ko      Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
 // @version      0.0.21
 // @author       Canaan HS
-// @description         美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
-// @description:zh-TW   美化 Twitch 觀看畫面 , 懶人自動點擊 , 主頁自動暫停靜音自動播放影片
-// @description:zh-CN   美化 Twitch 观看画面 , 懒人自动点击 , 主页自动暂停静音自动播放视频
-// @description:ja      Twitchの視聴画面を美化し、怠け者の自動クリック、ホームページの自動一時停止、ミュート、自動再生ビデオ
-// @description:ko      Twitch 시청 화면을 미화하고, 게으른 사람들을 위한 자동 클릭, 홈페이지 자동 일시 정지, 음소거, 자동 재생 비디오
-// @description:en      Beautify the Twitch viewing screen, automatic clicks for lazy people, automatic pause and mute on the homepage, and automatic playback of videos.
+// @description         直播頁面: 自動美化、滑鼠懸浮時自動收合按鈕、重新播放功能自動觸發。 首頁: 恢復原始樣式、自動暫停與靜音、可拖曳與縮放直播窗口。
+// @description:zh-TW   直播頁面: 自動美化、滑鼠懸浮時自動收合按鈕、重新播放功能自動觸發。 首頁: 恢復原始樣式、自動暫停與靜音、可拖曳與縮放直播窗口。
+// @description:zh-CN   直播页面：自动美化、鼠标悬浮时自动收合按钮、重新播放功能自动触发。 首页： 恢复原始样式、自动暂停与静音、可拖拽与缩放直播窗口。
+// @description:ko      라이브 페이지: 자동 미화, 마우스 호버 시 자동으로 버튼 접기, 재생 기능 자동 트리거. 홈 페이지: 원래 스타일 복원, 자동 일시정지 및 음소거, 라이브 창 드래그 및 확대/축소 가능.
+// @description:ja      ライブページ：自動美化、マウスホバー時に自動的にボタンを折りたたむ、再生機能が自動的にトリガーされる。ホーム：元のスタイルに戻す、自動停止とミュート、ライブウィンドウをドラッグアンドドロップして拡大縮小できる。
+// @description:en      Live page: Auto-beautify, auto-collapse buttons on mouse hover, auto-trigger replay function. Home page: Restore original style, auto-pause and mute, draggable and scalable live window.
 
 // @match        *://*.twitch.tv/*
 // @icon         https://cdn-icons-png.flaticon.com/512/9290/9290165.png
@@ -28,7 +29,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1361984/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1361998/SyntaxSimplified.js
 // @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
 
@@ -38,7 +39,12 @@
     (new class Beautify extends Syntax {
         constructor() {
             super();
+            this.Nav = null;
+            this.Frame = null;
             this.Resume = null;
+            this.Chat_Button = null;
+            this.Channel_Button = null;
+            this.Channel_Parent = null;
             this.IsHome = (Url) => Url == "https://www.twitch.tv/";
             this.IsLive = (Url) => /^https:\/\/www\.twitch\.tv\/.+/.test(Url);
 
@@ -51,38 +57,67 @@
                 })
             }
 
-            // 整體框架美化
-            this.Beautify = async(Nav, Frame, Channel_Parent) => {
-                requestAnimationFrame(() => {
-                    Nav.classList.add("Nav_Effect");
-                    // Frame.style.zIndex = "9999";
-                    Channel_Parent.classList.add("Channel_Expand_Effect");
+            /* 到 Live 頁面觸發美化 */
+            this.Start = async() => {
+                this.AddListener(window, "urlchange", change => {
+                    if (this.IsLive(change.url)) {
+                        this.RemovListener(window, "urlchange");
+                        this.Trigger();
+                    }
                 })
             }
 
-            /* 自動恢復觀看 */
-            this.ResumeWatching = async(Frame) => {
-                let Recover;
-                this.Resume = new MutationObserver(() => {
-                    Recover = this.$$(".itFOsv")
-                    Recover && Recover.click();
-                });
-                this.Resume.observe(Frame, {childList: true, subtree: true});
+            /* 回到大廳觸發 恢復 */
+            this.End = async() => {
+                this.AddListener(window, "urlchange", change => {
+                    if (this.IsHome(change.url)) {
+                        this.Reset();
+                        this.Fun($("div[data-a-player-state='mini']")); // 添加可拖動
+                        this.Start();
+                    }
+                })
             }
 
-            // 清除頁腳
-            this.ClearFooter = async() => {
-                this.WaitElem("#twilight-sticky-footer-root", footer=> {
-                    footer.remove();
-                }, {throttle: 200});
+            /* 切換使用狀態 */
+            this.Use = async() => {
+                if (this.store("g", "Beautify", [])) {
+                    this.Reset();
+                    this.RegisterMenu(lang.MS_01);
+                    this.store("s", "Beautify", false);
+                } else {
+                    const Url = document.URL;
+                    this.IsHome(Url) ? this.Start()
+                    : this.IsLive(Url) && this.Trigger();
+                    this.RegisterMenu(lang.MS_02);
+                    this.store("s", "Beautify", true);
+                }
+            }
+
+            /* 重置所有設置 */
+            this.Reset = async() => {
+                if (this.Nav) { // 確保有元素 (只判斷一項)
+                    this.Resume.disconnect();
+                    this.RemovListener(window, "urlchange");
+
+                    requestAnimationFrame(() => {
+                        this.Nav.classList.remove("Nav_Effect");
+                        this.Channel_Button.removeAttribute("style");
+                        this.Channel_Button.classList.remove("Button_Effect");
+                        this.Channel_Parent.classList.remove("Channel_Expand_Effect");
+                    });
+
+                    this.RemovListener(this.Channel_Button, "mouseenter");
+                    this.RemovListener(this.Channel_Button, "mouseleave");
+                }
             }
         }
 
         /* 主運行程式 */
         async Main() {
+            this.ImportStyle(); // 導入樣式
+
             if (this.store("g", "Beautify", [])) {
                 this.ClearFooter(); // 清除頁腳
-                this.ImportStyle(); // 導入樣式
                 this.RegisterMenu(lang.MS_02); // 註冊菜單
 
                 const Url = document.URL;
@@ -97,40 +132,6 @@
             }
         }
 
-        /* 檢測到 Live 頁面 */
-        async Start() {
-            this.AddListener(window, "urlchange", change => {
-                if (this.IsLive(change.url)) {
-                    this.RemovListener(window, "urlchange");
-                    this.log("Live", this.ListenerRecord);
-                    this.Trigger();
-                }
-            });
-        }
-
-        /* 檢測回到大廳 */
-        async End(Nav, Channel_Parent, Channel_Button, Chat_Button) {
-            this.AddListener(window, "urlchange", change => {
-                if (this.IsHome(change.url)) {
-                    this.RemovListener(window, "urlchange");
-                    this.log("大廳", this.ListenerRecord);
-                    this.Resume.disconnect();
-                    Nav.classList.remove("Nav_Effect");
-                    Channel_Button.removeAttribute("style");
-                    Chat_Button.classList.remove("Button_Effect");
-                    Channel_Button.classList.remove("Button_Effect");
-                    Channel_Parent.classList.remove("Channel_Expand_Effect");
-
-                    this.RemovListener(Chat_Button, "mouseenter");
-                    this.RemovListener(Chat_Button, "mouseleave");
-                    this.RemovListener(Channel_Button, "mouseenter");
-                    this.RemovListener(Channel_Button, "mouseleave");
-
-                    this.Start();
-                }
-            });
-        }
-
         /* Live 頁面觸發美化 */
         async Trigger() {
             this.WaitMap([
@@ -142,60 +143,74 @@
                 "[data-a-target='right-column__toggle-collapse-btn']" // 聊天室 button
             ], found=> {
                 const [
-                    Nav,
-                    Channel,
-                    Collapsed_State,
-                    VideoFrame,
-                    Channel_Button,
-                    Chat_Button
+                    Nav, Channel, Collapsed_State, VideoFrame, Channel_Button, Chat_Button
                 ] = found;
-                const Channel_Parent = Channel.parentNode;
+
+                this.Nav = Nav;
+                this.Frame = VideoFrame;
+                this.Chat_Button = Chat_Button;
+                this.Channel_Button = Channel_Button;
+                this.Channel_Parent = Channel.parentNode;
+
+                this.Beautify(); // 介面美化 (大廳重置)
+                this.AutoClick(); // 使用自動點擊 (大廳重置)
+                this.ResumeWatching(); // 自動恢復觀看 (大廳重置)
                 this.PlayControl(true); // 恢復播放
-                this.Beautify(Nav, VideoFrame, Channel_Parent); // 介面美化 (大廳重置)
-                this.AutoClick(Channel_Button, Chat_Button); // 使用自動點擊 (大廳重置)
-                this.ResumeWatching(VideoFrame); // 自動恢復觀看 (大廳重置)
+                this.Fun($(VideoFrame), false); // 重置可拖動
                 !Collapsed_State.getAttribute("data-a-target") && Channel_Button.click(); // 自動展開菜單
 
-                this.End(Nav, Channel_Parent, Channel_Button, Chat_Button); // 監聽回大廳
+                this.End(); // 監聽回大廳
             }, {raf: true});
         }
 
-        /* 切換使用狀態 */
-        async Use() {
-            this.store("g", "Beautify", [])?
-            this.store("s", "Beautify", false):
-            this.store("s", "Beautify", true);
+        // 整體框架美化
+        async Beautify() {
+            requestAnimationFrame(() => {
+                this.Nav.classList.add("Nav_Effect");
+                // this.Frame.style.zIndex = "9999";
+                this.Channel_Parent.classList.add("Channel_Expand_Effect");
+            })
         }
 
         // 自動點擊
-        async AutoClick(Channel_Button, Chat_Button) {
-            Chat_Button.classList.add("Button_Effect");
-            Channel_Button.classList.add("Button_Effect");
-            Channel_Button.style.transform = "translateY(15px)";
+        async AutoClick() {
+            this.Chat_Button.classList.add("Button_Effect");
+            this.Channel_Button.classList.add("Button_Effect");
+            this.Channel_Button.style.transform = "translateY(15px)";
 
             // 頻道列
             let Channel_timer;
-            this.AddListener(Channel_Button, "mouseenter", ()=> {
+            this.AddListener(this.Channel_Button, "mouseenter", ()=> {
                 Channel_timer = setTimeout(()=> {
-                    Channel_Button.click();
+                    this.Channel_Button.click();
                 }, 250);
             });
-            this.AddListener(Channel_Button, "mouseleave", ()=> {
+            this.AddListener(this.Channel_Button, "mouseleave", ()=> {
                 clearTimeout(Channel_timer);
-                Channel_Button.classList.add("Button_Effect");
+                this.Channel_Button.classList.add("Button_Effect");
             });
 
             // 聊天室
             let Chat_timer; // 分開使用避免意外
-            this.AddListener(Chat_Button, "mouseenter", ()=> {
+            this.AddListener(this.Chat_Button, "mouseenter", ()=> {
                 Chat_timer = setTimeout(()=> {
-                    Chat_Button.click();
+                    this.Chat_Button.click();
                 }, 250);
             });
-            this.AddListener(Chat_Button, "mouseleave", ()=> {
+            this.AddListener(this.Chat_Button, "mouseleave", ()=> {
                 clearTimeout(Chat_timer);
-                Chat_Button.classList.add("Button_Effect");
+                this.Chat_Button.classList.add("Button_Effect");
             });
+        }
+
+        /* 自動恢復觀看 */
+        async ResumeWatching() {
+            let Recover;
+            this.Resume = new MutationObserver(() => {
+                Recover = this.$$(".itFOsv")
+                Recover && Recover.click();
+            });
+            this.Resume.observe(this.Frame, {childList: true, subtree: true});
         }
 
         /* 影片播放 與 聲音操作 */
@@ -223,6 +238,50 @@
                     }, Wait);
                 }
             }, {raf: true});
+        }
+
+        // 清除頁腳
+        async ClearFooter() {
+            this.WaitElem("#twilight-sticky-footer-root", footer=> {
+                footer.remove();
+            }, {throttle: 200});
+        }
+
+        /* 拖動效果添加 */
+        async Fun(element, state=true) {
+            if (element.length > 0) {
+                if (state) {
+
+                    element.draggable({ // 設置可拖動
+                        cursor: "grabbing",
+                        start: function() {
+                            $(this).find(".doeqbO").addClass("Drag_Effect");
+                        },
+                        stop: function() {
+                            $(this).find(".doeqbO").removeClass("Drag_Effect");
+                        }
+                    });
+
+
+                    element.css({ // 設置初始寬度
+                        top: $("nav").height() - 10,
+                        left: $(".side-nav").width() - 10,
+                        width: window.innerWidth * 0.68,
+                        height:  window.innerHeight * 0.88,
+                    });
+                    element.resizable({ // 設置可縮放
+                        minWidth: 50,
+                        minHeight: 50,
+                        handles: "all",
+                        aspectRatio: 16 / 10
+                    });
+                } else {
+                    if (element.data("ui-draggable")) {
+                        element.draggable("destroy");
+                        element.resizable("destroy");
+                    }
+                }
+            }
         }
 
         /* 導入樣式 */
@@ -255,8 +314,8 @@
                     color: rgb(239, 239, 241) !important;
                 }
                 .Drag_Effect {
-                    border: 2px solid white;
                     border-radius: 10px;
+                    border: 2px solid white;
                 }
             `, "Effect");
         }
