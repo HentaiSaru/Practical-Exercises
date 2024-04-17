@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/16
+// @version      2024/04/18
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -220,10 +220,10 @@ class Syntax {
      * @param {string} type    - 監聽器類型
      */
     async RemovListener(element, type) {
-        const Listen = this.ListenerRecord[element]?.[type];
-        if (Listen) {
-            element.removeEventListener(type, Listen);
-            delete this.ListenerRecord[element][type];
+        const Element = this.ListenerRecord[element];
+        if (Element) {
+            element.removeEventListener(type, Element[type]);
+            delete this.ListenerRecord[element];
         }
     }
 
