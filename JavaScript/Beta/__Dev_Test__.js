@@ -28,7 +28,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1361984/SyntaxSimplified.js
 // @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
 
