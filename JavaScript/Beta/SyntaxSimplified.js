@@ -27,8 +27,8 @@
 class Syntax {
     constructor() {
         this.Mark = {};
-        this.ListenerRecord = {};
         this.Parser = new DOMParser();
+        this.ListenerRecord = new Map();
         this.Buffer = document.createDocumentFragment();
         this.print = {
             log: label=> console.log(label),
@@ -205,12 +205,13 @@ class Syntax {
      * @param {object} add     - 附加功能
      */
     async AddListener(element, type, listener, add={}) {
-        if (!this.ListenerRecord[element]?.[type]) {
+        const Listener = this.ListenerRecord.get(element);
+        if (!Listener || !Listener?.has(type)) {
             element.addEventListener(type, listener, add);
-            if (!this.ListenerRecord[element]) {
-                this.ListenerRecord[element] = {};
+            if (!Listener) {
+                this.ListenerRecord.set(element, new Map());
             }
-            this.ListenerRecord[element][type] = listener;
+            this.ListenerRecord.get(element).set(type, listener);
         }
     }
 
@@ -220,10 +221,10 @@ class Syntax {
      * @param {string} type    - 監聽器類型
      */
     async RemovListener(element, type) {
-        const Element = this.ListenerRecord[element];
-        if (Element) {
-            element.removeEventListener(type, Element[type]);
-            delete this.ListenerRecord[element];
+        const Listen = this.ListenerRecord.get(element)?.get(type);
+        if (Listen) {
+            element.removeEventListener(type, Listen);
+            this.ListenerRecord.get(element).delete(type);
         }
     }
 
