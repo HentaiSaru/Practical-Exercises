@@ -24,13 +24,18 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @grant        GM_getResourceText
+// @grant        window.onurlchange
 // @grant        GM_registerMenuCommand
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
+// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
 // @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
-
+const def = new Syntax();
+def.AddListener(window, "urlchange",  change => {
+    console.log("變更", change.url);
+});
 (function() {
     var EnabledState,
     Home = "https://www.twitch.tv/",
@@ -202,6 +207,7 @@
     async function ResumeWatching() {
         let recover;
         const observer = new MutationObserver(() => {
+            document.querySelector(".itFOsv")
             try {recover = $("div[data-a-target='player-overlay-content-gate'] button")} catch {}
             if (document.URL === Home) {
                 observer.disconnect();
@@ -210,16 +216,6 @@
             }
         });
         observer.observe($("div[data-a-player-state='']")[0], {childList: true, subtree: true});
-    }
-
-    /* 刪除嵌入廣告 */
-    async function DeleteIframe() {
-        addscript(`
-            const interval = setInterval(() => {
-                document.querySelectorAll("iframe").forEach(iframe => {iframe.remove()});
-            }, 1500)
-        `, "ADB")
-        $("iframe").each(function() {$(this).remove()});
     }
 
     /* 隱藏頁腳 */
