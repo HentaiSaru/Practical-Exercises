@@ -31,6 +31,8 @@
         EndAutoClose: true, // 全部進度完成後自動關閉
         TryStayActive: true, // 嘗試讓頁面保持活躍
         RestartLiveMute: true, // 重啟的直播靜音
+        RestartLowQuality: true, // 重啟直播最低畫質
+
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
@@ -189,7 +191,7 @@
                 }, 5e2);
             }
 
-            /* 直播自動最低畫質 (未完成) */
+            /* 直播自動最低畫質 */
             this.LiveLowQuality = async window => {
                 const settings = window.document.querySelector("[data-a-target='player-settings-button']").click();
                 setTimeout(() => {
@@ -251,6 +253,7 @@
                                 clearInterval(Interval);
                                 self.RestartLiveMute && dir.LiveMute(NewWindow);
                                 self.TryStayActive && StayActive(NewWindow.document);
+                                self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
 
                             }
                         }, 8e2);
@@ -274,6 +277,7 @@
                             article[index].querySelector(self.WatchLiveLink).click();
                             self.RestartLiveMute && dir.LiveMute(NewWindow);
                             self.TryStayActive && StayActive(NewWindow.document);
+                            self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
                         } else {
                             function Language(lang) {
                                 const Display = {
