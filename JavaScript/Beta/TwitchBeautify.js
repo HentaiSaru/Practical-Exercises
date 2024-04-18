@@ -45,8 +45,7 @@
             this.Chat_Button = null;
             this.Channel_Button = null;
             this.Channel_Parent = null;
-            this.IsHome = (Url) => Url == "https://www.twitch.tv/";
-            this.IsLive = (Url) => /^https:\/\/www\.twitch\.tv\/.+/.test(Url);
+            this.IsLive = (Url) => /^https:\/\/www\.twitch\.tv\/(?!directory|settings|drops|wallet|subscriptions).+[^\/]$/.test(Url);
 
             // 菜單註冊
             this.RegisterMenu = (Name) => {
@@ -70,7 +69,7 @@
             /* 回到大廳觸發 恢復 */
             this.End = async() => {
                 this.AddListener(window, "urlchange", change => {
-                    if (this.IsHome(change.url)) {
+                    if (!this.IsLive(change.url)) {
                         this.Reset();
                         this.Fun($("div[data-a-player-state='mini']")); // 添加可拖動
                         this.Start();
@@ -86,8 +85,7 @@
                     this.store("s", "Beautify", false);
                 } else {
                     const Url = document.URL;
-                    this.IsHome(Url) ? this.Start()
-                    : this.IsLive(Url) && this.Trigger();
+                    this.IsLive(Url) ? this.Trigger() : this.Start();
                     this.RegisterMenu(lang.MS_02);
                     this.store("s", "Beautify", true);
                 }
@@ -120,13 +118,9 @@
                 this.ClearFooter(); // 清除頁腳
                 this.RegisterMenu(lang.MS_02); // 註冊菜單
 
-                const Url = document.URL;
-                if (this.IsHome(Url)) {
-                    this.Start();
-                    this.PlayControl(false);
-                } else if (this.IsLive(Url)) {
-                    this.Trigger();
-                }
+                this.IsLive(document.URL)
+                ? this.Trigger()
+                : (this.Start(), this.PlayControl(false));
             } else {
                 this.RegisterMenu(lang.MS_01);
             }
