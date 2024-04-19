@@ -32,13 +32,13 @@
         TryStayActive: true, // 嘗試讓頁面保持活躍
         RestartLiveMute: true, // 重啟的直播靜音
         RestartLowQuality: false, // 重啟直播最低畫質
-    
+
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
-    
+
         UpdateInterval: 90, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
-    
+
         DropsButton: "button.caieTg", // 掉寶領取按鈕
         FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     };
