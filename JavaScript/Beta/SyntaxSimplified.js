@@ -194,7 +194,7 @@ class Syntax {
             new_script.id = ID;
             document.head.appendChild(new_script);
         }
-        new_script += Rule;
+        new_script.textContent += Rule;
     }
 
     /**
