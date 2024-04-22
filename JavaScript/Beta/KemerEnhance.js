@@ -638,6 +638,7 @@
             switch (Mode) {
                 case 2:
                     def.WaitElem("div.card-list__items pre", content => {
+                        console.log(content);
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
                                 def.$$("p", {all: true, root: pre}).forEach(p=> {
@@ -655,7 +656,7 @@
                                 URL_F.test(text) && Analysis(pre, text);
                             }
                         })
-                    }, {raf: true});break;
+                    }, {raf: true, all: true});break;
                 default:
                     def.WaitElem("div.post__body", body => {
                         const article = def.$$("article", {root: body});
