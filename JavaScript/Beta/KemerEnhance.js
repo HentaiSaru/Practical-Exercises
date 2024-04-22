@@ -35,7 +35,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 
@@ -79,14 +79,16 @@
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
             this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
+            this.FavorPost = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=post\/?.*$/;
+            this.FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=artist?.*$/;
+            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*?$/;
             this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
             this.Match = {
                 Content: this.ContentPage.test(url),
                 Announcement: this.Announcement.test(url),
-                Search: this.SearchPage.test(url) || this.LinksPage.test(url),
-                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
+                Search: this.SearchPage.test(url) || this.LinksPage.test(url) || this.FavorArtist.test(url),
+                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url) || this.FavorPost.test(url),
                 Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
             };
             this.Device = {
@@ -333,7 +335,10 @@
 
                     def.$$("a", {all: true, root: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
                     url.endsWith("new") && dynamic_fix(card_items, card_items); // 針對 links/new 頁面的 card
-                } else { dynamic_fix(card_items, card_items) }
+                } else {
+                    dynamic_fix(card_items, card_items);
+                    GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
+                }
 
             } else if (PM.Match.Content) { // 是內容頁面
                 const artist = def.$$(".post__user-name");
@@ -632,7 +637,7 @@
             async function A_Analysis(A) { A.setAttribute("target", "_blank") }
             switch (Mode) {
                 case 2:
-                    def.WaitElem("div.card-list__items pre", true, 8, content => {
+                    def.WaitElem("div.card-list__items pre", content => {
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
                                 def.$$("p", {all: true, root: pre}).forEach(p=> {
@@ -650,9 +655,9 @@
                                 URL_F.test(text) && Analysis(pre, text);
                             }
                         })
-                    }, {object: document, throttle: 600});break;
+                    }, {raf: true});break;
                 default:
-                    def.WaitElem("div.post__body", false, 8, body => {
+                    def.WaitElem("div.post__body", body => {
                         const article = def.$$("article", {root: body});
                         const content = def.$$("div.post__content", {root: body});
 
@@ -684,7 +689,7 @@
 
         /* 懸浮於 browse » 標籤時, 直接展示文件 */
         async LinkBeautify() {
-            def.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("a.post__attachment-link", post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
@@ -713,7 +718,7 @@
                         })
                     }
                 })
-            }, {throttle: 600});
+            }, {all: true, throttle: 600});
             def.AddStyle(`
                 .View {
                     top: -10px;
@@ -740,8 +745,8 @@
                 .video-title {margin-top: 0.5rem;}
                 .post-video {height: 50%; width: 60%;}
             `, "Effects");
-            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
-                def.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", parents => {
+                def.WaitElem("a.post__attachment-link", post => {
                     function VideoRendering({ stream }) {
                         return React.createElement("summary", {
                                 className: "video-title"
@@ -779,15 +784,15 @@
                             li.insertBefore(title, def.$$("summary", {root: li}));
                         }
                     });
-                }, {throttle: 600});
-            }, {throttle: 600});
+                }, {all: true, throttle: 600});
+            }, {all: true, throttle: 600});
         }
 
         /* 載入原圖 */
         async OriginalImage(Mode) {
             let img, a;
             DM.Dependencies("Postview");
-            def.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
+            def.WaitElem("div.post__thumbnail", thumbnail => {
                 function ImgRendering({ ID, href }) {
                     return React.createElement("div", {
                         id: ID,
@@ -873,7 +878,7 @@
                             }, { once: true });
                         } else {FastAuto()}
                 }
-            }, {throttle: 600});
+            }, {all: true, throttle: 600});
 
             /* 載入原圖 (死圖重試) */
             async function Reload(Img, Retry) {
@@ -949,7 +954,7 @@
                     }
                 });
             }
-            def.WaitElem("h2.site-section__subheading", false, 8, comments => {
+            def.WaitElem("h2.site-section__subheading", comments => {
                 const prev = def.$$("a.post__nav-link.prev");
                 const next = def.$$("a.post__nav-link.next");
 
