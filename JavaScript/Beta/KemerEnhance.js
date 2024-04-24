@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.47
+// @version      0.0.48-Beta
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -77,12 +77,12 @@
     PM = (new class Page_Match {
         constructor() {
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
-            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
+            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
             this.FavorPost = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=post\/?.*$/;
-            this.FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=artist?.*$/;
-            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*?$/;
+            this.FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites(?:\?(?!type=post).*)?$/;
+            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*$/;
             this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
             this.Match = {
                 Content: this.ContentPage.test(url),
@@ -335,7 +335,7 @@
 
                     def.$$("a", {all: true, root: card_items}).forEach(items=> { search_page_fix(items) }); // 針對 links 頁面的 card
                     url.endsWith("new") && dynamic_fix(card_items, card_items); // 針對 links/new 頁面的 card
-                } else {
+                } else { //! 還需要測試
                     dynamic_fix(card_items, card_items);
                     GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
                 }
@@ -345,7 +345,7 @@
                 const title = def.$$("h1 span:nth-child(2)");
                 other_page_fix(artist, title, artist.href, "<fix_cont>");
 
-            } else {
+            } else { // 預覽頁面
                 const artist = def.$$("span[itemprop='name']");
                 if(artist) {
                     other_page_fix(artist);
@@ -358,12 +358,11 @@
                 }
             }
 
-            // 動態調整監聽類型
+            // 檢測平台類型
             const Device = PM.Device.Type();
-            const Listener = Device == "Mobile" ? "pointerup" : "pointerdown";
 
             // 監聽點擊
-            def.AddListener(document.body, Listener, event=> {
+            def.AddListener(document.body, "click", event=> {
                 const target = event.target;
 
                 if (target.matches("fix_edit")) {
@@ -407,7 +406,7 @@
         /* 翻頁回到頂部 */
         async BackToTop() {
             def.AddListener(document.body, "pointerup", event=> {
-                event.target.closest("#paginator-bottom") && def.$$("menu").scrollIntoView();
+                event.target.closest("#paginator-bottom") && def.$$("#paginator-top").scrollIntoView();
             }, { capture: true, passive: true });
         }
 
@@ -519,7 +518,7 @@
                     url: link,
                     nocache: false,
                     onload: response => {
-                        New_data = def.$$("section", {root: def.DomParse(response.responseText)});
+                        New_data = def.$$("section", {root: response.responseXML});
                         ReactDOM.render(React.createElement(Rendering, { content: New_data.innerHTML }), Old_data);
                         history.pushState(null, null, link);
                     },
@@ -528,21 +527,15 @@
             }
             def.Listen(document.body, "click", event => {
                 const target = event.target.closest("menu a");
-                if (target) {
-                    event.preventDefault();
-                    Request(target.href);
-                }
+                target && (event.preventDefault(), Request(target.href));
             }, {capture: true})
         }
 
         /* 將預覽頁面都變成開新分頁 */
         async NewTabOpens() {
-            def.Listen(document, "click", event => {
+            def.Listen(document.body, "click", event => {
                 const target = event.target.closest("article a");
-                if (target) {
-                    event.preventDefault();
-                    GM_openInTab(target.href, { active: false, insert: false });
-                }
+                target && (event.preventDefault(), GM_openInTab(target.href, { active: false, insert: false }));
             }, {capture: true})
         }
 
@@ -627,18 +620,33 @@
     class Content_Function {
         /* 連結文本轉換成超連結 */
         async TextToLink(Mode) {
-            let link, text;
-            const URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g, Protocol_F = /^(?!https?:\/\/)/;
-            async function Analysis(father, text) {
-                father.innerHTML = text.replace(URL_F, url => {
-                    return `<a href="${url.replace(Protocol_F, "https://")}" target="_blank">${decodeURIComponent(url).trim()}</a>`;
-                });
+            let text;
+            const
+                Protocol_F = /^(?!https?:\/\/)/,
+                Exclusion_F = /onfanbokkusuokibalab\.net/,
+                URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g;
+
+            async function Analysis(father, text) { // 解析轉換網址
+                if (!Exclusion_F.test(text)) {
+                    father.innerHTML = text.replace(URL_F, url => {
+                        const decode = decodeURIComponent(url).trim();
+                        return `<a href="${decode.replace(Protocol_F, "https://")}">${decode}</a>`;
+                    })
+                }
             }
-            async function A_Analysis(A) { A.setAttribute("target", "_blank") }
+
+            async function JumpTrigger(root) { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
+                def.AddListener(root, "click", event => {
+                    const target = event.target.closest("a");
+                    target && (event.preventDefault(), window.open(target.href));
+                }, {capture: true});
+            }
+
             switch (Mode) {
                 case 2:
                     def.WaitElem("div.card-list__items pre", content => {
-                        console.log(content);
+                        JumpTrigger(def.$$("div.card-list__items"));
+
                         content.forEach(pre=> {
                             if (pre.childNodes.length > 1) {
                                 def.$$("p", {all: true, root: pre}).forEach(p=> {
@@ -647,8 +655,7 @@
                                 })
 
                                 def.$$("a", {all: true, root: pre}).forEach(a=> {
-                                    link = a.href;
-                                    link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                    !a.href && Analysis(a, a.textContent);
                                 })
 
                             } else {
@@ -659,6 +666,8 @@
                     }, {raf: true, all: true});break;
                 default:
                     def.WaitElem("div.post__body", body => {
+                        JumpTrigger(body);
+
                         const article = def.$$("article", {root: body});
                         const content = def.$$("div.post__content", {root: body});
 
@@ -671,16 +680,13 @@
                                 text = pre.textContent;
                                 URL_F.test(text) && Analysis(pre, text);
                             } else {
-                                // Array.from(document.querySelector("div.post__content").childNodes).forEach(nodes => {
-                                    // console.log(nodes, nodes.nodeName, nodes.textContent);
-                                // })
                                 def.$$("p", {all: true, root: content}).forEach(p=> {
                                     text = p.textContent;
                                     URL_F.test(text) && Analysis(p, text);
                                 })
+
                                 def.$$("a", {all: true, root: content}).forEach(a=> {
-                                    link = a.href;
-                                    link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                    !a.href && Analysis(a, a.textContent);
                                 })
                             }
                         }
@@ -688,7 +694,7 @@
             }
         }
 
-        /* 懸浮於 browse » 標籤時, 直接展示文件 */
+        /* 懸浮於 browse » 標籤時, 直接展示文件, 刪除下載連結前的 download, 並解析轉換連結 */
         async LinkBeautify() {
             def.WaitElem("a.post__attachment-link", post => {
                 post.forEach(link => {
@@ -703,7 +709,7 @@
                             method: "GET",
                             url: browse.href,
                             onload: response => {
-                                const main = def.$$("main", {root: def.DomParse(response.responseText)});
+                                const main = def.$$("main", {root: response.responseXML});
                                 const View = GM_addElement("Viewer", {class: "View"});
                                 const Buffer = document.createDocumentFragment();
 
@@ -948,7 +954,7 @@
                     url: url,
                     nocache: false,
                     onload: response => {
-                        let New_main = def.$$("main", {root: def.DomParse(response.responseText)});
+                        let New_main = def.$$("main", {root: response.responseXML});
                         ReactDOM.render(React.createElement(Rendering, { content: New_main.innerHTML }), old_main);
                         history.pushState(null, null, url);
                         setTimeout(Initialization(), 500);
