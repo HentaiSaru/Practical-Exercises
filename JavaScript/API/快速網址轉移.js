@@ -31,7 +31,7 @@
         constructor() {
             super();
             this.AddClose = true; // 添加網址後關閉窗口
-            this.ExportClear = false; // 導出後清除保存數據
+            this.ExportClear = true; // 導出後清除保存數據
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
@@ -47,11 +47,7 @@
             this.Import = (data) => {
                 try {
                     for (const [key, value] of Object.entries(JSON.parse(data))) {
-                        this.store("s", key, {
-                            title: value.title,
-                            icon: value.icon,
-                            url: value.url
-                        });
+                        this.store("s", key, value);
                     }
                     GM_notification({
                         title: "導入完畢",
@@ -63,22 +59,67 @@
                 }
             }
 
+            this.GetBookmarks = () => {
+                let read,
+                options = 0,
+                read_data = new Map(),
+                display = "直接確認為 ALL\n",
+                all_data = this.store("a");
+
+                const process = (key, value) => {// 將相同 key 的值進行分組, 傳入 read_data
+                    read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]); // 他是以列表保存子項目
+                }
+
+                if (all_data.length > 0) {
+                    all_data.forEach(key => {// 讀取後分類
+                        read = this.store("g", key); // key 值分別取得對應數據
+                        process(this.DomainName(read.url), {[key]: read});
+                    });
+
+                    // 對數據進行排序
+                    read_data = new Map([...read_data.entries()].sort((a, b) => a[1].length - b[1].length));
+                    // 解析數據顯示
+                    read_data.forEach((value, domain)=> {
+                        display += `[${++options}] ( ${domain} | ${value.length} )\n`;
+                    });
+
+                    // 將 map 數據轉成 array
+                    const data_values = [...read_data.values()];
+
+                    while (true) {
+                        let choose = prompt(`輸入代號:\n${display}\n`);
+                        if (choose != null) {
+                            choose = choose == "" ? 0 : +choose;
+
+                            if (choose == 0) { // 0 開啟全部
+                                return data_values.flat();
+                            } else if (choose > 0 && choose <= read_data.size) { // 選擇 > 0 且 小於 讀取數據的長度 (並非轉換後的陣列)
+                                return data_values[choose-1];
+                            } else {
+                                alert("錯誤的代號");
+                            }
+                        } else {
+                            return false; // 空的代表都沒有輸入
+                        }
+                    }
+                } else {
+                    alert("無保存的書籤");
+                }
+            }
+
             // 導出數據
             this.Export = () => {
-                let box = {};
-                this.store("a").forEach(key => {
-                    const data = this.store("g", key);
-                    box[key] = {
-                        title: data.title,
-                        icon: data.icon,
-                        url: data.url
-                    };
-                    this.ExportClear && this.store("d", key);
-                });
-                if (Object.keys(box).length > 0) {
-                    return JSON.stringify(box, null, 0);
+                let key, value, bookmarks = this.GetBookmarks(), export_data = {};
+                if (bookmarks) {
+                    // Object.assign({}, ...bookmarks) 可以直接轉換, 但為何刪除導出數據, 用以下寫法
+                    bookmarks.forEach(data => {
+                        [key, value] = Object.entries(data)[0]; // 解構數據
+                        export_data[key] = value;
+                        this.ExportClear && this.store("d", key); // 導出刪除
+                    });
+                    return JSON.stringify(export_data, null, 4);
                 } else {
-                    alert("無可用的導出數據");
+                    return false;
                 }
             }
         }
@@ -115,55 +156,15 @@
 
         /* 讀取書籤 */
         Read() {
-            let open, display_text = "[0] 全部開啟\n", options = 0,
-            read_data = new Map(), add_data = (key, value) => { // 將擁有相同 key 的值, 進行分類, 傳入 read_data
-                read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]); // 他是以列表保存子項目
-            }
-
-            // 讀取後分類
-            this.store("a").forEach(key => {
-                const read = this.store("g", key); // 使用 key 值分別取得數據
-                add_data(this.DomainName(read.url), {key: key, url: read.url}); // 解析 url 的網域, 保存 key, 與 跳轉連結
-            });
-
-            // 對數據進行排序
-            read_data = new Map([...read_data.entries()].sort((a, b) => a[1].length - b[1].length));
-
-            // 解析數據顯示
-            read_data.forEach((value, domain)=> {
-                display_text += `[${++options}] ( ${domain} | ${value.length} )\n`;
-            });
-
-            // 將 map 數據轉成 array
-            const data_values = [...read_data.values()];
-
-            if (data_values.length > 0) {
-
-                while (true) {
-                    let choose = prompt(`輸入代號指定開啟:\n\n${display_text}`);
-                    choose = choose ? +choose : "";
-
-                    if (typeof choose == "string") { // 是字串就是什麼都沒輸入
-                        return;
-                    } else if (choose == 0) { // 選擇 0 開啟全部
-                        open = data_values.flat(); break;
-                    } else if (choose > 0 && choose <= read_data.size) { // 選擇 > 0 且 小於 讀取數據的長度 (並非轉換後的陣列)
-                        open = data_values[choose-1]; break;
-                    } else {
-                        alert("不存在的代號");
-                    }
-                }
-
-                // 將選擇好的數據索引, 添加到 open 變數, 作為開啟連結
-                open.forEach((data, index)=> {
+            let key, value, bookmarks = this.GetBookmarks();
+            if (bookmarks) {
+                bookmarks.forEach((data, index)=> {
+                    [key, value] = Object.entries(data)[0];
                     setTimeout(()=> {
-                        GM_openInTab(data.url);
-                        this.store("d", data.key); // 刪除開啟的數據
+                        GM_openInTab(value.url);
+                        this.store("d", key); // 刪除開啟的數據
                     }, 500 * index);
                 })
-
-            } else {
-                alert("無可開啟的網址");
             }
         }
 
