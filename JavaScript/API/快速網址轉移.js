@@ -115,9 +115,9 @@
 
         /* 讀取書籤 */
         Read() {
-            let display_text = "[0] 全部開啟\n", options = 0, open;
-            const read_data = new Map(), add_data = (key, value) => { // 將擁有相同 key 的值, 進行分類, 傳入 read_data
-                read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]);
+            let open, display_text = "[0] 全部開啟\n", options = 0,
+            read_data = new Map(), add_data = (key, value) => { // 將擁有相同 key 的值, 進行分類, 傳入 read_data
+                read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]); // 他是以列表保存子項目
             }
 
             // 讀取後分類
@@ -125,6 +125,9 @@
                 const read = this.store("g", key); // 使用 key 值分別取得數據
                 add_data(this.DomainName(read.url), {key: key, url: read.url}); // 解析 url 的網域, 保存 key, 與 跳轉連結
             });
+
+            // 對數據進行排序
+            read_data = new Map([...read_data.entries()].sort((a, b) => a[1].length - b[1].length));
 
             // 解析數據顯示
             read_data.forEach((value, domain)=> {
@@ -144,7 +147,7 @@
                         return;
                     } else if (choose == 0) { // 選擇 0 開啟全部
                         open = data_values.flat(); break;
-                    } else if (choose > 0 && choose <= data.size) { // 選擇 > 0 且小於數據的長度
+                    } else if (choose > 0 && choose <= read_data.size) { // 選擇 > 0 且 小於 讀取數據的長度 (並非轉換後的陣列)
                         open = data_values[choose-1]; break;
                     } else {
                         alert("不存在的代號");
@@ -168,6 +171,12 @@
         Import_Json() {
             const input = document.createElement("input");
             input.type = "file";
+
+            GM_notification({
+                title: "點擊頁面",
+                text: "點擊頁面任意一處, 開啟導入文件窗口",
+                timeout: 2500
+            })
 
             this.Listen(document, "click", (event)=> {
                 event.preventDefault();
