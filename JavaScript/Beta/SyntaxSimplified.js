@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/19
+// @version      2024/04/24
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -608,7 +608,7 @@ class Syntax {
      * // @grant GM_listValues
      * // @grant GM_deleteValue
      *
-     * @param {string} operate - 操作類型 ("s", "g", "sj", "gj", "de", "al")
+     * @param {string} operate - 操作類型 ("s", "g", "sj", "gj", "d", "a")
      * @param {string} key     - 操作數據索引 Key
      * @param {*} value        - 要保存的值, 如果是取得操作, 就是空值時的回傳
      * @returns {data}         - 獲取的數據值
@@ -620,8 +620,8 @@ class Syntax {
     store(operat, key=null, value=null) {
         const storeMatch = {
             verify: val => val !== void 0 ? val : false,
-            de: key => GM_deleteValue(key),
-            al: () => storeMatch.verify(GM_listValues()),
+            d: key => GM_deleteValue(key),
+            a: () => storeMatch.verify(GM_listValues()),
             s: (key, value) => GM_setValue(key, value),
             g: (key, value) => storeMatch.verify(GM_getValue(key, value)),
             sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
