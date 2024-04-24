@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.47
+// @version      0.0.48-Beta
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -27,6 +27,7 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_addElement
+// @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
@@ -34,9 +35,11 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1359352/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
+
+// @resource     loading https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
@@ -70,16 +73,18 @@
     PM = new class Page_Match {
         constructor() {
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
-            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*?$/;
+            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*$/;
             this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*?$/;
             this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
+            this.FavorPost = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=post\/?.*$/;
+            this.FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites(?:\?(?!type=post).*)?$/;
+            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*$/;
             this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
             this.Match = {
                 Content: this.ContentPage.test(url),
                 Announcement: this.Announcement.test(url),
-                Search: this.SearchPage.test(url) || this.LinksPage.test(url),
-                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url),
+                Search: this.SearchPage.test(url) || this.LinksPage.test(url) || this.FavorArtist.test(url),
+                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url) || this.FavorPost.test(url),
                 Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
             };
             this.Device = {
@@ -322,6 +327,9 @@
                     url.endsWith("new") && dynamic_fix(card_items, card_items);
                 } else {
                     dynamic_fix(card_items, card_items);
+                    GM_addElement(card_items, "fix-trigger", {
+                        style: "display: none;"
+                    });
                 }
             } else if (PM.Match.Content) {
                 const artist = def.$$(".post__user-name");
@@ -339,8 +347,7 @@
                 }
             }
             const Device = PM.Device.Type();
-            const Listener = Device == "Mobile" ? "pointerup" : "pointerdown";
-            def.AddListener(document.body, Listener, event => {
+            def.AddListener(document.body, "click", event => {
                 const target = event.target;
                 if (target.matches("fix_edit")) {
                     const display = target.nextElementSibling;
@@ -386,7 +393,7 @@
         }
         async BackToTop() {
             def.AddListener(document.body, "pointerup", event => {
-                event.target.closest("#paginator-bottom") && def.$$("menu").scrollIntoView();
+                event.target.closest("#paginator-bottom") && def.$$("#paginator-top").scrollIntoView();
             }, {
                 capture: true,
                 passive: true
@@ -497,7 +504,7 @@
                     nocache: false,
                     onload: response => {
                         New_data = def.$$("section", {
-                            root: def.DomParse(response.responseText)
+                            root: response.responseXML
                         });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_data.innerHTML
@@ -511,24 +518,18 @@
             }
             def.Listen(document.body, "click", event => {
                 const target = event.target.closest("menu a");
-                if (target) {
-                    event.preventDefault();
-                    Request(target.href);
-                }
+                target && (event.preventDefault(), Request(target.href));
             }, {
                 capture: true
             });
         }
         async NewTabOpens() {
-            def.Listen(document, "click", event => {
+            def.Listen(document.body, "click", event => {
                 const target = event.target.closest("article a");
-                if (target) {
-                    event.preventDefault();
-                    GM_openInTab(target.href, {
-                        active: false,
-                        insert: false
-                    });
-                }
+                target && (event.preventDefault(), GM_openInTab(target.href, {
+                    active: false,
+                    insert: false
+                }));
             }, {
                 capture: true
             });
@@ -610,19 +611,28 @@
     }
     class Content_Function {
         async TextToLink(Mode) {
-            let link, text;
-            const URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g, Protocol_F = /^(?!https?:\/\/)/;
+            let text;
+            const Protocol_F = /^(?!https?:\/\/)/, Exclusion_F = /onfanbokkusuokibalab\.net/, URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g;
             async function Analysis(father, text) {
-                father.innerHTML = text.replace(URL_F, url => {
-                    return `<a href="${url.replace(Protocol_F, "https://")}" target="_blank">${decodeURIComponent(url).trim()}</a>`;
-                });
+                if (!Exclusion_F.test(text)) {
+                    father.innerHTML = text.replace(URL_F, url => {
+                        const decode = decodeURIComponent(url).trim();
+                        return `<a href="${decode.replace(Protocol_F, "https://")}">${decode}</a>`;
+                    });
+                }
             }
-            async function A_Analysis(A) {
-                A.setAttribute("target", "_blank");
+            async function JumpTrigger(root) {
+                def.AddListener(root, "click", event => {
+                    const target = event.target.closest("a");
+                    target && (event.preventDefault(), window.open(target.href));
+                }, {
+                    capture: true
+                });
             }
             switch (Mode) {
               case 2:
-                def.WaitElem("div.card-list__items pre", true, 8, content => {
+                def.WaitElem("div.card-list__items pre", content => {
+                    JumpTrigger(def.$$("div.card-list__items"));
                     content.forEach(pre => {
                         if (pre.childNodes.length > 1) {
                             def.$$("p", {
@@ -636,8 +646,7 @@
                                 all: true,
                                 root: pre
                             }).forEach(a => {
-                                link = a.href;
-                                link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                !a.href && Analysis(a, a.textContent);
                             });
                         } else {
                             text = pre.textContent;
@@ -645,13 +654,14 @@
                         }
                     });
                 }, {
-                    object: document,
-                    throttle: 600
+                    raf: true,
+                    all: true
                 });
                 break;
 
               default:
-                def.WaitElem("div.post__body", false, 8, body => {
+                def.WaitElem("div.post__body", body => {
+                    JumpTrigger(body);
                     const article = def.$$("article", {
                         root: body
                     });
@@ -684,8 +694,7 @@
                                 all: true,
                                 root: content
                             }).forEach(a => {
-                                link = a.href;
-                                link ? A_Analysis(a) : Analysis(a, a.textContent);
+                                !a.href && Analysis(a, a.textContent);
                             });
                         }
                     }
@@ -695,7 +704,7 @@
             }
         }
         async LinkBeautify() {
-            def.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("a.post__attachment-link", post => {
                 post.forEach(link => {
                     link.setAttribute("download", "");
                     link.href = decodeURIComponent(link.href);
@@ -708,7 +717,7 @@
                             url: browse.href,
                             onload: response => {
                                 const main = def.$$("main", {
-                                    root: def.DomParse(response.responseText)
+                                    root: response.responseXML
                                 });
                                 const View = GM_addElement("Viewer", {
                                     class: "View"
@@ -727,6 +736,7 @@
                     }
                 });
             }, {
+                all: true,
                 throttle: 600
             });
             def.AddStyle(`
@@ -753,8 +763,8 @@
                 .video-title {margin-top: 0.5rem;}
                 .post-video {height: 50%; width: 60%;}
             `, "Effects");
-            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", true, 5, parents => {
-                def.WaitElem("a.post__attachment-link", true, 5, post => {
+            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", parents => {
+                def.WaitElem("a.post__attachment-link", post => {
                     function VideoRendering({
                         stream
                     }) {
@@ -801,16 +811,18 @@
                         }
                     });
                 }, {
+                    all: true,
                     throttle: 600
                 });
             }, {
+                all: true,
                 throttle: 600
             });
         }
         async OriginalImage(Mode) {
             let img, a;
             DM.Dependencies("Postview");
-            def.WaitElem("div.post__thumbnail", true, 5, thumbnail => {
+            def.WaitElem("div.post__thumbnail", thumbnail => {
                 function ImgRendering({
                     ID,
                     href
@@ -921,6 +933,7 @@
                     }
                 }
             }, {
+                all: true,
                 throttle: 600
             });
             async function Reload(Img, Retry) {
@@ -996,7 +1009,7 @@
                     nocache: false,
                     onload: response => {
                         let New_main = def.$$("main", {
-                            root: def.DomParse(response.responseText)
+                            root: response.responseXML
                         });
                         ReactDOM.render(React.createElement(Rendering, {
                             content: New_main.innerHTML
@@ -1006,7 +1019,7 @@
                     }
                 });
             }
-            def.WaitElem("h2.site-section__subheading", false, 8, comments => {
+            def.WaitElem("h2.site-section__subheading", comments => {
                 const prev = def.$$("a.post__nav-link.prev");
                 const next = def.$$("a.post__nav-link.next");
                 const svg = document.createElement("svg");
@@ -1192,7 +1205,7 @@
                             background-position: center;
                             background-repeat: no-repeat;
                             transform: translate(-50%, -50%);
-                            background-image: url("https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif");
+                            background-image: url("${GM_getResourceURL("loading")}");
                         }
                         .card-list__items {
                             gap: 0.5em;
