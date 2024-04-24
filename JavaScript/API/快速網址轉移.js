@@ -31,6 +31,7 @@
         constructor() {
             super();
             this.AddClose = true; // 添加網址後關閉窗口
+            this.OpenClear = true; // 開啟後清除
             this.ExportClear = true; // 導出後清除保存數據
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
@@ -62,8 +63,8 @@
             this.GetBookmarks = () => {
                 let read,
                 options = 0,
+                display = "",
                 read_data = new Map(),
-                display = "直接確認為 ALL\n",
                 all_data = this.store("a");
 
                 const process = (key, value) => {// 將相同 key 的值進行分組, 傳入 read_data
@@ -87,16 +88,19 @@
                     const data_values = [...read_data.values()];
 
                     while (true) {
-                        let choose = prompt(`輸入代號:\n${display}\n`);
+                        let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
-                            choose = choose == "" ? 0 : +choose;
+                            choose = choose == "" ? "all" : choose;
 
-                            if (choose == 0) { // 0 開啟全部
+                            if (choose == "all") { // 0 開啟全部
                                 return data_values.flat();
-                            } else if (choose > 0 && choose <= read_data.size) { // 選擇 > 0 且 小於 讀取數據的長度 (並非轉換後的陣列)
-                                return data_values[choose-1];
                             } else {
-                                alert("錯誤的代號");
+                                const scope = this.ScopeParsing(choose, data_values); // 接收範圍參數
+                                if (scope.length > 0) {
+                                    return scope.flat();
+                                } else {
+                                    alert("錯誤的代號");
+                                }
                             }
                         } else {
                             return false; // 空的代表都沒有輸入
@@ -109,11 +113,11 @@
 
             // 導出數據
             this.Export = () => {
-                let key, value, bookmarks = this.GetBookmarks(), export_data = {};
+                const bookmarks = this.GetBookmarks(), export_data = {};
                 if (bookmarks) {
                     // Object.assign({}, ...bookmarks) 可以直接轉換, 但為何刪除導出數據, 用以下寫法
                     bookmarks.forEach(data => {
-                        [key, value] = Object.entries(data)[0]; // 解構數據
+                        const [key, value] = Object.entries(data)[0]; // 解構數據
                         export_data[key] = value;
                         this.ExportClear && this.store("d", key); // 導出刪除
                     });
@@ -156,13 +160,13 @@
 
         /* 讀取書籤 */
         Read() {
-            let key, value, bookmarks = this.GetBookmarks();
+            const bookmarks = this.GetBookmarks();
             if (bookmarks) {
                 bookmarks.forEach((data, index)=> {
-                    [key, value] = Object.entries(data)[0];
+                    const [key, value] = Object.entries(data)[0];
                     setTimeout(()=> {
                         GM_openInTab(value.url);
-                        this.store("d", key); // 刪除開啟的數據
+                        this.OpenClear && this.store("d", key); // 刪除開啟的數據
                     }, 500 * index);
                 })
             }
