@@ -69,9 +69,10 @@
         async Write() {
             try {
                 const url = document.URL;
-                const title = document.title || location.host;
+                const title = document.title || url;
                 const icon = this.$$("link[rel~='icon']");
                 const icon_link = icon ? icon.href : "None";
+                // 有些會有網址不同但 標題相同的狀況, 後續等待修復
                 this.store("set", title, {icon: icon_link, url: url});
 
                 GM_notification({
