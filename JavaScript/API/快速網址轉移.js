@@ -22,15 +22,20 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/487608/1342021/GrammarSimplified.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
+// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
-    (new class Bookmark extends API {
+    (new class Bookmark extends Syntax {
         constructor() {
             super();
+            this.AddClose = true;
+            this.ExportClear = false;
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
+
+            this.decode = (str) => decodeURIComponent(str);
 
             this.DomainName = (url) => {
                 return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
@@ -53,10 +58,10 @@
 
             this.Export = () => {
                 let box = {};
-                this.store("all").forEach(title => {
-                    const data = this.store("get", title);
+                this.store("al").forEach(title => {
+                    const data = this.store("g", title);
                     box[title] = [data.icon, data.url];
-                    this.store("del", title);
+                    this.ExportClear && this.store("de", title);
                 });
                 if (Object.keys(box).length > 0) {
                     return JSON.stringify(box, null, 0);
@@ -66,21 +71,30 @@
             }
         }
 
-        async Write() {
+        Add() {
             try {
-                const url = document.URL;
-                const title = document.title || url;
+                const url = this.decode(document.URL);
+                const title = document.title || `Source_${url}`;
                 const icon = this.$$("link[rel~='icon']");
-                const icon_link = icon ? icon.href : "None";
-                // 有些會有網址不同但 標題相同的狀況, 後續等待修復
-                this.store("set", title, {icon: icon_link, url: url});
+                const icon_link = icon ? this.decode(icon.href) : "None";
+
+                // 組成數據
+                const save_data = {
+                    title: title,
+                    icon: icon_link,
+                    url: url
+                }
+
+                // 用 MD5 的哈西值作為 Key
+                this.store("s", CryptoJS.MD5(JSON.stringify(save_data)).toString(), save_data);
 
                 GM_notification({
                     title: "添加完成",
                     text: "已保存網址",
                     timeout: 1500
                 })
-                setTimeout(()=> window.close(), 500);
+
+                this.AddClose && setTimeout(()=> window.close(), 500);
             } catch (error) {
                 alert(error);
             }
@@ -88,23 +102,23 @@
 
         Read() {
             let display_text = "[0] 全部開啟\n", options = 0, open;
-            const data = new Map(), add_data = (key, value) => {
-                data.has(key) ? data.get(key).push(value) : data.set(key, [value]);
+            const read_data = new Map(), add_data = (key, value) => { // 將擁有相同 key 的值, 進行分類, 傳入 read_data
+                read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]);
             }
 
             // 讀取後分類
-            this.store("all").forEach(title => {
-                const read = this.store("get", title);
-                add_data(this.DomainName(read.url), [read, title]);
+            this.store("al").forEach(md5 => {
+                const read = this.store("g", md5); // 使用 md5 值分別取得數據
+                add_data(this.DomainName(read.url), {key: md5, url: read.url}); // 解析 url 的網域, 保存 key, 與 跳轉連結
             });
 
             // 解析數據顯示
-            data.forEach((value, domain)=> {
+            read_data.forEach((value, domain)=> {
                 display_text += `[${++options}] ( ${domain} | ${value.length} )\n`;
             });
 
             // 將 map 數據轉成 array
-            const data_values = [...data.values()];
+            const data_values = [...read_data.values()];
 
             if (data_values.length > 0) {
 
@@ -112,22 +126,22 @@
                     let choose = prompt(`輸入代號指定開啟:\n\n${display_text}`);
                     choose = choose ? +choose : "";
 
-                    if (typeof choose == "string") {
+                    if (typeof choose == "string") { // 是字串就是什麼都沒輸入
                         return;
-                    } else if (choose == 0) {
+                    } else if (choose == 0) { // 選擇 0 開啟全部
                         open = data_values.flat(); break;
-                    } else if (choose > 0 && choose <= data.size) {
+                    } else if (choose > 0 && choose <= data.size) { // 選擇 > 0 且小於數據的長度
                         open = data_values[choose-1]; break;
                     } else {
                         alert("不存在的代號");
                     }
                 }
 
-                // 開啟連結
+                // 將選擇好的數據索引, 添加到 open 變數, 作為開啟連結
                 open.forEach((data, index)=> {
                     setTimeout(()=> {
-                        GM_openInTab(data[0].url);
-                        this.store("del", data[1]); // 刪除開啟的數據
+                        GM_openInTab(data.url);
+                        this.store("de", data.key); // 刪除開啟的數據
                     }, 500 * index);
                 })
 
@@ -193,14 +207,15 @@
 
         async Create() {
             this.Menu({
-                "🔖 添加書籤": ()=> this.Write(),
-                "📖 開啟書籤": ()=> this.Read(),
-                "📤️ 導入 [Json]": ()=> this.Import_Json(),
-                "📤️ 導入 [剪貼簿]": ()=> this.Import_Clipboard(),
-                "📥️ 導出 [Json]": ()=> this.Export_Json(),
-                "📥️ 導出 [剪貼簿]": ()=> this.Export_Clipboard(),
+                "🔖 添加書籤": {func: ()=> this.Add()},
+                "📖 開啟書籤": {func: ()=> this.Read()},
+                "📤️ 導入 [Json]": {func: ()=> this.Import_Json()},
+                "📤️ 導入 [剪貼簿]": {func: ()=> this.Import_Clipboard()},
+                "📥️ 導出 [Json]": {func: ()=> this.Export_Json()},
+                "📥️ 導出 [剪貼簿]": {func: ()=> this.Export_Clipboard()},
             });
         }
 
     }).Create();
+
 })();
