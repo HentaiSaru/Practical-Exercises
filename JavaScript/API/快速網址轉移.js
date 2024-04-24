@@ -23,28 +23,35 @@
 // @grant        GM_registerMenuCommand
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
     (new class Bookmark extends Syntax {
         constructor() {
             super();
-            this.AddClose = true;
-            this.ExportClear = false;
+            this.AddClose = true; // 添加網址後關閉窗口
+            this.ExportClear = false; // 導出後清除保存數據
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
+            // 網址解碼
             this.decode = (str) => decodeURIComponent(str);
 
+            // 解析域名
             this.DomainName = (url) => {
                 return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
             }
 
+            // 導入數據
             this.Import = (data) => {
                 try {
-                    for (const [title, value] of Object.entries(JSON.parse(data))) {
-                        this.store("set", title, {icon: value[0], url: value[1]});
+                    for (const [key, value] of Object.entries(JSON.parse(data))) {
+                        this.store("s", key, {
+                            title: value.title,
+                            icon: value.icon,
+                            url: value.url
+                        });
                     }
                     GM_notification({
                         title: "導入完畢",
@@ -56,12 +63,17 @@
                 }
             }
 
+            // 導出數據
             this.Export = () => {
                 let box = {};
-                this.store("al").forEach(title => {
-                    const data = this.store("g", title);
-                    box[title] = [data.icon, data.url];
-                    this.ExportClear && this.store("de", title);
+                this.store("a").forEach(key => {
+                    const data = this.store("g", key);
+                    box[key] = {
+                        title: data.title,
+                        icon: data.icon,
+                        url: data.url
+                    };
+                    this.ExportClear && this.store("d", key);
                 });
                 if (Object.keys(box).length > 0) {
                     return JSON.stringify(box, null, 0);
@@ -71,6 +83,7 @@
             }
         }
 
+        /* 添加書籤 */
         Add() {
             try {
                 const url = this.decode(document.URL);
@@ -100,6 +113,7 @@
             }
         }
 
+        /* 讀取書籤 */
         Read() {
             let display_text = "[0] 全部開啟\n", options = 0, open;
             const read_data = new Map(), add_data = (key, value) => { // 將擁有相同 key 的值, 進行分類, 傳入 read_data
@@ -107,9 +121,9 @@
             }
 
             // 讀取後分類
-            this.store("al").forEach(md5 => {
-                const read = this.store("g", md5); // 使用 md5 值分別取得數據
-                add_data(this.DomainName(read.url), {key: md5, url: read.url}); // 解析 url 的網域, 保存 key, 與 跳轉連結
+            this.store("a").forEach(key => {
+                const read = this.store("g", key); // 使用 key 值分別取得數據
+                add_data(this.DomainName(read.url), {key: key, url: read.url}); // 解析 url 的網域, 保存 key, 與 跳轉連結
             });
 
             // 解析數據顯示
@@ -141,7 +155,7 @@
                 open.forEach((data, index)=> {
                     setTimeout(()=> {
                         GM_openInTab(data.url);
-                        this.store("de", data.key); // 刪除開啟的數據
+                        this.store("d", data.key); // 刪除開啟的數據
                     }, 500 * index);
                 })
 
@@ -150,6 +164,7 @@
             }
         }
 
+        /* 導入 Json */
         Import_Json() {
             const input = document.createElement("input");
             input.type = "file";
@@ -172,11 +187,13 @@
             }, {once: true, passive: true});
         }
 
+        /* 導入 剪貼簿 */
         Import_Clipboard() {
             const data = prompt("貼上導入的數據: ");
             data && this.Import(data);
         }
 
+        /* 導出 Json */
         Export_Json() {
             const Export_Data = this.Export();
             if (Export_Data) {
@@ -193,6 +210,7 @@
             }
         }
 
+        /* 導出 剪貼簿 */
         Export_Clipboard() {
             const Export_Data = this.Export();
             if (Export_Data) {
@@ -205,6 +223,7 @@
             }
         }
 
+        /* 菜單創建 */
         async Create() {
             this.Menu({
                 "🔖 添加書籤": {func: ()=> this.Add()},
@@ -215,7 +234,6 @@
                 "📥️ 導出 [剪貼簿]": {func: ()=> this.Export_Clipboard()},
             });
         }
-
     }).Create();
 
 })();
