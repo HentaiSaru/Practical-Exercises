@@ -537,7 +537,7 @@ class Syntax {
      * 解析範圍進行設置 (索引從 1 開始)
      *
      * @param {string} scope  - 設置的索引範圍 [1, 2, 3-5, 6~10, -4, !8]
-     * @param {object} object - 需要設置範圍的物件
+     * @param {array} object  - 需要設置範圍的物件
      * @returns {object}      - 回傳設置完成的物件
      *
      * @example
@@ -548,7 +548,7 @@ class Syntax {
             result = new Set(),
             exclude = new Set(),
             len = object.length;
-        for (const str of scope.split(/\s*,\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
+        for (const str of scope.split(/\s*[,\.]\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
             // 取索引值 -1 是為了得到真正的索引值
             if (/^\d+$/.test(str)) { // 單數字
                 result.add(Number(str)-1);
