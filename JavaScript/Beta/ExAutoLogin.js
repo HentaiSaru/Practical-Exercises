@@ -68,11 +68,11 @@
 
             /* 共享帳號 */
             this.Share = () => {
-                return [{
+                return {
                     1: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
                     2: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
                     3: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
-                }][0]
+                }
             }
 
             /* 添加監聽器 */
@@ -201,8 +201,9 @@
 
             // 根據數量添加選項
             for (let i = 1; i <= AccountQuantity; i++) {
-                const option = $("<option>").attr({value: i}).text(`${language.SM_19} ${i}`);
-                $("#account-select").append(option);
+                $("#account-select").append(
+                    $("<option>").attr({value: i}).text(`${language.SM_19} ${i}`)
+                );
             }
 
             const self = this;
@@ -211,8 +212,8 @@
 
                 const target = click.target;
                 if (target.id == "login") {
-                    api.Storage(localStorage, "DetectionTime", new Date().getTime());
                     self.DeleteCookie();
+                    api.Storage(localStorage, "DetectionTime", new Date().getTime());
                     self.AddCookie(Share[+$("#account-select").val()]);
                     location.reload();
                 } else if (target.className == "modal-background") {
