@@ -152,8 +152,8 @@
 
     class Settings {
         constructor() {
-            this.MAX_CONCURRENCY = 12; // 最大併發數
-            this.MIN_CONCURRENCY = 3;  // 最小併發數
+            this.MAX_CONCURRENCY = 15; // 最大併發數
+            this.MIN_CONCURRENCY = 5;  // 最小併發數
             this.TIME_THRESHOLD = 350; // 響應時間閥值
 
             this.MAX_Delay = 3500;     // 最大延遲
