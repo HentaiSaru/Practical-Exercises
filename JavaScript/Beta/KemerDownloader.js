@@ -38,7 +38,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -138,7 +138,8 @@
                 return cache.startsWith("✓ ") ? cache.slice(2) : cache;
             };
 
-            this.isVideo = (str) => ["MP4", "MOV", "AVI", "WMV", "FLV"].includes(str.toUpperCase());
+            this.videoFormat = new Set(["MP4", "MOV", "AVI", "WMV", "FLV"]);
+            this.isVideo = (str) => this.videoFormat.has(str.toUpperCase());
 
             this.worker = def.WorkerCreation(`
                 let queue = [], processing=false;
@@ -193,7 +194,7 @@
                 return format.split(/{([^}]+)}/g).filter(Boolean).map(data => {
                     const LowerData = data.toLowerCase();
                     const isWord = /^[a-zA-Z]+$/.test(LowerData);
-                    return isWord ? (this.Named_Data[LowerData] ? this.Named_Data[LowerData]() || "None" : "None") : data;
+                    return isWord ? this.Named_Data[LowerData]?.() || "None" : data;
                 }).join("");
 
             } else if (typeof format == "object") {
@@ -205,53 +206,48 @@
         }
 
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
-        async DownloadTrigger() {
-            this.Button.disabled = lock = true;
-            const selectors = [".post__files", ".post__title", ".post__user-name, fix_name"], DownloadData = new Map(),
-            interval = setInterval(() => {
-                const found = selectors.map(selector => def.$$(selector));
-                if (found.every(e => {return e !== null && typeof e !== "undefined"})) {
-                    clearInterval(interval);
+        async DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
+            def.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found=> {
+                const [files, title, artist] = found;
+                this.Button.disabled = lock = true;
+                const DownloadData = new Map();
 
-                    const [files, title, artist] = found;
-
-                    this.Named_Data = { // 建立數據
-                        fill: ()=> "fill",
-                        title: ()=> def.$$("span", {root: title}).textContent.trim(),
-                        artist: ()=> artist.textContent.trim(),
-                        source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
-                        time: ()=> {
-                            let published = def.$$(".post__published").cloneNode(true);
-                            published.firstElementChild.remove();
-                            return published.textContent.trim().split(" ")[0];
-                        }
+                this.Named_Data = { // 建立數據
+                    fill: ()=> "fill",
+                    title: ()=> def.$$("span", {root: title}).textContent.trim(),
+                    artist: ()=> artist.textContent.trim(),
+                    source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
+                    time: ()=> {
+                        let published = def.$$(".post__published").cloneNode(true);
+                        published.firstElementChild.remove();
+                        return published.textContent.trim().split(" ")[0];
                     }
-
-                    const [ // 獲取名稱
-                        compress_name,
-                        folder_name,
-                        fill_name
-                    ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-
-                    const
-                        data = [...files.children].map(child => // 這種寫法適應於還未完全載入原圖時
-                            def.$$("a", {root: child}) || def.$$("img", {root: child})
-                        ),
-                        video = def.$$(".post__attachment a", {all: true}),
-                        final_data = Config.ContainsVideo ? [...data, ...video] : data;
-
-                    final_data.forEach((file, index) => {
-                        DownloadData.set(index, (file.href || file.src));
-                    });
-
-                    Config.DeBug && def.log("Get Data", [folder_name, DownloadData], {collapsed: false});
-
-                    this.CompressMode
-                        ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
-                        : this.SeparDownload(fill_name, DownloadData);
                 }
-            }, 300);
-            setTimeout(()=> {clearInterval(interval)}, 1e4);
+
+                const [ // 獲取名稱
+                    compress_name,
+                    folder_name,
+                    fill_name
+                ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
+
+                const
+                    data = [...files.children].map(child => // 這種寫法適應於還未完全載入原圖時
+                        def.$$("a", {root: child}) || def.$$("img", {root: child})
+                    ),
+                    video = def.$$(".post__attachment a", {all: true}),
+                    final_data = Config.ContainsVideo ? [...data, ...video] : data;
+
+                final_data.forEach((file, index) => {
+                    DownloadData.set(index, (file.href || file.src));
+                });
+
+                Config.DeBug && def.log("Get Data", [folder_name, DownloadData], {collapsed: false});
+
+                this.CompressMode
+                    ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
+                    : this.SeparDownload(fill_name, DownloadData);
+
+            }, {raf: true});
         }
 
         /* 打包壓縮下載 */
@@ -305,6 +301,7 @@
                             Self.Compression(CompressName, Zip, TitleCache);
                         } else {
                             show = "Wait for failed re download";
+                            progress = 0;
                             document.title = show;
                             Self.Button.textContent = show;
                             setTimeout(()=> {
@@ -318,7 +315,6 @@
             }
 
             // 不使用 worker 的請求, 切換窗口時, 這裡的請求就會變慢
-            let Error_display = false;
             async function Request(index, url) {
                 if (Self.ForceDownload) {return}
                 GM_xmlhttpRequest({
@@ -326,19 +322,10 @@
                     method: "GET",
                     responseType: "blob",
                     onload: response => {
-                        if (response.status === 429 && !Error_display) {
-                            Error_display = true;
-                            Self.worker.terminate();
-                            Self.ForceDownload = true;
-                            alert("Too Many Requests");
-                            // 還原狀態
-                            document.title = TitleCache;
-                            Self.ResetButton();
-                        }
                         const blob = response.response;
                         blob instanceof Blob && blob.size > 0
                         ? Request_update(index, url, blob)
-                        : Request_update(index, url, blob, true);
+                        : Request_update(index, url, "", true);
                     },
                     onerror: () => {
                         Request_update(index, url, "", true);
