@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.20
+// @version      0.0.21-Beta
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -74,7 +74,7 @@
         ExperimentalDownload: true, // 實驗功能 [json 下載]
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
-    }
+    };
 
     /** ---------------------
      * 暫時的 檔名修改方案
@@ -99,7 +99,7 @@
         CompressName: "({Artist}) {Title}", // 壓縮檔案名稱
         FolderName: "{Title}", // 資料夾名稱 (用空字串, 就直接沒資料夾)
         FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
-    }
+    };
 
     /** ---------------------
      * 設置 json 輸出格式
@@ -120,7 +120,7 @@
         Use: false,
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
-    }
+    };
 
     let lock = false;
     class Download {
