@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.20
+// @version      0.0.21-Beta
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -38,7 +38,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1361054/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -56,7 +56,7 @@
         ExperimentalDownload: true, // 實驗功能 [json 下載]
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
-    }
+    };
 
     /** ---------------------
      * 暫時的 檔名修改方案
@@ -81,7 +81,7 @@
         CompressName: "({Artist}) {Title}", // 壓縮檔案名稱
         FolderName: "{Title}", // 資料夾名稱 (用空字串, 就直接沒資料夾)
         FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
-    }
+    };
 
     /** ---------------------
      * 設置 json 輸出格式
@@ -102,7 +102,7 @@
         Use: false,
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
-    }
+    };
 
     let lock = false;
     class Download {
@@ -116,7 +116,8 @@
                 const cache = document.title;
                 return cache.startsWith("✓ ") ? cache.slice(2) : cache;
             };
-            this.isVideo = str => [ "MP4", "MOV", "AVI", "WMV", "FLV" ].includes(str.toUpperCase());
+            this.videoFormat = new Set([ "MP4", "MOV", "AVI", "WMV", "FLV" ]);
+            this.isVideo = str => this.videoFormat.has(str.toUpperCase());
             this.worker = def.WorkerCreation(`
                 let queue = [], processing=false;
                 onmessage = function(e) {
@@ -168,7 +169,7 @@
                 return format.split(/{([^}]+)}/g).filter(Boolean).map(data => {
                     const LowerData = data.toLowerCase();
                     const isWord = /^[a-zA-Z]+$/.test(LowerData);
-                    return isWord ? this.Named_Data[LowerData] ? this.Named_Data[LowerData]() || "None" : "None" : data;
+                    return isWord ? this.Named_Data[LowerData]?.() || "None" : data;
                 }).join("");
             } else if (typeof format == "object") {
                 const filler = String(format.Filler) || "0";
@@ -177,47 +178,41 @@
             } else {}
         }
         async DownloadTrigger() {
-            this.Button.disabled = lock = true;
-            const selectors = [ ".post__files", ".post__title", ".post__user-name, fix_name" ], DownloadData = new Map(), interval = setInterval(() => {
-                const found = selectors.map(selector => def.$$(selector));
-                if (found.every(e => {
-                    return e !== null && typeof e !== "undefined";
-                })) {
-                    clearInterval(interval);
-                    const [ files, title, artist ] = found;
-                    this.Named_Data = {
-                        fill: () => "fill",
-                        title: () => def.$$("span", {
-                            root: title
-                        }).textContent.trim(),
-                        artist: () => artist.textContent.trim(),
-                        source: () => title.querySelector(":nth-child(2)").textContent.trim(),
-                        time: () => {
-                            let published = def.$$(".post__published").cloneNode(true);
-                            published.firstElementChild.remove();
-                            return published.textContent.trim().split(" ")[0];
-                        }
-                    };
-                    const [ compress_name, folder_name, fill_name ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-                    const data = [ ...files.children ].map(child => def.$$("a", {
-                        root: child
-                    }) || def.$$("img", {
-                        root: child
-                    })), video = def.$$(".post__attachment a", {
-                        all: true
-                    }), final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
-                    final_data.forEach((file, index) => {
-                        DownloadData.set(index, file.href || file.src);
-                    });
-                    Config.DeBug && def.log("Get Data", [ folder_name, DownloadData ], {
-                        collapsed: false
-                    });
-                    this.CompressMode ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData) : this.SeparDownload(fill_name, DownloadData);
-                }
-            }, 300);
-            setTimeout(() => {
-                clearInterval(interval);
-            }, 1e4);
+            def.WaitMap([ ".post__files", ".post__title", ".post__user-name, fix_name" ], found => {
+                const [ files, title, artist ] = found;
+                this.Button.disabled = lock = true;
+                const DownloadData = new Map();
+                this.Named_Data = {
+                    fill: () => "fill",
+                    title: () => def.$$("span", {
+                        root: title
+                    }).textContent.trim(),
+                    artist: () => artist.textContent.trim(),
+                    source: () => title.querySelector(":nth-child(2)").textContent.trim(),
+                    time: () => {
+                        let published = def.$$(".post__published").cloneNode(true);
+                        published.firstElementChild.remove();
+                        return published.textContent.trim().split(" ")[0];
+                    }
+                };
+                const [ compress_name, folder_name, fill_name ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
+                const data = [ ...files.children ].map(child => def.$$("a", {
+                    root: child
+                }) || def.$$("img", {
+                    root: child
+                })), video = def.$$(".post__attachment a", {
+                    all: true
+                }), final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
+                final_data.forEach((file, index) => {
+                    DownloadData.set(index, file.href || file.src);
+                });
+                Config.DeBug && def.log("Get Data", [ folder_name, DownloadData ], {
+                    collapsed: false
+                });
+                this.CompressMode ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData) : this.SeparDownload(fill_name, DownloadData);
+            }, {
+                raf: true
+            });
         }
         async PackDownload(CompressName, FolderName, FillName, Data) {
             let show, extension, progress = 0, Total = Data.size;
@@ -255,6 +250,7 @@
                             Self.Compression(CompressName, Zip, TitleCache);
                         } else {
                             show = "Wait for failed re download";
+                            progress = 0;
                             document.title = show;
                             Self.Button.textContent = show;
                             setTimeout(() => {
@@ -266,7 +262,6 @@
                     }
                 });
             }
-            let Error_display = false;
             async function Request(index, url) {
                 if (Self.ForceDownload) {
                     return;
@@ -276,16 +271,8 @@
                     method: "GET",
                     responseType: "blob",
                     onload: response => {
-                        if (response.status === 429 && !Error_display) {
-                            Error_display = true;
-                            Self.worker.terminate();
-                            Self.ForceDownload = true;
-                            alert("Too Many Requests");
-                            document.title = TitleCache;
-                            Self.ResetButton();
-                        }
                         const blob = response.response;
-                        blob instanceof Blob && blob.size > 0 ? Request_update(index, url, blob) : Request_update(index, url, blob, true);
+                        blob instanceof Blob && blob.size > 0 ? Request_update(index, url, blob) : Request_update(index, url, "", true);
                     },
                     onerror: () => {
                         Request_update(index, url, "", true);
