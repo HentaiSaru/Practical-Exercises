@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.27
+// @version      0.0.28
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -164,14 +164,14 @@
 
         /* 主要調用 */
         async Main() {
-            let CurrentTime = new Date(), DetectionTime = def.Storage("DetectionTime", {type: localStorage});
+            let CurrentTime = new Date(), DetectionTime = def.Storage("DetectionTime");
             DetectionTime = DetectionTime ? new Date(DetectionTime) : new Date(CurrentTime.getTime() + 11 * 60 * 1000);
 
             const Conversion = (DetectionTime - CurrentTime) / (1000 * 60), self = this; // 轉換時間
             if (Conversion >= 10) { // 隔 10 分鐘檢測
                 const cookie = def.store("gj", "E/Ex_Cookies");
                 cookie && CookieCheck(cookie);
-                def.Storage("DetectionTime", {type: localStorage, value: CurrentTime.getTime()});
+                def.Storage("DetectionTime", {value: CurrentTime.getTime()});
             }
 
             /* 登入檢測 */
@@ -234,7 +234,7 @@
                 const target = click.target;
                 if (target.id == "login") {
                     self.DeleteCookie();
-                    def.Storage("DetectionTime", {type: localStorage, value: new Date().getTime()});
+                    def.Storage("DetectionTime", {value: new Date().getTime()});
                     self.AddCookie(Share[+$("#account-select").val()]);
                     location.reload();
                 } else if (target.className == "modal-background") {
@@ -389,7 +389,7 @@
             try {
                 this.DeleteCookie();
                 this.AddCookie(def.store("gj", "E/Ex_Cookies"));
-                def.Storage("DetectionTime", {type: localStorage, value: new Date().getTime()});
+                def.Storage("DetectionTime", {value: new Date().getTime()});
                 location.reload();
             } catch (error) {
                 alert(lang.SM_16);
