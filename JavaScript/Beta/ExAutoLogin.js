@@ -341,7 +341,7 @@
             });
         }
 
-        /* 查看保存的 Cookies */ //! 等待修改為 模板創建, 再添加
+        /* 查看保存的 Cookies */
         async ViewSaveCookie() {
             this.CreateDetection();
             this.modal = `
