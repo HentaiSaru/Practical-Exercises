@@ -1,36 +1,32 @@
 // ==UserScript==
-// @name         登入提示
-// @name:zh-TW
-// @name:zh-CN
-// @name:ja
-// @name:ko
-// @name:en
+// @name        登入提示
+// @name:zh-TW  登入提示
+// @name:zh-CN  登入提示
+// @name:ja     登入提示
+// @name:ko     登入提示
+// @name:en     登入提示
 // @version      0.0.1
 // @author       Canaan HS
-// @description         無
-// @description:zh-TW
-// @description:zh-CN
-// @description:ja
-// @description:ko
-// @description:en
+// @description        登入提示
+// @description:zh-TW  登入提示
+// @description:zh-CN  登入提示
+// @description:ja     登入提示
+// @description:ko     登入提示
+// @description:en     登入提示
 
-// @match        *://*/*
+// @match        *://hgamefree.info/wp-login.php
 // @icon
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
-// @grant        GM_addStyle
+// @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_notification
-// @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 
-// @resource     https://cdnjs.cloudflare.com/ajax/libs/sjcl/1.0.8/sjcl.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.0/jquery.min.js
-// @resource     https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js
+// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
@@ -48,33 +44,75 @@
 // 帳號 input type="text"
 // 密碼 input type="password"
 
-var ImportRecord = true, modal;
 (function() {
-    GM_registerMenuCommand("設置菜單", function() {UICreation()});
-})();
+    const def = new Syntax();
+    class AutoLogin {
+        constructor() {
+            this.Url = location.href;
+            this.Domain = location.hostname;
+            this.LoginInfo = def.store("g", "LoginInfo", {});
+        }
 
-async function UICreation() {
-    if (ImportRecord) {
-        GM_addStyle(`
-            .Modal-background {
-                top: 0;
-                left: 0;
-                width: 100%;
-                height: 100%;
-                display: flex;
-                z-index: 9999;
-                position: fixed;
-                overflow: auto;
-                pointer-events: none;
-                background-color: rgba(0, 0, 0, 0.3);
+        async Save() {
+            const save = prompt("輸入以下數據, 請確實按照順序輸入\n帳號, 密碼, 其餘操作");
+
+            if (save && save != "") {
+                const data = save.split(/\s*[,]\s*/), box = {Account: "", Password: "", Operate: ""};
+
+                if (data.length > 1) {
+                    Object.keys(box).forEach((key, index) => { // 遍歷 box 的 key, 並根據索引填入, data 的對應索引值
+                        box[key] = data[index] || "";
+                    });
+
+                    // 保存最終數據
+                    def.store("s", "LoginInfo", {
+                        [this.Domain]: Object.assign({ Url: this.Url }, box)
+                    });
+
+                    GM_notification({
+                        title: "保存成功",
+                        text: "以存入登入資訊",
+                        timeout: 1500
+                    });
+                } else {
+                    alert("輸入錯誤");
+                }
             }
-        `)
-        ImportRecord = false;
+        }
+
+        async Main() {
+            // 檢測登入資訊中, 是否含有當前網址
+            const Info = this.LoginInfo?.[this.Domain];
+            if (Info?.Url == this.Url) {
+                def.WaitMap([
+                    "input[type='text']",
+                    "input[type='password']",
+                    "input[type='checkbox'], button[type='checkbox']",
+                    "input[type='submit'], button[type='submit']"
+                ], found=> {
+                    const [account, password, check, login] = found;
+
+                    account.value = Info.Account;
+                    password.value = Info.Password;
+
+                    const click = new MouseEvent("click", { // 使用點擊事件, 避免有被阻止的狀態
+                        bubbles: true,
+                        cancelable: true
+                    });
+
+                    check.dispatchEvent(click);
+                    login.dispatchEvent(click);
+
+                }, {raf: true, timeout: 15, timeoutResult: true});
+                // console.log(Info.Verify);
+            }
+
+            def.Menu({
+                "📝 輸入登入資訊": {func: ()=> this.Save()}
+            })
+        }
     }
 
-    modal = `
-        <div class="Modal-background">
-        </div>
-    `
-    $(document.body).append(modal);
-}
+    const Login = new AutoLogin();
+    Login.Main();
+})();
