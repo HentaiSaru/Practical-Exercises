@@ -77,16 +77,16 @@ class Syntax {
             sY: ()=> window.scrollY,
             iW: ()=> window.innerWidth,
             iH: ()=> window.innerHeight,
-            Url: ()=> location.href,
-            Orig: ()=> location.origin,
-            Host: ()=> location.hostname,
-            Path: ()=> location.pathname,
-            Lang: ()=> navigator.language,
-            Agen: ()=> navigator.userAgent,
             _Type: undefined,
+            Url: location.href,
+            Orig: location.origin,
+            Host: location.hostname,
+            Path: location.pathname,
+            Lang: navigator.language,
+            Agen: navigator.userAgent,
             Type: ()=> {
                 return this.Device._Type = this.Device._Type ? this.Device._Type
-                    : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agen()) || this.Device.iW() < 768
+                    : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agen) || this.Device.iW < 768
                     ? "Mobile" : "Desktop");
             }
         };
