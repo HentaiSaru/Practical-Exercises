@@ -27,7 +27,7 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/487608/1374594/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
