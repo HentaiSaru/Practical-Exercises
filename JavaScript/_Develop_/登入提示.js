@@ -15,6 +15,7 @@
 // @description:en     登入提示
 
 // @match        *://hgamefree.info/wp-login.php
+// @match        *://blackmod.net/login/
 // @icon
 
 // @license      MIT
@@ -41,16 +42,13 @@
  * sjcl : 進行加密
  */
 
-// 帳號 input type="text"
-// 密碼 input type="password"
-
 (function() {
     const def = new Syntax();
     class AutoLogin {
         constructor() {
             this.Url = location.href;
             this.Domain = location.hostname;
-            this.LoginInfo = def.store("g", "LoginInfo", {});
+            this.LoginInfo = def.store("g", this.Domain, {});
         }
 
         async Save() {
@@ -65,9 +63,7 @@
                     });
 
                     // 保存最終數據
-                    def.store("s", "LoginInfo", {
-                        [this.Domain]: Object.assign({ Url: this.Url }, box)
-                    });
+                    def.store("s", this.Domain, Object.assign({ Url: this.Url }, box));
 
                     GM_notification({
                         title: "保存成功",
@@ -82,29 +78,29 @@
 
         async Main() {
             // 檢測登入資訊中, 是否含有當前網址
-            const Info = this.LoginInfo?.[this.Domain];
+            const Info = this.LoginInfo;
             if (Info?.Url == this.Url) {
-                def.WaitMap([
-                    "input[type='text']",
-                    "input[type='password']",
-                    "input[type='checkbox'], button[type='checkbox']",
-                    "input[type='submit'], button[type='submit']"
-                ], found=> {
-                    const [account, password, check, login] = found;
+                const click = new MouseEvent("click", { // 創建點擊事件, 避免有被阻止的情況
+                    bubbles: true,
+                    cancelable: true
+                });
 
-                    account.value = Info.Account;
+                def.WaitElem("input[type='password']", password=> {
+                    const login = [...def.$$("input[type='submit'], button[type='submit']", {all: true})].slice(1);
+
+                    // 帳號輸入類型的可能有多個, 暴力解法全部都輸入
+                    def.$$("input[type='text']", {all: true}).forEach(account => {
+                        account.value = Info.Account;
+                    });
+                    // 輸入密碼
                     password.value = Info.Password;
 
-                    const click = new MouseEvent("click", { // 使用點擊事件, 避免有被阻止的狀態
-                        bubbles: true,
-                        cancelable: true
-                    });
-
-                    check.dispatchEvent(click);
-                    login.dispatchEvent(click);
+                    // 先不進行自動登入
+                    // setTimeout(()=> {
+                        // login.length > 0 && login[0].dispatchEvent(click);
+                    // }, 500);
 
                 }, {raf: true, timeout: 15, timeoutResult: true});
-                // console.log(Info.Verify);
             }
 
             def.Menu({
