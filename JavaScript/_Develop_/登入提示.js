@@ -27,7 +27,7 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1374594/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
@@ -46,8 +46,8 @@
     const def = new Syntax();
     class AutoLogin {
         constructor() {
-            this.Url = location.href;
-            this.Domain = location.hostname;
+            this.Url = def.Device.Url;
+            this.Domain = def.Device.Host;
             this.LoginInfo = def.store("g", this.Domain, {});
         }
 
