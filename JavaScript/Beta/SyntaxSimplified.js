@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/04/24
+// @version      2024/05/11
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -71,6 +71,24 @@ class Syntax {
                 value != null ? (storage.setItem(key, JSON.stringify(value)), true) : new Date(key),
             Map: (storage, key, value) =>
                 (storage.setItem(key, JSON.stringify([...value])), true)
+        };
+        this.Device = {
+            sX: ()=> window.scrollX,
+            sY: ()=> window.scrollY,
+            iW: ()=> window.innerWidth,
+            iH: ()=> window.innerHeight,
+            Url: ()=> location.href,
+            Orig: ()=> location.origin,
+            Host: ()=> location.hostname,
+            Path: ()=> location.pathname,
+            Lang: ()=> navigator.language,
+            Agen: ()=> navigator.userAgent,
+            _Type: undefined,
+            Type: ()=> {
+                return this.Device._Type = this.Device._Type ? this.Device._Type
+                    : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agen()) || this.Device.iW() < 768
+                    ? "Mobile" : "Desktop");
+            }
         };
     }
 
