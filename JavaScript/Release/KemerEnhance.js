@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.48-Beta
+// @version      0.0.48
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -35,7 +35,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 
@@ -43,33 +43,33 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
-(function() {
+(function () {
     /* (0 = false | 1 = true | 2~n = mode) */
-    const Global={ /* 全域功能 */
+    const Global = { /* 全域功能 */
         SidebarCollapse: 1, // 側邊攔摺疊
         DeleteNotice: 1,    // 刪除上方公告
         FixArtist: 1,       // 修復作者名稱
         BackToTop: 1,       // 翻頁後回到頂部
         BlockAds: 1,        // 封鎖廣告
         KeyScroll: 1,       // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
-    }, Preview={ /* 預覽頁面 */
+    }, Preview = { /* 預覽頁面 */
         QuickPostToggle: 1, // 快速切換帖子
         NewTabOpens: 1,     // 以新分頁開啟
         CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
         CardZoom: 2,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-    }, Content={ /* 內容頁面 */
+    }, Content = { /* 內容頁面 */
         TextToLink: 1,      // 連結文本, 轉換超連結
         LinkBeautify: 1,    // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
         VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
         OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         CommentFormat: 1,   // 評論區樣式
         ExtraButton: 1,     // 額外的下方按鈕
-    }, Special={ /* 預覽頁面的 announcements */
+    }, Special = { /* 預覽頁面的 announcements */
         TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
 
     }, def = new Syntax();
     /* ============================================ */
-    let PM, GF, PF, CF, DM, Lang, url = document.URL;
+    let PM, GF, PF, CF, DM, Lang, url = def.Device.Url;
     PM = new class Page_Match {
         constructor() {
             this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
@@ -85,17 +85,7 @@
                 Announcement: this.Announcement.test(url),
                 Search: this.SearchPage.test(url) || this.LinksPage.test(url) || this.FavorArtist.test(url),
                 AllPreview: this.PostsPage.test(url) || this.UserPage.test(url) || this.FavorPost.test(url),
-                Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
-            };
-            this.Device = {
-                sY: () => window.scrollY,
-                Width: () => window.innerWidth,
-                Height: () => window.innerHeight,
-                Agent: () => navigator.userAgent,
-                _Type: undefined,
-                Type: () => {
-                    return this.Device._Type = this.Device._Type ? this.Device._Type : this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agent()) || this.Device.Width() < 768 ? "Mobile" : "Desktop";
-                }
+                Color: def.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
             };
         }
     }();
@@ -125,12 +115,12 @@
             this.fix_url = url => {
                 url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/);
                 url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, ""));
-                return url.length >= 3 ? [ url[0], url[2] ] : url;
+                return url.length >= 3 ? [url[0], url[2]] : url;
             };
             this.save_record = async save => {
                 await def.Storage("fix_record_v2", {
                     type: localStorage,
-                    value: new Map([ ...this.new_data(), ...save ])
+                    value: new Map([...this.new_data(), ...save])
                 });
                 this.save_data.clear();
             };
@@ -210,7 +200,7 @@
             };
         }
         async SidebarCollapse() {
-            if (PM.Device.Type() == "Mobile") {
+            if (def.Device.Type() == "Mobile") {
                 return;
             }
             def.AddStyle(`
@@ -232,8 +222,7 @@
             `, "Effects");
         }
         async DeleteNotice() {
-            const Notice = def.$$("body > div.content-wrapper.shifted > a");
-            Notice ? Notice.remove() : null;
+            def.$$("body > div.content-wrapper.shifted > a")?.remove();
         }
         async FixArtist() {
             GF.fix_data = GF.new_data();
@@ -272,12 +261,12 @@
                         NameObject: artist,
                         TagObject: tag
                     });
-                    $(parent).replaceWith(function() {
+                    $(parent).replaceWith(function () {
                         return $(reTag, {
                             html: $(this).html()
                         });
                     });
-                } catch {}
+                } catch { }
             }
             async function dynamic_fix(Listen, Operat, Mode = null) {
                 let observer, options;
@@ -288,21 +277,21 @@
                         if (operat) {
                             clearInterval(wait);
                             switch (Mode) {
-                              case 1:
-                                other_page_fix(operat);
-                                setTimeout(() => {
-                                    observer.disconnect();
-                                    observer.observe(Listen.children[0], options);
-                                }, 300);
-                                break;
+                                case 1:
+                                    other_page_fix(operat);
+                                    setTimeout(() => {
+                                        observer.disconnect();
+                                        observer.observe(Listen.children[0], options);
+                                    }, 300);
+                                    break;
 
-                              default:
-                                def.$$("a", {
-                                    all: true,
-                                    root: operat
-                                }).forEach(items => {
-                                    !items.getAttribute("fix") && search_page_fix(items);
-                                });
+                                default:
+                                    def.$$("a", {
+                                        all: true,
+                                        root: operat
+                                    }).forEach(items => {
+                                        !items.getAttribute("fix") && search_page_fix(items);
+                                    });
                             }
                         }
                     });
@@ -346,7 +335,7 @@
                     }
                 }
             }
-            const Device = PM.Device.Type();
+            const Device = def.Device.Type();
             def.AddListener(document.body, "click", event => {
                 const target = event.target;
                 if (target.matches("fix_edit")) {
@@ -366,7 +355,7 @@
                                 const change_name = text.value.trim();
                                 if (change_name != original_name) {
                                     display.textContent = change_name;
-                                    GF.save_record(new Map([ [ target.id, change_name ] ]));
+                                    GF.save_record(new Map([[target.id, change_name]]));
                                 }
                                 text.remove();
                             }, {
@@ -408,54 +397,53 @@
                         if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") {return}
                         XMLRequest.apply(this, arguments);
                     };
-                    try {
-                        document.querySelector(".root--ujvuu button").click();
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
-                    } catch {}
+                    document.querySelector("div.ex-over-btn")?.click();
+                    document.querySelector(".root--ujvuu button")?.click();
+                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                 });
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
         }
         async KeyScroll(Mode) {
-            if (PM.Device.Type() == "Mobile") {
+            if (def.Device.Type() == "Mobile") {
                 return;
             }
             let Scroll, Up_scroll = false, Down_scroll = false;
             const TopDetected = def.Throttle(() => {
-                Up_scroll = PM.Device.sY() == 0 ? false : true;
-            }, 1e3);
+                Up_scroll = def.Device.sY() == 0 ? false : true;
+            }, 600);
             const BottomDetected = def.Throttle(() => {
-                Down_scroll = PM.Device.sY() + PM.Device.Height() >= document.documentElement.scrollHeight ? false : true;
-            }, 1e3);
+                Down_scroll = def.Device.sY() + def.Device.iH() >= document.documentElement.scrollHeight ? false : true;
+            }, 600);
             switch (Mode) {
-              case 2:
-                Scroll = Move => {
-                    const Interval = setInterval(() => {
-                        if (!Up_scroll && !Down_scroll) {
-                            clearInterval(Interval);
-                        }
+                case 2:
+                    Scroll = Move => {
+                        const Interval = setInterval(() => {
+                            if (!Up_scroll && !Down_scroll) {
+                                clearInterval(Interval);
+                            }
+                            if (Up_scroll && Move < 0) {
+                                window.scrollBy(0, Move);
+                                TopDetected();
+                            } else if (Down_scroll && Move > 0) {
+                                window.scrollBy(0, Move);
+                                BottomDetected();
+                            }
+                        }, GF.ScrollInterval);
+                    };
+
+                default:
+                    Scroll = Move => {
                         if (Up_scroll && Move < 0) {
                             window.scrollBy(0, Move);
                             TopDetected();
+                            requestAnimationFrame(() => Scroll(Move));
                         } else if (Down_scroll && Move > 0) {
                             window.scrollBy(0, Move);
                             BottomDetected();
+                            requestAnimationFrame(() => Scroll(Move));
                         }
-                    }, GF.ScrollInterval);
-                };
-
-              default:
-                Scroll = Move => {
-                    if (Up_scroll && Move < 0) {
-                        window.scrollBy(0, Move);
-                        TopDetected();
-                        requestAnimationFrame(() => Scroll(Move));
-                    } else if (Down_scroll && Move > 0) {
-                        window.scrollBy(0, Move);
-                        BottomDetected();
-                        requestAnimationFrame(() => Scroll(Move));
-                    }
-                };
+                    };
             }
             const UP_ScrollSpeed = GF.ScrollPixels * -1;
             def.AddListener(window, "keydown", def.Throttle(event => {
@@ -536,8 +524,8 @@
         }
         async CardText(Mode) {
             switch (Mode) {
-              case 2:
-                def.AddStyle(`
+                case 2:
+                    def.AddStyle(`
                         .post-card__header, .post-card__footer {
                             opacity: 0.4;
                             transition: opacity 0.3s;
@@ -547,10 +535,10 @@
                             opacity: 1;
                         }
                     `, "Effects");
-                break;
+                    break;
 
-              default:
-                def.AddStyle(`
+                default:
+                    def.AddStyle(`
                         .post-card__header {
                             opacity: 0;
                             z-index: 1;
@@ -577,8 +565,8 @@
         }
         async CardZoom(Mode) {
             switch (Mode) {
-              case 2:
-                def.AddStyle(`
+                case 2:
+                    def.AddStyle(`
                         .post-card a:hover {
                             overflow: auto;
                             z-index: 99999;
@@ -595,8 +583,8 @@
                         }
                     `, "Effects");
 
-              default:
-                def.AddStyle(`
+                default:
+                    def.AddStyle(`
                         * { --card-size: 13vw; }
                         .post-card { margin: .3vw; }
                         .post-card a img { border-radius: 8px; }
@@ -630,77 +618,77 @@
                 });
             }
             switch (Mode) {
-              case 2:
-                def.WaitElem("div.card-list__items pre", content => {
-                    JumpTrigger(def.$$("div.card-list__items"));
-                    content.forEach(pre => {
-                        if (pre.childNodes.length > 1) {
-                            def.$$("p", {
-                                all: true,
-                                root: pre
-                            }).forEach(p => {
-                                text = p.textContent;
-                                URL_F.test(text) && Analysis(p, text);
-                            });
-                            def.$$("a", {
-                                all: true,
-                                root: pre
-                            }).forEach(a => {
-                                !a.href && Analysis(a, a.textContent);
-                            });
-                        } else {
-                            text = pre.textContent;
-                            URL_F.test(text) && Analysis(pre, text);
-                        }
+                case 2:
+                    def.WaitElem("div.card-list__items pre", content => {
+                        JumpTrigger(def.$$("div.card-list__items"));
+                        content.forEach(pre => {
+                            if (pre.childNodes.length > 1) {
+                                def.$$("p", {
+                                    all: true,
+                                    root: pre
+                                }).forEach(p => {
+                                    text = p.textContent;
+                                    URL_F.test(text) && Analysis(p, text);
+                                });
+                                def.$$("a", {
+                                    all: true,
+                                    root: pre
+                                }).forEach(a => {
+                                    !a.href && Analysis(a, a.textContent);
+                                });
+                            } else {
+                                text = pre.textContent;
+                                URL_F.test(text) && Analysis(pre, text);
+                            }
+                        });
+                    }, {
+                        raf: true,
+                        all: true
                     });
-                }, {
-                    raf: true,
-                    all: true
-                });
-                break;
+                    break;
 
-              default:
-                def.WaitElem("div.post__body", body => {
-                    JumpTrigger(body);
-                    const article = def.$$("article", {
-                        root: body
-                    });
-                    const content = def.$$("div.post__content", {
-                        root: body
-                    });
-                    if (article) {
-                        def.$$("span.choice-text", {
-                            all: true,
-                            root: article
-                        }).forEach(span => {
-                            Analysis(span, span.textContent);
+                default:
+                    def.WaitElem("div.post__body", body => {
+                        JumpTrigger(body);
+                        const article = def.$$("article", {
+                            root: body
                         });
-                    } else if (content) {
-                        const pre = def.$$("pre", {
-                            root: content
+                        const content = def.$$("div.post__content", {
+                            root: body
                         });
-                        if (pre) {
-                            text = pre.textContent;
-                            URL_F.test(text) && Analysis(pre, text);
-                        } else {
-                            def.$$("p", {
+                        if (article) {
+                            def.$$("span.choice-text", {
                                 all: true,
-                                root: content
-                            }).forEach(p => {
-                                text = p.textContent;
-                                URL_F.test(text) && Analysis(p, text);
+                                root: article
+                            }).forEach(span => {
+                                Analysis(span, span.textContent);
                             });
-                            def.$$("a", {
-                                all: true,
+                        } else if (content) {
+                            const pre = def.$$("pre", {
                                 root: content
-                            }).forEach(a => {
-                                !a.href && Analysis(a, a.textContent);
                             });
+                            if (pre) {
+                                text = pre.textContent;
+                                URL_F.test(text) && Analysis(pre, text);
+                            } else {
+                                def.$$("p", {
+                                    all: true,
+                                    root: content
+                                }).forEach(p => {
+                                    text = p.textContent;
+                                    URL_F.test(text) && Analysis(p, text);
+                                });
+                                def.$$("a", {
+                                    all: true,
+                                    root: content
+                                }).forEach(a => {
+                                    !a.href && Analysis(a, a.textContent);
+                                });
+                            }
                         }
-                    }
-                }, {
-                    throttle: 600
-                });
+                    }, {
+                        throttle: 600
+                    });
             }
         }
         async LinkBeautify() {
@@ -792,13 +780,13 @@
                             post.forEach(link => {
                                 if (link.textContent.includes(title.textContent)) {
                                     switch (Mode) {
-                                      case 2:
-                                        link.parentNode.remove();
-                                        title = link;
+                                        case 2:
+                                            link.parentNode.remove();
+                                            title = link;
 
-                                      default:
-                                        title = link.cloneNode(true);
-                                        return;
+                                        default:
+                                            title = link.cloneNode(true);
+                                            return;
                                     }
                                 }
                             });
@@ -834,10 +822,10 @@
                         key: "img",
                         src: href.href,
                         className: "Image-loading-indicator Image-style",
-                        onLoad: function() {
+                        onLoad: function () {
                             def.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
                         },
-                        onError: function() {
+                        onError: function () {
                             Reload(def.$$(`#${ID} img`), 10);
                         }
                     }));
@@ -887,7 +875,7 @@
                     a.id = `IMG-${index}`;
                     a.removeAttribute("href");
                     a.removeAttribute("download");
-                    img.onload = function() {
+                    img.onload = function () {
                         img.classList.remove("Image-loading-indicator");
                         Replace(++index);
                     };
@@ -910,27 +898,27 @@
                     threshold: .3
                 });
                 switch (Mode) {
-                  case 2:
-                    Replace(0);
-                    break;
+                    case 2:
+                        Replace(0);
+                        break;
 
-                  case 3:
-                    thumbnail.forEach((object, index) => {
-                        object.alt = `IMG-${index}`;
-                        observer.observe(object);
-                    });
-                    break;
-
-                  default:
-                    if (document.visibilityState === "hidden") {
-                        def.AddListener(document, "visibilitychange", () => {
-                            document.visibilityState === "visible" && FastAuto();
-                        }, {
-                            once: true
+                    case 3:
+                        thumbnail.forEach((object, index) => {
+                            object.alt = `IMG-${index}`;
+                            observer.observe(object);
                         });
-                    } else {
-                        FastAuto();
-                    }
+                        break;
+
+                    default:
+                        if (document.visibilityState === "hidden") {
+                            def.AddListener(document, "visibilitychange", () => {
+                                document.visibilityState === "visible" && FastAuto();
+                            }, {
+                                once: true
+                            });
+                        } else {
+                            FastAuto();
+                        }
                 }
             }, {
                 all: true,
@@ -945,10 +933,10 @@
                             src: src,
                             alt: "Loading Failed"
                         });
-                        Img.onload = function() {
+                        Img.onload = function () {
                             Img.classList.remove("Image-loading-indicator");
                         };
-                        Img.onerror = function() {
+                        Img.onerror = function () {
                             Reload(Img, Retry - 1);
                         };
                     }, 1e3);
@@ -984,7 +972,7 @@
                     CommentFormat: s => Call.USE(s, CF.CommentFormat),
                     ExtraButton: s => Call.USE(s, CF.ExtraButton)
                 }, Start = async Type => {
-                    Object.entries(Type).forEach(([ func, set ]) => Call.hasOwnProperty(func) && Call[func](set));
+                    Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set));
                 };
                 Start(Global);
                 Start(Content);
@@ -1051,7 +1039,7 @@
                         capture: true,
                         once: true
                     });
-                } catch {}
+                } catch { }
                 comments.appendChild(def.Buffer);
             }, {
                 throttle: 600
@@ -1085,9 +1073,9 @@
         Dependencies(type) {
             let Color, Width;
             switch (type) {
-              case "Global":
-                Color = PM.Match.Color;
-                def.AddStyle(`
+                case "Global":
+                    Color = PM.Match.Color;
+                    def.AddStyle(`
                         /* 搜尋頁面的樣式 */
                         fix_tag:hover { color: ${Color}; }
                         .fancy-image__image, fix_name, fix_tag, fix_edit {
@@ -1188,10 +1176,10 @@
                             display: block;
                         }
                         `, "Global-Effects");
-                break;
+                    break;
 
-              case "Preview":
-                def.AddStyle(`
+                case "Preview":
+                    def.AddStyle(`
                         .gif-overlay {
                             top: 45%;
                             left: 50%;
@@ -1217,30 +1205,30 @@
                             justify-content: var(--local-justify);
                         }
                     `, "Preview-Effects");
-                break;
+                    break;
 
-              case "Postview":
-                DM.GetSet = {
-                    MenuSet: () => {
-                        const data = def.store("g", "MenuSet") || [ {
-                            MT: "2vh",
-                            ML: "50vw"
-                        } ];
-                        return data[0];
-                    },
-                    ImgSet: () => {
-                        const data = def.store("g", "ImgSet") || [ {
-                            img_h: "auto",
-                            img_w: "auto",
-                            img_mw: "100%",
-                            img_gap: "0px"
-                        } ];
-                        return data[0];
-                    }
-                };
-                DM.Set = DM.GetSet.ImgSet();
-                Width = PM.Device.Width() / 2;
-                def.AddStyle(`
+                case "Postview":
+                    DM.GetSet = {
+                        MenuSet: () => {
+                            const data = def.store("g", "MenuSet") || [{
+                                MT: "2vh",
+                                ML: "50vw"
+                            }];
+                            return data[0];
+                        },
+                        ImgSet: () => {
+                            const data = def.store("g", "ImgSet") || [{
+                                img_h: "auto",
+                                img_w: "auto",
+                                img_mw: "100%",
+                                img_gap: "0px"
+                            }];
+                            return data[0];
+                        }
+                    };
+                    DM.Set = DM.GetSet.ImgSet();
+                    Width = def.Device.iW() / 2;
+                    def.AddStyle(`
                         .Image-style {
                             display: block;
                             width: ${DM.Set.img_w};
@@ -1259,10 +1247,10 @@
                             cursor: pointer;
                         }
                         `, "Custom-style");
-                break;
+                    break;
 
-              case "Awesome":
-                def.AddStyle(`
+                case "Awesome":
+                    def.AddStyle(`
                         ${GM_getResourceText("font-awesome")}
                         #next_box a {
                             cursor: pointer;
@@ -1271,17 +1259,17 @@
                             background-color: ${PM.Match.Color};
                         }
                     `, "font-awesome");
-                break;
+                    break;
 
-              case "Menu":
-                DM.Set = DM.GetSet.MenuSet();
-                def.AddScript(`
+                case "Menu":
+                    DM.Set = DM.GetSet.MenuSet();
+                    def.AddScript(`
                             function check(value) {
                                 return value.toString().length > 4 || value > 1000
                                     ? 1000 : value < 0 ? "" : value;
                             }
                     `);
-                def.AddStyle(`
+                    def.AddStyle(`
                             .modal-background {
                                 top: 0;
                                 left: 0;
@@ -1443,39 +1431,39 @@
                                 margin: 0px;
                             }
                     `, "Custom-style");
-                document.querySelector("#Custom-style").sheet.cssRules[0];
-                DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
-                def.storeListen([ "MenuSet", "ImgSet", "language" ], call => {
-                    if (call.far) {
-                        let nv = call.nv;
-                        switch (call.key) {
-                          case "MenuSet":
-                            nv = nv[0];
-                            DM.styleRules["MT"](nv.MT);
-                            DM.styleRules["ML"](nv.ML);
-                            break;
+                    document.querySelector("#Custom-style").sheet.cssRules[0];
+                    DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
+                    def.storeListen(["MenuSet", "ImgSet", "language"], call => {
+                        if (call.far) {
+                            let nv = call.nv;
+                            switch (call.key) {
+                                case "MenuSet":
+                                    nv = nv[0];
+                                    DM.styleRules["MT"](nv.MT);
+                                    DM.styleRules["ML"](nv.ML);
+                                    break;
 
-                          case "ImgSet":
-                            nv = nv[0];
-                            DM.styleRules["img_h"](nv.img_h);
-                            DM.styleRules["img_w"](nv.img_w);
-                            DM.styleRules["img_mw"](nv.img_mw);
-                            DM.styleRules["img_gap"](nv.img_gap);
-                            break;
+                                case "ImgSet":
+                                    nv = nv[0];
+                                    DM.styleRules["img_h"](nv.img_h);
+                                    DM.styleRules["img_w"](nv.img_w);
+                                    DM.styleRules["img_mw"](nv.img_mw);
+                                    DM.styleRules["img_gap"](nv.img_gap);
+                                    break;
 
-                          case "language":
-                            MenuLangSwitch(nv);
+                                case "language":
+                                    MenuLangSwitch(nv);
+                            }
                         }
-                    }
-                });
-                break;
+                    });
+                    break;
             }
         }
         async Menu() {
             if (!def.$$(".modal-background")) {
                 DM.Set = DM.GetSet.ImgSet();
                 let parent, child, img_input, img_select, img_set, analyze;
-                const img_data = [ DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap ];
+                const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
                 const menu = `
                     <div class="modal-background">
                         <div class="modal-interface">
@@ -1559,7 +1547,7 @@
                 });
                 $(".modal-interface").tabs();
                 async function PictureSettings() {
-                    $on(".Image-input-settings", "input change", function(event) {
+                    $on(".Image-input-settings", "input change", function (event) {
                         event.stopPropagation();
                         const target = $(this), value = target.val(), id = target.attr("id");
                         parent = target.closest("div");
@@ -1579,7 +1567,7 @@
                     });
                 }
                 $("#language").val(def.store("g", "language", null, ""));
-                $on("#language", "input change", function(event) {
+                $on("#language", "input change", function (event) {
                     event.stopPropagation();
                     $("#language").off("input change");
                     const value = $(this).val();
@@ -1589,12 +1577,12 @@
                     DM.Menu();
                 });
                 let save = {}, set_value;
-                $on(".modal-interface", "click", function(event) {
+                $on(".modal-interface", "click", function (event) {
                     const id = $(event.target).attr("id");
                     if (id == "image-settings") {
                         img_set = $("#image-settings-show");
                         if (img_set.css("opacity") === "0") {
-                            img_set.find("p").each(function() {
+                            img_set.find("p").each(function () {
                                 $(this).append(UnitOptions);
                             });
                             img_set.css({
@@ -1633,7 +1621,7 @@
                             }
                             save[img_input.attr("id")] = set_value;
                         });
-                        def.store("s", "ImgSet", [ save ]);
+                        def.store("s", "ImgSet", [save]);
                         Menu_Save();
                     } else if (id == "closure") {
                         Menu_Close();
@@ -1647,10 +1635,10 @@
                     const menu_interface = $(".modal-interface");
                     const top = menu_interface.css("top");
                     const left = menu_interface.css("left");
-                    def.store("s", "MenuSet", [ {
+                    def.store("s", "MenuSet", [{
                         MT: top,
                         ML: left
-                    } ]);
+                    }]);
                     DM.styleRules["MT"](top);
                     DM.styleRules["ML"](left);
                     Menu_Close();
@@ -1765,7 +1753,7 @@
                 CommentFormat: s => Call.USE(s, CF.CommentFormat),
                 ExtraButton: s => Call.USE(s, CF.ExtraButton)
             }, Start = async Type => {
-                Object.entries(Type).forEach(([ func, set ]) => Call.hasOwnProperty(func) && Call[func](set));
+                Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set));
             };
             Start(Global);
             if (PM.Match.AllPreview) {
