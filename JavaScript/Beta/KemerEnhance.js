@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.48-Beta
+// @version      0.0.48
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -35,7 +35,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1362511/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
 
@@ -71,7 +71,7 @@
 
     }, def = new Syntax();
 
-    let PM, GF, PF, CF, DM, Lang, url=document.URL; // 需要時才實例化
+    let PM, GF, PF, CF, DM, Lang, url=def.Device.Url; // 需要時才實例化
 
     /* ==================== 頁面匹配 正則 ==================== */
     PM = (new class Page_Match {
@@ -89,19 +89,7 @@
                 Announcement: this.Announcement.test(url),
                 Search: this.SearchPage.test(url) || this.LinksPage.test(url) || this.FavorArtist.test(url),
                 AllPreview: this.PostsPage.test(url) || this.UserPage.test(url) || this.FavorPost.test(url),
-                Color: location.hostname.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
-            };
-            this.Device = {
-                sY: ()=> window.scrollY,
-                Width: ()=> window.innerWidth,
-                Height: ()=> window.innerHeight,
-                Agent: ()=> navigator.userAgent,
-                _Type: undefined,
-                Type: ()=> {
-                    return this.Device._Type = this.Device._Type ? this.Device._Type
-                        : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agent()) || this.Device.Width() < 768
-                        ? "Mobile" : "Desktop");
-                }
+                Color: def.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
             };
         }
     });
@@ -222,7 +210,7 @@
 
         /* 收縮側邊攔 */
         async SidebarCollapse() {
-            if (PM.Device.Type() == "Mobile") { return }
+            if (def.Device.Type() == "Mobile") { return }
             def.AddStyle(`
                 .global-sidebar {
                     opacity: 0;
@@ -244,8 +232,7 @@
 
         /* 刪除公告通知 */
         async DeleteNotice() {
-            const Notice = def.$$("body > div.content-wrapper.shifted > a");
-            Notice ? Notice.remove() : null;
+            def.$$("body > div.content-wrapper.shifted > a")?.remove();
         }
 
         /* 修復藝術家名稱 */
@@ -359,7 +346,7 @@
             }
 
             // 檢測平台類型
-            const Device = PM.Device.Type();
+            const Device = def.Device.Type();
 
             // 監聽點擊
             def.AddListener(document.body, "click", event=> {
@@ -420,10 +407,9 @@
                         if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") {return}
                         XMLRequest.apply(this, arguments);
                     };
-                    try {
-                        document.querySelector(".root--ujvuu button").click();
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
-                    } catch {}
+                    document.querySelector("div.ex-over-btn")?.click();
+                    document.querySelector(".root--ujvuu button")?.click();
+                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                 });
                 Ad_observer.observe(document.head, {childList: true, subtree: true});
             `, "Ad-blocking-script");
@@ -431,18 +417,18 @@
 
         /* 快捷自動滾動 */
         async KeyScroll(Mode) {
-            if (PM.Device.Type() == "Mobile") { return }
+            if (def.Device.Type() == "Mobile") { return }
 
             let Scroll, Up_scroll  = false, Down_scroll = false;
 
             const TopDetected = def.Throttle(()=>{
-                Up_scroll = PM.Device.sY() == 0 ? false : true;
-            }, 1000);
+                Up_scroll = def.Device.sY() == 0 ? false : true;
+            }, 600);
 
             const BottomDetected = def.Throttle(()=>{
                 Down_scroll =
-                PM.Device.sY() + PM.Device.Height() >= document.documentElement.scrollHeight ? false : true;
-            }, 1000);
+                def.Device.sY() + def.Device.iH() >= document.documentElement.scrollHeight ? false : true;
+            }, 600);
 
             switch (Mode) {
                 case 2:
@@ -1182,7 +1168,7 @@
                         }
                     };
                     DM.Set = DM.GetSet.ImgSet();
-                    Width = PM.Device.Width() / 2;
+                    Width = def.Device.iW() / 2;
                     def.AddStyle(`
                         .Image-style {
                             display: block;
