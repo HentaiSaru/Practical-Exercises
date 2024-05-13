@@ -115,11 +115,11 @@
                 Fansly: "https://fansly.com/{name}/posts",
             }
 
-            this.new_data = () => def.Storage("fix_record_v2", {type: localStorage}) || new Map();
+            this.new_data = () => def.Storage("fix_record_v2", {type: localStorage, error: new Map()});
             this.fix_url = (url) => {
                 url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
                 url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")); // 排除不必要字串
-                return url.length >= 3 ? [url[0], url[2]] : url
+                return url.length >= 3 ? [url[0], url[2]] : url;
             }
 
             this.save_record = async(save) => {
