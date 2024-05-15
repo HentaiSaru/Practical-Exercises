@@ -14,12 +14,10 @@
  * @example
  * 1.
  *  class main extends Syntax {
- *       繼承此類...
- *       this.func(方法調用);
+ *       this.func();
  *  }
  * 
  * 2.
- *  實利化調用
  *  const def = new Syntax();
  *  def.func();
  */
@@ -30,14 +28,14 @@ class Syntax {
         this.Parser = new DOMParser();
         this.ListenerRecord = new Map();
         this.Buffer = document.createDocumentFragment();
-        this.print = {
+        this.Print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
             trace: label=> console.trace(label),
             error: label=> console.error(label),
             count: label=> console.count(label),
         };
-        this.query = {
+        this.Query = {
             Match: /[ .#=:]/,
             "#": (source, select) => source.getElementById(select.slice(1)),
             ".": (source, select, all) => {
@@ -103,9 +101,9 @@ class Syntax {
      * $$("查找元素", {all: true, root: 查找來源})
      */
     $$(selector, {all=false, root=document}={}) {
-        const type = !this.query.Match.test(selector) ? "tag"
-        : this.query.Match.test(selector.slice(1)) ? "default" : selector[0];
-        return this.query[type](root, selector, all);
+        const type = !this.Query.Match.test(selector) ? "tag"
+        : this.Query.Match.test(selector.slice(1)) ? "default" : selector[0];
+        return this.Query[type](root, selector, all);
     }
 
     /**
@@ -181,7 +179,7 @@ class Syntax {
      * @param {Integer} delay - 延遲毫秒
      * @returns { Promise }
      */
-    sleep(delay) {
+    Sleep(delay) {
         return new Promise(resolve => setTimeout(resolve, delay));
     }
 
@@ -470,12 +468,12 @@ class Syntax {
      * @param {*} label - 打印的元素
      * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
      */
-    async log(group=null, label="print", {type="log", collapsed=true}={}) {
-        type = typeof type === "string" && this.print[type] ? type : type = "log";
-        if (group == null) {this.print[type](label)}
+    async Log(group=null, label="print", {type="log", collapsed=true}={}) {
+        type = typeof type === "string" && this.Print[type] ? type : type = "log";
+        if (group == null) {this.Print[type](label)}
         else {
             collapsed ? console.groupCollapsed(group) : console.group(group);
-            this.print[type](label);
+            this.Print[type](label);
             console.groupEnd();
         }
     }
@@ -635,7 +633,7 @@ class Syntax {
      * 數據A = store("g", "資料A", null)
      * store("sj", "資料B", "數據B")
      */
-    store(operat, key=null, value=null) {
+    Store(operat, key=null, value=null) {
         const storeMatch = {
             verify: val => val !== void 0 ? val : false,
             d: key => GM_deleteValue(key),
@@ -666,7 +664,7 @@ class Syntax {
      *      console.log(call.key, call.nv);
      * })
      */
-    async storeListen(object, callback) {
+    async StoreListen(object, callback) {
         object.forEach(label => {
             if (!this.Mark[label]) {
                 this.Mark[label] = true;
