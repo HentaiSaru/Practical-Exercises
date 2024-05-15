@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.31
+// @version      0.0.32
 // @author       Canaan HS
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -26,7 +26,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1360633/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
 // ==/UserScript==
 
 (function() {
@@ -39,6 +39,7 @@
         ListDesc: k => k.altKey && k.key == "4" // 播放清單資訊
 
     }, Config = {
+        Dev: false,
         GlobalChange: true, // 全局同時修改
 
     }
@@ -48,8 +49,7 @@
             super();
             this.HK = key;
             this.Con = set;
-            this.Dev = false;
-            this.Language = language(navigator.language);
+            this.Language = language(this.Device.Lang);
             this.Video = /^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/; // 影片播放區
             this.Playlist = /^(https?:\/\/)www\.youtube\.com\/playlist\?list=.+$/; // 播放清單
 
@@ -82,6 +82,9 @@
             this.SetAttri = async (label, state) => {
                 document.body.setAttribute(label, state);
             }
+
+            /* 標題格式 (傳入標題元素) */
+            this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "")
         }
 
         async Injection() {
@@ -89,7 +92,7 @@
                 const URL = document.URL;
 
                 if (this.Video.test(URL) && !document.body.hasAttribute("Hide-Tool") && this.$$("div#columns")) {
-                    this.Dev && (this.StartTime = this.Runtime());
+                    this.Con.Dev && (this.StartTime = this.Runtime());
 
                     this.SetAttri("Hide-Tool", true);
                     if (this.Register == null) {
@@ -113,13 +116,15 @@
 
                     // 等待影片頁面需隱藏的數據
                     this.WaitMap([
-                        "title", "#end", "#below",
+                        "title", "#title h1", "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
                     ], element => {
-                        let [
-                            title, end, below, secondary, inner, related, comments, actions
+                        const [
+                            title, h1, end, below, secondary, inner, related, comments, actions
                         ] = element;
+
+                        this.Con.Dev && this.log("隱藏對象", element, {collapsed: false});
 
                         // 持續修正
                         const Title_observer = new MutationObserver(()=> {
@@ -129,33 +134,35 @@
                         // 極簡化
                         if (this.store("g", "Minimalist")) {
                             this.StyleConverter([document.body], "overflow", "hidden");
-                            this.StyleConverter([end, below, secondary, related], "display", "none", this.Dev).then(Success => {
+                            this.StyleConverter([end, below, secondary, related], "display", "none", this.Con.Dev).then(Success => {
                                 Success && this.log("極簡化", this.Runtime(this.StartTime));
                             });
                         } else {
                             if (this.store("g", "Title")) {
                                 Title_observer.observe(title, {childList: true, subtree: false});
-                                this.Dev && this.log("隱藏標題", this.Runtime(this.StartTime))
+                                this.StyleConverter([h1], "display", "none", this.Con.Dev).then(Success => {
+                                    Success && this.log("隱藏標題", this.Runtime(this.StartTime));
+                                });
                                 document.title = "...";
                             }
 
                             // 推薦播放隱藏
                             if (this.store("g", "RecomViewing")) {
-                                this.StyleConverter([secondary, related], "display", "none", this.Dev).then(Success => {
+                                this.StyleConverter([secondary, related], "display", "none", this.Con.Dev).then(Success => {
                                     Success && this.log("隱藏推薦觀看", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 評論區
                             if (this.store("g", "Comment")) {
-                                this.StyleConverter([comments], "display", "none", this.Dev).then(Success => {
+                                this.StyleConverter([comments], "display", "none", this.Con.Dev).then(Success => {
                                     Success && this.log("隱藏留言區", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 功能選項區
                             if (this.store("g", "FunctionBar")) {
-                                this.StyleConverter([actions], "display", "none", this.Dev).then(Success => {
+                                this.StyleConverter([actions], "display", "none", this.Con.Dev).then(Success => {
                                     Success && this.log("隱藏功能選項", this.Runtime(this.StartTime));
                                 });
                             }
@@ -177,12 +184,11 @@
                                 }
                             } else if (this.HK.Title(event)) {
                                 event.preventDefault();
+                                this.HideJudgment(h1, "Title");
                                 document.title = document.title == "..." ? (
-                                    Title_observer.disconnect(),
-                                    this.store("s", "Title", false), this.$$("h1 [dir='auto']").textContent
+                                    Title_observer.disconnect(), this.TitleFormat(h1)
                                 ) : (
-                                    Title_observer.observe(title, {childList: true, subtree: false}),
-                                    this.store("s", "Title", true), "..."
+                                    Title_observer.observe(title, {childList: true, subtree: false}), "..."
                                 );
                             } else if (this.HK.RecomViewing(event)) {
                                 event.preventDefault();
@@ -219,12 +225,11 @@
                                             break;
                                         case "Title":
                                             document.title = call.nv ? (
-                                                Title_observer.observe(title, {childList: true, subtree: false}),
-                                                "..."
+                                                Title_observer.observe(title, {childList: true, subtree: false}), "..."
                                             ) : (
-                                                    Title_observer.disconnect(),
-                                                    this.$$("h1 [dir='auto']").textContent
+                                                Title_observer.disconnect(), this.TitleFormat(h1)
                                             );
+                                            this.HideJudgment(h1);
                                             break;
                                         case "RecomViewing":
                                             if (inner.childElementCount > 1) {
@@ -246,18 +251,19 @@
                                 }
                             })
                         }
-                    }, {throttle: 300, characterData: true, timeoutResult: true});
+                    }, {throttle: 200, characterData: true, timeoutResult: true});
                 } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
-                    this.Dev && (this.StartTime = this.Runtime());
+                    this.Con.Dev && (this.StartTime = this.Runtime());
 
                     this.SetAttri("Playlist-Tool-Injection", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
                     this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist=> {
+                        this.Con.Dev && this.log("隱藏對象", playlist, {collapsed: false});
                         // 播放清單資訊
                         if (this.store("g", "ListDesc")) {
-                            this.StyleConverter([playlist], "display", "none", this.Dev).then(Success => {
+                            this.StyleConverter([playlist], "display", "none", this.Con.Dev).then(Success => {
                                 Success && this.log("隱藏播放清單資訊", this.Runtime(this.StartTime));
                             });
                         }
@@ -268,7 +274,7 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    }, {throttle: 300, characterData: true, timeoutResult: true});
+                    }, {throttle: 200, characterData: true, timeoutResult: true});
                 }
             }, 600));
 
