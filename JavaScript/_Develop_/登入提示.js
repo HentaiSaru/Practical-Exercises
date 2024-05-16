@@ -14,10 +14,7 @@
 // @description:ko     登入提示
 // @description:en     登入提示
 
-// @match        *://blackmod.net/login*
-// @match        *://shopee.tw/buyer/login*
-// @match        *://hgamefree.info/wp-login.php*
-// @match        *://info.stu.edu.tw/ePortal/login.asp*
+// @match        *://*/*login*
 // @icon
 
 // @license      MIT
@@ -31,7 +28,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1377525/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1377784/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
@@ -62,9 +59,8 @@
             }
             this.OBL = (element, value) => {
                 def.Observer(element, ()=> {
-                    console.log("變更");
                     element.value != value && (element.value = value);
-                }, {characterData: true});
+                }, {subtree: false, childList: false});
             }
         }
 
