@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta
+// @version      0.0.21-Beta1
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -306,7 +306,7 @@
                             Self.Button.textContent = show;
                             setTimeout(()=> {
                                 for (const [index, url] of Data.entries()) {
-                                    Request(index, url);
+                                    Self.worker.postMessage({ index: index, url: url });
                                 }
                             }, 1500);
                         }
@@ -322,6 +322,11 @@
                     method: "GET",
                     responseType: "blob",
                     onload: response => {
+                        if (response.status == 429) {
+                            Request_update(index, url, "", true);
+                            return;
+                        }
+
                         const blob = response.response;
                         blob instanceof Blob && blob.size > 0
                         ? Request_update(index, url, blob)
