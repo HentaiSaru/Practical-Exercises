@@ -22,8 +22,8 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
 // @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // ==/UserScript==
 
@@ -33,36 +33,31 @@
             super();
             this.AddClose = true; // 添加網址後關閉窗口
             this.OpenClear = true; // 開啟後清除
-            this.ExportClear = true; // 導出後清除保存數據
+            this.ExportClear = false; // 導出後清除保存數據
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
             // 解碼
             this.decode = (str) => decodeURI(str);
-            // 編碼
-            this.encode = (str) => encodeURI(str);
 
             // 解析域名
             this.DomainName = (url) => {
                 return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
             }
 
-            // 導入數據
-            this.Import = (data) => {
-                try {
-                    for (const [key, value] of Object.entries(JSON.parse(data))) {
-                        this.store("s", key, value);
-                    }
-                    GM_notification({
-                        title: "導入完畢",
-                        text: "已導入數據",
-                        timeout: 1500
-                    })
-                } catch {
-                    alert("導入錯誤");
-                }
-            }
+            // 數據轉 pako 的數組
+            this.DataToPako = (str) => pako.deflateRaw(str).toString();
 
+            // pako 數組轉數據
+            this.Decoder = new TextDecoder();
+            this.PakoToData = (str) => JSON.parse(this.Decoder.decode(
+                    pako.inflateRaw(
+                        new Uint8Array(str.split(",").map(Number))
+                    )
+                )
+            );
+
+            // 讀取書籤數據
             this.GetBookmarks = () => {
                 let options = 0,
                 display = "",
@@ -75,9 +70,8 @@
 
                 if (all_data.length > 0) {
                     all_data.forEach(key => {// 讀取後分類
-                        const read = this.store("g", key); // key 值分別取得對應數據
-                        const recover = JSON.parse(this.decode(LZString.decompress(read))); // 還原壓縮數據
-                        process(this.DomainName(recover.url), {[key]: recover});
+                        const recover = this.PakoToData(this.store("g", key));
+                        recover && process(this.DomainName(recover.url), {[key]: recover});
                     });
 
                     // 對數據進行排序
@@ -91,6 +85,10 @@
                     const data_values = [...read_data.values()];
 
                     while (true) {
+                        if (display == "") {
+                            return false;
+                        }
+
                         let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
                             choose = choose == "" ? "all" : choose;
@@ -114,6 +112,22 @@
                 }
             }
 
+            // 導入數據
+            this.Import = (data) => {
+                try {
+                    for (const [key, value] of Object.entries(JSON.parse(data))) {
+                        this.store("s", key, value);
+                    }
+                    GM_notification({
+                        title: "導入完畢",
+                        text: "已導入數據",
+                        timeout: 1500
+                    })
+                } catch {
+                    alert("導入錯誤");
+                }
+            }
+
             // 導出數據
             this.Export = () => {
                 const bookmarks = this.GetBookmarks(), export_data = {};
@@ -121,7 +135,7 @@
                     // Object.assign({}, ...bookmarks) 可以直接轉換, 但為何刪除導出數據, 用以下寫法
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
-                        export_data[key] = value;
+                        export_data[key] = this.DataToPako(JSON.stringify(value));
                         this.ExportClear && this.store("d", key); // 導出刪除
                     });
                     return JSON.stringify(export_data, null, 4);
@@ -145,8 +159,8 @@
                     title: title,
                     icon: icon_link,
                 })
-                , hash = CryptoJS.RIPEMD160(data).toString()
-                , save = LZString.compress(this.encode(data));
+                , save = this.DataToPako(data)
+                , hash = md5(data, md5(save));
 
                 // 使用哈希值為 key, 壓縮字串為 value
                 this.store("s", hash, save);
@@ -217,7 +231,7 @@
             const Export_Data = this.Export();
             if (Export_Data) {
                 const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + this.encode(Export_Data);
+                json.href = "data:application/json;charset=utf-8," + encodeURI(Export_Data);
                 json.download = "Bookmark.json";
                 json.click();
                 json.remove();
@@ -247,10 +261,10 @@
             this.Menu({
                 "🔖 添加書籤": {func: ()=> this.Add()},
                 "📖 開啟書籤": {func: ()=> this.Read()},
-                "📤️ 導入 [Json]": {func: ()=> this.Import_Json()},
-                "📤️ 導入 [剪貼簿]": {func: ()=> this.Import_Clipboard()},
                 "📥️ 導出 [Json]": {func: ()=> this.Export_Json()},
                 "📥️ 導出 [剪貼簿]": {func: ()=> this.Export_Clipboard()},
+                "📤️ 導入 [Json]": {func: ()=> this.Import_Json()},
+                "📤️ 導入 [剪貼簿]": {func: ()=> this.Import_Clipboard()},
             });
         }
     }).Create();
