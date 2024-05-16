@@ -27,19 +27,21 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
+// @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
 // @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
  * 保存輸入帳號, 密碼
  * 密碼進行加密, 密碼添加顯示眼睛
+ * 
  * 加密Key設置, 選擇是否加密
  * 調整選單設置, 背景色, 文字色, 透明度, 位置
- * PBKDF2 : 用於使用用戶密碼, 生成key值進行加密
- * OpenSSL : 生成 IV 值
- * AES : 進行加密
- * MD5 : 生成 Key
- * sjcl : 進行加密
+ * 
+ * 範例明文: 12345678
+ * 範例密碼: password
+ * 
  */
 
 (function() {
@@ -49,6 +51,71 @@
             this.Url = def.Device.Url;
             this.Domain = def.Device.Host;
             this.LoginInfo = def.store("g", this.Domain, {});
+
+            this.KEY1 = (str) => CryptoJS.SHA3(str).toString();
+            this.KEY2 = (str) => CryptoJS.SHA512(str).toString();
+            this.IV = (str) => CryptoJS.RIPEMD160(str).toString();
+            this.LE = {
+                parse: (str) => CryptoJS.enc.Utf16LE.parse(LZString.compress(str)),
+                stringify: (str) => LZString.decompress(CryptoJS.enc.Utf16LE.stringify(str)),
+            }
+        }
+
+        async Test() {
+            let text = JSON.stringify({
+                "Account": "12345abcde",
+                "Password": "abcde12345",
+            }), pass = "password";
+
+            // 第一次加密
+            var encrypted_1 = CryptoJS.AES.encrypt(
+                this.LE.parse(text),
+                this.KEY1(pass),
+            {
+                iv: this.IV(pass),
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Iso97971
+            }).toString();
+
+            // 第二次加密
+            var encrypted_2 = CryptoJS.AES.encrypt(
+                this.LE.parse(encrypted_1),
+                this.KEY2(this.IV(pass)),
+            {
+                iv: this.IV(this.KEY1(pass)),
+                mode: CryptoJS.mode.CBC,
+                padding: CryptoJS.pad.Iso97971
+            }).toString();
+
+            def.log("加密數據", encrypted_2, {collapsed: false});
+
+            // 第一次解密
+            var decrypted_1 = this.LE.stringify(
+                CryptoJS.AES.decrypt(
+                    encrypted_2,
+                    this.KEY2(this.IV(pass)),
+                    {
+                        iv: this.IV(this.KEY1(pass)),
+                        mode: CryptoJS.mode.CBC,
+                        padding: CryptoJS.pad.Iso97971
+                    }
+                )
+            );
+
+            // 第二次解密
+            var decrypted_2 = this.LE.stringify(
+                CryptoJS.AES.decrypt(
+                    decrypted_1,
+                    this.KEY1(pass),
+                    {
+                        iv: this.IV(pass),
+                        mode: CryptoJS.mode.CBC,
+                        padding: CryptoJS.pad.Iso97971
+                    }
+                )
+            );
+
+            def.log("解密還原", JSON.parse(decrypted_2), {collapsed: false});
         }
 
         async Save() {
