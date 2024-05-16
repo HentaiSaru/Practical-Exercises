@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta
+// @version      0.0.21-Beta1
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -38,16 +38,15 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1377525/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
 // ==/UserScript==
 
-(function() {
+(function () {
     const def = new Syntax(), Lang = language(navigator.language);
-
     const Config = {
         DeBug: false, // 顯示請求資訊, 與錯誤資訊
         NotiFication: true, // 操作時 系統通知
@@ -57,7 +56,6 @@
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
         ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     };
-
     /** ---------------------
      * 暫時的 檔名修改方案
      *
@@ -82,7 +80,6 @@
         FolderName: "{Title}", // 資料夾名稱 (用空字串, 就直接沒資料夾)
         FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
     };
-
     /** ---------------------
      * 設置 json 輸出格式
      *
@@ -103,7 +100,7 @@
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
     };
-
+    /* --------------------- */
     let lock = false;
     class Download {
         constructor(CM, MD, BT) {
@@ -116,7 +113,7 @@
                 const cache = document.title;
                 return cache.startsWith("✓ ") ? cache.slice(2) : cache;
             };
-            this.videoFormat = new Set([ "MP4", "MOV", "AVI", "WMV", "FLV" ]);
+            this.videoFormat = new Set(["MP4", "MOV", "AVI", "WMV", "FLV"]);
             this.isVideo = str => this.videoFormat.has(str.toUpperCase());
             this.worker = def.WorkerCreation(`
                 let queue = [], processing=false;
@@ -174,12 +171,12 @@
             } else if (typeof format == "object") {
                 const filler = String(format.Filler) || "0";
                 const amount = parseInt(format.Amount) || "auto";
-                return [ amount, filler ];
-            } else {}
+                return [amount, filler];
+            } else { }
         }
         async DownloadTrigger() {
-            def.WaitMap([ ".post__files", ".post__title", ".post__user-name, fix_name" ], found => {
-                const [ files, title, artist ] = found;
+            def.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found => {
+                const [files, title, artist] = found;
                 this.Button.disabled = lock = true;
                 const DownloadData = new Map();
                 this.Named_Data = {
@@ -195,18 +192,18 @@
                         return published.textContent.trim().split(" ")[0];
                     }
                 };
-                const [ compress_name, folder_name, fill_name ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-                const data = [ ...files.children ].map(child => def.$$("a", {
+                const [compress_name, folder_name, fill_name] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
+                const data = [...files.children].map(child => def.$$("a", {
                     root: child
                 }) || def.$$("img", {
                     root: child
                 })), video = def.$$(".post__attachment a", {
                     all: true
-                }), final_data = Config.ContainsVideo ? [ ...data, ...video ] : data;
+                }), final_data = Config.ContainsVideo ? [...data, ...video] : data;
                 final_data.forEach((file, index) => {
                     DownloadData.set(index, file.href || file.src);
                 });
-                Config.DeBug && def.log("Get Data", [ folder_name, DownloadData ], {
+                Config.DeBug && def.Log("Get Data", [folder_name, DownloadData], {
                     collapsed: false
                 });
                 this.CompressMode ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData) : this.SeparDownload(fill_name, DownloadData);
@@ -254,8 +251,11 @@
                             document.title = show;
                             Self.Button.textContent = show;
                             setTimeout(() => {
-                                for (const [ index, url ] of Data.entries()) {
-                                    Request(index, url);
+                                for (const [index, url] of Data.entries()) {
+                                    Self.worker.postMessage({
+                                        index: index,
+                                        url: url
+                                    });
                                 }
                             }, 1500);
                         }
@@ -271,6 +271,10 @@
                     method: "GET",
                     responseType: "blob",
                     onload: response => {
+                        if (response.status == 429) {
+                            Request_update(index, url, "", true);
+                            return;
+                        }
                         const blob = response.response;
                         blob instanceof Blob && blob.size > 0 ? Request_update(index, url, blob) : Request_update(index, url, "", true);
                     },
@@ -293,9 +297,9 @@
                     blob,
                     error
                 } = e.data;
-                error ? (Request(index, url), Config.DeBug && def.log("Download Failed", url, {
+                error ? (Request(index, url), Config.DeBug && def.Log("Download Failed", url, {
                     collapsed: false
-                })) : (Request_update(index, url, blob), Config.DeBug && def.log("Download Successful", url, {
+                })) : (Request_update(index, url, blob), Config.DeBug && def.Log("Download Successful", url, {
                     collapsed: false
                 }));
             };
@@ -353,7 +357,7 @@
                     const completed = () => {
                         if (!ShowTracking[index]) {
                             ShowTracking[index] = true;
-                            Config.DeBug && def.log("Download Successful", link, {
+                            Config.DeBug && def.Log("Download Successful", link, {
                                 collapsed: false
                             });
                             show = `[${++progress}/${Total}]`;
@@ -367,7 +371,7 @@
                         name: filename,
                         conflictAction: "overwrite",
                         onprogress: progress => {
-                            Config.DeBug && def.log("Download Progress", {
+                            Config.DeBug && def.Log("Download Progress", {
                                 Index: index,
                                 ImgUrl: link,
                                 Progress: `${progress.loaded}/${progress.total}`
@@ -378,7 +382,7 @@
                             DownloadTracking[index] && completed();
                         },
                         onerror: () => {
-                            Config.DeBug && def.log("Download Error", link, {
+                            Config.DeBug && def.Log("Download Error", link, {
                                 collapsed: false
                             });
                             setTimeout(() => {
@@ -392,7 +396,7 @@
             }
             for (let i = 0; i < Total; i++) {
                 Promises.push(Request(i));
-                await def.sleep(Config.ExperimentalDownloadDelay);
+                await def.Sleep(Config.ExperimentalDownloadDelay);
             }
             await Promise.allSettled(Promises);
             GM_unregisterMenuCommand("Abort-1");
@@ -462,23 +466,23 @@
             this.ToJsonSet = async (mode = "FilterMode", set = []) => {
                 try {
                     switch (mode) {
-                      case "FilterMode":
-                        this.Genmode = true;
-                        set.forEach(key => {
-                            delete this.JsonMode[key];
-                        });
-                        break;
+                        case "FilterMode":
+                            this.Genmode = true;
+                            set.forEach(key => {
+                                delete this.JsonMode[key];
+                            });
+                            break;
 
-                      case "OnlyMode":
-                        this.Genmode = false;
-                        this.filtercache = Object.keys(this.JsonMode).reduce((obj, key) => {
-                            if (set.includes(key)) {
-                                obj[key] = this.JsonMode[key];
-                            }
-                            return obj;
-                        }, {});
-                        this.JsonMode = this.filtercache;
-                        break;
+                        case "OnlyMode":
+                            this.Genmode = false;
+                            this.filtercache = Object.keys(this.JsonMode).reduce((obj, key) => {
+                                if (set.includes(key)) {
+                                    obj[key] = this.JsonMode[key];
+                                }
+                                return obj;
+                            }, {});
+                            this.JsonMode = this.filtercache;
+                            break;
                     }
                 } catch (error) {
                     console.error(error);
@@ -630,7 +634,7 @@
                 });
             }
             this.progress = 0;
-            for (const [ index, card ] of item.entries()) {
+            for (const [index, card] of item.entries()) {
                 link = def.$$("a", {
                     root: card
                 }).href;
@@ -646,7 +650,7 @@
                 } else {
                     this.JsonDict[`${link}`] = title;
                 }
-                await def.sleep(10);
+                await def.Sleep(10);
             }
             const menu = def.$$("a.pagination-button-after-current", {
                 root: section
@@ -666,7 +670,7 @@
                 }, 500);
             } else {
                 this.Pages++;
-                await def.sleep(500);
+                await def.Sleep(500);
                 menu ? this.GetNextPage(menu.href) : this.ToJson();
             }
         }
@@ -705,7 +709,7 @@
                                 result
                             } = this.MegaAnalysis(mega_link);
                             pass != undefined ? data_box[pass] = result : null;
-                        } catch {}
+                        } catch { }
                     }
                     const box = this.GenerateBox(original_link, pictures_number, video_number, data_box);
                     if (Object.keys(box).length !== 0) {
@@ -714,18 +718,18 @@
                             box: box
                         });
                     }
-                    Config.DeBug && def.log("Request Successful", this.SortMap, {
+                    Config.DeBug && def.Log("Request Successful", this.SortMap, {
                         collapsed: false
                     });
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
-                    Config.DeBug && def.log("Request Failed", {
+                    Config.DeBug && def.Log("Request Failed", {
                         title: title,
                         url: url
                     }, {
                         collapsed: false
                     });
-                    await def.sleep(1e3);
+                    await def.Sleep(1e3);
                     this.worker.postMessage({
                         index: index,
                         title: title,
@@ -848,7 +852,7 @@
                         insert: false,
                         setParent: false
                     });
-                    await def.sleep(Config.BatchOpenDelay);
+                    await def.Sleep(Config.BatchOpenDelay);
                 }
             }
         }
@@ -888,7 +892,7 @@
             def.Observer(document, () => {
                 try {
                     this.Page.Content && !def.$$("section").hasAttribute("Download-Button-Created") && this.ButtonCreation();
-                } catch {}
+                } catch { }
             }, {
                 throttle: 300
             });
