@@ -15,6 +15,7 @@
 // @description:en     登入提示
 
 // @match        *://blackmod.net/login*
+// @match        *://shopee.tw/buyer/login*
 // @match        *://hgamefree.info/wp-login.php*
 // @match        *://info.stu.edu.tw/ePortal/login.asp*
 // @icon
@@ -30,7 +31,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1377525/SyntaxSimplified.js
 // ==/UserScript==
 
 /**
@@ -50,7 +51,7 @@
         constructor() {
             this.Url = def.Device.Url;
             this.Domain = def.Device.Host;
-            this.LoginInfo = def.store("g", this.Domain, {});
+            this.LoginInfo = def.Store("g", this.Domain, {});
 
             this.KEY1 = (str) => CryptoJS.SHA3(str).toString();
             this.KEY2 = (str) => CryptoJS.SHA512(str).toString();
@@ -58,6 +59,12 @@
             this.LE = {
                 parse: (str) => CryptoJS.enc.Utf16LE.parse(LZString.compress(str)),
                 stringify: (str) => LZString.decompress(CryptoJS.enc.Utf16LE.stringify(str)),
+            }
+            this.OBL = (element, value) => {
+                def.Observer(element, ()=> {
+                    console.log("變更");
+                    element.value != value && (element.value = value);
+                }, {characterData: true});
             }
         }
 
@@ -87,7 +94,7 @@
                 padding: CryptoJS.pad.Iso97971
             }).toString();
 
-            def.log("加密數據", encrypted_2, {collapsed: false});
+            def.Log("加密數據", encrypted_2, {collapsed: false});
 
             // 第一次解密
             var decrypted_1 = this.LE.stringify(
@@ -115,14 +122,14 @@
                 )
             );
 
-            def.log("解密還原", JSON.parse(decrypted_2), {collapsed: false});
+            def.Log("解密還原", JSON.parse(decrypted_2), {collapsed: false});
         }
 
         async Save() {
             const save = prompt("輸入以下數據, 請確實按照順序輸入\n帳號, 密碼, 其餘操作");
 
             if (save && save != "") {
-                const data = save.split(/\s*[,]\s*/), box = {Account: "", Password: "", Operate: ""};
+                const data = save.split(/\s*[,/]\s*/), box = {Account: "", Password: "", Operate: ""};
 
                 if (data.length > 1) {
                     Object.keys(box).forEach((key, index) => { // 遍歷 box 的 key, 並根據索引填入, data 的對應索引值
@@ -130,7 +137,7 @@
                     });
 
                     // 保存最終數據
-                    def.store("s", this.Domain, Object.assign({ Url: this.Url }, box));
+                    def.Store("s", this.Domain, Object.assign({ Url: this.Url }, box));
 
                     GM_notification({
                         title: "保存成功",
@@ -160,10 +167,12 @@
                     def.$$("input[type='text']", {all: true}).forEach(account => {
                         // 簡單判斷, 雖然也能用選擇器 [name*="acc"], 但他不能處理大小寫差異
                         if (/acc|log/i.test(account.getAttribute("name"))) {
+                            this.OBL(account, Info.Account); // 動態監聽變化, 持續輸入
                             account.value = Info.Account;
                         }
                     });
                     // 輸入密碼
+                    this.OBL(password, Info.Password);
                     password.value = Info.Password;
 
                     // 先不進行自動登入
