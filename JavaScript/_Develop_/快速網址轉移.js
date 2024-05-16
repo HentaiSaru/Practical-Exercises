@@ -22,6 +22,7 @@
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
+// @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
 // ==/UserScript==
@@ -36,8 +37,10 @@
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
-            // 網址解碼
-            this.decode = (str) => decodeURIComponent(str);
+            // 解碼
+            this.decode = (str) => decodeURI(str);
+            // 編碼
+            this.encode = (str) => encodeURI(str);
 
             // 解析域名
             this.DomainName = (url) => {
@@ -61,8 +64,7 @@
             }
 
             this.GetBookmarks = () => {
-                let read,
-                options = 0,
+                let options = 0,
                 display = "",
                 read_data = new Map(),
                 all_data = this.store("a");
@@ -73,8 +75,9 @@
 
                 if (all_data.length > 0) {
                     all_data.forEach(key => {// 讀取後分類
-                        read = this.store("g", key); // key 值分別取得對應數據
-                        process(this.DomainName(read.url), {[key]: read});
+                        const read = this.store("g", key); // key 值分別取得對應數據
+                        const recover = JSON.parse(this.decode(LZString.decompress(read))); // 還原壓縮數據
+                        process(this.DomainName(recover.url), {[key]: recover});
                     });
 
                     // 對數據進行排序
@@ -137,14 +140,16 @@
                 const icon_link = icon ? this.decode(icon.href) : "None";
 
                 // 組成數據
-                const save_data = {
+                const data = JSON.stringify({
+                    url: url,
                     title: title,
                     icon: icon_link,
-                    url: url
-                }
+                })
+                , hash = CryptoJS.RIPEMD160(data).toString()
+                , save = LZString.compress(this.encode(data));
 
-                // 用 MD5 的哈西值作為 Key
-                this.store("s", CryptoJS.MD5(JSON.stringify(save_data)).toString(), save_data);
+                // 使用哈希值為 key, 壓縮字串為 value
+                this.store("s", hash, save);
 
                 GM_notification({
                     title: "添加完成",
@@ -212,7 +217,7 @@
             const Export_Data = this.Export();
             if (Export_Data) {
                 const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(Export_Data);
+                json.href = "data:application/json;charset=utf-8," + this.encode(Export_Data);
                 json.download = "Bookmark.json";
                 json.click();
                 json.remove();
