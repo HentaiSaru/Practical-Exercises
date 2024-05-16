@@ -14,8 +14,9 @@
 // @description:ko     登入提示
 // @description:en     登入提示
 
-// @match        *://hgamefree.info/wp-login.php
-// @match        *://blackmod.net/login/
+// @match        *://blackmod.net/login*
+// @match        *://hgamefree.info/wp-login.php*
+// @match        *://info.stu.edu.tw/ePortal/login.asp*
 // @icon
 
 // @license      MIT
@@ -41,7 +42,6 @@
  * 
  * 範例明文: 12345678
  * 範例密碼: password
- * 
  */
 
 (function() {
@@ -146,7 +146,8 @@
         async Main() {
             // 檢測登入資訊中, 是否含有當前網址
             const Info = this.LoginInfo;
-            if (Info?.Url == this.Url) {
+
+            if (Info?.Url && this.Url.startsWith(Info.Url)) {
                 const click = new MouseEvent("click", { // 創建點擊事件, 避免有被阻止的情況
                     bubbles: true,
                     cancelable: true
@@ -155,9 +156,12 @@
                 def.WaitElem("input[type='password']", password=> {
                     const login = [...def.$$("input[type='submit'], button[type='submit']", {all: true})].slice(1);
 
-                    // 帳號輸入類型的可能有多個, 暴力解法全部都輸入
+                    // 帳號輸入類型的可能有多個, 暴力解法 全部都輸入
                     def.$$("input[type='text']", {all: true}).forEach(account => {
-                        account.value = Info.Account;
+                        // 簡單判斷, 雖然也能用選擇器 [name*="acc"], 但他不能處理大小寫差異
+                        if (/acc|log/i.test(account.getAttribute("name"))) {
+                            account.value = Info.Account;
+                        }
                     });
                     // 輸入密碼
                     password.value = Info.Password;
