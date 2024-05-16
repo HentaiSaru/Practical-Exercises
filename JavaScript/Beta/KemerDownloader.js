@@ -38,7 +38,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1377525/SyntaxSimplified.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -241,7 +241,7 @@
                     DownloadData.set(index, (file.href || file.src));
                 });
 
-                Config.DeBug && def.log("Get Data", [folder_name, DownloadData], {collapsed: false});
+                Config.DeBug && def.Log("Get Data", [folder_name, DownloadData], {collapsed: false});
 
                 this.CompressMode
                     ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
@@ -348,8 +348,8 @@
             this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
-                ? (Request(index, url), (Config.DeBug && def.log("Download Failed", url, {collapsed: false})))
-                : (Request_update(index, url, blob), (Config.DeBug && def.log("Download Successful", url, {collapsed: false})));
+                ? (Request(index, url), (Config.DeBug && def.Log("Download Failed", url, {collapsed: false})))
+                : (Request_update(index, url, blob), (Config.DeBug && def.Log("Download Successful", url, {collapsed: false})));
             }
         }
 
@@ -426,7 +426,7 @@
                         if (!ShowTracking[index]) { // 多一個判斷是因為, 他有可能同樣的重複呼叫多次
                             ShowTracking[index] = true;
 
-                            Config.DeBug && def.log("Download Successful", link, {collapsed: false});
+                            Config.DeBug && def.Log("Download Successful", link, {collapsed: false});
 
                             show = `[${++progress}/${Total}]`;
                             document.title = show;
@@ -441,7 +441,7 @@
                         name: filename,
                         conflictAction: "overwrite",
                         onprogress: (progress) => {
-                            Config.DeBug && def.log("Download Progress", {
+                            Config.DeBug && def.Log("Download Progress", {
                                 Index: index,
                                 ImgUrl: link,
                                 Progress: `${progress.loaded}/${progress.total}`
@@ -451,7 +451,7 @@
                             DownloadTracking[index] && completed();
                         },
                         onerror: () => {
-                            Config.DeBug && def.log("Download Error", link, {collapsed: false});
+                            Config.DeBug && def.Log("Download Error", link, {collapsed: false});
                             setTimeout(()=> {
                                 reject();
                                 Request(index);
@@ -465,7 +465,7 @@
 
             for (let i = 0; i < Total; i++) {
                 Promises.push(Request(i));
-                await def.sleep(Config.ExperimentalDownloadDelay);
+                await def.Sleep(Config.ExperimentalDownloadDelay);
             }
 
             await Promise.allSettled(Promises);
@@ -720,7 +720,7 @@
                     this.JsonDict[`${link}`] = title;
                 }
 
-                await def.sleep(10);
+                await def.Sleep(10);
             }
 
 
@@ -746,7 +746,7 @@
             } else {
 
                 this.Pages++;
-                await def.sleep(500);
+                await def.Sleep(500);
                 menu ? this.GetNextPage(menu.href) : this.ToJson();
             }
         }
@@ -782,11 +782,11 @@
                         this.SortMap.set(index, {title: title, box: box});
                     }
 
-                    Config.DeBug && def.log("Request Successful", this.SortMap, {collapsed: false});
+                    Config.DeBug && def.Log("Request Successful", this.SortMap, {collapsed: false});
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
-                    Config.DeBug && def.log("Request Failed", {title: title, url: url}, {collapsed: false});
-                    await def.sleep(1000);
+                    Config.DeBug && def.Log("Request Failed", {title: title, url: url}, {collapsed: false});
+                    await def.Sleep(1000);
                     this.worker.postMessage({ index: index, title: title, url: url });
                 }
             }
@@ -900,7 +900,7 @@
                         insert: false,
                         setParent: false
                     });
-                    await def.sleep(Config.BatchOpenDelay);
+                    await def.Sleep(Config.BatchOpenDelay);
                 }
             }
         }
