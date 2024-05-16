@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         SyntaxSimplified
-// @version      2024/05/16
+// @version      2024/05/17
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
 // @namespace    https://greasyfork.org/users/989635
@@ -272,14 +272,15 @@ class Syntax {
      * @param {function} trigger        - 觸發函數
      * @param {string} {mark}           - 創建標記, 用於避免重複創建
      * @param {boolean} {subtree}       - 觀察 目標節點及其所有後代節點的變化
-     * @param {boolean} {childList}     - 觀察 目標節點的子節點數量的變化
-     * @param {boolean} {characterData} - 觀察 目標節點的屬性值的變化
+     * @param {boolean} {childList}     - 觀察 目標節點的子節點數量的
+     * @param {boolean} {attributes}    - 觀察 目標的元素屬性變化
+     * @param {boolean} {characterData} - 觀察 目標文本節點的變化
      * @paeam {*} {callback} - 觀察對象, 觀察參數
      *
      * @example
      * Observer("觀察對象", ()=> {
      *      運行邏輯...
-     * }, {mark: "標記", childList: false, characterData: true}, back=> {
+     * }, {mark: "標記", childList: false}, back=> {
      *      如果需要進行額外操作
      *      const observer = back.ob;
      *      const options = back.op;
@@ -290,14 +291,19 @@ class Syntax {
         throttle=0,
         subtree=true,
         childList=true,
+        attributes=true,
         characterData=false,
     }={}, callback=null) {
         if (mark) {
             if (this.Mark[mark]) {return}
             else {this.Mark[mark] = true}
         }
-        const op = {subtree: subtree, childList: childList, characterData: characterData};
-        const ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
+        const op = {
+            subtree: subtree,
+            childList: childList,
+            attributes: attributes,
+            characterData: characterData
+        }, ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
         ob.observe(object, op);
         callback && callback({ob, op});
     }
@@ -315,7 +321,8 @@ class Syntax {
      *     throttle: 50, - 針對 MutationObserver 的節流
      *     subtree: true, - MutationObserver 觀察 目標節點及其所有後代節點的變化
      *     childList: true, - MutationObserver 觀察 目標節點的子節點數量的變化
-     *     characterData: false, - MutationObserver 觀察 目標節點的屬性值的變化
+     *     attributes: true, - MutationObserver 觀察 目標節點的屬性變化
+     *     characterData: false, - MutationObserver 觀察 目標文本節點的變化
      *     timeoutResult: false, - 超時是否回傳找到的結果
      *     object: document.body, - MutationObserver 的觀察對象
      * }
@@ -332,6 +339,7 @@ class Syntax {
         throttle=50,
         subtree=true,
         childList=true,
+        attributes=false,
         characterData=false,
         timeoutResult=false,
         object=document.body,
@@ -374,6 +382,7 @@ class Syntax {
             observer.observe(object, {
                 subtree: subtree,
                 childList: childList,
+                attributes: attributes,
                 characterData: characterData
             });
 
@@ -396,7 +405,8 @@ class Syntax {
      *     throttle: 50, - 針對 MutationObserver 的節流
      *     subtree: true, - MutationObserver 觀察 目標節點及其所有後代節點的變化
      *     childList: true, - MutationObserver 觀察 目標節點的子節點數量的變化
-     *     characterData: false, - MutationObserver 觀察 目標節點的屬性值的變化
+     *     attributes: true, - MutationObserver 觀察 目標節點的屬性變化
+     *     characterData: false, - MutationObserver 觀察 目標文本節點的變化
      *     timeoutResult: false, - 超時是否回傳找到的結果
      *     object: document.body, - MutationObserver 的觀察對象
      * }
@@ -412,6 +422,7 @@ class Syntax {
         throttle=50,
         subtree=true,
         childList=true,
+        attributes=false,
         characterData=false,
         timeoutResult=false,
         object=document.body,
@@ -452,6 +463,7 @@ class Syntax {
             observer.observe(object, {
                 subtree: subtree,
                 childList: childList,
+                attributes: attributes,
                 characterData: characterData
             });
 
