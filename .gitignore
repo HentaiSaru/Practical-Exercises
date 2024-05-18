@@ -1,5 +1,6 @@
 *.txt
 *.exe
-*.class
+*.bat
 *.pyc
 *.docx
+*.class
