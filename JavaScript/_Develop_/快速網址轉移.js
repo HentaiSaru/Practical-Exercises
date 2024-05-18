@@ -41,8 +41,8 @@
     
             await new Promise(resolve => setTimeout(resolve, 100));
             Json.remove();
-            Success && Success(true);
-        } catch {Success && Success(false)}
+            Success && Success({State: true});
+        } catch (error) {Success && Success({State: false, Info: error})}
     }
 
     (new class Bookmark {
