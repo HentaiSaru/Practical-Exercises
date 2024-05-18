@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         SyntaxSimplified
+// @name         Class_Syntax
 // @version      2024/05/17
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax
@@ -9,7 +9,7 @@
 // ==/UserScript==
 
 /**
- * * { 簡化語法的類別 }
+ * * { Class 版 語法簡化 API }
  * 
  * @example
  * 1.
@@ -159,9 +159,9 @@ class Syntax {
      * @returns {string}       - 經填充後的尾數
      */
     Mantissa(index, padding, filler="0", type=null) {
-        return type ?
-            `${++index}.${this.ExtensionName(type)}`.padStart(padding, filler)
-            : `${++index}`.padStart(padding, filler);
+        return type
+        ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
+        : `${++index}`.padStart(padding, filler);
     }
 
     /**
@@ -576,7 +576,7 @@ class Syntax {
             result = new Set(),
             exclude = new Set(),
             len = object.length;
-        for (const str of scope.split(/\s*[,\.]\s*/)) { // 使用 , 進行分割 , 的前後可有任意空格
+        for (const str of scope.split(/\s*[,\./]\s*/)) { // 使用 , . / 進行分割
             // 取索引值 -1 是為了得到真正的索引值
             if (/^\d+$/.test(str)) { // 單數字
                 result.add(Number(str)-1);
