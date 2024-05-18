@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Class_Syntax
+// @name         ClassSyntax
 // @version      2024/05/18
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)

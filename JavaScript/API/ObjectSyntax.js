@@ -1,5 +1,5 @@
 // ==UserScript==
-// @name         Object_Syntax
+// @name         ObjectSyntax
 // @version      2024/05/18
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
