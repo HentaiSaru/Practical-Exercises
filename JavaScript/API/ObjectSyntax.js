@@ -2,7 +2,7 @@
 // @name         Object_Syntax
 // @version      2024/05/18
 // @author       Canaan HS
-// @description  Library for simplifying code logic and syntax
+// @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
 // @match        *://*/*
 // @license      MIT
