@@ -24,13 +24,29 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/495339/1378690/ObjectSyntax_min.js
 // ==/UserScript==
 
 (function() {
-    (new class Bookmark extends Syntax {
+    // 測試
+    async function OutputJson(Data, Name, Success=null) {
+        try {
+            Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
+            Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
+    
+            const Json = document.createElement("a");
+            Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(Data)}`;
+            Json.download = `${Name}.json`;
+            Json.click();
+    
+            await new Promise(resolve => setTimeout(resolve, 100));
+            Json.remove();
+            Success && Success(true);
+        } catch {Success && Success(false)}
+    }
+
+    (new class Bookmark {
         constructor() {
-            super();
             this.AddClose = true; // 添加網址後關閉窗口
             this.OpenClear = true; // 開啟後清除
             this.ExportClear = false; // 導出後清除保存數據
@@ -38,7 +54,7 @@
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
             // 解碼
-            this.decode = (str) => decodeURI(str);
+            this.decode = (str) => decodeURIComponent(str);
 
             // 解析域名
             this.DomainName = (url) => {
@@ -62,7 +78,7 @@
                 let options = 0,
                 display = "",
                 read_data = new Map(),
-                all_data = this.store("a");
+                all_data = Syn.Store("a");
 
                 const process = (key, value) => {// 將相同 key 的值進行分組, 傳入 read_data
                     read_data.has(key) ? read_data.get(key).push(value) : read_data.set(key, [value]); // 他是以列表保存子項目
@@ -70,7 +86,7 @@
 
                 if (all_data.length > 0) {
                     all_data.forEach(key => {// 讀取後分類
-                        const recover = this.PakoToData(this.store("g", key));
+                        const recover = this.PakoToData(Syn.Store("g", key));
                         recover && process(this.DomainName(recover.url), {[key]: recover});
                     });
 
@@ -96,7 +112,7 @@
                             if (choose == "all") { // 0 開啟全部
                                 return data_values.flat();
                             } else {
-                                const scope = this.ScopeParsing(choose, data_values); // 接收範圍參數
+                                const scope = Syn.ScopeParsing(choose, data_values); // 接收範圍參數
                                 if (scope.length > 0) {
                                     return scope.flat();
                                 } else {
@@ -116,7 +132,7 @@
             this.Import = (data) => {
                 try {
                     for (const [key, value] of Object.entries(JSON.parse(data))) {
-                        this.store("s", key, value);
+                        Syn.Store("s", key, value);
                     }
                     GM_notification({
                         title: "導入完畢",
@@ -136,7 +152,7 @@
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
                         export_data[key] = this.DataToPako(JSON.stringify(value));
-                        this.ExportClear && this.store("d", key); // 導出刪除
+                        this.ExportClear && Syn.Store("d", key); // 導出刪除
                     });
                     return JSON.stringify(export_data, null, 4);
                 } else {
@@ -150,7 +166,7 @@
             try {
                 const url = this.decode(document.URL);
                 const title = document.title || `Source_${url}`;
-                const icon = this.$$("link[rel~='icon']");
+                const icon = Syn.$$("link[rel~='icon']");
                 const icon_link = icon ? this.decode(icon.href) : "None";
 
                 // 組成數據
@@ -163,7 +179,7 @@
                 , hash = md5(data, md5(save));
 
                 // 使用哈希值為 key, 壓縮字串為 value
-                this.store("s", hash, save);
+                Syn.Store("s", hash, save);
 
                 GM_notification({
                     title: "添加完成",
@@ -185,7 +201,7 @@
                     const [key, value] = Object.entries(data)[0];
                     setTimeout(()=> {
                         GM_openInTab(value.url);
-                        this.OpenClear && this.store("d", key); // 刪除開啟的數據
+                        this.OpenClear && Syn.Store("d", key); // 刪除開啟的數據
                     }, 500 * index);
                 })
             }
@@ -202,13 +218,13 @@
                 timeout: 2500
             })
 
-            this.Listen(document, "click", (event)=> {
+            Syn.Listen(document, "click", (event)=> {
                 event.preventDefault();
                 input.click();
                 input.remove();
             }, {once: true});
 
-            this.Listen(input, "change", (event)=> {
+            Syn.Listen(input, "change", (event)=> {
                 const file = event.target.files[0];
                 if (file) {
                     const reader = new FileReader();
@@ -230,16 +246,13 @@
         Export_Json() {
             const Export_Data = this.Export();
             if (Export_Data) {
-                const json = document.createElement("a");
-                json.href = "data:application/json;charset=utf-8," + encodeURI(Export_Data);
-                json.download = "Bookmark.json";
-                json.click();
-                json.remove();
-                GM_notification({
-                    title: "導出完畢",
-                    text: "已下載 Json",
-                    timeout: 1500
-                })
+                OutputJson(Export_Data, "Bookmark", Success=> {
+                    Success && GM_notification({
+                        title: "導出完畢",
+                        text: "已下載 Json",
+                        timeout: 1500
+                    })
+                });
             }
         }
 
@@ -258,7 +271,7 @@
 
         /* 菜單創建 */
         async Create() {
-            this.Menu({
+            Syn.Menu({
                 "🔖 添加書籤": {func: ()=> this.Add()},
                 "📖 開啟書籤": {func: ()=> this.Read()},
                 "📥️ 導出 [Json]": {func: ()=> this.Export_Json()},
