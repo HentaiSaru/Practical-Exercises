@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/05/18
+// @version      2024/05/21
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -514,6 +514,31 @@ class Syntax {
     }
 
     /**
+     * * { 獲取當前時間格式 }
+     * @param {string} format - 選擇輸出的格式 : {year}{month}{date}{hour}{minute}{second}
+     * @returns {string} - 設置的時間格式, 或是預設值
+     * 
+     * @example
+     * GetDate("{year}/{month}/{date} {hour}:{minute}")
+     */
+    GetDate(format=null) {
+        const date = new Date();
+        const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
+
+        const formatMap = {
+            year: date.getFullYear(),
+            month: (date.getMonth() + 1).toString().padStart(2, "0"),
+            date: date.getDate().toString().padStart(2, "0"),
+            hour: date.getHours().toString().padStart(2, "0"),
+            minute: date.getMinutes().toString().padStart(2, "0"),
+            second: date.getSeconds().toString().padStart(2, "0")
+        };
+
+        const generate = (template) => template.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
+        return generate(typeof format === "string" ? format : defaultFormat);
+    }
+
+    /**
      ** { 防抖函數 Debounce, 只會在停止呼叫後觸發, 持續呼叫就會一直重置 }
      * @param {function} func - 要觸發的函數
      * @param {number} delay - 延遲的時間ms
@@ -624,6 +649,34 @@ class Syntax {
         return value != null
             ? this.StorageMatch[this.StorageMatch.Type(value)](type, key, value)
             : (data = type.getItem(key), data != undefined ? this.StorageMatch[this.StorageMatch.Type(JSON.parse(data))](type, data) : error);
+    }
+
+    /**
+     * * { 輸出 Json 檔案 }
+     *
+     * @param {*} Data      - 可轉成 Json 格式的數據
+     * @param {string} Name - 輸出的檔名 (不用打副檔名)
+     * @param {function} Success   - 選擇是否回傳輸出狀態
+     * 
+     * @example
+     * OutputJson({key: value}, "Json", Success=> {
+     *      console.log(Success);
+     * })
+     */
+    async OutputJson(Data, Name, Success=null) {
+        try {
+            Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
+            Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
+
+            const Json = document.createElement("a");
+            Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(Data)}`;
+            Json.download = `${Name}.json`;
+            Json.click();
+
+            await new Promise(resolve => setTimeout(resolve, 100));
+            Json.remove();
+            Success && Success({State: true});
+        } catch (error) {Success && Success({State: false, Info: error})}
     }
 
     /* ========== 油猴的 API ========== */
