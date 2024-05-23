@@ -604,7 +604,7 @@ const Syn = (()=> {
             );
 
             if (TemplateMatch.Type(format) === "String") {
-                return format.replace(/\{\s*([^}\s]+)\s*\}/g, (match, key)=> TemplateMatch.Process(template, key));
+                return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> TemplateMatch.Process(template, key));
 
             } else if (TemplateMatch.Type(format) === "Object") {
                 return Object.entries(format).map(([key, value]) => TemplateMatch.Process(template, key, value));
@@ -704,7 +704,7 @@ const Syn = (()=> {
                 second: date.getSeconds().toString().padStart(2, "0")
             };
 
-            const generate = (temp) => temp.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
+            const generate = (temp) => temp.replace(/{([^}]+)}/g, (_, key) => formatMap[key] || "Error");
             return generate(typeof format === "string" ? format : defaultFormat);
         },
 
