@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/05/21
+// @version      2024/05/23
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -39,6 +39,15 @@ const Syn = (()=> {
             },
             "default": (source, select, all) => {
                 return all ? source.querySelectorAll(select) : source.querySelector(select);
+            }
+        },
+        TemplateMatch = { // FormatTemplate()
+            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
+            Process: function(template, key, value=null) {
+                const temp = template[key.toLowerCase()];
+                return this.Type(temp) === "Function"
+                    ? temp(value)
+                    : (temp !== undefined ? temp : "None");
             }
         },
         StoreMatch = { // Store()
@@ -84,9 +93,9 @@ const Syn = (()=> {
             Path: location.pathname,
             Lang: navigator.language,
             Agen: navigator.userAgent,
-            Type: ()=> {
-                return this.Device._Type = this.Device._Type ? this.Device._Type
-                    : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agen) || this.Device.iW < 768
+            Type: function() {
+                return this._Type = this._Type ? this._Type
+                    : (this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agen) || this.iW < 768
                     ? "Mobile" : "Desktop");
             }
         },
@@ -565,6 +574,48 @@ const Syn = (()=> {
         },
 
         /**
+         * * { 用於解析格式, 回傳匹配模板的結果 }
+         * @param {object} template - 可被匹配的模板
+         * @param {string|object} format - 匹配的格式字串, 要匹配模板的對應 key, 使用 {key} 來標記
+         * @returns {string}
+         *
+         * @example
+         * format 是字串, template 不傳參
+         * format 是物件, template 可自由設置, 傳參或是不傳參
+         *
+         * const template {
+         *      Title: "一個標題",
+         *      Name: ()=> 處理邏輯 
+         * };
+         *
+         * const format = "{Title} {Name} {Title}";
+         * const result = FormatTemplate(template, format);
+         * console.log(result);
+         */
+        FormatTemplate: (template, format)=> {
+
+            if (TemplateMatch.Type(template) !== "Object") {
+                return "Template must be an object";
+            }
+
+            // 將 template 的 keys 轉換成小寫
+            template = Object.fromEntries(
+                Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
+            );
+
+            if (TemplateMatch.Type(format) === "String") {
+                return format.replace(/\{\s*([^}\s]+)\s*\}/g, (match, key)=> TemplateMatch.Process(template, key));
+
+            } else if (TemplateMatch.Type(format) === "Object") {
+                return Object.entries(format).map(([key, value]) => TemplateMatch.Process(template, key, value));
+
+            } else {
+                return {"Unsupported format": format};
+
+            }
+        },
+
+        /**
          * * { 輸出 Json 檔案 }
          *
          * @param {*} Data      - 可轉成 Json 格式的數據
@@ -576,7 +627,7 @@ const Syn = (()=> {
          *      console.log(Success);
          * })
          */
-        OutputJson: async(Data, Name, Success=null) => {
+        OutputJson: async(Data, Name, Success=null)=> {
             try {
                 Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
                 Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
@@ -640,7 +691,7 @@ const Syn = (()=> {
          * @example
          * GetDate("{year}/{month}/{date} {hour}:{minute}")
          */
-        GetDate: (format=null) => {
+        GetDate: (format=null)=> {
             const date = new Date();
             const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
 
@@ -653,7 +704,7 @@ const Syn = (()=> {
                 second: date.getSeconds().toString().padStart(2, "0")
             };
 
-            const generate = (template) => template.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
+            const generate = (temp) => temp.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
             return generate(typeof format === "string" ? format : defaultFormat);
         },
 
