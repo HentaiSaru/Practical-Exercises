@@ -11,6 +11,8 @@
 /**
  * * { 物件版 語法簡化 API }
  * 
+ * 主要個人使用, 避免額外性能開銷, 許多函數並無參數驗證
+ *
  * @example
  * Syn.func()
  */
@@ -19,6 +21,7 @@ const Syn = (()=> {
         Mark = {}, // Observer() & StoreListen()
         Parser = new DOMParser(), // DomParse()
         ListenerRecord = new Map(), // AddListener() & RemovListener()
+        Type = (object) => Object.prototype.toString.call(object).slice(8, -1),
         Print = { // Log()
             log: label=> console.log(label),
             warn: label=> console.warn(label),
@@ -42,10 +45,9 @@ const Syn = (()=> {
             }
         },
         TemplateMatch = { // FormatTemplate()
-            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
-            Process: function(template, key, value=null) {
+            Process: (template, key, value=null)=> {
                 const temp = template[key.toLowerCase()];
-                return this.Type(temp) === "Function"
+                return Type(temp) === "Function"
                     ? temp(value)
                     : (temp !== undefined ? temp : "None");
             }
@@ -60,7 +62,6 @@ const Syn = (()=> {
             gj: (key, value) => JSON.parse(StoreMatch.verify(GM_getValue(key, value)))
         },
         StorageMatch = { // Storage()
-            Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
             String: (storage, key, value) =>
                 value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Number: (storage, key, value) =>
@@ -473,8 +474,8 @@ const Syn = (()=> {
         Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
             let data;
             return value != null
-                ? StorageMatch[StorageMatch.Type(value)](type, key, value)
-                : (data = type.getItem(key), data != undefined ? StorageMatch[StorageMatch.Type(JSON.parse(data))](type, data) : error);
+                ? StorageMatch[Type(value)](type, key, value)
+                : (data = type.getItem(key), data != undefined ? StorageMatch[Type(JSON.parse(data))](type, data) : error);
         },
 
         /* ========== 請求數據處理 ========== */
@@ -594,7 +595,7 @@ const Syn = (()=> {
          */
         FormatTemplate: (template, format)=> {
 
-            if (TemplateMatch.Type(template) !== "Object") {
+            if (Type(template) !== "Object") {
                 return "Template must be an object";
             }
 
@@ -603,10 +604,10 @@ const Syn = (()=> {
                 Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
             );
 
-            if (TemplateMatch.Type(format) === "String") {
+            if (Type(format) === "String") {
                 return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> TemplateMatch.Process(template, key));
 
-            } else if (TemplateMatch.Type(format) === "Object") {
+            } else if (Type(format) === "Object") {
                 return Object.entries(format).map(([key, value]) => TemplateMatch.Process(template, key, value));
 
             } else {

@@ -11,12 +11,14 @@
 /**
  * * { Class 版 語法簡化 API }
  * 
+ * 主要個人使用, 避免額外性能開銷, 許多函數並無參數驗證
+ *
  * @example
  * 1.
  *  class main extends Syntax {
  *       this.func();
  *  }
- * 
+ *
  * 2.
  *  const def = new Syntax();
  *  def.func();
@@ -35,6 +37,7 @@ class Syntax {
         this.#Mark = {};
         this.Parser = new DOMParser();
         this.#ListenerRecord = new Map();
+        this.Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
         this.#Print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
@@ -60,8 +63,7 @@ class Syntax {
             }
         };
         this.#TemplateMatch = {
-            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
-            Process: function(template, key, value=null) {
+            Process: (template, key, value=null)=> {
                 const temp = template[key.toLowerCase()];
                 return this.Type(temp) === "Function"
                     ? temp(value)
@@ -78,7 +80,6 @@ class Syntax {
             gj: (key, value) => JSON.parse(this.#StoreMatch.verify(GM_getValue(key, value)))
         };
         this.#StorageMatch = {
-            Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
             String: (storage, key, value) =>
                 value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
             Number: (storage, key, value) =>
@@ -486,8 +487,8 @@ class Syntax {
      Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
         let data;
         return value != null
-            ? this.#StorageMatch[this.#StorageMatch.Type(value)](type, key, value)
-            : (data = type.getItem(key), data != undefined ? this.#StorageMatch[this.#StorageMatch.Type(JSON.parse(data))](type, data) : error);
+            ? this.#StorageMatch[this.Type(value)](type, key, value)
+            : (data = type.getItem(key), data != undefined ? this.#StorageMatch[this.Type(JSON.parse(data))](type, data) : error);
     }
 
     /* ========== 請求數據處理 ========== */
@@ -612,7 +613,7 @@ class Syntax {
      */
     FormatTemplate(template, format) {
 
-        if (this.#TemplateMatch.Type(template) !== "Object") {
+        if (this.Type(template) !== "Object") {
             return "Template must be an object";
         }
 
@@ -621,10 +622,10 @@ class Syntax {
             Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
         );
 
-        if (this.#TemplateMatch.Type(format) === "String") {
+        if (this.Type(format) === "String") {
             return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> this.#TemplateMatch.Process(template, key));
 
-        } else if (this.#TemplateMatch.Type(format) === "Object") {
+        } else if (this.Type(format) === "Object") {
             return Object.entries(format).map(([key, value]) => this.#TemplateMatch.Process(template, key, value));
 
         } else {
