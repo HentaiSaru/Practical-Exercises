@@ -23,18 +23,26 @@
  */
 
 class Syntax {
+    #Mark;
+    #Print;
+    #Query;
+    #StoreMatch;
+    #StorageMatch;
+    #TemplateMatch;
+    #ListenerRecord;
+
     constructor() {
-        this.Mark = {};
+        this.#Mark = {};
         this.Parser = new DOMParser();
-        this.ListenerRecord = new Map();
-        this.Print = {
+        this.#ListenerRecord = new Map();
+        this.#Print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
             trace: label=> console.trace(label),
             error: label=> console.error(label),
             count: label=> console.count(label),
         };
-        this.Query = {
+        this.#Query = {
             Match: /[ .#=:]/,
             "#": (source, select) => source.getElementById(select.slice(1)),
             ".": (source, select, all) => {
@@ -51,7 +59,7 @@ class Syntax {
                 : source.querySelector(select);
             }
         };
-        this.TemplateMatch = {
+        this.#TemplateMatch = {
             Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
             Process: function(template, key, value=null) {
                 const temp = template[key.toLowerCase()];
@@ -60,25 +68,16 @@ class Syntax {
                     : (temp !== undefined ? temp : "None");
             }
         };
-        this.TemplateMatch = {
-            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
-            Process: function(template, key, value=null) {
-                const temp = template[key.toLowerCase()];
-                return this.Type(temp) === "Function"
-                    ? temp(value)
-                    : (temp !== undefined ? temp : "None");
-            }
-        };
-        this.StoreMatch = {
+        this.#StoreMatch = {
             verify: val => val !== void 0 ? val : false,
             d: key => GM_deleteValue(key),
-            a: () => this.StoreMatch.verify(GM_listValues()),
+            a: () => this.#StoreMatch.verify(GM_listValues()),
             s: (key, value) => GM_setValue(key, value),
-            g: (key, value) => this.StoreMatch.verify(GM_getValue(key, value)),
+            g: (key, value) => this.#StoreMatch.verify(GM_getValue(key, value)),
             sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
-            gj: (key, value) => JSON.parse(this.StoreMatch.verify(GM_getValue(key, value)))
+            gj: (key, value) => JSON.parse(this.#StoreMatch.verify(GM_getValue(key, value)))
         };
-        this.StorageMatch = {
+        this.#StorageMatch = {
             Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
             String: (storage, key, value) =>
                 value != null ? (storage.setItem(key, JSON.stringify(value)), true) : JSON.parse(key),
@@ -132,9 +131,9 @@ class Syntax {
         all=false,
         root=document
     }={}) {
-        const type = !this.Query.Match.test(selector) ? "tag"
-        : this.Query.Match.test(selector.slice(1)) ? "default" : selector[0];
-        return this.Query[type](root, selector, all);
+        const type = !this.#Query.Match.test(selector) ? "tag"
+        : this.#Query.Match.test(selector.slice(1)) ? "default" : selector[0];
+        return this.#Query[type](root, selector, all);
     }
 
     /**
@@ -156,11 +155,11 @@ class Syntax {
         type="log",
         collapsed=true
     }={}) {
-        type = typeof type === "string" && this.Print[type] ? type : type = "log";
-        if (group == null) {this.Print[type](label)}
+        type = typeof type === "string" && this.#Print[type] ? type : type = "log";
+        if (group == null) {this.#Print[type](label)}
         else {
             collapsed ? console.groupCollapsed(group) : console.group(group);
-            this.Print[type](label);
+            this.#Print[type](label);
             console.groupEnd();
         }
     }
@@ -236,13 +235,13 @@ class Syntax {
         listener,
         add={}
     ) {
-        const Listener = this.ListenerRecord.get(element);
+        const Listener = this.#ListenerRecord.get(element);
         if (!Listener || !Listener?.has(type)) {
             element.addEventListener(type, listener, add);
             if (!Listener) {
-                this.ListenerRecord.set(element, new Map());
+                this.#ListenerRecord.set(element, new Map());
             }
-            this.ListenerRecord.get(element).set(type, listener);
+            this.#ListenerRecord.get(element).set(type, listener);
         }
     }
 
@@ -252,10 +251,10 @@ class Syntax {
      * @param {string} type    - 監聽器類型
      */
     async RemovListener(element, type) {
-        const Listen = this.ListenerRecord.get(element)?.get(type);
+        const Listen = this.#ListenerRecord.get(element)?.get(type);
         if (Listen) {
             element.removeEventListener(type, Listen);
-            this.ListenerRecord.get(element).delete(type);
+            this.#ListenerRecord.get(element).delete(type);
         }
     }
 
@@ -288,8 +287,8 @@ class Syntax {
         characterData=false,
     }={}, callback=null) {
         if (mark) {
-            if (this.Mark[mark]) {return}
-            else {this.Mark[mark] = true}
+            if (this.#Mark[mark]) {return}
+            else {this.#Mark[mark] = true}
         }
         const op = {
             subtree: subtree,
@@ -487,8 +486,8 @@ class Syntax {
      Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
         let data;
         return value != null
-            ? this.StorageMatch[this.StorageMatch.Type(value)](type, key, value)
-            : (data = type.getItem(key), data != undefined ? this.StorageMatch[this.StorageMatch.Type(JSON.parse(data))](type, data) : error);
+            ? this.#StorageMatch[this.#StorageMatch.Type(value)](type, key, value)
+            : (data = type.getItem(key), data != undefined ? this.#StorageMatch[this.#StorageMatch.Type(JSON.parse(data))](type, data) : error);
     }
 
     /* ========== 請求數據處理 ========== */
@@ -613,7 +612,7 @@ class Syntax {
      */
     FormatTemplate(template, format) {
 
-        if (this.TemplateMatch.Type(template) !== "Object") {
+        if (this.#TemplateMatch.Type(template) !== "Object") {
             return "Template must be an object";
         }
 
@@ -622,11 +621,11 @@ class Syntax {
             Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
         );
 
-        if (this.TemplateMatch.Type(format) === "String") {
-            return format.replace(/\{\s*([^}\s]+)\s*\}/g, (match, key)=> this.TemplateMatch.Process(template, key));
+        if (this.#TemplateMatch.Type(format) === "String") {
+            return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> this.#TemplateMatch.Process(template, key));
 
-        } else if (this.TemplateMatch.Type(format) === "Object") {
-            return Object.entries(format).map(([key, value]) => this.TemplateMatch.Process(template, key, value));
+        } else if (this.#TemplateMatch.Type(format) === "Object") {
+            return Object.entries(format).map(([key, value]) => this.#TemplateMatch.Process(template, key, value));
 
         } else {
             return {"Unsupported format": format};
@@ -721,7 +720,7 @@ class Syntax {
             second: date.getSeconds().toString().padStart(2, "0")
         };
 
-        const generate = (temp) => temp.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
+        const generate = (temp) => temp.replace(/{([^}]+)}/g, (_, key) => formatMap[key] || "Error");
         return generate(typeof format === "string" ? format : defaultFormat);
     }
 
@@ -823,7 +822,7 @@ class Syntax {
      * store("sj", "資料B", "數據B")
      */
     Store(operat, key=null, value=null) {
-        return this.StoreMatch[operat](key, value);
+        return this.#StoreMatch[operat](key, value);
     }
 
     /**
@@ -847,8 +846,8 @@ class Syntax {
      */
     async StoreListen(object, callback) {
         object.forEach(label => {
-            if (!this.Mark[label]) {
-                this.Mark[label] = true;
+            if (!this.#Mark[label]) {
+                this.#Mark[label] = true;
                 GM_addValueChangeListener(label, function(key, old_value, new_value, remote) {
                     callback({key, ov: old_value, nv: new_value, far: remote});
                 })
