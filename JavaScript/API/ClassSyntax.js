@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/05/21
+// @version      2024/05/23
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -27,7 +27,6 @@ class Syntax {
         this.Mark = {};
         this.Parser = new DOMParser();
         this.ListenerRecord = new Map();
-        this.Buffer = document.createDocumentFragment();
         this.Print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
@@ -51,6 +50,33 @@ class Syntax {
                 ? source.querySelectorAll(select)
                 : source.querySelector(select);
             }
+        };
+        this.TemplateMatch = {
+            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
+            Process: function(template, key, value=null) {
+                const temp = template[key.toLowerCase()];
+                return this.Type(temp) === "Function"
+                    ? temp(value)
+                    : (temp !== undefined ? temp : "None");
+            }
+        };
+        this.TemplateMatch = {
+            Type: (object)=> Object.prototype.toString.call(object).slice(8, -1),
+            Process: function(template, key, value=null) {
+                const temp = template[key.toLowerCase()];
+                return this.Type(temp) === "Function"
+                    ? temp(value)
+                    : (temp !== undefined ? temp : "None");
+            }
+        };
+        this.StoreMatch = {
+            verify: val => val !== void 0 ? val : false,
+            d: key => GM_deleteValue(key),
+            a: () => this.StoreMatch.verify(GM_listValues()),
+            s: (key, value) => GM_setValue(key, value),
+            g: (key, value) => this.StoreMatch.verify(GM_getValue(key, value)),
+            sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
+            gj: (key, value) => JSON.parse(this.StoreMatch.verify(GM_getValue(key, value)))
         };
         this.StorageMatch = {
             Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
@@ -82,13 +108,15 @@ class Syntax {
             Path: location.pathname,
             Lang: navigator.language,
             Agen: navigator.userAgent,
-            Type: ()=> {
-                return this.Device._Type = this.Device._Type ? this.Device._Type
-                    : (this.Device._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Device.Agen) || this.Device.iW < 768
+            Type: function() {
+                return this._Type = this._Type ? this._Type
+                    : (this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agen) || this.iW < 768
                     ? "Mobile" : "Desktop");
             }
         };
     }
+
+    /* ========== 通用常用函數 ========== */
 
     /**
      * * { 簡化查找語法 }
@@ -100,78 +128,13 @@ class Syntax {
      * @example
      * $$("查找元素", {all: true, root: 查找來源})
      */
-    $$(selector, {all=false, root=document}={}) {
+    $$(selector, {
+        all=false,
+        root=document
+    }={}) {
         const type = !this.Query.Match.test(selector) ? "tag"
         : this.Query.Match.test(selector.slice(1)) ? "default" : selector[0];
         return this.Query[type](root, selector, all);
-    }
-
-    /**
-     * * { 解析請求後的頁面, 成可查詢的 html 文檔 }
-     * @param {htnl} html - 要解析成 html 的文檔
-     * @returns {htnl}    - html 文檔
-     */
-    DomParse(html) {
-        return this.Parser.parseFromString(html, "text/html");
-    }
-
-    /**
-     * * { 排除不能用做檔名的字串 }
-     * @param {string} name - 要修正的字串
-     * @returns {string}    - 排除後的字串
-     */
-    NameFilter(name) {
-        return name.replace(/[\/\?<>\\:\*\|":]/g, "");
-    }
-
-    /**
-     ** { 取得下載圖片時的填充量 }
-     * @param {object} pages - 下載的圖片連結物件
-     * @returns {number}     - 返回填充的值
-     *
-     * @example
-     * const box = [下載圖片的連結]
-     * const Fill = GetFill(box);
-     */
-    GetFill(pages) {
-        return Math.max(2, `${pages}`.length);
-    }
-
-    /**
-     * * { 解析網址字串的副檔名 }
-     * @param {string} link - 含有副檔名的連結
-     * @returns {string}    - 回傳副檔名字串
-     */
-    ExtensionName(link) {
-        try {
-            return link.match(/\.([^.]+)$/)[1].toLowerCase() || "png";
-        } catch {
-            return "png";
-        }
-    }
-
-    /**
-     ** { 回傳下載圖片的尾數 }
-     * @param {number} index   - 圖片的頁數
-     * @param {number} padding - 填充量 [由 GetFill() 取得填充量]
-     * @param {string} filler  - 用於填充的字串
-     * @param {string} type    - 圖片的副檔名, 輸入圖片的連結
-     * @returns {string}       - 經填充後的尾數
-     */
-    Mantissa(index, padding, filler="0", type=null) {
-        return type
-        ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
-        : `${++index}`.padStart(padding, filler);
-    }
-
-    /**
-     * * { 創建 Worker 工作文件 }
-     * @param {string} code - 運行代碼
-     * @returns {Worker}    - 創建的 Worker 連結
-     */
-    WorkerCreation(code) {
-        let blob = new Blob([code], {type: "application/javascript"});
-        return new Worker(URL.createObjectURL(blob));
     }
 
     /**
@@ -181,6 +144,25 @@ class Syntax {
      */
     Sleep(delay) {
         return new Promise(resolve => setTimeout(resolve, delay));
+    }
+
+    /**
+     * * { 打印元素 }
+     * @param {*} group - 打印元素標籤盒
+     * @param {*} label - 打印的元素
+     * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
+     */
+    async Log(group=null, label="print", {
+        type="log",
+        collapsed=true
+    }={}) {
+        type = typeof type === "string" && this.Print[type] ? type : type = "log";
+        if (group == null) {this.Print[type](label)}
+        else {
+            collapsed ? console.groupCollapsed(group) : console.group(group);
+            this.Print[type](label);
+            console.groupEnd();
+        }
     }
 
     /**
@@ -199,10 +181,10 @@ class Syntax {
     }
 
     /**
-    * * { 添加腳本到 head }
-    * @param {string} Rule - Js 腳本
-    * @param {string} ID   - 創建 ID
-    */
+     * * { 添加腳本到 head }
+     * @param {string} Rule - Js 腳本
+     * @param {string} ID   - 創建 ID
+     */
     async AddScript(Rule, ID="New-Script") {
         let new_script = document.getElementById(ID);
         if (!new_script) {
@@ -214,13 +196,46 @@ class Syntax {
     }
 
     /**
+     * * { 簡化版監聽器 (不可刪除, 且不檢測是否重複添加, 但會回傳註冊狀態) }
+     * @param {string} element - 添加元素
+     * @param {string} type    - 監聽器類型
+     * @param {*} listener     - 監聽後操作
+     * @param {object} add     - 附加功能
+     * @returns {boolean}      - 回傳添加狀態
+     *
+     * @example
+     * Listen("監聽元素", "監聽類型", 觸發 => {
+     *      觸發... 其他操作
+     * }, {once: true, capture: true, passive: true}, 接收註冊狀態 => {
+     *      console.log(註冊狀態)
+     * })
+     */
+    async Listen(
+        element,
+        type,
+        listener,
+        add={},
+        resolve=null
+    ) {
+        try {
+            element.addEventListener(type, listener, add);
+            resolve && resolve(true);
+        } catch {resolve && resolve(false)}
+    }
+
+    /**
      * * { 添加監聽器 (可刪除, 且會檢測是否重複添加) }
      * @param {string} element - 添加元素
      * @param {string} type    - 監聽器類型
      * @param {*} listener     - 監聽後操作
      * @param {object} add     - 附加功能
      */
-    async AddListener(element, type, listener, add={}) {
+    async AddListener(
+        element,
+        type,
+        listener,
+        add={}
+    ) {
         const Listener = this.ListenerRecord.get(element);
         if (!Listener || !Listener?.has(type)) {
             element.addEventListener(type, listener, add);
@@ -245,28 +260,6 @@ class Syntax {
     }
 
     /**
-     * * { 簡化版監聽器 (不可刪除, 且不檢測是否重複添加, 但會回傳註冊狀態) }
-     * @param {string} element - 添加元素
-     * @param {string} type    - 監聽器類型
-     * @param {*} listener     - 監聽後操作
-     * @param {object} add     - 附加功能
-     * @returns {boolean}      - 回傳添加狀態
-     *
-     * @example
-     * Listen("監聽元素", "監聽類型", 觸發 => {
-     *      觸發... 其他操作
-     * }, {once: true, capture: true, passive: true}, 接收註冊狀態 => {
-     *      console.log(註冊狀態)
-     * })
-     */
-    async Listen(element, type, listener, add={}, resolve=null) {
-        try {
-            element.addEventListener(type, listener, add);
-            resolve && resolve(true);
-        } catch {resolve && resolve(false)}
-    }
-
-    /**
      ** { 持續監聽對象, 並運行函數 (用於持續監聽) }
      * @param {element} object          - 觀察對象
      * @param {function} trigger        - 觸發函數
@@ -286,7 +279,7 @@ class Syntax {
      *      const options = back.op;
      * })
      */
-    async Observer(object, trigger, {
+     async Observer(object, trigger, {
         mark=false,
         throttle=0,
         subtree=true,
@@ -332,7 +325,7 @@ class Syntax {
      *      console.log(found); 找到的元素
      * }, {設置參數});
      */
-    async WaitElem(selector, found, {
+     async WaitElem(selector, found, {
         raf=false,
         all=false,
         timeout=8,
@@ -475,115 +468,87 @@ class Syntax {
     }
 
     /**
-     * * { 打印元素 }
-     * @param {*} group - 打印元素標籤盒
-     * @param {*} label - 打印的元素
-     * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
+     ** { 瀏覽器 Storage 操作 }
+     * @param {string} key - 存儲的 key 值
+     * @param {sessionStorage | localStorage} {type} - 存儲的類型 (預設 sessionStorage)
+     * @param {*} {value}  - 存儲的 value 值
+     * @param {*} {error}  - 當不存在此值是要回傳的
+     * @returns {*}        - 回傳保存的值
+     *
+     * @example
+     * 支援的類型 (String, Number, Array, Object, Boolean, Date, Map)
+     *
+     * Storage("數據", {value: 123, error: false})
+     * Storage("數據")
+     *
+     * Storage("數據", {value: 123, type: localStorage})
+     * Storage("數據", {type: localStorage})
      */
-    async Log(group=null, label="print", {type="log", collapsed=true}={}) {
-        type = typeof type === "string" && this.Print[type] ? type : type = "log";
-        if (group == null) {this.Print[type](label)}
-        else {
-            collapsed ? console.groupCollapsed(group) : console.group(group);
-            this.Print[type](label);
-            console.groupEnd();
+     Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
+        let data;
+        return value != null
+            ? this.StorageMatch[this.StorageMatch.Type(value)](type, key, value)
+            : (data = type.getItem(key), data != undefined ? this.StorageMatch[this.StorageMatch.Type(JSON.parse(data))](type, data) : error);
+    }
+
+    /* ========== 請求數據處理 ========== */
+
+    /**
+     * * { 解析請求後的頁面, 成可查詢的 html 文檔 }
+     * @param {htnl} html - 要解析成 html 的文檔
+     * @returns {htnl}    - html 文檔
+     */
+    DomParse(html) {
+        return this.Parser.parseFromString(html, "text/html");
+    }
+
+    /**
+     * * { 排除不能用做檔名的字串 }
+     * @param {string} name - 要修正的字串
+     * @returns {string}    - 排除後的字串
+     */
+    NameFilter(name) {
+        return name.replace(/[\/\?<>\\:\*\|":]/g, "");
+    }
+
+    /**
+     ** { 取得下載圖片時的填充量 }
+     * @param {object} pages - 下載的圖片連結物件
+     * @returns {number}     - 返回填充的值
+     *
+     * @example
+     * const box = [下載圖片的連結]
+     * const Fill = GetFill(box);
+     */
+    GetFill(pages) {
+        return Math.max(2, `${pages}`.length);
+    }
+
+    /**
+     * * { 解析網址字串的副檔名 }
+     * @param {string} link - 含有副檔名的連結
+     * @returns {string}    - 回傳副檔名字串
+     */
+    ExtensionName(link) {
+        try {
+            return link.match(/\.([^.]+)$/)[1].toLowerCase() || "png";
+        } catch {
+            return "png";
         }
     }
 
     /**
-     ** { 獲取運行經過時間 }
-     * @param {Date.now()} time - 傳入 Date.now()
-     * @param {string} show - 顯示的說明文字
-     * @param {string} {style} - 展示的風格
-     * @param {boolean} {log} - 是否直接打印
-     *
-     * @returns {Date.now()}
-     *
-     * @example
-     * let start = Runtime();
-     * let end = Runtime(start);
-     * console.log(end);
-     *
-     * let start = Runtime();
-     * Runtime(start, true);
+     ** { 回傳下載圖片的尾數 }
+     * @param {number} index   - 圖片的頁數
+     * @param {number} padding - 填充量 [由 GetFill() 取得填充量]
+     * @param {string} filler  - 用於填充的字串
+     * @param {string} type    - 圖片的副檔名, 輸入圖片的連結
+     * @returns {string}       - 經填充後的尾數
      */
-    Runtime(time=null, show="Elapsed Time:", {style="\x1b[1m\x1b[36m%s\x1b[0m", log=true}={}) {
-        return !time? Date.now(): log?
-        console.log(style, `${show} ${((Date.now()-time)/1e3)}s`):
-        (Date.now() - time);
-    }
-
-    /**
-     * * { 獲取當前時間格式 }
-     * @param {string} format - 選擇輸出的格式 : {year}{month}{date}{hour}{minute}{second}
-     * @returns {string} - 設置的時間格式, 或是預設值
-     * 
-     * @example
-     * GetDate("{year}/{month}/{date} {hour}:{minute}")
-     */
-    GetDate(format=null) {
-        const date = new Date();
-        const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
-
-        const formatMap = {
-            year: date.getFullYear(),
-            month: (date.getMonth() + 1).toString().padStart(2, "0"),
-            date: date.getDate().toString().padStart(2, "0"),
-            hour: date.getHours().toString().padStart(2, "0"),
-            minute: date.getMinutes().toString().padStart(2, "0"),
-            second: date.getSeconds().toString().padStart(2, "0")
-        };
-
-        const generate = (template) => template.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
-        return generate(typeof format === "string" ? format : defaultFormat);
-    }
-
-    /**
-     ** { 防抖函數 Debounce, 只會在停止呼叫後觸發, 持續呼叫就會一直重置 }
-     * @param {function} func - 要觸發的函數
-     * @param {number} delay - 延遲的時間ms
-     * @returns {function}
-     *
-     * @example
-     * a = Debounce(()=> {}, 100);
-     * a();
-     *
-     * function b(n) {
-     *      Debounce(b(n), 100);
-     * }
-     *
-     * document.addEventListener("pointermove", Debounce(()=> {
-     *
-     * }), 100)
-     */
-    Debounce(func, delay=500) {
-        let timer = null;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(function() {
-                func(...args);
-            }, delay);
-        }
-    }
-
-    /**
-     ** { 節流函數, 立即觸發, 後續按照指定的速率運行, 期間多餘的觸發將會被忽略 }
-     * @param {function} func - 要觸發的函數
-     * @param {number} delay - 延遲的時間ms
-     * @returns {function}
-     *
-     * @example
-     * 與上方相同只是改成 Throttle()
-     */
-    Throttle(func, delay) {
-        let lastTime = 0;
-        return (...args) => {
-            const now = Date.now();
-            if ((now - lastTime) >= delay) {
-                lastTime = now;
-                func(...args);
-            }
-        }
+    Mantissa(index, padding, filler="0", type=null) {
+        return type
+        ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
+        : `${++index}`.padStart(padding, filler);
     }
 
     /**
@@ -628,27 +593,45 @@ class Syntax {
     }
 
     /**
-     ** { 瀏覽器 Storage 操作 }
-     * @param {string} key - 存儲的 key 值
-     * @param {sessionStorage | localStorage} {type} - 存儲的類型 (預設 sessionStorage)
-     * @param {*} {value}  - 存儲的 value 值
-     * @param {*} {error}  - 當不存在此值是要回傳的
-     * @returns {*}        - 回傳保存的值
+     * * { 用於解析格式, 回傳匹配模板的結果 }
+     * @param {object} template - 可被匹配的模板
+     * @param {string|object} format - 匹配的格式字串, 要匹配模板的對應 key, 使用 {key} 來標記
+     * @returns {string}
      *
      * @example
-     * 支援的類型 (String, Number, Array, Object, Boolean, Date, Map)
+     * format 是字串, template 不傳參
+     * format 是物件, template 可自由設置, 傳參或是不傳參
      *
-     * Storage("數據", {value: 123, error: false})
-     * Storage("數據")
+     * const template {
+     *      Title: "一個標題",
+     *      Name: ()=> 處理邏輯 
+     * };
      *
-     * Storage("數據", {value: 123, type: localStorage})
-     * Storage("數據", {type: localStorage})
+     * const format = "{Title} {Name} {Title}";
+     * const result = FormatTemplate(template, format);
+     * console.log(result);
      */
-    Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
-        let data;
-        return value != null
-            ? this.StorageMatch[this.StorageMatch.Type(value)](type, key, value)
-            : (data = type.getItem(key), data != undefined ? this.StorageMatch[this.StorageMatch.Type(JSON.parse(data))](type, data) : error);
+    FormatTemplate(template, format) {
+
+        if (this.TemplateMatch.Type(template) !== "Object") {
+            return "Template must be an object";
+        }
+
+        // 將 template 的 keys 轉換成小寫
+        template = Object.fromEntries(
+            Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
+        );
+
+        if (this.TemplateMatch.Type(format) === "String") {
+            return format.replace(/\{\s*([^}\s]+)\s*\}/g, (match, key)=> this.TemplateMatch.Process(template, key));
+
+        } else if (this.TemplateMatch.Type(format) === "Object") {
+            return Object.entries(format).map(([key, value]) => this.TemplateMatch.Process(template, key, value));
+
+        } else {
+            return {"Unsupported format": format};
+
+        }
     }
 
     /**
@@ -679,15 +662,156 @@ class Syntax {
         } catch (error) {Success && Success({State: false, Info: error})}
     }
 
+    /* ========== 特別用途函數 ========== */
+
+    /**
+     * * { 創建 Worker 工作文件 }
+     * @param {string} code - 運行代碼
+     * @returns {Worker}    - 創建的 Worker 連結
+     */
+    WorkerCreation(code) {
+        let blob = new Blob([code], {type: "application/javascript"});
+        return new Worker(URL.createObjectURL(blob));
+    }
+
+    /**
+     ** { 獲取運行經過時間 }
+     * @param {Date.now()} time - 傳入 Date.now()
+     * @param {string} show - 顯示的說明文字
+     * @param {string} {style} - 展示的風格
+     * @param {boolean} {log} - 是否直接打印
+     *
+     * @returns {Date.now()}
+     *
+     * @example
+     * let start = Runtime();
+     * let end = Runtime(start);
+     * console.log(end);
+     *
+     * let start = Runtime();
+     * Runtime(start, true);
+     */
+    Runtime(time=null, show="Elapsed Time:", {
+        style="\x1b[1m\x1b[36m%s\x1b[0m",
+        log=true
+    }={}) {
+        return !time? Date.now(): log?
+        console.log(style, `${show} ${((Date.now()-time)/1e3)}s`):
+        (Date.now() - time);
+    }
+
+    /**
+     * * { 獲取當前時間格式 }
+     * @param {string} format - 選擇輸出的格式 : {year}{month}{date}{hour}{minute}{second}
+     * @returns {string} - 設置的時間格式, 或是預設值
+     * 
+     * @example
+     * GetDate("{year}/{month}/{date} {hour}:{minute}")
+     */
+    GetDate(format=null) {
+        const date = new Date();
+        const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
+
+        const formatMap = {
+            year: date.getFullYear(),
+            month: (date.getMonth() + 1).toString().padStart(2, "0"),
+            date: date.getDate().toString().padStart(2, "0"),
+            hour: date.getHours().toString().padStart(2, "0"),
+            minute: date.getMinutes().toString().padStart(2, "0"),
+            second: date.getSeconds().toString().padStart(2, "0")
+        };
+
+        const generate = (temp) => temp.replace(/{([^}]+)}/g, (match, key) => formatMap[key] || "Error");
+        return generate(typeof format === "string" ? format : defaultFormat);
+    }
+
+    /**
+     ** { 節流函數, 立即觸發, 後續按照指定的速率運行, 期間多餘的觸發將會被忽略 }
+     * @param {function} func - 要觸發的函數
+     * @param {number} delay - 延遲的時間ms
+     * @returns {function}
+     *
+     * @example
+     * 與上方相同只是改成 Throttle()
+     */
+    Throttle(func, delay) {
+        let lastTime = 0;
+        return (...args) => {
+            const now = Date.now();
+            if ((now - lastTime) >= delay) {
+                lastTime = now;
+                func(...args);
+            }
+        }
+    }
+
+    /**
+     ** { 防抖函數 Debounce, 只會在停止呼叫後觸發, 持續呼叫就會一直重置 }
+     * @param {function} func - 要觸發的函數
+     * @param {number} delay - 延遲的時間ms
+     * @returns {function}
+     *
+     * @example
+     * a = Debounce(()=> {}, 100);
+     * a();
+     *
+     * function b(n) {
+     *      Debounce(b(n), 100);
+     * }
+     *
+     * document.addEventListener("pointermove", Debounce(()=> {
+     *
+     * }), 100)
+     */
+    Debounce(func, delay=500) {
+        let timer = null;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                func(...args);
+            }, delay);
+        }
+    }
+
     /* ========== 油猴的 API ========== */
+
+    /**
+     ** { 菜單註冊 API }
+     *
+     * @grant GM_registerMenuCommand
+     *
+     * @param {object} Item  - 創建菜單的物件
+     * @param {string} ID    - 創建菜單的 ID
+     * @param {number} Index - 創建菜單的 ID 的 編號 (設置從多少開始)
+     * @example
+     * Menu({
+     * "菜單1": {
+     *     desc: "菜單描述",
+     *     func: ()=> { 方法1() },
+     *     hotkey: "a",
+     *     close: true,
+     * },
+     * "菜單2": ()=> { 方法2(參數) }
+     *}, "ID");
+     */
+     async Menu(Item, ID="Menu", Index=1) {
+        for (const [Name, options] of Object.entries(Item)) {
+            GM_registerMenuCommand(Name, ()=> {options.func()}, {
+                title: options.desc,
+                id: `${ID}-${Index++}`,
+                autoClose: options.close,
+                accessKey: options.hotkey,
+            });
+        }
+    }
 
     /**
      ** { 操作存储空間 (精簡版) }
      *
-     * // @grant GM_setValue
-     * // @grant GM_getValue
-     * // @grant GM_listValues
-     * // @grant GM_deleteValue
+     * @grant GM_setValue
+     * @grant GM_getValue
+     * @grant GM_listValues
+     * @grant GM_deleteValue
      *
      * @param {string} operate - 操作類型 ("s", "g", "sj", "gj", "d", "a")
      * @param {string} key     - 操作數據索引 Key
@@ -699,22 +823,14 @@ class Syntax {
      * store("sj", "資料B", "數據B")
      */
     Store(operat, key=null, value=null) {
-        const storeMatch = {
-            verify: val => val !== void 0 ? val : false,
-            d: key => GM_deleteValue(key),
-            a: () => storeMatch.verify(GM_listValues()),
-            s: (key, value) => GM_setValue(key, value),
-            g: (key, value) => storeMatch.verify(GM_getValue(key, value)),
-            sj: (key, value) => GM_setValue(key, JSON.stringify(value, null, 4)),
-            gj: (key, value) => JSON.parse(storeMatch.verify(GM_getValue(key, value)))
-        }
-        return storeMatch[operat](key, value);
+        return this.StoreMatch[operat](key, value);
     }
 
     /**
      ** { 監聽保存值的變化 }
      *
-     * // @grant GM_addValueChangeListener
+     * @grant GM_addValueChangeListener
+     * 
      * @param {array} object    - 一個可遍歷的, 標籤對象物件
      * @param {object} callback - 回條函數
      *
@@ -738,35 +854,5 @@ class Syntax {
                 })
             }
         })
-    }
-
-    /**
-     ** { 菜單註冊 API }
-     *
-     * // @grant GM_registerMenuCommand
-     *
-     * @param {object} Item  - 創建菜單的物件
-     * @param {string} ID    - 創建菜單的 ID
-     * @param {number} Index - 創建菜單的 ID 的 編號 (設置從多少開始)
-     * @example
-     * Menu({
-     * "菜單1": {
-     *     desc: "菜單描述",
-     *     func: ()=> { 方法1() },
-     *     hotkey: "a",
-     *     close: true,
-     * },
-     * "菜單2": ()=> { 方法2(參數) }
-     *}, "ID");
-     */
-    async Menu(Item, ID="Menu", Index=1) {
-        for (const [Name, options] of Object.entries(Item)) {
-            GM_registerMenuCommand(Name, ()=> {options.func()}, {
-                title: options.desc,
-                id: `${ID}-${Index++}`,
-                autoClose: options.close,
-                accessKey: options.hotkey,
-            });
-        }
     }
 }
