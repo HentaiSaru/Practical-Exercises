@@ -24,27 +24,10 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1378690/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1382008/ObjectSyntax_min.js
 // ==/UserScript==
 
 (function() {
-    // 測試
-    async function OutputJson(Data, Name, Success=null) {
-        try {
-            Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
-            Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
-    
-            const Json = document.createElement("a");
-            Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(Data)}`;
-            Json.download = `${Name}.json`;
-            Json.click();
-    
-            await new Promise(resolve => setTimeout(resolve, 100));
-            Json.remove();
-            Success && Success({State: true});
-        } catch (error) {Success && Success({State: false, Info: error})}
-    }
-
     (new class Bookmark {
         constructor() {
             this.AddClose = true; // 添加網址後關閉窗口
@@ -164,16 +147,18 @@
         /* 添加書籤 */
         Add() {
             try {
-                const url = this.decode(document.URL);
-                const title = document.title || `Source_${url}`;
-                const icon = Syn.$$("link[rel~='icon']");
-                const icon_link = icon ? this.decode(icon.href) : "None";
+                const
+                    url = this.decode(Syn.Device.Url),
+                    title = document.title || `Source_${url}`,
+                    icon = Syn.$$("link[rel~='icon']"),
+                    icon_link = icon ? this.decode(icon.href) : "None";
 
                 // 組成數據
                 const data = JSON.stringify({
                     url: url,
                     title: title,
                     icon: icon_link,
+                    time: Syn.GetDate(),
                 })
                 , save = this.DataToPako(data)
                 , hash = md5(data, md5(save));
@@ -246,7 +231,7 @@
         Export_Json() {
             const Export_Data = this.Export();
             if (Export_Data) {
-                OutputJson(Export_Data, "Bookmark", Success=> {
+                Syn.OutputJson(Export_Data, "Bookmark", Success=> {
                     Success && GM_notification({
                         title: "導出完畢",
                         text: "已下載 Json",
