@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/05/23
+// @version      2024/05/24
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -26,6 +26,7 @@
 
 class Syntax {
     #Mark;
+    #Type;
     #Print;
     #Query;
     #StoreMatch;
@@ -37,7 +38,7 @@ class Syntax {
         this.#Mark = {};
         this.Parser = new DOMParser();
         this.#ListenerRecord = new Map();
-        this.Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
+        this.#Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
         this.#Print = {
             log: label=> console.log(label),
             warn: label=> console.warn(label),
@@ -65,7 +66,7 @@ class Syntax {
         this.#TemplateMatch = {
             Process: (template, key, value=null)=> {
                 const temp = template[key.toLowerCase()];
-                return this.Type(temp) === "Function"
+                return this.#Type(temp) === "Function"
                     ? temp(value)
                     : (temp !== undefined ? temp : "None");
             }
@@ -487,8 +488,8 @@ class Syntax {
      Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
         let data;
         return value != null
-            ? this.#StorageMatch[this.Type(value)](type, key, value)
-            : (data = type.getItem(key), data != undefined ? this.#StorageMatch[this.Type(JSON.parse(data))](type, data) : error);
+            ? this.#StorageMatch[this.#Type(value)](type, key, value)
+            : (data = type.getItem(key), data != undefined ? this.#StorageMatch[this.#Type(JSON.parse(data))](type, data) : error);
     }
 
     /* ========== 請求數據處理 ========== */
@@ -613,7 +614,7 @@ class Syntax {
      */
     FormatTemplate(template, format) {
 
-        if (this.Type(template) !== "Object") {
+        if (this.#Type(template) !== "Object") {
             return "Template must be an object";
         }
 
@@ -622,10 +623,10 @@ class Syntax {
             Object.entries(template).map(([key, value]) => [key.toLowerCase(), value])
         );
 
-        if (this.Type(format) === "String") {
+        if (this.#Type(format) === "String") {
             return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> this.#TemplateMatch.Process(template, key));
 
-        } else if (this.Type(format) === "Object") {
+        } else if (this.#Type(format) === "Object") {
             return Object.entries(format).map(([key, value]) => this.#TemplateMatch.Process(template, key, value));
 
         } else {

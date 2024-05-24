@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/05/23
+// @version      2024/05/24
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
