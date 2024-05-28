@@ -1,25 +1,25 @@
 // ==UserScript==
-// @name        登入提示
-// @name:zh-TW  登入提示
-// @name:zh-CN  登入提示
-// @name:ja     登入提示
-// @name:ko     登入提示
-// @name:en     登入提示
+// @name        自動登入器
+// @name:zh-TW  自動登入器
+// @name:zh-CN  自動登入器
+// @name:ja     自動登入器
+// @name:ko     自動登入器
+// @name:en     自動登入器
 // @version      0.0.1
 // @author       Canaan HS
-// @description        登入提示
-// @description:zh-TW  登入提示
-// @description:zh-CN  登入提示
-// @description:ja     登入提示
-// @description:ko     登入提示
-// @description:en     登入提示
+// @description        自動登入器
+// @description:zh-TW  自動登入器
+// @description:zh-CN  自動登入器
+// @description:ja     自動登入器
+// @description:ko     自動登入器
+// @description:en     自動登入器
 
 // @match        *://*/*login*
 // @match        *://*/*signin*
-// @icon
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/7960/7960597.png
 
 // @run-at       document-start
 // @grant        GM_setValue
