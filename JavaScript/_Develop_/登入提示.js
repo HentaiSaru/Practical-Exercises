@@ -15,6 +15,7 @@
 // @description:en     登入提示
 
 // @match        *://*/*login*
+// @match        *://*/*signin*
 // @icon
 
 // @license      MIT
@@ -160,9 +161,9 @@
                     const login = [...def.$$("input[type='submit'], button[type='submit']", {all: true})].slice(1);
 
                     // 帳號輸入類型的可能有多個, 暴力解法 全部都輸入
-                    def.$$("input[type='text']", {all: true}).forEach(account => {
+                    def.$$("input[type='text'], input[type='email']", {all: true}).forEach(account => {
                         // 簡單判斷, 雖然也能用選擇器 [name*="acc"], 但他不能處理大小寫差異
-                        if (/acc|log/i.test(account.getAttribute("name"))) {
+                        if (/acc|log|user/i.test(account.getAttribute("name"))) {
                             this.OBL(account, Info.Account); // 動態監聽變化, 持續輸入
                             account.value = Info.Account;
                         }
