@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.32
+// @version      0.0.33
 // @author       Canaan HS
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -23,20 +23,22 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        window.onurlchange
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1382007/ClassSyntax_min.js
 // ==/UserScript==
 
 (function() {
     const HotKey = {
-        Title: k => k.altKey && k.key == "t", // 標題
-        MinimaList: k => k.ctrlKey && k.key == "z", // 極簡化
-        RecomViewing: k => k.altKey && k.key == "1", // 推薦觀看
-        Comment: k => k.altKey && k.key == "2", // 留言區
-        FunctionBar: k => k.altKey && k.key == "3", // 功能區
-        ListDesc: k => k.altKey && k.key == "4" // 播放清單資訊
+        Adapt: v => v.key.toLowerCase(), // 需適配大小寫差異, 自行調用
+        Title: k => k.altKey && HotKey.Adapt(k) == "t", // 標題
+        MinimaList: k => k.ctrlKey && HotKey.Adapt(k) == "z", // 極簡化
+        RecomViewing: k => k.altKey && HotKey.Adapt(k) == "1", // 推薦觀看
+        Comment: k => k.altKey && HotKey.Adapt(k) == "2", // 留言區
+        FunctionBar: k => k.altKey && HotKey.Adapt(k) == "3", // 功能區
+        ListDesc: k => k.altKey && HotKey.Adapt(k) == "4" // 播放清單資訊
 
     }, Config = {
         Dev: false,
@@ -57,14 +59,25 @@
             this.StartTime = null;
             this.Transform = false;
 
+            /* 判斷頁面 */
+            this.Page = (url) => this.Video.test(url) ? "Video" : this.Playlist.test(url) ? "Playlist" : "NotSupport";
+
+            /* 標題格式 (傳入標題元素) */
+            this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "");
+
+            /* 設置標籤 */
+            this.SetAttri = async (object, label) => {
+                object.setAttribute(label, true);
+            }
+
             /* 判斷設置 */
             this.HideJudgment = async (Element, setValue=null) => {
                 if (Element.style.display == "none" || this.Transform) {
                     Element.style.display = "block";
-                    setValue && this.store("s", setValue, false);
+                    setValue && this.Store("s", setValue, false);
                 } else {
                     Element.style.display = "none";
-                    setValue && this.store("s", setValue, true);
+                    setValue && this.Store("s", setValue, true);
                 }
             }
 
@@ -77,24 +90,21 @@
                     });
                 }
             }
-
-            /* 設置標籤 */
-            this.SetAttri = async (label, state) => {
-                document.body.setAttribute(label, state);
-            }
-
-            /* 標題格式 (傳入標題元素) */
-            this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "")
         }
 
-        async Injection() {
-            const observer = new MutationObserver(this.Throttle(() => {
-                const URL = document.URL;
+        async Injection(URL) {
+            const Page = this.Page(URL);
+            this.Con.Dev && this.Log("頁面類型", Page);
 
-                if (this.Video.test(URL) && !document.body.hasAttribute("Hide-Tool") && this.$$("div#columns")) {
+            if (Page == "NotSupport") {
+                return false;
+            }
+
+            // 他查找的是用於判定, 可觸發開始查找元素的框架
+            this.WaitElem("#columns, #contents", trigger=> {
+                if (Page == "Video" && !trigger.hasAttribute("Hide-Video")) {
                     this.Con.Dev && (this.StartTime = this.Runtime());
 
-                    this.SetAttri("Hide-Tool", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
@@ -124,7 +134,8 @@
                             title, h1, end, below, secondary, inner, related, comments, actions
                         ] = element;
 
-                        this.Con.Dev && this.log("隱藏對象", element, {collapsed: false});
+                        this.Con.Dev && this.Log("隱藏對象", element, {collapsed: false});
+                        this.SetAttri(trigger, "Hide-Video");
 
                         // 持續修正
                         const Title_observer = new MutationObserver(()=> {
@@ -132,38 +143,38 @@
                         });
 
                         // 極簡化
-                        if (this.store("g", "Minimalist")) {
+                        if (this.Store("g", "Minimalist")) {
                             this.StyleConverter([document.body], "overflow", "hidden");
                             this.StyleConverter([end, below, secondary, related], "display", "none", this.Con.Dev).then(Success => {
-                                Success && this.log("極簡化", this.Runtime(this.StartTime));
+                                Success && this.Log("極簡化", this.Runtime(this.StartTime));
                             });
                         } else {
-                            if (this.store("g", "Title")) {
+                            if (this.Store("g", "Title")) {
                                 Title_observer.observe(title, {childList: true, subtree: false});
                                 this.StyleConverter([h1], "display", "none", this.Con.Dev).then(Success => {
-                                    Success && this.log("隱藏標題", this.Runtime(this.StartTime));
+                                    Success && this.Log("隱藏標題", this.Runtime(this.StartTime));
                                 });
                                 document.title = "...";
                             }
 
                             // 推薦播放隱藏
-                            if (this.store("g", "RecomViewing")) {
+                            if (this.Store("g", "RecomViewing")) {
                                 this.StyleConverter([secondary, related], "display", "none", this.Con.Dev).then(Success => {
-                                    Success && this.log("隱藏推薦觀看", this.Runtime(this.StartTime));
+                                    Success && this.Log("隱藏推薦觀看", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 評論區
-                            if (this.store("g", "Comment")) {
+                            if (this.Store("g", "Comment")) {
                                 this.StyleConverter([comments], "display", "none", this.Con.Dev).then(Success => {
-                                    Success && this.log("隱藏留言區", this.Runtime(this.StartTime));
+                                    Success && this.Log("隱藏留言區", this.Runtime(this.StartTime));
                                 });
                             }
 
                             // 功能選項區
-                            if (this.store("g", "FunctionBar")) {
+                            if (this.Store("g", "FunctionBar")) {
                                 this.StyleConverter([actions], "display", "none", this.Con.Dev).then(Success => {
-                                    Success && this.log("隱藏功能選項", this.Runtime(this.StartTime));
+                                    Success && this.Log("隱藏功能選項", this.Runtime(this.StartTime));
                                 });
                             }
                         }
@@ -173,12 +184,12 @@
                         this.AddListener(document, "keydown", event => {
                             if (this.HK.MinimaList(event)) {
                                 event.preventDefault();
-                                if (this.store("g", "Minimalist")) {
-                                    this.store("s", "Minimalist", false);
+                                if (this.Store("g", "Minimalist")) {
+                                    this.Store("s", "Minimalist", false);
                                     this.StyleConverter([document.body], "overflow", "auto");
                                     this.StyleConverter([end, below, secondary, related], "display", "block");
                                 } else {
-                                    this.store("s", "Minimalist", true);
+                                    this.Store("s", "Minimalist", true);
                                     this.StyleConverter([document.body], "overflow", "hidden");
                                     this.StyleConverter([end, below, secondary, related], "display", "none");
                                 }
@@ -211,7 +222,7 @@
 
                         if (this.Con.GlobalChange) {
                             // 動態全局修改
-                            this.storeListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {
+                            this.StoreListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {
                                 if (call.far) {
                                     switch (call.key) {
                                         case "Minimalist":
@@ -251,20 +262,22 @@
                                 }
                             })
                         }
-                    }, {throttle: 200, characterData: true, timeoutResult: true});
-                } else if (this.Playlist.test(URL) && !document.body.hasAttribute("Playlist-Tool-Injection") && this.$$("div#contents")) {
+                    }, {throttle: 100, characterData: true, timeoutResult: true});
+                } else if (Page == "Playlist" && !trigger.hasAttribute("Hide-Playlist")) {
                     this.Con.Dev && (this.StartTime = this.Runtime());
 
-                    this.SetAttri("Playlist-Tool-Injection", true);
                     if (this.Register == null) {
                         this.Register = GM_registerMenuCommand(this.Language[0], ()=> {alert(this.Language[1])});
                     }
+
                     this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist=> {
-                        this.Con.Dev && this.log("隱藏對象", playlist, {collapsed: false});
+                        this.Con.Dev && this.Log("隱藏對象", playlist, {collapsed: false});
+                        this.SetAttri(trigger, "Hide-Playlist");
+
                         // 播放清單資訊
-                        if (this.store("g", "ListDesc")) {
+                        if (this.Store("g", "ListDesc")) {
                             this.StyleConverter([playlist], "display", "none", this.Con.Dev).then(Success => {
-                                Success && this.log("隱藏播放清單資訊", this.Runtime(this.StartTime));
+                                Success && this.Log("隱藏播放清單資訊", this.Runtime(this.StartTime));
                             });
                         }
                         this.RemovListener(document, "keydown");
@@ -274,18 +287,20 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
-                    }, {throttle: 200, characterData: true, timeoutResult: true});
+                    }, {throttle: 100, characterData: true, timeoutResult: true});
                 }
-            }, 600));
+            }, {object: document, timeout: 10});
+        }
 
-            this.Listen(document, "DOMContentLoaded", ()=> {
-                observer.observe(document, {subtree: true, childList: true, characterData: true});
-            }, {once: true});
+        async Detection() {
+            this.Injection(this.Device.Url); // 立即注入
+            this.Listen(window, "urlchange", change=> { // 監聽變化
+                this.Injection(change.url);
+            });
         }
     }
 
-    const tool = new Tool(HotKey, Config);
-    tool.Injection();
+    (new Tool(HotKey, Config)).Detection();
 
     function language(language) {
         let display = {
