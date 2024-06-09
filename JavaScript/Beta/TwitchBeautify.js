@@ -63,6 +63,7 @@
             this.Chat_Button = null;
             this.Channel_Button = null;
             this.Channel_Parent = null;
+            this.Control_Token = null;
             this.Control_Timeout = null;
             this.Control_Interval = null;
             this.IsLive = (Url) => /^https:\/\/www\.twitch\.tv\/(?!directory|settings|drops|wallet|subscriptions).+[^\/]$/.test(Url);
@@ -223,7 +224,12 @@
             clearTimeout(this.Control_Timeout); // 呼叫時清除先前狀態
             clearInterval(this.Control_Interval);
 
+            const Token = Symbol("Token");
+            this.Control_Token = Token;
+
             Syn.WaitElem("video", video => {
+                if (this.Control_Token !== Token) return;
+
                 const ControlRun = control
                     ? () => {
                         video.play();
@@ -234,16 +240,11 @@
                         video.muted = true;
                     };
 
-                const ControlWait = control
-                    ? () => {
-                        if (!video.muted && !video.paused) clearInterval(this.Control_Interval);
-                    }
-                    : () => {
-                        if (video.muted && video.paused) clearInterval(this.Control_Interval);
-                    };
-
                 this.Control_Interval = setInterval(ControlRun, 500);
-                this.Control_Timeout = setTimeout(ControlWait, 5000);
+                this.Control_Timeout = setTimeout(()=> { // 8 秒後無論狀態如何都清除
+                    clearInterval(this.Control_Interval);
+                }, 8000);
+
             }, { raf: true });
         }
 
