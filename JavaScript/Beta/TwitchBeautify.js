@@ -5,7 +5,7 @@
 // @name:ko      Twitch Beautify
 // @name:ja      Twitch Beautify
 // @name:en      Twitch Beautify
-// @version      0.0.22
+// @version      0.0.23
 // @author       Canaan HS
 // @description         直播頁面: 自動美化、滑鼠懸浮時自動收合按鈕、重新播放功能自動觸發。 首頁: 恢復原始樣式、自動暫停與靜音、可拖曳與縮放直播窗口。
 // @description:zh-TW   直播頁面: 自動美化、滑鼠懸浮時自動收合按鈕、重新播放功能自動觸發。 首頁: 恢復原始樣式、自動暫停與靜音、可拖曳與縮放直播窗口。
@@ -29,27 +29,47 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1361998/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/495339/1382008/ObjectSyntax_min.js
 // @resource     jui https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/themes/base/jquery-ui.min.css
 // ==/UserScript==
 
 (function() {
-    const lang = language(navigator.language);
+    function language(lang) {
+        const Display = {
+            Simplified: {MS_01: "🛠️ 已禁用美化❌", MS_02: "🛠️ 已启用美化✅"},
+            Traditional: {MS_01: "🛠️ 已禁用美化❌", MS_02: "🛠️ 已啟用美化✅"},
+            Korea: {MS_01: "🛠️ 뷰티파이 비활성화됨❌", MS_02: "🛠️ 뷰티파이 활성화됨✅"},
+            Japan: {MS_01: "🛠️ ビューティファイが無効です❌", MS_02: "🛠️ ビューティファイが有効です✅"},
+            English: {MS_01: "🛠️ Beautification disabled❌", MS_02: "🛠️ Beautification enabled✅"}
+        }, Match = {
+            "ja": Display.Japan,
+            "ko": Display.Korea,
+            "en-US": Display.English,
+            "zh-CN": Display.Simplified,
+            "zh-SG": Display.Simplified,
+            "zh-TW": Display.Traditional,
+            "zh-HK": Display.Traditional,
+            "zh-MO": Display.Traditional
+        };
+        return Match[lang] || Match["en-US"];
+    }
+    const lang = language(Syn.Device.Lang);
 
-    (new class Beautify extends Syntax {
+    (new class Beautify {
         constructor() {
-            super();
             this.Nav = null;
             this.Frame = null;
             this.Resume = null;
             this.Chat_Button = null;
             this.Channel_Button = null;
             this.Channel_Parent = null;
+            this.Control_Timeout = null;
+            this.Control_Interval = null;
             this.IsLive = (Url) => /^https:\/\/www\.twitch\.tv\/(?!directory|settings|drops|wallet|subscriptions).+[^\/]$/.test(Url);
 
             // 菜單註冊
             this.RegisterMenu = (Name) => {
-                this.Menu({
+                Syn.Menu({
                     [Name]: {
                         func: ()=> this.Use(), close: false
                     }
@@ -58,9 +78,9 @@
 
             /* 到 Live 頁面觸發美化 */
             this.Start = async() => {
-                this.AddListener(window, "urlchange", change => {
+                Syn.AddListener(window, "urlchange", change => {
                     if (this.IsLive(change.url)) {
-                        this.RemovListener(window, "urlchange");
+                        Syn.RemovListener(window, "urlchange");
                         this.Trigger();
                     }
                 })
@@ -68,7 +88,7 @@
 
             /* 回到大廳觸發 恢復 */
             this.End = async() => {
-                this.AddListener(window, "urlchange", change => {
+                Syn.AddListener(window, "urlchange", change => {
                     if (!this.IsLive(change.url)) {
                         this.Reset();
                         this.Fun($("div[data-a-player-state='mini']")); // 添加可拖動
@@ -79,15 +99,15 @@
 
             /* 切換使用狀態 */
             this.Use = async() => {
-                if (this.store("g", "Beautify", [])) {
+                if (Syn.Store("g", "Beautify", [])) {
                     this.Reset();
                     this.RegisterMenu(lang.MS_01);
-                    this.store("s", "Beautify", false);
+                    Syn.Store("s", "Beautify", false);
                 } else {
                     const Url = document.URL;
                     this.IsLive(Url) ? this.Trigger() : this.Start();
                     this.RegisterMenu(lang.MS_02);
-                    this.store("s", "Beautify", true);
+                    Syn.Store("s", "Beautify", true);
                 }
             }
 
@@ -95,7 +115,7 @@
             this.Reset = async() => {
                 if (this.Nav) { // 確保有元素 (只判斷一項)
                     this.Resume.disconnect();
-                    this.RemovListener(window, "urlchange");
+                    Syn.RemovListener(window, "urlchange");
 
                     requestAnimationFrame(() => {
                         this.Nav.classList.remove("Nav_Effect");
@@ -104,8 +124,8 @@
                         this.Channel_Parent.classList.remove("Channel_Expand_Effect");
                     });
 
-                    this.RemovListener(this.Channel_Button, "mouseenter");
-                    this.RemovListener(this.Channel_Button, "mouseleave");
+                    Syn.RemovListener(this.Channel_Button, "mouseenter");
+                    Syn.RemovListener(this.Channel_Button, "mouseleave");
                 }
             }
         }
@@ -114,11 +134,11 @@
         async Main() {
             this.ImportStyle(); // 導入樣式
 
-            if (this.store("g", "Beautify", [])) {
+            if (Syn.Store("g", "Beautify", [])) {
                 this.ClearFooter(); // 清除頁腳
                 this.RegisterMenu(lang.MS_02); // 註冊菜單
 
-                this.IsLive(document.URL)
+                this.IsLive(Syn.Device.Url)
                 ? this.Trigger()
                 : (this.Start(), this.PlayControl(false));
             } else {
@@ -128,7 +148,7 @@
 
         /* Live 頁面觸發美化 */
         async Trigger() {
-            this.WaitMap([
+            Syn.WaitMap([
                 "nav", // 導覽列
                 ".side-nav", // 頻道元素
                 ".side-nav-section div", // 判斷收合狀態
@@ -174,69 +194,72 @@
 
             // 頻道列
             let Channel_timer;
-            this.AddListener(this.Channel_Button, "mouseenter", ()=> {
+            Syn.AddListener(this.Channel_Button, "mouseenter", ()=> {
                 Channel_timer = setTimeout(()=> {
                     this.Channel_Button.click();
                 }, 250);
             });
-            this.AddListener(this.Channel_Button, "mouseleave", ()=> {
+            Syn.AddListener(this.Channel_Button, "mouseleave", ()=> {
                 clearTimeout(Channel_timer);
                 this.Channel_Button.classList.add("Button_Effect");
             });
 
             // 聊天室
             let Chat_timer; // 分開使用避免意外
-            this.AddListener(this.Chat_Button, "mouseenter", ()=> {
+            Syn.AddListener(this.Chat_Button, "mouseenter", ()=> {
                 Chat_timer = setTimeout(()=> {
                     this.Chat_Button.click();
                 }, 250);
             });
-            this.AddListener(this.Chat_Button, "mouseleave", ()=> {
+            Syn.AddListener(this.Chat_Button, "mouseleave", ()=> {
                 clearTimeout(Chat_timer);
                 this.Chat_Button.classList.add("Button_Effect");
             });
+        }
+
+        /* 影片播放 與 聲音操作 */
+        async PlayControl(control) {
+            // 控製是 true, 就是播放, 和恢復聲音
+            clearTimeout(this.Control_Timeout); // 呼叫時清除先前狀態
+            clearInterval(this.Control_Interval);
+
+            Syn.WaitElem("video", video => {
+                const ControlRun = control
+                    ? () => {
+                        video.play();
+                        video.muted = false;
+                    }
+                    : () => {
+                        video.pause();
+                        video.muted = true;
+                    };
+
+                const ControlWait = control
+                    ? () => {
+                        if (!video.muted && !video.paused) clearInterval(this.Control_Interval);
+                    }
+                    : () => {
+                        if (video.muted && video.paused) clearInterval(this.Control_Interval);
+                    };
+
+                this.Control_Interval = setInterval(ControlRun, 500);
+                this.Control_Timeout = setTimeout(ControlWait, 5000);
+            }, { raf: true });
         }
 
         /* 自動恢復觀看 */
         async ResumeWatching() {
             let Recover;
             this.Resume = new MutationObserver(() => {
-                Recover = this.$$(".itFOsv")
+                Recover = Syn.$$(".itFOsv")
                 Recover && Recover.click();
             });
             this.Resume.observe(this.Frame, {childList: true, subtree: true});
         }
 
-        /* 影片播放 與 聲音操作 */
-        async PlayControl(control) {
-            let Interval, Delay=500, Wait=5e3;
-
-            this.WaitElem("video", video=> {
-                if (control) { // 控制是 true, 就是播放, 和恢復聲音
-                    Interval = setInterval(()=> {
-                        video.play();
-                        video.muted=false;
-                    }, Delay);
-
-                    setTimeout(()=> { // 等待 5 秒後
-                        !video.muted && !video.paused && clearInterval(Interval);
-                    }, Wait);
-                } else {
-                    Interval = setInterval(()=> {
-                        video.pause();
-                        video.muted=true;
-                    }, Delay);
-
-                    setTimeout(()=> {
-                        video.muted && video.paused && clearInterval(Interval);
-                    }, Wait);
-                }
-            }, {raf: true});
-        }
-
         // 清除頁腳
         async ClearFooter() {
-            this.WaitElem("#twilight-sticky-footer-root", footer=> {
+            Syn.WaitElem("#twilight-sticky-footer-root", footer=> {
                 footer.remove();
             }, {throttle: 200});
         }
@@ -280,7 +303,7 @@
 
         /* 導入樣式 */
         async ImportStyle() {
-            this.AddStyle(`
+            Syn.AddStyle(`
                 ${GM_getResourceText("jui")}
                 .Nav_Effect {
                     opacity: 0;
@@ -314,24 +337,4 @@
             `, "Effect");
         }
     }).Main();
-
-    function language(lang) {
-        const Display = {
-            Simplified: {MS_01: "🛠️ 已禁用美化❌", MS_02: "🛠️ 已启用美化✅"},
-            Traditional: {MS_01: "🛠️ 已禁用美化❌", MS_02: "🛠️ 已啟用美化✅"},
-            Korea: {MS_01: "🛠️ 뷰티파이 비활성화됨❌", MS_02: "🛠️ 뷰티파이 활성화됨✅"},
-            Japan: {MS_01: "🛠️ ビューティファイが無効です❌", MS_02: "🛠️ ビューティファイが有効です✅"},
-            English: {MS_01: "🛠️ Beautification disabled❌", MS_02: "🛠️ Beautification enabled✅"}
-        }, Match = {
-            "ja": Display.Japan,
-            "ko": Display.Korea,
-            "en-US": Display.English,
-            "zh-CN": Display.Simplified,
-            "zh-SG": Display.Simplified,
-            "zh-TW": Display.Traditional,
-            "zh-HK": Display.Traditional,
-            "zh-MO": Display.Traditional
-        };
-        return Match[lang] || Match["en-US"];
-    }
 })();
