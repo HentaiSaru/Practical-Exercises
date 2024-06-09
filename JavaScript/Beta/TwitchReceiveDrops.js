@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.13
+// @version             0.0.14
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -40,7 +40,7 @@
         JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         DropsButton: "button.caieTg", // 掉寶領取按鈕
-        FindTag: ["drops", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
+        FindTag: ["drops", "启用掉宝", "啟用掉寶", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     }
 
     /* 檢測邏輯 */
@@ -103,20 +103,35 @@
         /* 主要運行 */
         static async Ran() {
             // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
-            let Allbox, state, title, data=[], deal=!0, dynamic=new Detection(), self=dynamic.config,
+
+            let All_Data, Progress_Belong = {}, PI=0, PV=0; // PI 進度索引, PV 進度值
+            let state, title, deal=!0, dynamic=new Detection(), self=dynamic.config,
             observer = new MutationObserver(Throttle(()=> {
-                Allbox = deal && document.querySelectorAll(self.AllProgress);
-                if (deal && Allbox.length > 0) {
-                    deal=!1; Allbox.forEach(box=> {
-                        dynamic.TimeComparison(box, box.querySelector(self.ActivityTime).textContent,
-                            NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
-                                if (title) {return !0}
-                                NotExpired.querySelectorAll(self.ProgressBar).forEach(progress=> data.push(+progress.textContent));
-                                title = data.length > 0 ? dynamic.ProgressParse(data) : !1;
-                                state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
-                            }
-                        )
-                    })
+                if (deal) { // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
+                    All_Data = document.querySelectorAll(self.AllProgress);
+
+                    if (All_Data && All_Data.length > 0) {
+                        deal = !1;
+
+                        All_Data.forEach((data, index)=> {
+                            dynamic.TimeComparison(data, data.querySelector(self.ActivityTime).textContent,
+                                NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
+                                    // 分別取得各自的進度
+                                    Progress_Belong[index] = [...NotExpired.querySelectorAll(self.ProgressBar)].map(progress=> +progress.textContent);
+                                }
+                            )
+                        });
+
+                        // 獲取最大進度值, 與他對應的 Index
+                        for (const [key, value] of Object.entries(Progress_Belong)) {
+                            const cache = dynamic.ProgressParse(value);
+                            cache > PV && (PV = cache, PI = key);
+                        }
+
+                        // 取得標題和顯示進度
+                        title = PV > 0 ? PV : !1;
+                        state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
+                    }
                 }
 
                 if (self.RestartLive && state) {
@@ -126,7 +141,7 @@
                     [Progress, Timestamp] = dynamic.storage("Record") || [title, time.getTime()], conversion = (time - Timestamp) / (1e3 * 60);
 
                     if (conversion >= self.JudgmentInterval && title == Progress) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
-                        Restart.Ran();
+                        Restart.Ran(PI); // 傳遞當前最高進度, 進行直播重啟
                         dynamic.storage("Record", [title, time.getTime()]);
                     } else if (conversion == 0 || title != Progress) { // 時間是 0 或 標題 不是 進度, 代表有變化
                         dynamic.storage("Record", [title, time.getTime()]);
@@ -206,16 +221,16 @@
             });
         }
 
-        async Ran() {
-            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-            let NewWindow, OpenLink, Channel, article, self=this.config, dir=this;
-            Channel = document.querySelector(self.ActivityLink2);
+        async Ran(CI) { // 傳入對應的頻道索引
+            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close(); // 將查找標籤合併成正則
+            let NewWindow, OpenLink, Channel, article, self=this.config, FindTag = new RegExp(self.FindTag.join("|")), dir=this;
+            Channel = document.querySelectorAll(self.ActivityLink2)[CI];
 
             if (Channel) {
                 NewWindow = window.open(Channel.href, "LiveWindow");
                 DirectorySearch(NewWindow);
             } else {
-                Channel = document.querySelector(self.ActivityLink1);
+                Channel = document.querySelectorAll(self.ActivityLink1)[CI];
                 OpenLink = [...Channel.querySelectorAll("a")].reverse();
 
                 FindLive(0);
@@ -262,9 +277,10 @@
                     if (article.length > 20) { // 找到大於 20 個頻道
                         observer.disconnect();
 
-                        const index = Array.from(article).findIndex(element => {
-                            const tag = element.querySelector(self.TagType).textContent.toLowerCase();
-                            return self.FindTag.some(match=> tag.includes(match.toLowerCase()));
+                        // 解析 Tag
+                        const index = [...article].findIndex(element => {
+                            const Tag_box = element.querySelectorAll(self.TagType);
+                            return Tag_box.length > 0 && [...Tag_box].some(match => FindTag.test(match.textContent.toLowerCase()));
                         });
 
                         if (index != -1) {
@@ -347,7 +363,7 @@
     }
 
     // 等待重載
-    setTimeout(()=> {window.open(location.href, "_self")}, 1e3 * Config.UpdateInterval);
+    setTimeout(()=> {location.reload()}, 1e3 * Config.UpdateInterval);
 
     // 主運行調用
     const Restart = new RestartLive();
