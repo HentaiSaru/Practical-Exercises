@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.32
+// @version      0.0.33
 // @author       Canaan HS
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -23,21 +23,307 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        window.onurlchange
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/487608/1382007/ClassSyntax_min.js
 // ==/UserScript==
 
-!function(){function r(b){var k={"zh-TW":["\ud83d\udcdc \u9810\u8a2d\u71b1\u9375","@ \u529f\u80fd\u5931\u6548\u6642 [\u8acb\u91cd\u65b0\u6574\u7406] =>\n\n(Alt + 1)\uff1a\u96b1\u85cf\u63a8\u85a6\u64ad\u653e\n(Alt + 2)\uff1a\u96b1\u85cf\u7559\u8a00\u5340\n(Alt + 3)\uff1a\u96b1\u85cf\u529f\u80fd\u5217\u8868\n(Alt + 4)\uff1a\u96b1\u85cf\u64ad\u653e\u6e05\u55ae\u8cc7\u8a0a\n(Alt + T)\uff1a\u96b1\u85cf\u6a19\u984c\u6587\u5b57\n(Ctrl + Z)\uff1a\u4f7f\u7528\u6975\u7c21\u5316"],"zh-CN":["\ud83d\udcdc \u9884\u8bbe\u70ed\u952e","@ \u529f\u80fd\u5931\u6548\u65f6 [\u8bf7\u91cd\u65b0\u6574\u7406] =>\n\n(Alt + 1)\uff1a\u9690\u85cf\u63a8\u8350\u64ad\u653e\n(Alt + 2)\uff1a\u9690\u85cf\u8bc4\u8bba\u533a\n(Alt + 3)\uff1a\u9690\u85cf\u529f\u80fd\u5217\u8868\n(Alt + 4)\uff1a\u9690\u85cf\u64ad\u653e\u6e05\u5355\u8d44\u8baf\n(Alt + T)\uff1a\u9690\u85cf\u6807\u9898\u6587\u5b57\n(Ctrl + Z)\uff1a\u4f7f\u7528\u6781\u7b80\u5316"],ja:["\ud83d\udcdc \u30c7\u30d5\u30a9\u30eb\u30c8\u30db\u30c3\u30c8\u30ad\u30fc","@ \u673a\u80fd\u304c\u65e0\u52b9\u306b\u306a\u3063\u305f\u573a\u5408 [\u30da\u30fc\u30b8\u3092\u66f4\u65b0\u3057\u3066\u304f\u3060\u3055\u3044] =>\n\n(Alt + 1)\uff1a\u304a\u3059\u3059\u3081\u518d\u751f\u3092\u975e\u8868\u793a\u306b\u3059\u308b\n(Alt + 2)\uff1a\u30b3\u30e1\u30f3\u30c8\u30a8\u30ea\u30a2\u3092\u975e\u8868\u793a\u306b\u3059\u308b\n(Alt + 3)\uff1a\u673a\u80fd\u30ea\u30b9\u30c8\u3092\u975e\u8868\u793a\u306b\u3059\u308b\n(Alt + 4)\uff1a\u30d7\u30ec\u30a4\u30ea\u30b9\u30c8\u60c5\u62a5\u3092\u975e\u8868\u793a\u306b\u3059\u308b\n(Alt + T)\uff1a\u30bf\u30a4\u30c8\u30eb\u6587\u5b57\u3092\u96a0\u3059\n(Ctrl + Z)\uff1a\u30b7\u30f3\u30d7\u30eb\u5316\u3092\u4f7f\u7528\u3059\u308b"],"en-US":["\ud83d\udcdc Default Hotkeys","@ If functionalities fail [Please refresh] =>\n\n(Alt + 1)\uff1aHide recommended playback\n(Alt + 2)\uff1aHide comments section\n(Alt + 3)\uff1aHide feature list\n(Alt + 4)\uff1aHide playlist info\n(Alt + T)\uff1aHide Title Text\n(Ctrl + Z)\uff1aUse Simplification"],ko:["\ud83d\udcdc \uae30\ubcf8 \ub2e8\ucd95\ud0a4","@ \uae30\ub2a5\uc774 \uc791\ub3d9\ud558\uc9c0 \uc54a\uc744 \ub54c [\uc0c8\ub85c \uace0\uce68\ud558\uc138\uc694] =>\n\n(Alt + 1)\uff1a\ucd94\ucc9c \uc7ac\uc0dd \uc228\uae30\uae30\n(Alt + 2)\uff1a\ub313\uae00 \uc601\uc5ed \uc228\uae30\uae30\n(Alt + 3)\uff1a\uae30\ub2a5 \ubaa9\ub85d \uc228\uae30\uae30\n(Alt + 4)\uff1a\uc7ac\uc0dd \ubaa9\ub85d \uc815\ubcf4 \uc228\uae30\uae30\n(Alt + T)\uff1a\uc81c\ubaa9 \ud14d\uc2a4\ud2b8 \uc228\uae30\uae30\n(Ctrl + Z)\uff1a\uac04\uc18c\ud654 \uc0ac\uc6a9"]};return k[b]||k["en-US"]}class t extends Syntax{constructor(b,k){super();this.HK=b;this.Con=k;this.Language=r(this.Device.Lang);this.Video=/^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/;this.Playlist=/^(https?:\/\/)www\.youtube\.com\/playlist\?list=.+$/;this.StartTime=this.Register=null;this.Transform=!1;this.HideJudgment=async(d,c=null)=>{"none"==d.style.display||this.Transform?(d.style.display="block",c&&this.store("s",c,!1)):(d.style.display="none",c&&this.store("s",c,!0))};this.StyleConverter=async(d,c,h,l=null)=>{if(d.forEach(g=>{g.style[c]=h}),l)return new Promise(g=>{g(d.every(e=>e.style[c]==h))})};this.SetAttri=async(d,c)=>{document.body.setAttribute(d,c)};this.TitleFormat=d=>d.textContent.replace(/^\s+|\s+$/g,"")}async Injection(){const b=new MutationObserver(this.Throttle(()=>{var k=document.URL;this.Video.test(k)&&!document.body.hasAttribute("Hide-Tool")&&this.$$("div#columns")?(this.Con.Dev&&(this.StartTime=this.Runtime()),this.SetAttri("Hide-Tool",!0),null==this.Register&&(this.Register=GM_registerMenuCommand(this.Language[0],()=>{alert(this.Language[1])})),this.$$("#Video-Tool-Hide")||this.AddStyle(".ytp-ce-element {display: none !important;}#player.ytd-watch-flexy:hover .ytp-ce-element {display: block !important;}.ytp-show-tiles .ytp-videowall-still {cursor: pointer;}","Video-Tool-Hide"),this.WaitMap("title;#title h1;#end;#below;#secondary.style-scope.ytd-watch-flexy;#secondary-inner;#related;#comments;#actions".split(";"),d=>{const [c,h,l,g,e,q,f,n,p]=d,m=(this.Con.Dev&&this.log("\u96b1\u85cf\u5c0d\u8c61",d,{collapsed:!1}),new MutationObserver(()=>{"..."!=document.title&&(document.title="...")}));this.store("g","Minimalist")?(this.StyleConverter([document.body],"overflow","hidden"),this.StyleConverter([l,g,e,f],"display","none",this.Con.Dev).then(a=>{a&&this.log("\u6975\u7c21\u5316",this.Runtime(this.StartTime))})):(this.store("g","Title")&&(m.observe(c,{childList:!0,subtree:!1}),this.StyleConverter([h],"display","none",this.Con.Dev).then(a=>{a&&this.log("\u96b1\u85cf\u6a19\u984c",this.Runtime(this.StartTime))}),document.title="..."),this.store("g","RecomViewing")&&this.StyleConverter([e,f],"display","none",this.Con.Dev).then(a=>{a&&this.log("\u96b1\u85cf\u63a8\u85a6\u89c0\u770b",this.Runtime(this.StartTime))}),this.store("g","Comment")&&this.StyleConverter([n],"display","none",this.Con.Dev).then(a=>{a&&this.log("\u96b1\u85cf\u7559\u8a00\u5340",this.Runtime(this.StartTime))}),this.store("g","FunctionBar")&&this.StyleConverter([p],"display","none",this.Con.Dev).then(a=>{a&&this.log("\u96b1\u85cf\u529f\u80fd\u9078\u9805",this.Runtime(this.StartTime))}));this.RemovListener(document,"keydown");this.AddListener(document,"keydown",a=>{this.HK.MinimaList(a)?(a.preventDefault(),this.store("g","Minimalist")?(this.store("s","Minimalist",!1),this.StyleConverter([document.body],"overflow","auto"),this.StyleConverter([l,g,e,f],"display","block")):(this.store("s","Minimalist",!0),this.StyleConverter([document.body],"overflow","hidden"),this.StyleConverter([l,g,e,f],"display","none"))):this.HK.Title(a)?(a.preventDefault(),this.HideJudgment(h,"Title"),document.title="..."==document.title?(m.disconnect(),this.TitleFormat(h)):(m.observe(c,{childList:!0,subtree:!1}),"...")):this.HK.RecomViewing(a)?(a.preventDefault(),1<q.childElementCount?(this.HideJudgment(e),this.HideJudgment(f,"RecomViewing"),this.Transform=!1):(this.HideJudgment(f,"RecomViewing"),this.Transform=!0)):this.HK.Comment(a)?(a.preventDefault(),this.HideJudgment(n,"Comment")):this.HK.FunctionBar(a)&&(a.preventDefault(),this.HideJudgment(p,"FunctionBar"))},{capture:!0});this.Con.GlobalChange&&this.storeListen(["Minimalist","Title","RecomViewing","Comment","FunctionBar"],a=>{if(a.far)switch(a.key){case "Minimalist":a.nv?(this.StyleConverter([document.body],"overflow","hidden"),this.StyleConverter([l,g,e,f],"display","none")):(this.StyleConverter([document.body],"overflow","auto"),this.StyleConverter([l,g,e,f],"display","block"));break;case "Title":document.title=a.nv?(m.observe(c,{childList:!0,subtree:!1}),"..."):(m.disconnect(),this.TitleFormat(h));this.HideJudgment(h);break;case "RecomViewing":1<q.childElementCount?(this.HideJudgment(e),this.HideJudgment(f),this.Transform=!1):(this.HideJudgment(f),this.Transform=!0);break;case "Comment":this.HideJudgment(n);break;case "FunctionBar":this.HideJudgment(p)}})},{throttle:200,characterData:!0,timeoutResult:!0})):this.Playlist.test(k)&&!document.body.hasAttribute("Playlist-Tool-Injection")&&this.$$("div#contents")&&(this.Con.Dev&&(this.StartTime=this.Runtime()),this.SetAttri("Playlist-Tool-Injection",!0),null==this.Register&&(this.Register=GM_registerMenuCommand(this.Language[0],()=>{alert(this.Language[1])})),this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse",d=>{this.Con.Dev&&this.log("\u96b1\u85cf\u5c0d\u8c61",d,{collapsed:!1});this.store("g","ListDesc")&&this.StyleConverter([d],"display","none",this.Con.Dev).then(c=>{c&&this.log("\u96b1\u85cf\u64ad\u653e\u6e05\u55ae\u8cc7\u8a0a",this.Runtime(this.StartTime))});this.RemovListener(document,"keydown");this.AddListener(document,"keydown",c=>{this.HK.ListDesc(c)&&(c.preventDefault(),this.HideJudgment(d,"ListDesc"))})},{throttle:200,characterData:!0,timeoutResult:!0}))},600));this.Listen(document,"DOMContentLoaded",()=>{b.observe(document,{subtree:!0,childList:!0,characterData:!0})},{once:!0})}}
-(new t({
-    Title: k => k.altKey && k.key == "t", // 標題
-    MinimaList: k => k.ctrlKey && k.key == "z", // 極簡化
-    RecomViewing: k => k.altKey && k.key == "1", // 推薦觀看
-    Comment: k => k.altKey && k.key == "2", // 留言區
-    FunctionBar: k => k.altKey && k.key == "3", // 功能區
-    ListDesc: k => k.altKey && k.key == "4" // 播放清單資訊
-},{
-    Dev: false,
-    GlobalChange: true, // 全局同時修改
-})).Injection()}();
+(function() {
+    const HotKey = {
+        Adapt: v => v.key.toLowerCase(), // 適配大小寫差異
+        Title: k => k.altKey && HotKey.Adapt(k) == "t", // 標題
+        MinimaList: k => k.ctrlKey && HotKey.Adapt(k) == "z", // 極簡化
+        RecomViewing: k => k.altKey && HotKey.Adapt(k) == "1", // 推薦觀看
+        Comment: k => k.altKey && HotKey.Adapt(k) == "2", // 留言區
+        FunctionBar: k => k.altKey && HotKey.Adapt(k) == "3", // 功能區
+        ListDesc: k => k.altKey && HotKey.Adapt(k) == "4" // 播放清單資訊
+    }, Config = {
+        Dev: false,
+        GlobalChange: true, // 全局同時修改
+    };
+    class Tool extends Syntax {
+        constructor(key, set) {
+            super();
+            this.HK = key;
+            this.Con = set;
+            this.Language = language(this.Device.Lang);
+            this.Video = /^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/;
+            this.Playlist = /^(https?:\/\/)www\.youtube\.com\/playlist\?list=.+$/;
+            this.Register = null;
+            this.StartTime = null;
+            this.Transform = false;
+            this.Page = url => this.Video.test(url) ? "Video" : this.Playlist.test(url) ? "Playlist" : "NotSupport";
+            this.TitleFormat = title => title.textContent.replace(/^\s+|\s+$/g, "");
+            this.SetAttri = async (object, label) => {
+                object.setAttribute(label, true);
+            };
+            this.HideJudgment = async (Element, setValue = null) => {
+                if (Element.style.display == "none" || this.Transform) {
+                    Element.style.display = "block";
+                    setValue && this.Store("s", setValue, false);
+                } else {
+                    Element.style.display = "none";
+                    setValue && this.Store("s", setValue, true);
+                }
+            };
+            this.StyleConverter = async (EL, Type, Style, Result = null) => {
+                EL.forEach(element => {
+                    element.style[Type] = Style;
+                });
+                if (Result) {
+                    return new Promise(resolve => {
+                        resolve(EL.every(element => element.style[Type] == Style));
+                    });
+                }
+            };
+        }
+        async Injection(URL) {
+            const Page = this.Page(URL);
+            this.Con.Dev && this.Log("頁面類型", Page);
+            if (Page == "NotSupport") {
+                return false;
+            }
+            this.WaitElem("#columns, #contents", trigger => {
+                if (Page == "Video" && !trigger.hasAttribute("Hide-Video")) {
+                    this.Con.Dev && (this.StartTime = this.Runtime());
+                    if (this.Register == null) {
+                        this.Register = GM_registerMenuCommand(this.Language[0], () => {
+                            alert(this.Language[1]);
+                        });
+                    }
+                    if (!this.$$("#Video-Tool-Hide")) {
+                        this.AddStyle(`
+                            .ytp-ce-element {
+                                display: none !important;
+                            }
+                            #player.ytd-watch-flexy:hover .ytp-ce-element {
+                                display: block !important;
+                            }
+                            .ytp-show-tiles .ytp-videowall-still {
+                                cursor: pointer;
+                            }
+                        `, "Video-Tool-Hide");
+                    }
+                    this.WaitMap([ "title", "#title h1", "#end", "#below", "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner", "#related", "#comments", "#actions" ], element => {
+                        const [ title, h1, end, below, secondary, inner, related, comments, actions ] = element;
+                        this.Con.Dev && this.Log("隱藏對象", element, {
+                            collapsed: false
+                        });
+                        this.SetAttri(trigger, "Hide-Video");
+                        const Title_observer = new MutationObserver(() => {
+                            document.title != "..." && (document.title = "...");
+                        });
+                        if (this.Store("g", "Minimalist")) {
+                            this.StyleConverter([ document.body ], "overflow", "hidden");
+                            this.StyleConverter([ end, below, secondary, related ], "display", "none", this.Con.Dev).then(Success => {
+                                Success && this.Log("極簡化", this.Runtime(this.StartTime));
+                            });
+                        } else {
+                            if (this.Store("g", "Title")) {
+                                Title_observer.observe(title, {
+                                    childList: true,
+                                    subtree: false
+                                });
+                                this.StyleConverter([ h1 ], "display", "none", this.Con.Dev).then(Success => {
+                                    Success && this.Log("隱藏標題", this.Runtime(this.StartTime));
+                                });
+                                document.title = "...";
+                            }
+                            if (this.Store("g", "RecomViewing")) {
+                                this.StyleConverter([ secondary, related ], "display", "none", this.Con.Dev).then(Success => {
+                                    Success && this.Log("隱藏推薦觀看", this.Runtime(this.StartTime));
+                                });
+                            }
+                            if (this.Store("g", "Comment")) {
+                                this.StyleConverter([ comments ], "display", "none", this.Con.Dev).then(Success => {
+                                    Success && this.Log("隱藏留言區", this.Runtime(this.StartTime));
+                                });
+                            }
+                            if (this.Store("g", "FunctionBar")) {
+                                this.StyleConverter([ actions ], "display", "none", this.Con.Dev).then(Success => {
+                                    Success && this.Log("隱藏功能選項", this.Runtime(this.StartTime));
+                                });
+                            }
+                        }
+                        this.RemovListener(document, "keydown");
+                        this.AddListener(document, "keydown", event => {
+                            if (this.HK.MinimaList(event)) {
+                                event.preventDefault();
+                                if (this.Store("g", "Minimalist")) {
+                                    this.Store("s", "Minimalist", false);
+                                    this.StyleConverter([ document.body ], "overflow", "auto");
+                                    this.StyleConverter([ end, below, secondary, related ], "display", "block");
+                                } else {
+                                    this.Store("s", "Minimalist", true);
+                                    this.StyleConverter([ document.body ], "overflow", "hidden");
+                                    this.StyleConverter([ end, below, secondary, related ], "display", "none");
+                                }
+                            } else if (this.HK.Title(event)) {
+                                event.preventDefault();
+                                this.HideJudgment(h1, "Title");
+                                document.title = document.title == "..." ? (Title_observer.disconnect(), 
+                                this.TitleFormat(h1)) : (Title_observer.observe(title, {
+                                    childList: true,
+                                    subtree: false
+                                }), "...");
+                            } else if (this.HK.RecomViewing(event)) {
+                                event.preventDefault();
+                                if (inner.childElementCount > 1) {
+                                    this.HideJudgment(secondary);
+                                    this.HideJudgment(related, "RecomViewing");
+                                    this.Transform = false;
+                                } else {
+                                    this.HideJudgment(related, "RecomViewing");
+                                    this.Transform = true;
+                                }
+                            } else if (this.HK.Comment(event)) {
+                                event.preventDefault();
+                                this.HideJudgment(comments, "Comment");
+                            } else if (this.HK.FunctionBar(event)) {
+                                event.preventDefault();
+                                this.HideJudgment(actions, "FunctionBar");
+                            }
+                        }, {
+                            capture: true
+                        });
+                        if (this.Con.GlobalChange) {
+                            this.StoreListen([ "Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar" ], call => {
+                                if (call.far) {
+                                    switch (call.key) {
+                                      case "Minimalist":
+                                        if (call.nv) {
+                                            this.StyleConverter([ document.body ], "overflow", "hidden");
+                                            this.StyleConverter([ end, below, secondary, related ], "display", "none");
+                                        } else {
+                                            this.StyleConverter([ document.body ], "overflow", "auto");
+                                            this.StyleConverter([ end, below, secondary, related ], "display", "block");
+                                        }
+                                        break;
+
+                                      case "Title":
+                                        document.title = call.nv ? (Title_observer.observe(title, {
+                                            childList: true,
+                                            subtree: false
+                                        }), "...") : (Title_observer.disconnect(), 
+                                        this.TitleFormat(h1));
+                                        this.HideJudgment(h1);
+                                        break;
+
+                                      case "RecomViewing":
+                                        if (inner.childElementCount > 1) {
+                                            this.HideJudgment(secondary);
+                                            this.HideJudgment(related);
+                                            this.Transform = false;
+                                        } else {
+                                            this.HideJudgment(related);
+                                            this.Transform = true;
+                                        }
+                                        break;
+
+                                      case "Comment":
+                                        this.HideJudgment(comments);
+                                        break;
+
+                                      case "FunctionBar":
+                                        this.HideJudgment(actions);
+                                        break;
+                                    }
+                                }
+                            });
+                        }
+                    }, {
+                        throttle: 100,
+                        characterData: true,
+                        timeoutResult: true
+                    });
+                } else if (Page == "Playlist" && !trigger.hasAttribute("Hide-Playlist")) {
+                    this.Con.Dev && (this.StartTime = this.Runtime());
+                    if (this.Register == null) {
+                        this.Register = GM_registerMenuCommand(this.Language[0], () => {
+                            alert(this.Language[1]);
+                        });
+                    }
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist => {
+                        this.Con.Dev && this.Log("隱藏對象", playlist, {
+                            collapsed: false
+                        });
+                        this.SetAttri(trigger, "Hide-Playlist");
+                        if (this.Store("g", "ListDesc")) {
+                            this.StyleConverter([ playlist ], "display", "none", this.Con.Dev).then(Success => {
+                                Success && this.Log("隱藏播放清單資訊", this.Runtime(this.StartTime));
+                            });
+                        }
+                        this.RemovListener(document, "keydown");
+                        this.AddListener(document, "keydown", event => {
+                            if (this.HK.ListDesc(event)) {
+                                event.preventDefault();
+                                this.HideJudgment(playlist, "ListDesc");
+                            }
+                        });
+                    }, {
+                        throttle: 100,
+                        characterData: true,
+                        timeoutResult: true
+                    });
+                }
+            }, {
+                object: document,
+                timeout: 10
+            });
+        }
+        async Detection() {
+            this.Injection(this.Device.Url);
+            this.Listen(window, "urlchange", change => {
+                this.Injection(change.url);
+            });
+        }
+    }
+    new Tool(HotKey, Config).Detection();
+    function language(language) {
+        let display = {
+            "zh-TW": [ "📜 預設熱鍵", `@ 功能失效時 [請重新整理] =>
+
+(Alt + 1)：隱藏推薦播放
+(Alt + 2)：隱藏留言區
+(Alt + 3)：隱藏功能列表
+(Alt + 4)：隱藏播放清單資訊
+(Alt + T)：隱藏標題文字
+(Ctrl + Z)：使用極簡化` ],
+            "zh-CN": [ "📜 预设热键", `@ 功能失效时 [请重新整理] =>
+
+(Alt + 1)：隐藏推荐播放
+(Alt + 2)：隐藏评论区
+(Alt + 3)：隐藏功能列表
+(Alt + 4)：隐藏播放清单资讯
+(Alt + T)：隐藏标题文字
+(Ctrl + Z)：使用极简化` ],
+            ja: [ "📜 デフォルトホットキー", `@ 机能が无効になった场合 [ページを更新してください] =>
+
+(Alt + 1)：おすすめ再生を非表示にする
+(Alt + 2)：コメントエリアを非表示にする
+(Alt + 3)：机能リストを非表示にする
+(Alt + 4)：プレイリスト情报を非表示にする
+(Alt + T)：タイトル文字を隠す
+(Ctrl + Z)：シンプル化を使用する` ],
+            "en-US": [ "📜 Default Hotkeys", `@ If functionalities fail [Please refresh] =>
+
+(Alt + 1)：Hide recommended playback
+(Alt + 2)：Hide comments section
+(Alt + 3)：Hide feature list
+(Alt + 4)：Hide playlist info
+(Alt + T)：Hide Title Text
+(Ctrl + Z)：Use Simplification` ],
+            ko: [ "📜 기본 단축키", `@ 기능이 작동하지 않을 때 [새로 고침하세요] =>
+
+(Alt + 1)：추천 재생 숨기기
+(Alt + 2)：댓글 영역 숨기기
+(Alt + 3)：기능 목록 숨기기
+(Alt + 4)：재생 목록 정보 숨기기
+(Alt + T)：제목 텍스트 숨기기
+(Ctrl + Z)：간소화 사용` ]
+        };
+        return display[language] || display["en-US"];
+    }
+})();
