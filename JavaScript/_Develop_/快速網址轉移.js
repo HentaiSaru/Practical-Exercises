@@ -32,7 +32,7 @@
         constructor() {
             this.AddClose = true; // 添加網址後關閉窗口
             this.OpenClear = true; // 開啟後清除
-            this.ExportClear = false; // 導出後清除保存數據
+            this.ExportClear = true; // 導出後清除保存數據
             this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
             this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
@@ -157,8 +157,7 @@
                 const data = JSON.stringify({
                     url: url,
                     title: title,
-                    icon: icon_link,
-                    time: Syn.GetDate(),
+                    icon: icon_link
                 })
                 , save = this.DataToPako(data)
                 , hash = md5(data, md5(save));
