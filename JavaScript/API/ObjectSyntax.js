@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/05/24
+// @version      2024/06/14
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -133,16 +133,26 @@ const Syn = (()=> {
          * @param {*} group - 打印元素標籤盒
          * @param {*} label - 打印的元素
          * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
+         * 
+         * {
+         * dev: true, - 開發人員設置打印
+         * type="log", - 打印的類型
+         * collapsed=true - 打印後是否收起
+         * }
          */
         Log: async(group=null, label="print", {
+            dev=true,
             type="log",
             collapsed=true
         }={})=> {
-            type = typeof type === "string" && Print[type] ? type : type = "log";
-            if (group == null) {Print[type](label)}
+            if (!dev) return;
+
+            const Call = Print[type] || Print.log;
+
+            if (group == null) Call(label);
             else {
                 collapsed ? console.groupCollapsed(group) : console.group(group);
-                Print[type](label);
+                Call(label);
                 console.groupEnd();
             }
         },

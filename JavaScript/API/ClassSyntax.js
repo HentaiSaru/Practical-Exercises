@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/05/24
+// @version      2024/06/14
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -143,16 +143,26 @@ class Syntax {
      * @param {*} group - 打印元素標籤盒
      * @param {*} label - 打印的元素
      * @param {string} type - 要打印的類型 ("log", "warn", "error", "count")
+     * 
+     * {
+     * dev: true, - 開發人員設置打印
+     * type="log", - 打印的類型
+     * collapsed=true - 打印後是否收起
+     * }
      */
     async Log(group=null, label="print", {
+        dev=true,
         type="log",
         collapsed=true
     }={}) {
-        type = typeof type === "string" && this.Print[type] ? type : type = "log";
-        if (group == null) {this.Print[type](label)}
+        if (!dev) return;
+
+        const Call = this.Print[type] || this.Print.log;
+
+        if (group == null) Call(label);
         else {
             collapsed ? console.groupCollapsed(group) : console.group(group);
-            this.Print[type](label);
+            Call(label);
             console.groupEnd();
         }
     }
@@ -687,9 +697,11 @@ class Syntax {
         style="\x1b[1m\x1b[36m%s\x1b[0m",
         log=true
     }={}) {
-        return !time? Date.now(): log?
-        console.log(style, `${show} ${((Date.now()-time)/1e3)}s`):
-        (Date.now() - time);
+        return !time
+        ? Date.now()
+        : log
+        ? console.log(style, `${show} ${((Date.now()-time)/1e3)}s`)
+        : (Date.now() - time);
     }
 
     /**
