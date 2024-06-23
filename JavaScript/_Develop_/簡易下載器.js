@@ -80,11 +80,9 @@
                     onload: response => {
                         const blob = response.response;
                         if (blob instanceof Blob && blob.size > 0) {
-                            this.Zip.file(`${Name}/${name[name.length - 1]}`, blob);
+                            this.Zip.file(`${Name}/${decodeURIComponent(name[name.length - 1])}`, blob);
                             resolve();
-                        } else {
-                            reject();
-                        }
+                        } else reject();
                     },
                     onerror: () => {reject();}
                 });
