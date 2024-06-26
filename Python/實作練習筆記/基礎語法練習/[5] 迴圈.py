@@ -13,7 +13,7 @@ box = ["數據"] * 5
 
 for i in range(1, 3):
     print(box[i])
-    
+
 print("------------")
 
 for i in range(len(box)):
