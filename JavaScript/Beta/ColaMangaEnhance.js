@@ -50,11 +50,11 @@
      */
 
     /* 
-        只有設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
+        設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
         (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
     */
     const Config = {
-        BGColor: 1, // 背景換色 [目前還沒有自訂]
+        BGColor: 1, // 背景換色 [目前還沒有自訂], 改代碼可搜索 #595959, 並修改該字串
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
         AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 (實驗中的酷東西)
     };
@@ -62,8 +62,8 @@
         constructor() {
             super();
             this.ScrollPixels = 2; // 像素, 越高越快
-            this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.WaitPicture = 1000; // 等待圖片載入時間
+            this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
             this.PreviousPage = this.NextPage = null; // 下一頁, 上一頁, 連結
@@ -199,9 +199,8 @@
             `, "Inject-Blocking-Ads");
 
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
-            let iframe;
             this.AdCleanup = setInterval(() => {
-                iframe = this.$$("iframe:not(#Iframe-Comics)"); iframe && iframe.remove();
+                this.$$("iframe:not(#Iframe-Comics)")?.remove();
                 removeBlockedListeners();
             }, 500);
         }
@@ -457,7 +456,8 @@
                         UrlUpdate.observe(self.$$("#mangalist img", {root: Content}));
                     };
                     iframe.onerror = () => {
-                        setTimeout(()=> {iframe.src = self.NextPage; Waitload();}, 1500);
+                        iframe.src = self.NextPage;
+                        Waitload();
                     };
                 }
             }
