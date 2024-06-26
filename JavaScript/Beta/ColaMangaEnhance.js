@@ -3,12 +3,12 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.9
+// @version      0.0.10
 // @author       Canaan HS
-// @description       隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
-// @description:zh-TW 隱藏廣告內容，阻止廣告點擊，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
-// @description:zh-CN 隐藏广告内容，阻止广告点击，提昇浏览体验。自定义背景颜色，调整图片大小。当图片载入失败时，自动重新载入图片。提供快捷键功能：[← 上一页]、[下一页 →]、[↑ 自动上滚动]、[↓ 自动下滚动]。当用户滚动到页面底部时，自动跳转到下一页。
-// @description:en    Hide advertisement content, block ad clicks, enhance browsing experience. Customize background color, adjust image size. Automatically reload images when they fail to load. Provide shortcut key functionalities: [← Previous Page], [Next Page →], [↑ Auto Scroll Up], [↓ Auto Scroll Down]. Automatically jump to the next page when users scroll to the bottom of the page.
+// @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
+// @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
+// @description:zh-CN 隐藏广告内容，提昇浏览体验。自定义背景颜色，调整图片大小。当图片载入失败时，自动重新载入图片。提供快捷键功能：[← 上一页]、[下一页 →]、[↑ 自动上滚动]、[↓ 自动下滚动]。当用户滚动到页面底部时，自动跳转到下一页。
+// @description:en    Hide advertisement content, enhance browsing experience. Customize background color, adjust image size. Automatically reload images when they fail to load. Provide shortcut key functionalities: [← Previous Page], [Next Page →], [↑ Auto Scroll Up], [↓ Auto Scroll Down]. Automatically jump to the next page when users scroll to the bottom of the page.
 
 // @match        *://www.colamanga.com/manga-*/*/*.html
 // @icon         https://www.colamanga.com/favicon.png
@@ -63,7 +63,7 @@
             super();
             this.ScrollPixels = 2; // 像素, 越高越快
             this.JumpTrigger = false; // 判斷是否跳轉, 避免多次觸發
-            this.WaitPicture = 1500; // 等待圖片載入時間
+            this.WaitPicture = 1000; // 等待圖片載入時間
             this.AdCleanup = this.Body = null; // 清理廣告的函數, body 元素
             this.ContentsPage = this.HomePage = null; // 返回目錄, 返回首頁, 連結
             this.PreviousPage = this.NextPage = null; // 下一頁, 上一頁, 連結
@@ -119,10 +119,7 @@
                 : this.Storage(key);
             }
 
-            /* 檢測跳轉連結 */
-            this.DetectionJumpLink = (link) => {
-                return !link.startsWith("javascript");
-            };
+            /* ===== 自動滾動的函數 ===== */
 
             /* 檢測到頂 */
             this.TopDetected = this.Throttle(()=>{
@@ -149,14 +146,16 @@
                 })
             };
 
-            /* 自動翻頁獲取觀察對象 */
-            this.ObserveValue = (object) => {
-                return object[Math.floor(object.length*.7)];
-            }
+            /* ===== 翻頁的函數 ===== */
+
+            /* 檢測是否是最後一頁 */
+            this.FinalPage = (link) => link.startsWith("javascript");
+            /* 篩選出可見的圖片 */
+            this.VisibleObjects = (object) => object.filter(img=> img.height > 0 || img.src);
+            /* 取得物件的最後一項 */
+            this.ObserveObject = (object) => object[Math.max(object.length - 2, 0)];
             /* 總圖片數的 50 % */
-            this.DetectionValue = (object) => {
-                return object.filter(img=> img.height != 0 || img.src).length >= Math.floor(object.length*.5);
-            }
+            this.DetectionValue = (object) => this.VisibleObjects(object).length >= Math.floor(object.length*.5);
 
             /* 獲取樣式 */
             this.Get_Style = () => {
@@ -202,7 +201,6 @@
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             let iframe;
             this.AdCleanup = setInterval(() => {
-                console.log(document.documentElement.scrollHeight);
                 iframe = this.$$("iframe:not(#Iframe-Comics)"); iframe && iframe.remove();
                 removeBlockedListeners();
             }, 500);
@@ -239,7 +237,7 @@
         }
 
         /* 快捷切換上下頁 和 自動滾動 */
-        async Hotkey_Switch(mode) {
+        async HotkeySwitch(mode) {
             if (this.Device.Type() == "Desktop") {
                 if (mode == 3 && this.IsMainPage) {
                     this.Down_scroll = this.storage("scroll");
@@ -251,12 +249,12 @@
                     const key = event.key;
                     if (key == "ArrowLeft" && !this.JumpTrigger) {
                         event.stopImmediatePropagation();
-                        this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                        this.JumpTrigger = !this.FinalPage(this.PreviousPage) ? true : false;
                         location.assign(this.PreviousPage);
                     }
                     else if (key == "ArrowRight" && !this.JumpTrigger) {
                         event.stopImmediatePropagation();
-                        this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
+                        this.JumpTrigger = !this.FinalPage(this.NextPage) ? true : false;
                         location.assign(this.NextPage);
                     }
                     else if (key == "ArrowUp" && mode >= 2) {
@@ -300,10 +298,10 @@
                         moveY = event.touches[0].clientY - startY;
                         if (Math.abs(moveY) < sidelineY) {
                             if (moveX > sidelineX && !this.JumpTrigger) {
-                                this.JumpTrigger = this.DetectionJumpLink(this.PreviousPage) ? true : false;
+                                this.JumpTrigger = !this.FinalPage(this.PreviousPage) ? true : false;
                                 location.assign(this.PreviousPage);
                             } else if (moveX < -sidelineX && !this.JumpTrigger) {
-                                this.JumpTrigger = this.DetectionJumpLink(this.NextPage) ? true : false;
+                                this.JumpTrigger = !this.FinalPage(this.NextPage) ? true : false;
                                 location.assign(this.NextPage);
                             }
                         }
@@ -313,13 +311,13 @@
         }
 
         /* 自動切換下一頁 */
-        async Automatic_Next(mode) {
+        async AutoPageTurn(mode) {
             let self = this, hold, object, img;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
                     if (entry.isIntersecting && self.DetectionValue(img)) {
                         self.Observer_Next.disconnect();
-                        self.DetectionJumpLink(self.NextPage) && location.assign(self.NextPage);
+                        !self.FinalPage(self.NextPage) && location.assign(self.NextPage);
                     }
                 });
             }, { threshold: hold });
@@ -334,7 +332,7 @@
                     object = self.$$("div.endtip2.clear");
                     break;
                 case 4:
-                    this.SpecialPageTurning();
+                    this.UnlimitedPageTurn();
                     break;
                 default:
                     hold = .1;
@@ -349,11 +347,12 @@
             }
         }
 
-        /* 特殊翻頁邏輯 */
-        async SpecialPageTurning() {
-            const self = this, iframe = document.createElement("iframe");
+        /* 無盡 翻頁模式 */
+        async UnlimitedPageTurn() {
+            const self = this;
+            const iframe = document.createElement("iframe");
             iframe.id = "Iframe-Comics";
-            iframe.src = this.NextPage;
+            iframe.src = self.NextPage;
 
             // 修改樣式
             this.AddStyle(`
@@ -361,25 +360,7 @@
                 #Iframe-Comics {height:0px; border: none; width: 100%;}
             `, "scroll-hidden");
 
-            // 監聽翻頁
-            let URL, Content, StylelRules=this.$$("#scroll-hidden").sheet.cssRules, img;
-            this.Observer_Next = new IntersectionObserver(observed => {
-                observed.forEach(entry => {
-                    if (entry.isIntersecting && this.DetectionValue(img)) {
-                        this.Observer_Next.disconnect();
-                        this.DetectionJumpLink(this.NextPage)
-                        ? TurnPage()
-                        : StylelRules[0].style.display = "block";
-                    }
-                });
-            }, { threshold: .1 });
-
-            setTimeout(()=> {// 想辦法讓監聽對象變成動態調整
-                img = this.$$("img", {all: true, root: this.MangaList});
-                this.Observer_Next.observe(this.ObserveValue(img));
-            }, this.WaitPicture);
-
-            // 主頁修改 網址 與 標題
+            // 監聽當前觀看到的頁面, (修改 網址 & 標題)
             if (this.IsMainPage) {
                 this.Listen(window, "message", event => { // 監聽歷史紀錄
                     const data = event.data;
@@ -394,24 +375,76 @@
                 })
             }
 
+            TriggerNextPage();
+            /* 檢測翻頁 */
+            async function TriggerNextPage() {
+
+                let Img, Observer, Quantity=0;
+
+                self.Observer_Next = new IntersectionObserver(observed => {
+                    observed.forEach(entry => {
+                        if (entry.isIntersecting && self.DetectionValue(Img)) {
+                            self.Observer_Next.disconnect();
+                            Observer.disconnect();
+                            TurnPage();
+                        }
+                    });
+                }, { threshold: .1 });
+
+                setTimeout(()=> {
+
+                    Img = self.$$("img", {all: true, root: self.MangaList});
+                    if (Img.length <= 3) { // 總長度 <= 3 直接觸發換頁
+                        TurnPage();
+                        return;
+                    }
+
+                    // 避免出現例外, 直接進行觀察
+                    self.Observer_Next.observe(self.ObserveObject(self.VisibleObjects(Img)));
+
+                    // 後續變化觀察
+                    self.Observer(self.MangaList, () => {
+                        const Visible = self.VisibleObjects(Img), VL = Visible.length;
+                        if (VL > Quantity) { // 判斷值測試
+                            Quantity = VL;
+                            self.Observer_Next.disconnect();
+                            self.Observer_Next.observe(self.ObserveObject(Visible));
+                        }
+                    }, {throttle: 100}, observer=> {
+                        Observer = observer.ob;
+                    });
+
+                }, self.WaitPicture);
+
+            }
+
+            /* 翻頁邏輯 */
             async function TurnPage() {
-                requestAnimationFrame(() => { // 載入 iframe
-                    document.body.appendChild(iframe); Waitload();
-                });
-            
+                let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
+
+                if (self.FinalPage(self.NextPage)) { // 檢測是否是最後一頁
+                    StylelRules[0].style.display = "block";
+                    return;
+                }
+
+                // iframe 載入
+                document.body.appendChild(iframe);
+                self.Log("無盡翻頁", self.NextPage);
+                Waitload();
+
                 // 等待 iframe 載入完成
                 function Waitload() {
                     iframe.onload = () => {
                         URL = iframe.contentWindow.location.href;
-                        URL != self.NextPage && (iframe.src=self.NextPage, Waitload());
-                    
+                        URL != self.NextPage && (iframe.src = self.NextPage, Waitload()); // 避免載入錯誤頁面
+
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
-                    
+
                         setInterval(()=> {
                             StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
                         }, 1500);
-                    
+
                         // 監聽換頁點
                         const UrlUpdate = new IntersectionObserver(observed => {
                             observed.forEach(entry => {
@@ -447,8 +480,8 @@
                     if (state) {
                         Config.BGColor > 0 && this.BackgroundStyle();
                         this.PictureStyle();
-                        Config.RegisterHotkey > 0 && this.Hotkey_Switch(Config.RegisterHotkey);
-                        Config.AutoTurnPage > 0 && this.Automatic_Next(Config.AutoTurnPage);
+                        Config.RegisterHotkey > 0 && this.HotkeySwitch(Config.RegisterHotkey);
+                        Config.AutoTurnPage > 0 && this.AutoPageTurn(Config.AutoTurnPage);
                     } else this.Log(null, "Error");
                 });
             } catch (error) { this.Log(null, error) }
