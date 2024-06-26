@@ -623,7 +623,7 @@
 
             async function JumpTrigger(root) { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
                 def.AddListener(root, "click", event => {
-                    const target = event.target.closest("a");
+                    const target = event.target.closest("a:not(.fileThumb)");
                     target && (event.preventDefault(), window.open(target.href));
                 }, {capture: true});
             }
