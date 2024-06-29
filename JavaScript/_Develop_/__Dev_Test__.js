@@ -44,21 +44,39 @@
 // ==/UserScript==
 
 (async function () {
+    /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
         Global_Page: {
             BlockAds: {mode: 0, enable: true}, // 阻擋廣告
-            FixArtist: {mode: 0, enable: true}, // 修復作者名稱
             BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
             KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
-            TextToLink: {mode: 0, enable: true}, // 連結的 (文本 -> 超連結)
             DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
             SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
+            FixArtist: { // 修復作者名稱
+                mode: 0,
+                enable: true,
+                newtab: true, // 是否以新標籤開啟
+                newtab_active: true, // 自動切換焦點到新標籤
+                newtab_insert: true, // 新標籤插入到當前標籤的正後方
+            },
+            TextToLink: { // 連結的 (文本 -> 超連結)
+                mode: 0,
+                enable: true,
+                newtab: true,
+                newtab_active: false,
+                newtab_insert: false,
+            },
         },
         Preview_Page: {
             CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
             CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-            NewTabOpens: {mode: 0, enable: true}, // 預覽頁面的帖子都以新分頁開啟
-            QuickPostToggle: {mode: 0, enable: true} // 快速切換帖子
+            QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子
+            NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟
+                mode: 0,
+                enable: true,
+                newtab_active: false,
+                newtab_insert: false,
+            },
         },
         Content_Page: {
             ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕
@@ -327,7 +345,7 @@
     /* ==================== 全域功能 ==================== */
     function Global_Function() {
         return {
-            SidebarCollapse: async (Mode) => { /* 收縮側邊攔 */
+            SidebarCollapse: async (Config) => { /* 收縮側邊攔 */
                 if (Syn.Device.Type() === "Mobile") return;
 
                 Syn.AddStyle(`
@@ -348,10 +366,10 @@
                     .global-sidebar:hover + .content-wrapper.shifted {margin-left: 10rem;}
                 `, "Effects");
             },
-            DeleteNotice: async (Mode) => { /* 刪除公告通知 */
+            DeleteNotice: async (Config) => { /* 刪除公告通知 */
                 Syn.$$("body > div.content-wrapper.shifted > a")?.remove();
             },
-            BlockAds: async (Mode) => { /* (阻止/封鎖)廣告 */
+            BlockAds: async (Config) => { /* (阻止/封鎖)廣告 */
                 Syn.AddStyle(`
                     .ipprtcnt, .root--ujvuu, .ad-container {display: none !important}
                 `, "Ad-blocking-style");
@@ -369,7 +387,7 @@
                     Ad_observer.observe(document.head, {childList: true, subtree: true});
                 `, "Ad-blocking-script");
             },
-            TextToLink: async (Mode) => { /* 連結文本轉連結 */
+            TextToLink: async (Config) => { /* 連結文本轉連結 */
                 if (!DLL.IsContent && !DLL.IsAnnouncement) return;
 
                 let Text;
@@ -395,15 +413,27 @@
                             Text = p.textContent;
                             this.URL_F.test(Text) && this.ParseModify(p, Text);
                         }
-    
+
                         for (const a of Syn.$$("a", {all: true, root: root})) {
                             !a.href && this.ParseModify(a, a.textContent);
                         }
                     },
                     JumpTrigger: async (root) => { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
+                        const [Newtab, Active, Insert] = [
+                            Config.newtab ?? true,
+                            Config.newtab_active ?? false,
+                            Config.newtab_insert ?? false,
+                        ];
+
                         Syn.AddListener(root, "click", event => {
                             const target = event.target.closest("a:not(.fileThumb)");
-                            target && (event.preventDefault(), GM_openInTab(target.href, { active: false }));
+
+                            target && (
+                                event.preventDefault(),
+                                !Newtab
+                                    ? location.assign(target.href)
+                                    : GM_openInTab(target.href, { active: Active, insert: Insert })
+                            );
                         }, {capture: true});
                     }
                 }
@@ -412,8 +442,10 @@
                     Syn.WaitElem("div.post__body", body => {
                         TextToLink_Requ.JumpTrigger(body);
 
-                        const article = Syn.$$("article", {root: body});
-                        const content = Syn.$$("div.post__content", {root: body});
+                        const [article, content] = [
+                            Syn.$$("article", {root: body}),
+                            Syn.$$("div.post__content", {root: body})
+                        ];
 
                         if (article) {
                             for (const span of Syn.$$("span.choice-text", {all: true, root: article})) {
@@ -422,8 +454,8 @@
                         } else if (content) {
                             const pre = Syn.$$("pre", {root: content});
                             pre
-                            ? TextToLink_Requ.Process(pre)
-                            : TextToLink_Requ.Multiprocessing(content);
+                                ? TextToLink_Requ.Process(pre)
+                                : TextToLink_Requ.Multiprocessing(content);
                         }
                     }, {throttle: 600});
 
@@ -433,15 +465,17 @@
 
                         for (const pre of content) {
                             pre.childNodes.length > 1
-                            ? TextToLink_Requ.Multiprocessing(pre)
-                            : TextToLink_Requ.Process(pre);
+                                ? TextToLink_Requ.Multiprocessing(pre)
+                                : TextToLink_Requ.Process(pre);
                         }
                     }, {raf: true, all: true});
                 }
             },
-            FixArtist: async (Mode) => { /* 修復藝術家名稱 */
+            FixArtist: async (Config) => { /* 修復藝術家名稱 */
                 DLL.Style.Global(DLL.Color); // 載入依賴樣式
 
+                let Record_Cache = null; // 讀取修復紀錄 用於緩存
+                const Fix_Cache = new Map(); // 修復後 用於緩存
                 const Fix_Requ = { // 宣告修復需要的函數
                     Get_Record: () => Syn.Storage("fix_record_v2", { type: localStorage, error: new Map() }),
                     Save_Record: async function (save) {
@@ -453,9 +487,7 @@
                         );
                         Fix_Cache.clear();
                     },
-                    Save_Work: Syn.Debounce(() => { // 保存工作
-                        Fix_Requ.Save_Record(Fix_Cache);
-                    }, 1000),
+                    Save_Work: (() => Syn.Debounce(() => Fix_Requ.Save_Record(Fix_Cache), 1000))(),
                     Fix_Name_Support: new Set(["pixiv", "fanbox"]),
                     Fix_Tag_Support: {
                         ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
@@ -463,7 +495,7 @@
                         Fantia: "https://fantia.jp/fanclubs/{id}/posts",
                         Pixiv: "https://www.pixiv.net/users/{id}/artworks",
                         Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
-                    
+
                         NAME: /Fansly|OnlyFans/gi,
                         OnlyFans: "https://onlyfans.com/{name}",
                         Fansly: "https://fansly.com/{name}/posts",
@@ -491,7 +523,7 @@
                             user_name = user_name.replace(/[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi, '');
                             user_name = user_name.replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, '').trim();
                             return user_name;
-                        } else return unSynined;
+                        } else return;
                     },
                     Fix_Url: function (url) { // 連結網址修復
                         url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
@@ -505,9 +537,11 @@
                         name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
 
                         /* 取得支援修復的正則 */
-                        const tag_text = tag_obj.textContent;
-                        const support_id = this.Fix_Tag_Support.ID;
-                        const support_name = this.Fix_Tag_Support.NAME;
+                        const [tag_text, support_id, support_name] = [
+                            tag_obj.textContent,
+                            this.Fix_Tag_Support.ID,
+                            this.Fix_Tag_Support.NAME
+                        ];
 
                         if (support_id.test(tag_text)) {
                             tag_obj.innerHTML = tag_text.replace(support_id, tag => {
@@ -528,10 +562,10 @@
                             this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
                         } else {
                             if (this.Fix_Name_Support.has(Website)) {
-                                Record = await this.Get_Pixiv_Name(TailId) || NameObject.textContent;
+                                Record = await this.Get_Pixiv_Name(TailId) ?? NameObject.textContent;
                                 this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
                                 Fix_Cache.set(TailId, Record); // 添加數據
-                                this.Save_Work; // 呼叫保存工作
+                                this.Save_Work(); // 呼叫保存工作
                             } else {
                                 Record = NameObject.textContent;
                                 this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
@@ -561,7 +595,7 @@
                     Other_Fix: async function (artist, tag="", href=null, reTag="<fix_view>") { // 針對其餘頁面的修復
                         try {
                             const parent = artist.parentNode;
-                            const url = href || parent.href;
+                            const url = href ?? parent.href;
                             const parse = this.Fix_Url(url);
 
                             await this.Fix_Trigger({
@@ -577,7 +611,7 @@
                             });
                         } catch {/* 防止動態監聽進行二次操作時的錯誤 (因為 DOM 已經被修改) */}
                     },
-                    Dynamic_Fix: async function (Listen, Operat,  Mode=null) {
+                    Dynamic_Fix: async function (Listen, Operat,  Config=null) {
                         let observer, options;
                         Syn.Observer(Listen, ()=> {
                             Record_Cache = this.Get_Record(); // 觸發時重新抓取
@@ -585,7 +619,7 @@
                                 const operat = typeof Operat === "string" ? Syn.$$(Operat) : Operat;
                                 if (operat) {
                                     clearInterval(wait);
-                                    switch (Mode) {
+                                    switch (Config) {
                                         case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
                                             this.Other_Fix(operat);
                                             setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
@@ -607,10 +641,7 @@
                     }
                 }
 
-                const Fix_Cache = new Map(); // 修復後 用於緩存
-                let Record_Cache = null; // 讀取修復紀錄 用於緩存
                 Record_Cache = Fix_Requ.Get_Record(); // 讀取修復 數據到緩存
-
                 // 搜尋頁面, 與一些特殊預覽頁
                 if (DLL.IsSearch) {
                     const card_items = Syn.$$(".card-list__items");
@@ -629,8 +660,10 @@
                     }
 
                 } else if (DLL.IsContent) { // 是內容頁面
-                    const artist = Syn.$$(".post__user-name");
-                    const title = Syn.$$("h1 span:nth-child(2)");
+                    const [artist, title] = [
+                        Syn.$$(".post__user-name"),
+                        Syn.$$("h1 span:nth-child(2)")
+                    ];
                     Fix_Requ.Other_Fix(artist, title, artist.href, "<fix_cont>");
 
                 } else { // 預覽頁面
@@ -647,13 +680,19 @@
                 }
 
                 // 監聽點擊事件
-                const Device = Syn.Device.Type();
+                const [Device, Newtab, Active, Insert] = [
+                    Syn.Device.Type(),
+                    Config.newtab ?? true,
+                    Config.newtab_active ?? false,
+                    Config.newtab_insert ?? false,
+                ];
+
                 Syn.AddListener(document.body, "click", event=> {
                     const target = event.target;
 
                     if (target.matches("fix_edit")) {
                         const display = target.nextElementSibling; // 取得下方的 name 元素
-                        const text = GM_addElement("textarea", { 
+                        const text = GM_addElement("textarea", {
                             class: "edit_textarea",
                             style: `height: ${display.scrollHeight + 10}px;`,
                         });
@@ -679,30 +718,30 @@
                     } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
                         const jump = target.getAttribute("jump");
                         if (!target.parentNode.matches("fix_cont") && jump) {
-                            DLL.IsSearch && Device == "Mobile"
+                            !Newtab || DLL.IsSearch && Device == "Mobile"
                                 ? location.assign(jump)
-                                : GM_openInTab(jump, { active: false, insert: false });
+                                : GM_openInTab(jump, { active: Active, insert: Insert });
                         } else if (jump) { // 內容頁面
                             location.assign(jump);
                         }
                     }
                 }, { capture: true, passive: true });
             },
-            BackToTop: async (Mode) => { /* 翻頁後回到頂部 */
+            BackToTop: async (Config) => { /* 翻頁後回到頂部 */
                 Syn.AddListener(document.body, "pointerup", event=> {
                     event.target.closest("#paginator-bottom") && Syn.$$("#paginator-top").scrollIntoView();
                 }, { capture: true, passive: true });
             },
-            KeyScroll: async (Mode) => { /* 快捷自動滾動 */
+            KeyScroll: async (Config) => { /* 快捷自動滾動 */
                 if (Syn.Device.Type() === "Mobile") return;
 
                 // 滾動配置
-                const Config = {
+                const Scroll_Requ = {
                     Scroll_Pixels: 2,
                     Scroll_Interval: 800,
                 };
 
-                const UP_ScrollSpeed = Config.Scroll_Pixels * -1;
+                const UP_ScrollSpeed = Scroll_Requ.Scroll_Pixels * -1;
                 let Scroll, Up_scroll  = false, Down_scroll = false;
 
                 const TopDetected = Syn.Throttle(()=>{ // 檢測到頂停止
@@ -713,7 +752,7 @@
                     Syn.Device.sY() + Syn.Device.iH() >= document.documentElement.scrollHeight ? false : true;
                 }, 600);
 
-                switch (Mode) {
+                switch (Config) {
                     case 2:
                         Scroll = (Move) => {
                             const Interval = setInterval(()=> {
@@ -728,7 +767,7 @@
                                     window.scrollBy(0, Move);
                                     BottomDetected();
                                 }
-                            }, Config.Scroll_Interval);
+                            }, Scroll_Requ.Scroll_Interval);
                         }
                     default:
                         Scroll = (Move) => {
@@ -764,7 +803,7 @@
                         } else if (Up_scroll || !Down_scroll) {
                             Up_scroll = false;
                             Down_scroll = true;
-                            Scroll(Config.Scroll_Pixels);
+                            Scroll(Scroll_Requ.Scroll_Pixels);
                         }
                     }
                 }, 100), { capture: true });
@@ -775,13 +814,25 @@
     /* ==================== 預覽頁功能 ==================== */
     function Preview_Function() {
         return {
-            NewTabOpens: async (Mode) => { /* 將預覽頁面 開啟帖子都變成新分頁開啟 */
+            NewTabOpens: async (Config) => { /* 將預覽頁面 開啟帖子都變成新分頁開啟 */
+                const [Newtab, Active, Insert] = [
+                    Config.newtab ?? true,
+                    Config.newtab_active ?? false,
+                    Config.newtab_insert ?? false,
+                ];
+
                 Syn.Listen(document.body, "click", event => {
                     const target = event.target.closest("article a");
-                    target && (event.preventDefault(), GM_openInTab(target.href, { active: false, insert: false }));
+
+                    target && (
+                        event.preventDefault(),
+                        !Newtab
+                            ? location.assign(target.href)
+                            : GM_openInTab(target.href, { active: Active, insert: Insert })
+                    );
                 }, {capture: true});
             },
-            QuickPostToggle: async (Mode) => { /* 預覽換頁 快速切換 */
+            QuickPostToggle: async (Config) => { /* 預覽換頁 快速切換 */
                 DLL.Style.Preview();
 
                 async function GetNextPage(link) {
@@ -806,8 +857,8 @@
                     target && (event.preventDefault(), GetNextPage(target.href));
                 }, {capture: true});
             },
-            CardZoom: async (Mode) => { /* 帖子預覽卡縮放效果 */
-                switch (Mode) {
+            CardZoom: async (Config) => { /* 帖子預覽卡縮放效果 */
+                switch (Config.mode) {
                     case 2:
                         Syn.AddStyle(`
                             .post-card a:hover {
@@ -838,10 +889,10 @@
                         `, "Effects");
                 }
             },
-            CardText: async (Mode) => { /* 帖子說明文字效果 */
+            CardText: async (Config) => { /* 帖子說明文字效果 */
                 if (Syn.Device.Type() === "Mobile") return;
 
-                switch (Mode) {
+                switch (Config.mode) {
                     case 2:
                         Syn.AddStyle(`
                             .post-card__header, .post-card__footer {
@@ -885,7 +936,7 @@
     /* ==================== 內容頁功能 ==================== */
     function Content_Function() {
         return {
-            LinkBeautify: async function (Mode) { /* 懸浮於 browse » 標籤時, 直接展示文件, 刪除下載連結前的 download 字樣, 並解析轉換連結 */
+            LinkBeautify: async function (Config) { /* 懸浮於 browse » 標籤時, 直接展示文件, 刪除下載連結前的 download 字樣, 並解析轉換連結 */
                 Syn.AddStyle(`
                     .View {
                         top: -10px;
@@ -935,11 +986,11 @@
                         if (!Browse) continue;
 
                         Browse.style.position = "relative"; // 修改樣式避免跑版
-                        ShowBrowse(Browse); // 請求顯示 Browse 數據 
+                        ShowBrowse(Browse); // 請求顯示 Browse 數據
                     }
                 }, {all: true, throttle: 600});
             },
-            VideoBeautify: async function (Mode) { /* 調整影片區塊大小, 將影片名稱轉換成下載連結 */
+            VideoBeautify: async function (Config) { /* 調整影片區塊大小, 將影片名稱轉換成下載連結 */
                 Syn.AddStyle(`
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
@@ -971,7 +1022,7 @@
 
                             for (const link of post) {
                                 if (link.textContent.includes(title.textContent)) {
-                                    switch (Mode) {
+                                    switch (Config.mode) {
                                         case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
                                             link.parentNode.remove();
                                         default:
@@ -987,13 +1038,13 @@
                     }, {all: true, throttle: 300});
                 }, {all: true, throttle: 600});
             },
-            OriginalImage: async function (Mode) {
+            OriginalImage: async function (Config) {
 
             },
-            ExtraButton: async function (Mode) {
+            ExtraButton: async function (Config) {
 
             },
-            CommentFormat: async function (Mode) { /* 評論區 重新排版 */
+            CommentFormat: async function (Config) { /* 評論區 重新排版 */
                 Syn.AddStyle(`
                     .post__comments {display: flex; flex-wrap: wrap;}
                     .post__comments>*:last-child {margin-bottom: 0.5rem;}
@@ -1015,7 +1066,11 @@
         // 類型判斷
         const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
         // 配置參數驗證
-        const Validate = (Num, Bool) => Type(Num) === "Number" && Type(Bool) === "Boolean";
+        const Validate = (Bool, Num) => {
+            return Bool && Type(Bool) == "Boolean" && Type(Num) == "Number"
+            ? true
+            : false;
+        };
         // 呼叫順序
         const Order = {
             Global: [
@@ -1044,18 +1099,11 @@
 
         // 解析配置調用對應功能
         async function Call(root, config, page) {
-            if (Type(config) !== "Object") { // 不是物件立即終止
-                Syn.Log("配置類型錯誤", config, { type: "error" });
-                return;
-            }
-
             for (const ord of Order[page]) {
-                const data = config[ord];
-                const mode = data.mode; // 模式
-                const enable = data.enable; // 啟用狀態
+                const {enable, mode, ...tab} = config[ord];
 
-                if (Validate(mode, enable)) {
-                    enable && root[ord]?.(mode);
+                if (Validate(enable, mode)) {
+                    root[ord]?.({mode, ...tab});
                 } else {
                     Syn.Log( // 參數錯誤會跳過, 並且打印錯誤
                         "配置參數錯誤",
