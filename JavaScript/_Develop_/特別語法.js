@@ -58,3 +58,33 @@ console.log([...arr, ...arr2]);
 // 字串轉 js
 var code = "console.log('這是一個字串');"
 eval(code)
+
+
+// ?. 語法
+
+const box = {
+    a: ()=> 1,
+}
+
+try {
+    box.b();
+} catch {
+    box?.b?.();
+    console.log("?. 語法可以避免, 對空對象做後續處理時, 跳例外");
+    // 任何可能會是空對象的, 都可以這樣去寫
+    // document.querySelector("main")?.remove();
+}
+
+// ?? 語法
+var a = "A";
+var b = "B";
+
+var p = undefined;
+
+// ?? 當第一個值是 null 或 undefined, 就會取後面的值, 反之就是前面的值 (用 || 能判斷更多類型)
+var c = p ?? a;
+console.log(c);
+
+// 基本的三元式
+var c = p ? a : b;
+console.log(c);

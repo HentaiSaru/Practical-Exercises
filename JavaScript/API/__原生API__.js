@@ -278,6 +278,27 @@ class Collection {
  * parseInt() [解析為整數]
  */
 
+ /**_________________________
+  ** { Math }
+  *
+  * Math.round() [傳入小數四捨五入]
+  * Math.ceil() [無條件進位小數]
+  * Math.floor() [無條件捨去小數]
+  * Math.trunc() [只取整數的部份, 基本就是無條件捨去]
+  * Math.sign() [正數回傳 1, 0 回傳 0, 負數回傳 -1]
+  * Math.pow(數字, 次方) [獲取次方]
+  * Math.sqrt() [獲取平方根]
+  * Math.abs() [取絕對值]
+  * Math.min(a, b, n...) [回傳最小的數]
+  * Math.max(a, b, n...) [回傳最大的數]
+  * Math.random() [隨機數, 0 >= ~ < 1 的數字]
+  * Math.log() [自然對數]
+  * Math.log2(10) [2 需要 * 幾次是 10]
+  * Math.log10(1000) [10 需要 * 幾次是 1000]
+  * Math.sin()
+  * Math.cos()
+  */
+
 /**_________________________
  ** { JSON }
  *
