@@ -317,6 +317,8 @@
             IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
 
             Language: (lang) => Match[lang] || Match["en-US"],
+            Rendering: ({ content }) => React.createElement("div", { dangerouslySetInnerHTML: { __html: content } }),
+
             Color: Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
             Style, Posts, Search, User, Content, Favor, FavorArtist, Link, Announcement,
         };
@@ -775,8 +777,204 @@
         }
     }
 
-    /* ==================== 配置解析調用 ==================== */
-    (()=> {
+    /* ==================== 預覽頁功能 ==================== */
+    function Preview_Function() {
+        return {
+            NewTabOpens: async (Mode) => { /* 將預覽頁面 開啟帖子都變成新分頁開啟 */
+                Syn.Listen(document.body, "click", event => {
+                    const target = event.target.closest("article a");
+                    target && (event.preventDefault(), GM_openInTab(target.href, { active: false, insert: false }));
+                }, {capture: true});
+            },
+            QuickPostToggle: async (Mode) => { /* 預覽換頁 快速切換 */
+                DLL.Style.Preview();
+
+                async function GetNextPage(link) {
+                    const old_section = Syn.$$("section"); // 獲取當前頁面的 section
+                    const items = Syn.$$(".card-list__items"); // 用於載入 加載圖示
+                    requestAnimationFrame(()=> {GM_addElement(items, "img", {class: "gif-overlay"})});
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: link,
+                        nocache: false,
+                        onload: response => {
+                            const new_section = Syn.$$("section", {root: response.responseXML});
+                            ReactDOM.render(React.createElement(DLL.Rendering, { content: new_section.innerHTML }), old_section);
+                            history.pushState(null, null, link);
+                        },
+                        onerror: error => {GetNextPage(link)}
+                    });
+                }
+                // 監聽觸發 獲取下一頁數據
+                Syn.Listen(document.body, "click", event => {
+                    const target = event.target.closest("menu a");
+                    target && (event.preventDefault(), GetNextPage(target.href));
+                }, {capture: true});
+            },
+            CardZoom: async (Mode) => { /* 帖子預覽卡縮放效果 */
+                switch (Mode) {
+                    case 2:
+                        Syn.AddStyle(`
+                            .post-card a:hover {
+                                overflow: auto;
+                                z-index: 99999;
+                                background: #000;
+                                border: 1px solid #fff6;
+                                transform: scale(1.6, 1.5);
+                            }
+                            .post-card a::-webkit-scrollbar {
+                                width: 0;
+                                height: 0;
+                            }
+                            .post-card a:hover .post-card__image-container {
+                                position: relative;
+                            }
+                        `, "Effects");
+                    default:
+                        Syn.AddStyle(`
+                            * { --card-size: 13vw; }
+                            .post-card { margin: .3vw; }
+                            .post-card a img { border-radius: 8px; }
+                            .post-card a {
+                                border-radius: 8px;
+                                border: 3px solid #fff6;
+                                transition: transform 0.4s;
+                            }
+                        `, "Effects");
+                }
+            },
+            CardText: async (Mode) => { /* 帖子說明文字效果 */
+                if (Syn.Device.Type() === "Mobile") return;
+
+                switch (Mode) {
+                    case 2:
+                        Syn.AddStyle(`
+                            .post-card__header, .post-card__footer {
+                                opacity: 0.4;
+                                transition: opacity 0.3s;
+                            }
+                            a:hover .post-card__header,
+                            a:hover .post-card__footer {
+                                opacity: 1;
+                            }
+                        `, "Effects"); break;
+                    default:
+                        Syn.AddStyle(`
+                            .post-card__header {
+                                opacity: 0;
+                                z-index: 1;
+                                padding: 5px;
+                                pointer-events: none;
+                                transform: translateY(-6vh);
+                            }
+                            .post-card__footer {
+                                opacity: 0;
+                                z-index: 1;
+                                padding: 5px;
+                                pointer-events: none;
+                                transform: translateY(6vh);
+                            }
+                            a:hover .post-card__header,
+                            a:hover .post-card__footer {
+                                opacity: 1;
+                                pointer-events: auto;
+                                transform: translateY(0vh);
+                                transition: transform 0.4s, opacity 0.6s;
+                            }
+                        `, "Effects");
+                }
+            }
+        }
+    }
+
+    /* ==================== 內容頁功能 ==================== */
+    function Content_Function() {
+        return {
+            LinkBeautify: async function (Mode) { /* 懸浮於 browse » 標籤時, 直接展示文件, 刪除下載連結前的 download 字樣, 並解析轉換連結 */
+                Syn.AddStyle(`
+                    .View {
+                        top: -10px;
+                        padding: 10%;
+                        display: none;
+                        overflow: auto;
+                        color: #f2f2f2;
+                        font-size: 14px;
+                        font-weight: 600;
+                        position: absolute;
+                        white-space: nowrap;
+                        border-radius: .5rem;
+                        left: calc(100% + 10px);
+                        border: 1px solid #737373;
+                        background-color: #3b3e44;
+                    }
+                    a:hover .View { display: block }
+                `, "Effects");
+                Syn.WaitElem("a.post__attachment-link", post => {
+                    async function ShowBrowse(Browse) {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: Browse.href,
+                            onload: response => {
+                                const Main = Syn.$$("main", {root: response.responseXML});
+                                const View = GM_addElement("View", {class: "View"});
+                                const Buffer = document.createDocumentFragment();
+                                Syn.$$("br", {all: true, root: Main}).forEach(br => { // 取得 br 數據
+                                    Buffer.append( // 將以下元素都添加到 Buffer
+                                        document.createTextNode(br.previousSibling.textContent.trim()),
+                                        br
+                                    );
+                                })
+                                View.appendChild(Buffer);
+                                Browse.appendChild(View);
+                            },
+                            onerror: error => {ShowBrowse(Browse)}
+                        });
+                    }
+
+                    post.forEach(link => {
+                        link.setAttribute("download", ""); // 修改標籤字樣
+                        link.href = decodeURIComponent(link.href); // 解碼 url, 並替代原 url
+                        link.textContent = link.textContent.replace("Download", "").trim();
+
+                        const Browse = link.nextElementSibling; // 查找是否含有 Browse 元素
+                        if (!Browse) return;
+
+                        Browse.style.position = "relative"; // 修改樣式避免跑版
+                        ShowBrowse(Browse); // 請求顯示 Browse 數據 
+                    });
+                }, {all: true, throttle: 600});
+            },
+            VideoBeautify: async function (Mode) { /* 調整影片區塊大小, 將影片名稱轉換成下載連結 */
+                Syn.AddStyle(`
+                    .video-title {margin-top: 0.5rem;}
+                    .post-video {height: 50%; width: 60%;}
+                `, "Effects");
+            },
+            OriginalImage: async function (Mode) {
+
+            },
+            ExtraButton: async function (Mode) {
+
+            },
+            CommentFormat: async function (Mode) { /* 評論區 重新排版 */
+                Syn.AddStyle(`
+                    .post__comments {display: flex; flex-wrap: wrap;}
+                    .post__comments>*:last-child {margin-bottom: 0.5rem;}
+                    .comment {
+                        margin: 0.5rem;
+                        max-width: 25rem;
+                        border-radius: 10px;
+                        flex-basis: calc(35%);
+                        word-break: break-all;
+                        border: 0.125em solid var(--colour1-secondary);
+                    }
+                `, "Effects");
+            }
+        }
+    }
+
+    /* ==================== 配置解析 調用 ==================== */
+    (async () => {
         // 類型判斷
         const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
         // 配置參數驗證
@@ -832,7 +1030,10 @@
         }
 
         Call(Global_Function(), User_Config.Global_Page, "Global");
-
+        if (DLL.IsAllPreview) Call(Preview_Function(), User_Config.Preview_Page, "Preview");
+        else if (DLL.IsContent) {
+            Call(Content_Function(), User_Config.Content_Page, "Content");
+        }
     })();
 
 })();
