@@ -43,7 +43,7 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
 
-(function () {
+(async function () {
     const User_Config = {
         Global_Page: {
             BlockAds: {mode: 0, enable: true}, // 阻擋廣告
@@ -62,9 +62,9 @@
         },
         Content_Page: {
             ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕
-            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
+            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
             CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
-            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
+            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
             OriginalImage: {mode: 1, enable: true}, // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         }
     };
@@ -372,78 +372,71 @@
             TextToLink: async (Mode) => { /* 連結文本轉連結 */
                 if (!DLL.IsContent && !DLL.IsAnnouncement) return;
 
-                const Protocol_F = /^(?!https?:\/\/)/;
-                const Exclusion_F = /onfanbokkusuokibalab\.net/;
-                const URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g;
                 let Text;
+
+                const TextToLink_Requ = { // 轉換連結需要的函數
+                    Protocol_F: /^(?!https?:\/\/)/,
+                    Exclusion_F: /onfanbokkusuokibalab\.net/,
+                    URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
+                    ParseModify: async function (father, content) { // 解析後轉換網址
+                        if (this.Exclusion_F.test(content)) return;
+
+                        father.innerHTML = content.replace(this.URL_F, url => {
+                            const decode = decodeURIComponent(url).trim();
+                            return `<a href="${decode.replace(this.Protocol_F, "https://")}">${decode}</a>`;
+                        });
+                    },
+                    Process: async function(pre) { // 處理只有 pre
+                        Text = pre.textContent;
+                        this.URL_F.test(Text) && this.ParseModify(pre, Text);
+                    },
+                    Multiprocessing: async function(root) { // 處理有 p 和 a 的狀況
+                        for (const p of Syn.$$("p", {all: true, root: root})) {
+                            Text = p.textContent;
+                            this.URL_F.test(Text) && this.ParseModify(p, Text);
+                        }
+    
+                        for (const a of Syn.$$("a", {all: true, root: root})) {
+                            !a.href && this.ParseModify(a, a.textContent);
+                        }
+                    },
+                    JumpTrigger: async (root) => { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
+                        Syn.AddListener(root, "click", event => {
+                            const target = event.target.closest("a:not(.fileThumb)");
+                            target && (event.preventDefault(), GM_openInTab(target.href, { active: false }));
+                        }, {capture: true});
+                    }
+                }
 
                 if (DLL.IsContent) {
                     Syn.WaitElem("div.post__body", body => {
-                        JumpTrigger(body);
+                        TextToLink_Requ.JumpTrigger(body);
 
                         const article = Syn.$$("article", {root: body});
                         const content = Syn.$$("div.post__content", {root: body});
 
                         if (article) {
-                            Syn.$$("span.choice-text", {all: true, root: article}).forEach(span => {
-                                Analysis(span, span.textContent)
-                            });
+                            for (const span of Syn.$$("span.choice-text", {all: true, root: article})) {
+                                TextToLink_Requ.ParseModify(span, span.textContent);
+                            }
                         } else if (content) {
                             const pre = Syn.$$("pre", {root: content});
-
-                            if (pre) { // 單一個 Pre 標籤的狀態
-                                Text = pre.textContent;
-                                URL_F.test(Text) && Analysis(pre, Text);
-                            } else {
-                                Syn.$$("p", {all: true, root: content}).forEach(p=> {
-                                    Text = p.textContent;
-                                    URL_F.test(Text) && Analysis(p, Text);
-                                })
-
-                                Syn.$$("a", {all: true, root: content}).forEach(a=> {
-                                    !a.href && Analysis(a, a.textContent);
-                                })
-                            }
+                            pre
+                            ? TextToLink_Requ.Process(pre)
+                            : TextToLink_Requ.Multiprocessing(content);
                         }
                     }, {throttle: 600});
 
                 } else if (DLL.IsAnnouncement) {
                     Syn.WaitElem("div.card-list__items pre", content => {
-                        JumpTrigger(Syn.$$("div.card-list__items"));
+                        TextToLink_Requ.JumpTrigger(Syn.$$("div.card-list__items"));
 
-                        content.forEach(pre=> {
-                            if (pre.childNodes.length > 1) {
-                                Syn.$$("p", {all: true, root: pre}).forEach(p=> {
-                                    Text = p.textContent;
-                                    URL_F.test(Text) && Analysis(p, Text);
-                                })
-
-                                Syn.$$("a", {all: true, root: pre}).forEach(a=> {
-                                    !a.href && Analysis(a, a.textContent);
-                                })
-
-                            } else {
-                                Text = pre.textContent;
-                                URL_F.test(Text) && Analysis(pre, Text);
-                            }
-                        })
+                        for (const pre of content) {
+                            pre.childNodes.length > 1
+                            ? TextToLink_Requ.Multiprocessing(pre)
+                            : TextToLink_Requ.Process(pre);
+                        }
                     }, {raf: true, all: true});
-                }
-
-                async function JumpTrigger(root) { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
-                    Syn.AddListener(root, "click", event => {
-                        const target = event.target.closest("a:not(.fileThumb)");
-                        target && (event.preventDefault(), GM_openInTab(target.href, { active: false }));
-                    }, {capture: true});
-                }
-
-                async function Analysis(father, text) { // 解析後轉換網址
-                    if (!Exclusion_F.test(text)) {
-                        father.innerHTML = text.replace(URL_F, url => {
-                            const decode = decodeURIComponent(url).trim();
-                            return `<a href="${decode.replace(Protocol_F, "https://")}">${decode}</a>`;
-                        })
-                    }
                 }
             },
             FixArtist: async (Mode) => { /* 修復藝術家名稱 */
@@ -570,7 +563,7 @@
                             const parent = artist.parentNode;
                             const url = href || parent.href;
                             const parse = this.Fix_Url(url);
-    
+
                             await this.Fix_Trigger({
                                 Url: url,
                                 TailId: parse[1],
@@ -601,9 +594,9 @@
                                             }, 300);
                                             break;
                                         default: // 針對搜尋頁的動態監聽
-                                            Syn.$$("a", {all: true, root: operat}).forEach(items=> { // 沒有修復標籤的才修復
-                                                !items.getAttribute("fix") && this.Search_Fix(items);
-                                            });
+                                            for (const items of Syn.$$("a", {all: true, root: operat})) {
+                                                !items.getAttribute("fix") && this.Search_Fix(items); // 沒有修復標籤的才修復
+                                            }
                                     }
                                 }
                             })
@@ -626,7 +619,9 @@
                         const artist = Syn.$$("span[itemprop='name']");
                         artist && Fix_Requ.Other_Fix(artist); // 預覽頁的 名稱修復
 
-                        Syn.$$("a", {all: true, root: card_items}).forEach(items=> { Fix_Requ.Search_Fix(items) }); // 針對 links 頁面的 card
+                        for (const items of Syn.$$("a", {all: true, root: card_items})) { // 針對 links 頁面的 card
+                            Fix_Requ.Search_Fix(items);
+                        }
                         Url.endsWith("new") && Fix_Requ.Dynamic_Fix(card_items, card_items); // 針對 links/new 頁面的 card
                     } else { //! 還需要測試
                         Fix_Requ.Dynamic_Fix(card_items, card_items);
@@ -918,12 +913,12 @@
                                 const Main = Syn.$$("main", {root: response.responseXML});
                                 const View = GM_addElement("View", {class: "View"});
                                 const Buffer = document.createDocumentFragment();
-                                Syn.$$("br", {all: true, root: Main}).forEach(br => { // 取得 br 數據
+                                for (const br of Syn.$$("br", {all: true, root: Main})) { // 取得 br 數據
                                     Buffer.append( // 將以下元素都添加到 Buffer
                                         document.createTextNode(br.previousSibling.textContent.trim()),
                                         br
                                     );
-                                })
+                                }
                                 View.appendChild(Buffer);
                                 Browse.appendChild(View);
                             },
@@ -931,17 +926,17 @@
                         });
                     }
 
-                    post.forEach(link => {
+                    for (const link of post) {
                         link.setAttribute("download", ""); // 修改標籤字樣
                         link.href = decodeURIComponent(link.href); // 解碼 url, 並替代原 url
                         link.textContent = link.textContent.replace("Download", "").trim();
 
                         const Browse = link.nextElementSibling; // 查找是否含有 Browse 元素
-                        if (!Browse) return;
+                        if (!Browse) continue;
 
                         Browse.style.position = "relative"; // 修改樣式避免跑版
                         ShowBrowse(Browse); // 請求顯示 Browse 數據 
-                    });
+                    }
                 }, {all: true, throttle: 600});
             },
             VideoBeautify: async function (Mode) { /* 調整影片區塊大小, 將影片名稱轉換成下載連結 */
@@ -949,6 +944,48 @@
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
                 `, "Effects");
+                Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", parents => {
+                    Syn.WaitElem("a.post__attachment-link", post => {
+                        function VideoRendering({ stream }) {
+                            return React.createElement("summary", {
+                                    className: "video-title"
+                                } , React.createElement("video", {
+                                    key: "video",
+                                    controls: true,
+                                    preload: "auto",
+                                    "data-setup": JSON.stringify({}),
+                                    className: "post-video",
+                                },
+                                React.createElement("source", {
+                                    key: "source",
+                                    src: stream.src,
+                                    type: stream.type
+                                })
+                            ));
+                        }
+                        for (const li of parents) {
+                            let title = Syn.$$("summary", {root: li});
+                            let stream = Syn.$$("source", {root: li});
+
+                            if (!title || !stream) continue;
+
+                            for (const link of post) {
+                                if (link.textContent.includes(title.textContent)) {
+                                    switch (Mode) {
+                                        case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
+                                            link.parentNode.remove();
+                                        default:
+                                            title = link.cloneNode(true);
+                                    }
+                                }
+                            }
+
+                            ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
+                            li.insertBefore(title, Syn.$$("summary", {root: li}));
+                        }
+
+                    }, {all: true, throttle: 300});
+                }, {all: true, throttle: 600});
             },
             OriginalImage: async function (Mode) {
 
@@ -1012,7 +1049,7 @@
                 return;
             }
 
-            Order[page].forEach(ord => {
+            for (const ord of Order[page]) {
                 const data = config[ord];
                 const mode = data.mode; // 模式
                 const enable = data.enable; // 啟用狀態
@@ -1026,7 +1063,7 @@
                         { type: "error", collapsed: false }
                     );
                 }
-            });
+            }
         }
 
         Call(Global_Function(), User_Config.Global_Page, "Global");
