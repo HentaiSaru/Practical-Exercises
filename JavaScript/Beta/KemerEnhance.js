@@ -399,12 +399,17 @@
 
         /* (阻止/封鎖)廣告 */
         async BlockAds() {
-            def.AddStyle(`.ad-container, .root--ujvuu {display: none !important}`, "Ad-blocking-style");
+            def.AddStyle(`
+                .ipprtcnt,
+                .root--ujvuu,
+                .ad-container
+                {display: none !important}
+            `, "Ad-blocking-style");
             def.AddScript(`
                 const XMLRequest = XMLHttpRequest.prototype.open;
                 const Ad_observer = new MutationObserver(() => {
                     XMLHttpRequest.prototype.open = function(method, url) {
-                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") {return}
+                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") return
                         XMLRequest.apply(this, arguments);
                     };
                     document.querySelector("div.ex-over-btn")?.click();
