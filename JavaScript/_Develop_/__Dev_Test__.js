@@ -255,14 +255,14 @@
             Postview: () => { // 觀看帖子頁所需
                 const settings = {
                     MenuSet: () => {
-                        const data = Syn.Store("g", "MenuSet") || [{
+                        const data = Syn.Store("g", "MenuSet") ?? [{
                             MT: "2vh",
                             ML: "50vw"
                         }];
                         return data[0];
                     },
                     ImgSet: () => {
-                        const data = Syn.Store("g", "ImgSet") || [{
+                        const data = Syn.Store("g", "ImgSet") ?? [{
                             img_h: "auto",
                             img_w: "auto",
                             img_mw: "100%",
@@ -461,7 +461,7 @@
                     Save_Work: Syn.Debounce(() => { // 保存工作
                         Fix_Requ.Save_Record(Fix_Cache);
                     }, 1000),
-                    Fix_Name_Support: { pixiv: undefined, fanbox: undefined },
+                    Fix_Name_Support: new Set(["pixiv", "fanbox"]),
                     Fix_Tag_Support: {
                         ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                         Patreon: "https://www.patreon.com/user?u={id}",
@@ -532,7 +532,7 @@
                         if (Record) {
                             this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
                         } else {
-                            if (this.Fix_Name_Support.hasOwnProperty(Website)) {
+                            if (this.Fix_Name_Support.has(Website)) {
                                 Record = await this.Get_Pixiv_Name(TailId) || NameObject.textContent;
                                 this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
                                 Fix_Cache.set(TailId, Record); // 添加數據
