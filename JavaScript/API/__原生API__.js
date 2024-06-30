@@ -11,6 +11,7 @@ class Collection {
  * [創建文本的節點]: document.createTextNode(text)
  *
  * [添加節點到末端]: 被添加元素.appendChild(添加元素)
+ * [添加到節點前端]: 被添加元素.insertBefore(添加元素)
  * [刪除節點]: 父節點.removeChild(刪除元素)
  * [替換子節點]: 父節點.replaceChildren("替換內容")
  * [刪除節點]: 節點.remove()
@@ -23,6 +24,8 @@ class Collection {
  * [取得子元素]: 元素.children
  *
  * [取得元素第一個子節點]: 元素.firstElementChild
+ * [取得元素同級 上方的元素]: 元素.previousElementSibling
+ * [取得元素同級 下方的元素]: 元素.nextElementSibling
  * [取得元素最後一個子節點]: 元素.lastElementChild
  *
  * Todo (可配合 .add() / .remov())
