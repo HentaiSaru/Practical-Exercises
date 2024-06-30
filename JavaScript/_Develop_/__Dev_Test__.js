@@ -36,7 +36,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1382008/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1402774/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -140,6 +140,24 @@
         // 所需樣式 (需要傳入顏色的, 就是需要動態適應顏色變化)
         let Style_Pointer;
         const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
+        const UserSet = {
+            MenuSet: () => {
+                const data = Syn.Store("g", "MenuSet") ?? [{
+                    MT: "2vh",
+                    ML: "50vw"
+                }];
+                return data[0];
+            },
+            ImgSet: () => {
+                const data = Syn.Store("g", "ImgSet") ?? [{
+                    img_h: "auto",
+                    img_w: "auto",
+                    img_mw: "100%",
+                    img_gap: "0px"
+                }];
+                return data[0];
+            }
+        };
         const Style = {
             Global: async () => { // 全域 修復所需
                 Syn.AddStyle(`
@@ -242,7 +260,7 @@
                     fix_cont:hover .edit_artist {
                         display: block;
                     }
-                `, "Global-Effects");
+                `, "Global-Effects", false);
             },
             Preview: async () => { // 帖子預覽頁所需
                 Syn.AddStyle(`
@@ -270,38 +288,19 @@
                         flex-flow: var(--local-flex-flow);
                         justify-content: var(--local-justify);
                     }
-                `, "Preview-Effects");
+                `, "Preview-Effects", false);
             },
-            Postview: () => { // 觀看帖子頁所需
-                const settings = {
-                    MenuSet: () => {
-                        const data = Syn.Store("g", "MenuSet") ?? [{
-                            MT: "2vh",
-                            ML: "50vw"
-                        }];
-                        return data[0];
-                    },
-                    ImgSet: () => {
-                        const data = Syn.Store("g", "ImgSet") ?? [{
-                            img_h: "auto",
-                            img_w: "auto",
-                            img_mw: "100%",
-                            img_gap: "0px"
-                        }];
-                        return data[0];
-                    }
-                };
-
+            Postview: async () => { // 觀看帖子頁所需
                 // 讀取圖像設置
-                const cache = settings.ImgSet();
+                const set = UserSet.ImgSet();
                 const width = Syn.Device.iW() / 2;
                 Syn.AddStyle(`
                     .Image-style {
                         display: block;
-                        width: ${cache.img_w};
-                        height: ${cache.img_h};
-                        margin: ${cache.img_gap} auto;
-                        max-width: ${cache.img_mw};
+                        width: ${set.img_w};
+                        height: ${set.img_h};
+                        margin: ${set.img_gap} auto;
+                        max-width: ${set.img_mw};
                     }
                     .Image-loading-indicator {
                         min-width: 50vW;
@@ -313,9 +312,7 @@
                     .Image-loading-indicator:hover {
                         cursor: pointer;
                     }
-                `, "Custom-style");
-
-                return settings;
+                `, "Custom-style", false);
             },
             Awesome: async () => { // 觀看帖子頁圖示
                 Syn.AddStyle(`
@@ -326,7 +323,7 @@
                     #next_box a:hover {
                         background-color: ${Color};
                     }
-            `, "font-awesome");
+            `, "Font-awesome", false);
             }
         };
 
@@ -339,18 +336,16 @@
             Language: (lang) => Match[lang] || Match["en-US"],
             Rendering: ({ content }) => React.createElement("div", { dangerouslySetInnerHTML: { __html: content } }),
 
-            ...Style, Color,
+            Color, ...UserSet, ...Style,
             Link, Posts, User, Favor, Search, Content, FavorArtist, Announcement
         };
     })();
 
     /* ==================== 配置解析 調用 ==================== */
     const Enhance = (() => {
-        // 類型判斷
-        const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
         // 配置參數驗證
         const Validate = (Bool, Num) => {
-            return Bool && Type(Bool) == "Boolean" && Type(Num) == "Number"
+            return Bool && Syn.Type(Bool) == "Boolean" && Syn.Type(Num) == "Number"
                 ? true
                 : false;
         };
@@ -408,9 +403,8 @@
         };
 
         // 解析配置調用對應功能
-        async function Call(page) {
+        async function Call(page, config=User_Config[page]) {
             const func = LoadFunc[page](); // 載入對應函數
-            const config = User_Config[page]; // 載入對應配置
 
             for (const ord of Order[page]) { // 避免空值時, 解構出現例外, 給予其預設值
                 const {enable, mode, ...other} = config[ord] ?? {};
@@ -431,7 +425,7 @@
                 }
             },
             ExtraInitial: async () => {
-                Call("Global");
+                Call("Global", Global_Initial);
                 Call("Content");
             }
         }
@@ -522,7 +516,7 @@
                             Config.newtab_insert ?? false,
                         ];
 
-                        Syn.AddListener(root, "click", event => {
+                        Syn.Listen(root, "click", event => {
                             const target = event.target.closest("a:not(.fileThumb)");
 
                             target && (
@@ -746,7 +740,7 @@
                     Config.newtab_insert ?? false,
                 ];
 
-                Syn.AddListener(document.body, "click", event=> {
+                Syn.Listen(document.body, "click", event=> {
                     const target = event.target;
 
                     if (target.matches("fix_edit")) {
@@ -825,7 +819,7 @@
                 }
             },
             BackToTop: async (Config) => { /* 翻頁後回到頂部 */
-                Syn.AddListener(document.body, "pointerup", event=> {
+                Syn.Listen(document.body, "pointerup", event=> {
                     event.target.closest("#paginator-bottom") && Syn.$$("#paginator-top").scrollIntoView();
                 }, { capture: true, passive: true });
             },
@@ -883,7 +877,7 @@
                         }
                 }
 
-                Syn.AddListener(window, "keydown", Syn.Throttle(event => {
+                Syn.Listen(window, "keydown", Syn.Throttle(event => {
                     const key = event.key;
                     if (key == "ArrowUp") {
                         event.stopImmediatePropagation();
@@ -935,6 +929,12 @@
             QuickPostToggle: async (Config) => { /* 預覽換頁 快速切換 */
                 DLL.Preview();
 
+                // 監聽觸發 獲取下一頁數據
+                Syn.Listen(document.body, "click", event => {
+                    const target = event.target.closest("menu a");
+                    target && (event.preventDefault(), GetNextPage(target.href));
+                }, {capture: true});
+
                 async function GetNextPage(link) {
                     const old_section = Syn.$$("section"); // 獲取當前頁面的 section
                     const items = Syn.$$(".card-list__items"); // 用於載入 加載圖示
@@ -951,11 +951,6 @@
                         onerror: error => {GetNextPage(link)}
                     });
                 }
-                // 監聽觸發 獲取下一頁數據
-                Syn.Listen(document.body, "click", event => {
-                    const target = event.target.closest("menu a");
-                    target && (event.preventDefault(), GetNextPage(target.href));
-                }, {capture: true});
             },
             CardZoom: async (Config) => { /* 帖子預覽卡縮放效果 */
                 switch (Config.mode) {
@@ -1146,7 +1141,121 @@
                 }, {all: true, throttle: 600});
             },
             OriginalImage: async function (Config) {
+                DLL.Postview();
+                Syn.WaitElem("div.post__thumbnail", thumbnail => {
 
+                    const Origina_Requ = { // 自動原圖所需
+                        Reload: async (Img, Retry) => { // 載入原圖 (死圖重試)
+                            if (Retry > 0) {
+                                setTimeout(() => {
+                                    const src = Img.src;
+                                    Img.src = "";
+                                    Object.assign(Img, {
+                                        src: src,
+                                        alt: "Loading Failed"
+                                    });
+                                    Img.onload = function() { Img.classList.remove("Image-loading-indicator") };
+                                    Img.onerror = function() { Origina_Requ.Reload(Img, Retry-1) };
+                                }, 1000);
+                            }
+                        },
+                        FailedClick: async () => {
+                            // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
+                            Syn.Listen(document.body, "click", event => {
+                                const target = event.target.matches(".Image-link img");
+                                if (target && target.alt == "Loading Failed") {
+                                    const src = img.src;
+                                    img.src = "";
+                                    img.src = src;
+                                }
+                            }, {capture: true, passive: true});
+                        },
+                        ImgRendering: ({ ID, href }) => { // 渲染圖像
+                            return React.createElement("div", {
+                                id: ID,
+                                className: "Image-link"
+                            }, React.createElement("img", {
+                                key: "img",
+                                src: href.href,
+                                className: "Image-loading-indicator Image-style",
+                                onLoad: function () {
+                                    Syn.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
+                                },
+                                onError: function () {
+                                    Origina_Requ.Reload(Syn.$$(`#${ID} img`), 10);
+                                }
+                            })
+                        )},
+                        FastAuto: async function() { // mode 1 預設 (快速自動)
+                            this.FailedClick();
+                            thumbnail.forEach((object, index) => {
+                                setTimeout(()=> {
+                                    object.removeAttribute("class");
+                                    a = Syn.$$("a", {root: object});
+                                    ReactDOM.render(React.createElement(this.ImgRendering, { ID: `IMG-${index}`, href: a }), object);
+                                }, index * 300);
+                            });
+                        },
+                        SlowAuto: async (index) => {
+                            if (index == thumbnail.length) return;
+                            const object = thumbnail[index];
+                            object.removeAttribute("class");
+
+                            a = Syn.$$("a", {root: object});
+                            img = Syn.$$("img", {root: a});
+
+                            Object.assign(img, {
+                                className: "Image-loading-indicator Image-style",
+                                src: a.href,
+                            });
+
+                            img.removeAttribute("data-src");
+                            a.id = `IMG-${index}`;
+                            a.removeAttribute("href");
+                            a.removeAttribute("download");
+
+                            img.onload = function() {
+                                img.classList.remove("Image-loading-indicator");
+                                Origina_Requ.SlowAuto(++index);
+                            };
+                        },
+                        ObserveTrigger: function() { // mode 3 (觀察觸發)
+                            this.FailedClick();
+                            const observer = new IntersectionObserver(observed => {
+                                observed.forEach(entry => {
+                                    if (entry.isIntersecting) {
+                                        const object = entry.target;
+                                        observer.unobserve(object);
+                                        ReactDOM.render(React.createElement(this.ImgRendering, { ID: object.alt, href: Syn.$$("a", {root: object}) }), object);
+                                        object.removeAttribute("class");
+                                    }
+                                });
+                            }, { threshold: 0.3 });
+                            return observer;
+                        }
+                    }
+
+                    /* 模式選擇 */
+                    switch (Config.mode) {
+                        case 2:
+                            Origina_Requ.SlowAuto(0);
+                            break;
+                        case 3:
+                            const observer = Origina_Requ.ObserveTrigger();
+                            thumbnail.forEach((object, index) => {
+                                object.alt = `IMG-${index}`;
+                                observer.observe(object);
+                            });
+                            break;
+
+                        default:
+                            if (document.visibilityState === "hidden") { // 當可見時才觸發快速自動原圖
+                                Syn.Listen(document, "visibilitychange", ()=> {
+                                    document.visibilityState === "visible" && Origina_Requ.FastAuto();
+                                }, { once: true });
+                            } else Origina_Requ.FastAuto();
+                    }
+                }, {all: true, throttle: 600});
             },
             ExtraButton: async function (Config) {
                 DLL.Awesome();
@@ -1237,4 +1346,213 @@
             }
         }
     };
+
+    /* ==================== 設置菜單 ==================== */
+    async function $on(element, type, listener) {$(element).on(type, listener)}
+    function Create_Menu() {
+        if (!Syn.$$(".modal-background")) return;
+
+        const set_lang = Syn.Store("g", "language");
+        const [set, lang] = [
+            DLL.ImgSet(),
+            DLL.Language(set_lang)
+        ];
+
+        const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
+
+        const menu = `
+            <div class="modal-background">
+                <div class="modal-interface">
+                    <table class="modal-box">
+                        <tr>
+                            <td class="menu">
+                                <h2 class="menu-text">${lang.MT_01}</h2>
+                                <ul>
+                                    <li>
+                                        <a class="toggle-menu" href="#image-settings-show">
+                                            <button class="menu-options" id="image-settings">${lang.MO_01}</button>
+                                        </a>
+                                    <li>
+                                    <li>
+                                        <a class="toggle-menu" href="#">
+                                            <button class="menu-options" disabled>null</button>
+                                        </a>
+                                    <li>
+                                </ul>
+                            </td>
+                            <td>
+                                <table>
+                                    <tr>
+                                        <td class="content" id="set-content">
+                                            <div id="image-settings-show" class="form-hidden">
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_01}：</h2>
+                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_02}：</h2>
+                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_03}：</h2>
+                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_04}：</h2>
+                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="button-area">
+                                            <select id="language">
+                                                <option value="" disabled selected>${lang.ML_01}</option>
+                                                <option value="en">${lang.ML_02}</option>
+                                                <option value="zh-TW">${lang.ML_03}</option>
+                                                <option value="zh-CN">${lang.ML_04}</option>
+                                                <option value="ja">${lang.ML_05}</option>
+                                            </select>
+                                            <button id="readsettings" class="button-options" disabled>${lang.MB_01}</button>
+                                            <span class="button-space"></span>
+                                            <button id="closure" class="button-options">${lang.MB_02}</button>
+                                            <span class="button-space"></span>
+                                            <button id="application" class="button-options">${lang.MB_03}</button>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+
+        // 調整選項
+        const UnitOptions = `
+            <select class="Image-input-settings" style="margin-left: 1rem;">
+                <option value="px" selected>px</option>
+                <option value="%">%</option>
+                <option value="rem">rem</option>
+                <option value="vh">vh</option>
+                <option value="vw">vw</option>
+                <option value="auto">auto</option>
+            </select>
+        `;
+
+        // 設置可拖動效果
+        $(document.body).append(menu);
+        $(".modal-interface").draggable({ cursor: "grabbing" });
+        $(".modal-interface").tabs();
+
+        // 關閉菜單
+        async function Menu_Close() {
+            $(".modal-background").off();
+            $(".modal-background").remove();
+        };
+
+        // 保存菜單
+        function Menu_Save() {
+            const menu_interface = $(".modal-interface"); // 取出菜單位置數據
+            const top = menu_interface.css("top");
+            const left = menu_interface.css("left");
+            Syn.Store("s", "MenuSet", [{MT: top, ML: left}]); // 保存數據
+            // 設置到樣式表內 不用重整可以直接改變
+            DM.styleRules["MT"](top);
+            DM.styleRules["ML"](left);
+            Menu_Close();
+        };
+
+        let parent, child, img_input, img_select, img_set, set_value, analyze;
+        // 圖片設置菜單
+        async function PictureSettings() {
+            $on(".Image-input-settings", "input change", function (event) {
+                event.stopPropagation();
+                const target = $(this), value = target.val(), id = target.attr("id");
+                parent = target.closest("div");
+                if (isNaN(value)) {
+                    child = parent.find("input");
+                    if (value === "auto") {
+                        child.prop("disabled", true);
+                        DM.styleRules[child.attr("id")](value);
+                    } else {
+                        child.prop("disabled", false);
+                        DM.styleRules[child.attr("id")](`${child.val()}${value}`);
+                    }
+                } else {
+                    child = parent.find("select");
+                    DM.styleRules[id](`${value}${child.val()}`);
+                }
+            });
+        };
+        $("#language").val(set_lang ?? ""); // 添加語言設置
+        // 語言選擇
+        $on("#language", "input change", function (event) {
+            event.stopPropagation();
+            $("#language").off("input change");
+
+            const value = $(this).val(); // 取得選擇
+            MenuLangSwitch(value);
+            Syn.Store("s", "language", value);
+
+            Menu_Save();
+            Create_Menu();
+        });
+        // 監聽菜單的點擊事件
+        let save_cache = {};
+        $on(".modal-interface", "click", function (event) {
+            const id = $(event.target).attr("id");
+
+            // 菜單功能選擇
+            if (id == "image-settings") {
+                img_set = $("#image-settings-show");
+                if (img_set.css("opacity") === "0") {
+                    img_set.find("p").each(function() {
+                        $(this).append(UnitOptions);
+                    });
+                    img_set.css({
+                        "height": "auto",
+                        "width": "auto",
+                        "opacity": 1
+                    });
+                    $("#readsettings").prop("disabled", false);
+                    PictureSettings();
+                }
+
+            // 讀取保存設置
+            } else if (id == "readsettings") {
+                img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+
+                    if (read == "auto") {
+                        img_input.prop("disabled", true);
+                        img_select.val(read);
+                    } else {
+                        analyze = read.match(/^(\d+)(\D+)$/);
+                        img_input.val(analyze[1]);
+                        img_select.val(analyze[2]);
+                    }
+                })
+            
+            // 應用保存
+            } else if (id == "application") {
+                img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+                    if (img_select.val() == "auto") {set_value = "auto"}
+                    else if (img_input.val() == "") {set_value = read}
+                    else {set_value = `${img_input.val()}${img_select.val()}`}
+                    save_cache[img_input.attr("id")] = set_value;
+                })
+                Syn.Store("s", "ImgSet", [save_cache]); // 保存圖片設置
+                Menu_Save(); // 保存菜單位置資訊
+            } else if (id == "closure") {
+                Menu_Close();
+            }
+        });
+    }
+
 })();
