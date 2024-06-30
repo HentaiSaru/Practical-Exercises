@@ -12,6 +12,7 @@
 // @description:ja     インターフェイスの美化と再配置、広告や余分なバナーの削除、イラストレーター名の修正と関連情報の保存の編集、オリジナル画像の自動読み込み、メニューでの画像のサイズと間隔の設定、ショートカットキーによる自動スクロールのトリガー、テキスト内のリンクの解析とクリック可能なリンクへの変換、高速なページ切り替えとジャンプ機能、新しいタブへのリダイレクト
 // @description:en     Beautify the interface and re-layout, including removing ads and redundant banners, correcting artist names and editing related information retention, automatically loading original images, setting image size and spacing in the menu, triggering automatic scrolling with hotkeys, parsing links in the text and converting them to clickable links, fast page switching and jumping functions, and redirecting to a new tab
 
+// @connect      *
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
 // @match        *://*.kemono.su/*
@@ -46,7 +47,7 @@
 (async function () {
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
-        Global_Page: {
+        Global: {
             BlockAds: {mode: 0, enable: true}, // 阻擋廣告
             BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
             KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
@@ -67,7 +68,7 @@
                 newtab_insert: false,
             },
         },
-        Preview_Page: {
+        Preview: {
             CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
             CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
             QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子
@@ -78,7 +79,7 @@
                 newtab_insert: false,
             },
         },
-        Content_Page: {
+        Content: {
             ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕
             LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
             CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
@@ -138,8 +139,9 @@
 
         // 所需樣式 (需要傳入顏色的, 就是需要動態適應顏色變化)
         let Style_Pointer;
+        const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
         const Style = {
-            Global: async (Color) => { // 全域 修復所需
+            Global: async () => { // 全域 修復所需
                 Syn.AddStyle(`
                     /* 搜尋頁面的樣式 */
                     fix_tag:hover { color: ${Color}; }
@@ -315,7 +317,7 @@
 
                 return settings;
             },
-            Awesome: async (Color) => { // 觀看帖子頁圖示
+            Awesome: async () => { // 觀看帖子頁圖示
                 Syn.AddStyle(`
                     ${GM_getResourceText("font-awesome")}
                     #next_box a {
@@ -337,10 +339,105 @@
             Language: (lang) => Match[lang] || Match["en-US"],
             Rendering: ({ content }) => React.createElement("div", { dangerouslySetInnerHTML: { __html: content } }),
 
-            Color: Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important",
-            Style, Posts, Search, User, Content, Favor, FavorArtist, Link, Announcement,
+            ...Style, Color,
+            Link, Posts, User, Favor, Search, Content, FavorArtist, Announcement
         };
     })();
+
+    /* ==================== 配置解析 調用 ==================== */
+    const Enhance = (() => {
+        // 類型判斷
+        const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
+        // 配置參數驗證
+        const Validate = (Bool, Num) => {
+            return Bool && Type(Bool) == "Boolean" && Type(Num) == "Number"
+                ? true
+                : false;
+        };
+        // 呼叫順序
+        const Order = {
+            Global: [
+                "SidebarCollapse",
+                "DeleteNotice",
+                "BlockAds",
+                "TextToLink",
+                "FixArtist",
+                "BackToTop",
+                "KeyScroll"
+            ],
+            Preview: [
+                "NewTabOpens",
+                "QuickPostToggle",
+                "CardZoom",
+                "CardText"
+            ],
+            Content: [
+                "LinkBeautify",
+                "VideoBeautify",
+                "OriginalImage",
+                "ExtraButton",
+                "CommentFormat",
+            ],
+        };
+        // 懶加載函數
+        const LoadFunc = {
+            global_cache: undefined,
+            preview_cache: undefined,
+            content_cache: undefined,
+            Global: function() {
+                if (!this.global_cache) this.global_cache = Global_Function();
+                return this.global_cache;
+            },
+            Preview: function() {
+                if (!this.preview_cache) this.preview_cache = Preview_Function();
+                return this.preview_cache;
+            },
+            Content: function() {
+                if (!this.content_cache) this.content_cache = Content_Function();
+                return this.content_cache;
+            }
+        };
+        // 用於 Extra 翻頁後初始化
+        const Global_Initial = {
+            FixArtist: {
+                ...User_Config.Global.FixArtist
+            },
+            TextToLink: {
+                ...User_Config.Global.TextToLink
+            }
+        };
+
+        // 解析配置調用對應功能
+        async function Call(page) {
+            const func = LoadFunc[page](); // 載入對應函數
+            const config = User_Config[page]; // 載入對應配置
+
+            for (const ord of Order[page]) { // 避免空值時, 解構出現例外, 給予其預設值
+                const {enable, mode, ...other} = config[ord] ?? {};
+
+                if (Validate(enable, mode)) {
+                    // 將模式與, 可能有的其他選項, 作為 Config 傳遞
+                    func[ord]?.({mode, ...other});
+                }
+            }
+        }
+
+        return {
+            Run: async () => {
+                Call("Global");
+                if (DLL.IsAllPreview) Call("Preview");
+                else if (DLL.IsContent) {
+                    Call("Content");
+                }
+            },
+            ExtraInitial: async () => {
+                Call("Global");
+                Call("Content");
+            }
+        }
+    })();
+
+    Enhance.Run();
 
     /* ==================== 全域功能 ==================== */
     function Global_Function() {
@@ -364,7 +461,7 @@
                     .global-sidebar:hover {opacity: 1; transform: translateX(0rem);}
                     .content-wrapper.shifted {transition: 0.7s; margin-left: 0rem;}
                     .global-sidebar:hover + .content-wrapper.shifted {margin-left: 10rem;}
-                `, "Effects");
+                `, "Collapse_Effects", false);
             },
             DeleteNotice: async (Config) => { /* 刪除公告通知 */
                 Syn.$$("body > div.content-wrapper.shifted > a")?.remove();
@@ -372,7 +469,7 @@
             BlockAds: async (Config) => { /* (阻止/封鎖)廣告 */
                 Syn.AddStyle(`
                     .ipprtcnt, .root--ujvuu, .ad-container {display: none !important}
-                `, "Ad-blocking-style");
+                `, "Ad-blocking-style", false);
                 Syn.AddScript(`
                     const XMLRequest = XMLHttpRequest.prototype.open;
                     const Ad_observer = new MutationObserver(() => {
@@ -385,7 +482,7 @@
                         document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                     });
                     Ad_observer.observe(document.head, {childList: true, subtree: true});
-                `, "Ad-blocking-script");
+                `, "Ad-blocking-script", false);
             },
             TextToLink: async (Config) => { /* 連結文本轉連結 */
                 if (!DLL.IsContent && !DLL.IsAnnouncement) return;
@@ -472,7 +569,7 @@
                 }
             },
             FixArtist: async (Config) => { /* 修復藝術家名稱 */
-                DLL.Style.Global(DLL.Color); // 載入依賴樣式
+                DLL.Global(); // 載入依賴樣式
 
                 let Record_Cache = null; // 讀取修復紀錄 用於緩存
                 const Fix_Cache = new Map(); // 修復後 用於緩存
@@ -641,44 +738,6 @@
                     }
                 }
 
-                Record_Cache = Fix_Requ.Get_Record(); // 讀取修復 數據到緩存
-                // 搜尋頁面, 與一些特殊預覽頁
-                if (DLL.IsSearch) {
-                    const card_items = Syn.$$(".card-list__items");
-
-                    if (DLL.Link.test(Url)) {
-                        const artist = Syn.$$("span[itemprop='name']");
-                        artist && Fix_Requ.Other_Fix(artist); // 預覽頁的 名稱修復
-
-                        for (const items of Syn.$$("a", {all: true, root: card_items})) { // 針對 links 頁面的 card
-                            Fix_Requ.Search_Fix(items);
-                        }
-                        Url.endsWith("new") && Fix_Requ.Dynamic_Fix(card_items, card_items); // 針對 links/new 頁面的 card
-                    } else { //! 還需要測試
-                        Fix_Requ.Dynamic_Fix(card_items, card_items);
-                        GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
-                    }
-
-                } else if (DLL.IsContent) { // 是內容頁面
-                    const [artist, title] = [
-                        Syn.$$(".post__user-name"),
-                        Syn.$$("h1 span:nth-child(2)")
-                    ];
-                    Fix_Requ.Other_Fix(artist, title, artist.href, "<fix_cont>");
-
-                } else { // 預覽頁面
-                    const artist = Syn.$$("span[itemprop='name']");
-                    if(artist) {
-                        Fix_Requ.Other_Fix(artist);
-
-                        if (User_Config.Preview_Page.QuickPostToggle.enable) { // 啟用該功能才需要動態監聽
-                            setTimeout(()=> {
-                                Fix_Requ.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
-                            }, 300);
-                        }
-                    }
-                }
-
                 // 監聽點擊事件
                 const [Device, Newtab, Active, Insert] = [
                     Syn.Device.Type(),
@@ -726,6 +785,44 @@
                         }
                     }
                 }, { capture: true, passive: true });
+
+                Record_Cache = Fix_Requ.Get_Record(); // 讀取修復 數據到緩存
+                // 搜尋頁面, 與一些特殊預覽頁
+                if (DLL.IsSearch) {
+                    const card_items = Syn.$$(".card-list__items");
+
+                    if (DLL.Link.test(Url)) {
+                        const artist = Syn.$$("span[itemprop='name']");
+                        artist && Fix_Requ.Other_Fix(artist); // 預覽頁的 名稱修復
+
+                        for (const items of Syn.$$("a", {all: true, root: card_items})) { // 針對 links 頁面的 card
+                            Fix_Requ.Search_Fix(items);
+                        }
+                        Url.endsWith("new") && Fix_Requ.Dynamic_Fix(card_items, card_items); // 針對 links/new 頁面的 card
+                    } else { //! 還需要測試
+                        Fix_Requ.Dynamic_Fix(card_items, card_items);
+                        GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
+                    }
+
+                } else if (DLL.IsContent) { // 是內容頁面
+                    const [artist, title] = [
+                        Syn.$$(".post__user-name"),
+                        Syn.$$("h1 span:nth-child(2)")
+                    ];
+                    Fix_Requ.Other_Fix(artist, title, artist.href, "<fix_cont>");
+
+                } else { // 預覽頁面
+                    const artist = Syn.$$("span[itemprop='name']");
+                    if(artist) {
+                        Fix_Requ.Other_Fix(artist);
+
+                        if (User_Config.Preview.QuickPostToggle.enable) { // 啟用該功能才需要動態監聽
+                            setTimeout(()=> {
+                                Fix_Requ.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
+                            }, 300);
+                        }
+                    }
+                }
             },
             BackToTop: async (Config) => { /* 翻頁後回到頂部 */
                 Syn.AddListener(document.body, "pointerup", event=> {
@@ -742,17 +839,20 @@
                 };
 
                 const UP_ScrollSpeed = Scroll_Requ.Scroll_Pixels * -1;
-                let Scroll, Up_scroll  = false, Down_scroll = false;
+                let Scroll, Up_scroll = false, Down_scroll = false;
 
-                const TopDetected = Syn.Throttle(()=>{ // 檢測到頂停止
-                    Up_scroll = Syn.Device.sY() == 0 ? false : true;
-                }, 600);
-                const BottomDetected = Syn.Throttle(()=>{ // 檢測到底停止
-                    Down_scroll =
-                    Syn.Device.sY() + Syn.Device.iH() >= document.documentElement.scrollHeight ? false : true;
-                }, 600);
+                const [TopDetected, BottomDetected] = [ // 到頂 和 到底 的檢測
+                    Syn.Throttle(() => {
+                        Up_scroll = Syn.Device.sY() == 0
+                        ? false : true
+                    }, 600),
+                    Syn.Throttle(() => {
+                        Down_scroll = Syn.Device.sY() + Syn.Device.iH() >= document.documentElement.scrollHeight
+                        ? false : true
+                    }, 600)
+                ];
 
-                switch (Config) {
+                switch (Config.mode) {
                     case 2:
                         Scroll = (Move) => {
                             const Interval = setInterval(()=> {
@@ -809,7 +909,7 @@
                 }, 100), { capture: true });
             }
         }
-    }
+    };
 
     /* ==================== 預覽頁功能 ==================== */
     function Preview_Function() {
@@ -833,7 +933,7 @@
                 }, {capture: true});
             },
             QuickPostToggle: async (Config) => { /* 預覽換頁 快速切換 */
-                DLL.Style.Preview();
+                DLL.Preview();
 
                 async function GetNextPage(link) {
                     const old_section = Syn.$$("section"); // 獲取當前頁面的 section
@@ -875,7 +975,7 @@
                             .post-card a:hover .post-card__image-container {
                                 position: relative;
                             }
-                        `, "Effects");
+                        `, "CardZoom_Effects_2", false);
                     default:
                         Syn.AddStyle(`
                             * { --card-size: 13vw; }
@@ -886,7 +986,7 @@
                                 border: 3px solid #fff6;
                                 transition: transform 0.4s;
                             }
-                        `, "Effects");
+                        `, "CardZoom_Effects", false);
                 }
             },
             CardText: async (Config) => { /* 帖子說明文字效果 */
@@ -903,7 +1003,7 @@
                             a:hover .post-card__footer {
                                 opacity: 1;
                             }
-                        `, "Effects"); break;
+                        `, "CardText_Effects_2", false); break;
                     default:
                         Syn.AddStyle(`
                             .post-card__header {
@@ -927,11 +1027,11 @@
                                 transform: translateY(0vh);
                                 transition: transform 0.4s, opacity 0.6s;
                             }
-                        `, "Effects");
+                        `, "CardText_Effects", false);
                 }
             }
         }
-    }
+    };
 
     /* ==================== 內容頁功能 ==================== */
     function Content_Function() {
@@ -954,7 +1054,7 @@
                         background-color: #3b3e44;
                     }
                     a:hover .View { display: block }
-                `, "Effects");
+                `, "Link_Effects", false);
                 Syn.WaitElem("a.post__attachment-link", post => {
                     async function ShowBrowse(Browse) {
                         GM_xmlhttpRequest({
@@ -994,8 +1094,8 @@
                 Syn.AddStyle(`
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
-                `, "Effects");
-                Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", parents => {
+                `, "Video_Effects", false);
+                Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
                     Syn.WaitElem("a.post__attachment-link", post => {
                         function VideoRendering({ stream }) {
                             return React.createElement("summary", {
@@ -1014,11 +1114,16 @@
                                 })
                             ));
                         }
+
                         for (const li of parents) {
-                            let title = Syn.$$("summary", {root: li});
-                            let stream = Syn.$$("source", {root: li});
+                            let [node, title, stream] = [
+                                undefined,
+                                Syn.$$("summary", {root: li}),
+                                Syn.$$("source", {root: li})
+                            ];
 
                             if (!title || !stream) continue;
+                            if (title.previousElementSibling) continue; // 排除極端狀況下的重複添加
 
                             for (const link of post) {
                                 if (link.textContent.includes(title.textContent)) {
@@ -1026,13 +1131,15 @@
                                         case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
                                             link.parentNode.remove();
                                         default:
-                                            title = link.cloneNode(true);
+                                            node = link.cloneNode(true);
                                     }
                                 }
                             }
 
+                            // 重新渲染影片, 避免跑版
                             ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
-                            li.insertBefore(title, Syn.$$("summary", {root: li}));
+                            // 將連結元素進行插入 (確保不重複添加)
+                            li.insertBefore(node, Syn.$$("summary", {root: li}));
                         }
 
                     }, {all: true, throttle: 300});
@@ -1042,7 +1149,77 @@
 
             },
             ExtraButton: async function (Config) {
+                DLL.Awesome();
 
+                async function GetNextPage(url, old_main) {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: url,
+                        nocache: false,
+                        onload: response => {
+                            const New_main = Syn.$$("main", {root: response.responseXML});
+                            ReactDOM.render(React.createElement(DLL.Rendering, { content: New_main.innerHTML }), old_main);
+                            history.pushState(null, null, url);
+                            setTimeout(()=> {
+                                Enhance.ExtraInitial(); // 重新呼叫增強
+                                Syn.WaitElem("div.post__content", post=> {
+                                    // 刪除所有只有 br 標籤的元素
+                                    Syn.$$("p", {all: true, root: post}).forEach(p=> {
+                                        p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
+                                    });
+                                    // 刪除所有是圖片連結的 a
+                                    Syn.$$("a", {all: true, root: post}).forEach(a=> {
+                                        /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()
+                                    });
+                                }, {throttle: 300});
+                                Syn.$$("h1.post__title").scrollIntoView(); // 滾動到上方
+                            }, 100);
+                        },
+                        onerror: error => {GetNextPage(url, old_main)}
+                    });
+                }
+
+                Syn.WaitElem("h2.site-section__subheading", comments => {
+                    const [Prev, Next, Svg, Span, Buffer] = [
+                        Syn.$$("a.post__nav-link.prev"),
+                        Syn.$$("a.post__nav-link.next"),
+                        document.createElement("svg"),
+                        document.createElement("span"),
+                        document.createDocumentFragment()
+                    ];
+
+                    Svg.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
+                            <style>svg{fill: ${DLL.Color}}</style>
+                            <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
+                        </svg>
+                    `;
+
+                    Span.id = "next_box";
+                    Span.style = "float: right";
+
+                    const Next_btn = Next.cloneNode(true);
+                    Next_btn.setAttribute("jump", Next_btn.href);
+                    Next_btn.removeAttribute("href");
+
+                    // 點擊回到上方的按鈕
+                    Syn.Listen(Svg, "click", () => {
+                        Syn.$$("header").scrollIntoView();
+                    }, { capture: true, passive: true });
+
+                    // 點擊切換下一頁按鈕
+                    Syn.Listen(Next_btn, "click", ()=> {
+                        GetNextPage(
+                            Next_btn.getAttribute("jump"),
+                            Syn.$$("main")
+                        );
+                    }, { capture: true, once: true });
+
+                    Span.appendChild(Next_btn)
+                    Buffer.append(Svg, Span);
+                    comments.appendChild(Buffer);
+
+                }, {throttle: 600});
             },
             CommentFormat: async function (Config) { /* 評論區 重新排版 */
                 Syn.AddStyle(`
@@ -1056,69 +1233,8 @@
                         word-break: break-all;
                         border: 0.125em solid var(--colour1-secondary);
                     }
-                `, "Effects");
+                `, "Comment_Effects", false);
             }
         }
-    }
-
-    /* ==================== 配置解析 調用 ==================== */
-    (async () => {
-        // 類型判斷
-        const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
-        // 配置參數驗證
-        const Validate = (Bool, Num) => {
-            return Bool && Type(Bool) == "Boolean" && Type(Num) == "Number"
-            ? true
-            : false;
-        };
-        // 呼叫順序
-        const Order = {
-            Global: [
-                "SidebarCollapse",
-                "DeleteNotice",
-                "BlockAds",
-                "TextToLink",
-                "FixArtist",
-                "BackToTop",
-                "KeyScroll"
-            ],
-            Preview: [
-                "NewTabOpens",
-                "QuickPostToggle",
-                "CardZoom",
-                "CardText"
-            ],
-            Content: [
-                "LinkBeautify",
-                "VideoBeautify",
-                "OriginalImage",
-                "ExtraButton",
-                "CommentFormat",
-            ],
-        };
-
-        // 解析配置調用對應功能
-        async function Call(root, config, page) {
-            for (const ord of Order[page]) {
-                const {enable, mode, ...tab} = config[ord];
-
-                if (Validate(enable, mode)) {
-                    root[ord]?.({mode, ...tab});
-                } else {
-                    Syn.Log( // 參數錯誤會跳過, 並且打印錯誤
-                        "配置參數錯誤",
-                        [ord, mode, enable],
-                        { type: "error", collapsed: false }
-                    );
-                }
-            }
-        }
-
-        Call(Global_Function(), User_Config.Global_Page, "Global");
-        if (DLL.IsAllPreview) Call(Preview_Function(), User_Config.Preview_Page, "Preview");
-        else if (DLL.IsContent) {
-            Call(Content_Function(), User_Config.Content_Page, "Content");
-        }
-    })();
-
+    };
 })();
