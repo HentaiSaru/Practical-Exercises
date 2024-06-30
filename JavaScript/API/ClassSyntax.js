@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/06/14
+// @version      2024/06/30
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -171,30 +171,32 @@ class Syntax {
      * * { 添加樣式表到 head }
      * @param {string} Rule - 樣式表
      * @param {string} ID   - 創建 ID
+     * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
      */
-    async AddStyle(Rule, ID="New-Style") {
-        let new_style = document.getElementById(ID);
-        if (!new_style) {
-            new_style = document.createElement("style");
-            new_style.id = ID;
-            document.head.appendChild(new_style);
-        }
-        new_style.textContent += Rule;
+    async AddStyle(Rule, ID="New-Style", RepeatAdd=true) {
+        let style = document.getElementById(ID);
+        if (!style) {
+            style = document.createElement("style");
+            style.id = ID;
+            document.head.appendChild(style);
+        } else if (!RepeatAdd) return;
+        style.textContent += Rule;
     }
 
     /**
      * * { 添加腳本到 head }
      * @param {string} Rule - Js 腳本
      * @param {string} ID   - 創建 ID
+     * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
      */
-    async AddScript(Rule, ID="New-Script") {
-        let new_script = document.getElementById(ID);
-        if (!new_script) {
-            new_script = document.createElement("script");
-            new_script.id = ID;
-            document.head.appendChild(new_script);
-        }
-        new_script.textContent += Rule;
+    async AddScript(Rule, ID="New-Script", RepeatAdd=true) {
+        let script = document.getElementById(ID);
+        if (!script) {
+            script = document.createElement("script");
+            script.id = ID;
+            document.head.appendChild(script);
+        } else if (!RepeatAdd) return;
+        script.textContent += Rule;
     }
 
     /**
