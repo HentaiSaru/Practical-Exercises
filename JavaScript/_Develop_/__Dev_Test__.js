@@ -138,26 +138,47 @@
         };
 
         // 所需樣式 (需要傳入顏色的, 就是需要動態適應顏色變化)
-        let Style_Pointer;
         const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
+        const SaveKey = {
+            Img: "ImgStyle",
+            Lang: "Language",
+            Menu: "MenuPoint",
+        };
+        // 導入使用者設定
         const UserSet = {
             MenuSet: () => {
-                const data = Syn.Store("g", "MenuSet") ?? [{
-                    MT: "2vh",
-                    ML: "50vw"
-                }];
-                return data[0];
+                return Syn.Store("g", SaveKey.Menu) ?? {
+                    Top: "10vh",
+                    Left: "10vw"
+                };
             },
             ImgSet: () => {
-                const data = Syn.Store("g", "ImgSet") ?? [{
-                    img_h: "auto",
-                    img_w: "auto",
-                    img_mw: "100%",
-                    img_gap: "0px"
-                }];
-                return data[0];
+                return Syn.Store("g", SaveKey.Img) ?? {
+                    Width: "auto",
+                    Height: "auto",
+                    Spacing: "0px",
+                    MaxWidth: "100%",
+                };
             }
         };
+
+        // 動態調整樣式
+        let ImgRule, MenuRule;
+        const setStyle = async (element, property, value) => {
+            requestAnimationFrame(() => {
+                element.style.setProperty(property, value, "important");
+            })
+        };
+        const Style_Pointer = {
+            Top: value => setStyle(MenuRule[1], "top", value),
+            Left: value => setStyle(MenuRule[1], "left", value),
+            Width: value => setStyle(ImgRule[1], "width", value),
+            Height: value => setStyle(ImgRule[1], "height", value),
+            MaxWidth: value => setStyle(ImgRule[1], "max-width", value),
+            Spacing: value => setStyle(ImgRule[1], "margin", `${value} auto`)
+        };
+
+        // 依賴樣式
         const Style = {
             Global: async () => { // 全域 修復所需
                 Syn.AddStyle(`
@@ -295,13 +316,6 @@
                 const set = UserSet.ImgSet();
                 const width = Syn.Device.iW() / 2;
                 Syn.AddStyle(`
-                    .Image-style {
-                        display: block;
-                        width: ${set.img_w};
-                        height: ${set.img_h};
-                        margin: ${set.img_gap} auto;
-                        max-width: ${set.img_mw};
-                    }
                     .Image-loading-indicator {
                         min-width: 50vW;
                         min-height: 50vh;
@@ -309,10 +323,18 @@
                         max-height: ${width * 9 / 16}px;
                         border: 1px solid #fafafa;
                     }
+                    .Image-style, figure img {
+                        display: block;
+                        width: ${set.Width} !important;
+                        height: ${set.Height} !important;
+                        margin: ${set.Spacing} auto !important;
+                        max-width: ${set.MaxWidth} !important;
+                    }
                     .Image-loading-indicator:hover {
                         cursor: pointer;
                     }
-                `, "Custom-style", false);
+                `, "Image-Custom-Style", false);
+                ImgRule = Syn.$$("#Image-Custom-Style")?.sheet.cssRules;
             },
             Awesome: async () => { // 觀看帖子頁圖示
                 Syn.AddStyle(`
@@ -324,6 +346,183 @@
                         background-color: ${Color};
                     }
             `, "Font-awesome", false);
+            },
+            Menu: () => {
+                const set = UserSet.MenuSet();
+                Syn.AddScript(`
+                    function check(value) {
+                        return value.toString().length > 4 || value > 1000
+                            ? 1000 : value < 0 ? "" : value;
+                    }
+                `, "Menu-Settings", false);
+                Syn.AddStyle(`
+                    .modal-background {
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        z-index: 9999;
+                        overflow: auto;
+                        position: fixed;
+                        pointer-events: none;
+                    }
+                    /* 模態介面 */
+                    .modal-interface {
+                        top: ${set.Top};
+                        left: ${set.Left};
+                        margin: 0;
+                        display: flex;
+                        overflow: auto;
+                        position: fixed;
+                        border-radius: 5px;
+                        pointer-events: auto;
+                        background-color: #2C2E3E;
+                        border: 3px solid #EE2B47;
+                    }
+                    /* 模態內容盒 */
+                    .modal-box {
+                        padding: 0.5rem;
+                        height: 50vh;
+                        width: 32vw;
+                    }
+                    /* 菜單框架 */
+                    .menu {
+                        width: 5.5vw;
+                        overflow: auto;
+                        text-align: center;
+                        vertical-align: top;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                    }
+                    /* 菜單文字標題 */
+                    .menu-text {
+                        color: #EE2B47;
+                        cursor: default;
+                        padding: 0.2rem;
+                        margin: 0.3rem;
+                        margin-bottom: 1.5rem;
+                        white-space: nowrap;
+                        border-radius: 10px;
+                        border: 4px solid #f05d73;
+                        background-color: #1f202c;
+                    }
+                    /* 菜單選項按鈕 */
+                    .menu-options {
+                        cursor: pointer;
+                        font-size: 1.4rem;
+                        color: #F6F6F6;
+                        font-weight: bold;
+                        border-radius: 5px;
+                        margin-bottom: 1.2rem;
+                        border: 5px inset #EE2B47;
+                        background-color: #6e7292;
+                        transition: color 0.8s, background-color 0.8s;
+                    }
+                    .menu-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .menu-options:disabled {
+                        color: #6e7292;
+                        cursor: default;
+                        background-color: #c5c5c5;
+                        border: 5px inset #faa5b2;
+                    }
+                    /* 設置內容框架 */
+                    .content {
+                        height: 48vh;
+                        width: 28vw;
+                        overflow: auto;
+                        padding: 0px 1rem;
+                        border-radius: 2px;
+                        vertical-align: top;
+                        border-top: 2px solid #F6F6F6;
+                        border-right: 2px solid #F6F6F6;
+                    }
+                    .narrative { color: #EE2B47; }
+                    .Image-input-settings {
+                        width: 8rem;
+                        color: #F6F6F6;
+                        text-align: center;
+                        font-size: 1.5rem;
+                        border-radius: 15px;
+                        border: 3px inset #EE2B47;
+                        background-color: #202127;
+                    }
+                    .Image-input-settings:disabled {
+                        border: 3px inset #faa5b2;
+                        background-color: #5a5a5a;
+                    }
+                    /* 底部按鈕框架 */
+                    .button-area {
+                        display: flex;
+                        padding: 0.3rem;
+                        border-left: none;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                        justify-content: space-between;
+                    }
+                    .button-area select {
+                        color: #F6F6F6;
+                        margin-right: 1.5rem;
+                        border: 3px inset #EE2B47;
+                        background-color: #6e7292;
+                    }
+                    /* 底部選項 */
+                    .button-options {
+                        color: #F6F6F6;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        white-space: nowrap;
+                        background-color: #6e7292;
+                        border: 3px inset #EE2B47;
+                        transition: color 0.5s, background-color 0.5s;
+                    }
+                    .button-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .button-space { margin: 0 0.6rem; }
+                    .form-hidden {
+                        opacity: 0;
+                        height: 0;
+                        width: 0;
+                        overflow: hidden;
+                        transition: opacity 0.8s, height 0.8s, width 0.8s;
+                    }
+                    .toggle-menu {
+                        height: 0;
+                        width: 0;
+                        padding: 0;
+                        margin: 0;
+                    }
+                    /* 整體框線 */
+                    table, td {
+                        margin: 0px;
+                        padding: 0px;
+                        overflow: auto;
+                        border-spacing: 0px;
+                    }
+                    .modal-background p {
+                        display: flex;
+                        flex-wrap: nowrap;
+                    }
+                    option { color: #F6F6F6; }
+                    ul {
+                        list-style: none;
+                        padding: 0px;
+                        margin: 0px;
+                    }
+                `, "Menu-Custom-Style", false);
+                MenuRule = Syn.$$("#Menu-Custom-Style")?.sheet.cssRules;
+
+                // 全局修改功能
+                // Syn.StoreListen(Object.values(SaveKey), call => {
+                    // console.log(call);
+                // });
             }
         };
 
@@ -333,10 +532,16 @@
             IsSearch: Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
             IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
 
-            Language: (lang) => Match[lang] || Match["en-US"],
+            Language: () => {
+                const log = Syn.Store("g", SaveKey.Lang);
+                return {
+                    log: log,
+                    lang: Match[log] ?? Match["en-US"], // 避免例外
+                }
+            },
             Rendering: ({ content }) => React.createElement("div", { dangerouslySetInnerHTML: { __html: content } }),
 
-            Color, ...UserSet, ...Style,
+            ...UserSet, Style, Color, SaveKey, Style_Pointer,
             Link, Posts, User, Favor, Search, Content, FavorArtist, Announcement
         };
     })();
@@ -421,7 +626,12 @@
                 Call("Global");
                 if (DLL.IsAllPreview) Call("Preview");
                 else if (DLL.IsContent) {
-                    Call("Content");
+                    /* 就算沒開啟原圖功能, 還是需要導入 Postview (暫時寫在這) */
+                    DLL.Style.Postview(); // 導入 Post 頁面樣式
+                    Call("Content"); // 呼叫功能
+
+                    DLL.Style.Menu(); // 導入 菜單樣式
+                    MenuTrigger(DLL.Language().lang); // 創建菜單
                 }
             },
             ExtraInitial: async () => {
@@ -430,7 +640,6 @@
             }
         }
     })();
-
     Enhance.Run();
 
     /* ==================== 全域功能 ==================== */
@@ -563,7 +772,7 @@
                 }
             },
             FixArtist: async (Config) => { /* 修復藝術家名稱 */
-                DLL.Global(); // 載入依賴樣式
+                DLL.Style.Global(); // 導入 Global 頁面樣式
 
                 let Record_Cache = null; // 讀取修復紀錄 用於緩存
                 const Fix_Cache = new Map(); // 修復後 用於緩存
@@ -927,7 +1136,7 @@
                 }, {capture: true});
             },
             QuickPostToggle: async (Config) => { /* 預覽換頁 快速切換 */
-                DLL.Preview();
+                DLL.Style.Preview(); // 導入 Preview 頁面樣式
 
                 // 監聽觸發 獲取下一頁數據
                 Syn.Listen(document.body, "click", event => {
@@ -1140,8 +1349,7 @@
                     }, {all: true, throttle: 300});
                 }, {all: true, throttle: 600});
             },
-            OriginalImage: async function (Config) {
-                DLL.Postview();
+            OriginalImage: async function (Config) { /* 自動載入原圖 */
                 Syn.WaitElem("div.post__thumbnail", thumbnail => {
 
                     const Origina_Requ = { // 自動原圖所需
@@ -1257,8 +1465,8 @@
                     }
                 }, {all: true, throttle: 600});
             },
-            ExtraButton: async function (Config) {
-                DLL.Awesome();
+            ExtraButton: async function (Config) { /* 下方額外擴充按鈕 */
+                DLL.Style.Awesome(); // 導入 Awesome 需求樣式
 
                 async function GetNextPage(url, old_main) {
                     GM_xmlhttpRequest({
@@ -1348,17 +1556,18 @@
     };
 
     /* ==================== 設置菜單 ==================== */
-    async function $on(element, type, listener) {$(element).on(type, listener)}
+    async function $on(element, type, listener) {$(element).on(type, listener)};
+    async function MenuTrigger(lang) {
+        Syn.Menu({[lang.RM_01]: { func: ()=> Create_Menu() }});
+    }
     function Create_Menu() {
-        if (!Syn.$$(".modal-background")) return;
+        if (Syn.$$(".modal-background")) return;
 
-        const set_lang = Syn.Store("g", "language");
-        const [set, lang] = [
-            DLL.ImgSet(),
-            DLL.Language(set_lang)
-        ];
+        const set = DLL.ImgSet();
+        const {log, lang} = DLL.Language();
+        const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing]; // 這樣寫是為了讓讀取保存設置可以按照順序 (菜單有索引問題)
 
-        const img_data = [set.img_h, set.img_w, set.img_mw, set.img_gap];
+        let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
 
         const menu = `
             <div class="modal-background">
@@ -1387,19 +1596,19 @@
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
                                                     <h2 class="narrative">${lang.MIS_01}：</h2>
-                                                    <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    <p><input type="number" id="Height" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
                                                     <h2 class="narrative">${lang.MIS_02}：</h2>
-                                                    <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    <p><input type="number" id="Width" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
                                                     <h2 class="narrative">${lang.MIS_03}：</h2>
-                                                    <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    <p><input type="number" id="MaxWidth" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
                                                     <h2 class="narrative">${lang.MIS_04}：</h2>
-                                                    <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                    <p><input type="number" id="Spacing" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                             </div>
                                         </td>
@@ -1408,7 +1617,7 @@
                                         <td class="button-area">
                                             <select id="language">
                                                 <option value="" disabled selected>${lang.ML_01}</option>
-                                                <option value="en">${lang.ML_02}</option>
+                                                <option value="en-US">${lang.ML_02}</option>
                                                 <option value="zh-TW">${lang.ML_03}</option>
                                                 <option value="zh-CN">${lang.ML_04}</option>
                                                 <option value="ja">${lang.ML_05}</option>
@@ -1428,6 +1637,11 @@
             </div>
         `;
 
+        // 設置可拖動效果, 並添加到 dom 中
+        $(document.body).append(menu);
+        $(".modal-interface").draggable({ cursor: "grabbing" });
+        $(".modal-interface").tabs();
+
         // 調整選項
         const UnitOptions = `
             <select class="Image-input-settings" style="margin-left: 1rem;">
@@ -1440,66 +1654,69 @@
             </select>
         `;
 
-        // 設置可拖動效果
-        $(document.body).append(menu);
-        $(".modal-interface").draggable({ cursor: "grabbing" });
-        $(".modal-interface").tabs();
-
-        // 關閉菜單
-        async function Menu_Close() {
-            $(".modal-background").off();
-            $(".modal-background").remove();
-        };
-
-        // 保存菜單
-        function Menu_Save() {
-            const menu_interface = $(".modal-interface"); // 取出菜單位置數據
-            const top = menu_interface.css("top");
-            const left = menu_interface.css("left");
-            Syn.Store("s", "MenuSet", [{MT: top, ML: left}]); // 保存數據
-            // 設置到樣式表內 不用重整可以直接改變
-            DM.styleRules["MT"](top);
-            DM.styleRules["ML"](left);
-            Menu_Close();
-        };
-
-        let parent, child, img_input, img_select, img_set, set_value, analyze;
-        // 圖片設置菜單
-        async function PictureSettings() {
-            $on(".Image-input-settings", "input change", function (event) {
-                event.stopPropagation();
-                const target = $(this), value = target.val(), id = target.attr("id");
-                parent = target.closest("div");
-                if (isNaN(value)) {
-                    child = parent.find("input");
-                    if (value === "auto") {
-                        child.prop("disabled", true);
-                        DM.styleRules[child.attr("id")](value);
+        const Menu_Requ = {
+            Menu_Close: () => { // 關閉菜單
+                $(".modal-background")?.off();
+                $(".modal-background")?.remove();
+            },
+            Menu_Save: () => { // 保存菜單
+                const menu_interface = $(".modal-interface"); // 取出菜單位置數據
+                const top = menu_interface.css("top");
+                const left = menu_interface.css("left");
+                Syn.Store("s", DLL.SaveKey.Menu, {Top: top, Left: left}); // 保存設置數據
+                // 設置到樣式表內 不用重整可以直接改變
+                DLL.Style_Pointer.Top(top);
+                DLL.Style_Pointer.Left(left);
+            },
+            Img_Save: () => {
+                img_set = $("#image-settings-show").find("p"); // 獲取設定 DOM 參數
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+                    if (img_select.val() == "auto") {set_value = "auto"}
+                    else if (img_input.val() == "") {set_value = read}
+                    else {set_value = `${img_input.val()}${img_select.val()}`}
+                    save_cache[img_input.attr("id")] = set_value;
+                });
+                Syn.Store("s", DLL.SaveKey.Img, save_cache); // 保存設置數據
+            },
+            ImageSettings: async () => {
+                $on(".Image-input-settings", "input change", function (event) {
+                    event.stopPropagation();
+                    const target = $(this), value = target.val(), id = target.attr("id");
+                    parent = target.closest("div");
+                    if (isNaN(value)) {
+                        child = parent.find("input");
+                        if (value === "auto") {
+                            child.prop("disabled", true);
+                            DLL.Style_Pointer[child.attr("id")](value);
+                        } else {
+                            child.prop("disabled", false);
+                            DLL.Style_Pointer[child.attr("id")](`${child.val()}${value}`);
+                        }
                     } else {
-                        child.prop("disabled", false);
-                        DM.styleRules[child.attr("id")](`${child.val()}${value}`);
+                        child = parent.find("select");
+                        DLL.Style_Pointer[id](`${value}${child.val()}`);
                     }
-                } else {
-                    child = parent.find("select");
-                    DM.styleRules[id](`${value}${child.val()}`);
-                }
-            });
-        };
-        $("#language").val(set_lang ?? ""); // 添加語言設置
+                });
+            },
+        }
+
+        $("#language").val(log ?? "en-US"); // 添加語言設置
         // 語言選擇
         $on("#language", "input change", function (event) {
             event.stopPropagation();
             $("#language").off("input change");
 
             const value = $(this).val(); // 取得選擇
-            MenuLangSwitch(value);
-            Syn.Store("s", "language", value);
+            Syn.Store("s", DLL.SaveKey.Lang, value);
 
-            Menu_Save();
-            Create_Menu();
+            Menu_Requ.Menu_Save();
+            Menu_Requ.Menu_Close();
+            MenuTrigger(DLL.Language().lang); // 根據選擇語言更新菜單
+            Create_Menu(); // 重新創建
         });
         // 監聽菜單的點擊事件
-        let save_cache = {};
         $on(".modal-interface", "click", function (event) {
             const id = $(event.target).attr("id");
 
@@ -1516,7 +1733,7 @@
                         "opacity": 1
                     });
                     $("#readsettings").prop("disabled", false);
-                    PictureSettings();
+                    Menu_Requ.ImageSettings();
                 }
 
             // 讀取保存設置
@@ -1535,24 +1752,15 @@
                         img_select.val(analyze[2]);
                     }
                 })
-            
+
             // 應用保存
             } else if (id == "application") {
-                img_set = $("#image-settings-show").find("p");
-                img_data.forEach((read, index) => {
-                    img_input = img_set.eq(index).find("input");
-                    img_select = img_set.eq(index).find("select");
-                    if (img_select.val() == "auto") {set_value = "auto"}
-                    else if (img_input.val() == "") {set_value = read}
-                    else {set_value = `${img_input.val()}${img_select.val()}`}
-                    save_cache[img_input.attr("id")] = set_value;
-                })
-                Syn.Store("s", "ImgSet", [save_cache]); // 保存圖片設置
-                Menu_Save(); // 保存菜單位置資訊
+                Menu_Requ.Img_Save();
+                Menu_Requ.Menu_Save();
+                Menu_Requ.Menu_Close();
             } else if (id == "closure") {
-                Menu_Close();
+                Menu_Requ.Menu_Close();
             }
         });
-    }
-
+    };
 })();
