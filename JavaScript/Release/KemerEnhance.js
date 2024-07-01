@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.48
+// @version      0.0.49-Beta
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -27,6 +27,7 @@
 // @grant        GM_getValue
 // @grant        GM_openInTab
 // @grant        GM_addElement
+// @grant        GM_deleteValue
 // @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
@@ -34,1760 +35,2107 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1374599/SyntaxSimplified.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js
+// @require      https://update.greasyfork.org/scripts/495339/1403241/ObjectSyntax_min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
 // @resource     loading https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif
-// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
 
-(function () {
-    /* (0 = false | 1 = true | 2~n = mode) */
-    const Global = { /* 全域功能 */
-        SidebarCollapse: 1, // 側邊攔摺疊
-        DeleteNotice: 1,    // 刪除上方公告
-        FixArtist: 1,       // 修復作者名稱
-        BackToTop: 1,       // 翻頁後回到頂部
-        BlockAds: 1,        // 封鎖廣告
-        KeyScroll: 1,       // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
-    }, Preview = { /* 預覽頁面 */
-        QuickPostToggle: 1, // 快速切換帖子
-        NewTabOpens: 1,     // 以新分頁開啟
-        CardText: 1,        // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-        CardZoom: 2,        // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-    }, Content = { /* 內容頁面 */
-        TextToLink: 1,      // 連結文本, 轉換超連結
-        LinkBeautify: 1,    // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容
-        VideoBeautify: 1,   // 影片美化 [mode: 1 = 複製節點 , 2 = 移動節點]
-        OriginalImage: 1,   // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
-        CommentFormat: 1,   // 評論區樣式
-        ExtraButton: 1,     // 額外的下方按鈕
-    }, Special = { /* 預覽頁面的 announcements */
-        TextToLink: 2,      // 連結文本, 轉換超連結 [0 = false, 2 = true] 輸入錯就沒效果而已
-
-    }, def = new Syntax();
-    /* ============================================ */
-    let PM, GF, PF, CF, DM, Lang, url = def.Device.Url;
-    PM = new class Page_Match {
-        constructor() {
-            this.PostsPage = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
-            this.SearchPage = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*$/;
-            this.UserPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
-            this.ContentPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
-            this.FavorPost = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=post\/?.*$/;
-            this.FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites(?:\?(?!type=post).*)?$/;
-            this.LinksPage = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*$/;
-            this.Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
-            this.Match = {
-                Content: this.ContentPage.test(url),
-                Announcement: this.Announcement.test(url),
-                Search: this.SearchPage.test(url) || this.LinksPage.test(url) || this.FavorArtist.test(url),
-                AllPreview: this.PostsPage.test(url) || this.UserPage.test(url) || this.FavorPost.test(url),
-                Color: def.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important"
+(async function () {
+    /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
+    const User_Config = {
+        Global: {
+            BlockAds: { mode: 0, enable: true }, // 阻擋廣告
+            BackToTop: { mode: 0, enable: true }, // 翻頁後回到頂部
+            KeyScroll: { mode: 1, enable: true }, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
+            DeleteNotice: { mode: 0, enable: true }, // 刪除上方公告
+            SidebarCollapse: { mode: 0, enable: true }, // 側邊攔摺疊
+            FixArtist: { // 修復作者名稱
+                mode: 0,
+                enable: true,
+                newtab: true, // 是否以新標籤開啟
+                newtab_active: true, // 自動切換焦點到新標籤
+                newtab_insert: true, // 新標籤插入到當前標籤的正後方
+            },
+            TextToLink: { // 連結的 (文本 -> 超連結)
+                mode: 0,
+                enable: true,
+                newtab: true,
+                newtab_active: false,
+                newtab_insert: false,
+            },
+        },
+        Preview: {
+            CardZoom: { mode: 2, enable: true }, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+            CardText: { mode: 2, enable: true }, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
+            QuickPostToggle: { mode: 0, enable: true }, // 快速切換帖子
+            NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟
+                mode: 0,
+                enable: true,
+                newtab_active: false,
+                newtab_insert: false,
+            },
+        },
+        Content: {
+            ExtraButton: { mode: 0, enable: true }, // 額外的下方按鈕
+            LinkBeautify: { mode: 0, enable: true }, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
+            CommentFormat: { mode: 0, enable: true }, // 評論區重新排版
+            VideoBeautify: { mode: 1, enable: true }, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
+            OriginalImage: { mode: 1, enable: true }, // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+        },
+    };
+    const Url = Syn.Device.Url;
+    const DLL = (() => {
+        const Posts = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
+        const Search = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*$/;
+        const User = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/;
+        const Content = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/;
+        const Favor = /^(https?:\/\/)?(www\.)?.+\/favorites\?type=post\/?.*$/;
+        const Link = /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+\/links\/?.*$/;
+        const FavorArtist =
+            /^(https?:\/\/)?(www\.)?.+\/favorites(?:\?(?!type=post).*)?$/;
+        const Announcement =
+            /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
+        const Display_Lang = {
+            Traditional: {
+                RM_01: "📝 設置選單",
+                MT_01: "設置菜單",
+                MO_01: "圖像設置",
+                MB_01: "讀取設定",
+                MB_02: "關閉離開",
+                MB_03: "保存應用",
+                ML_01: "語言",
+                ML_02: "英文",
+                ML_03: "繁體",
+                ML_04: "簡體",
+                ML_05: "日文",
+                MIS_01: "圖片高度",
+                MIS_02: "圖片寬度",
+                MIS_03: "圖片最大寬度",
+                MIS_04: "圖片間隔高度",
+            },
+            Simplified: {
+                RM_01: "📝 设置菜单",
+                MT_01: "设置菜单",
+                MO_01: "图像设置",
+                MB_01: "读取设置",
+                MB_02: "关闭退出",
+                MB_03: "保存应用",
+                ML_01: "语言",
+                ML_02: "英文",
+                ML_03: "繁体",
+                ML_04: "简体",
+                ML_05: "日文",
+                MIS_01: "图片高度",
+                MIS_02: "图片宽度",
+                MIS_03: "图片最大宽度",
+                MIS_04: "图片间隔高度",
+            },
+            Japan: {
+                RM_01: "📝 設定メニュー",
+                MT_01: "設定メニュー",
+                MO_01: "画像設定",
+                MB_01: "設定の読み込み",
+                MB_02: "閉じて終了する",
+                MB_03: "保存して適用する",
+                ML_01: "言語",
+                ML_02: "英語",
+                ML_03: "繁体字",
+                ML_04: "簡体字",
+                ML_05: "日本語",
+                MIS_01: "画像の高さ",
+                MIS_02: "画像の幅",
+                MIS_03: "画像の最大幅",
+                MIS_04: "画像の間隔の高さ",
+            },
+            English: {
+                RM_01: "📝 Settings Menu",
+                MT_01: "Settings Menu",
+                MO_01: "Image Settings",
+                MB_01: "Load Settings",
+                MB_02: "Close and Exit",
+                MB_03: "Save and Apply",
+                ML_01: "Language",
+                ML_02: "English",
+                ML_03: "Traditional Chinese",
+                ML_04: "Simplified Chinese",
+                ML_05: "Japanese",
+                MIS_01: "Image Height",
+                MIS_02: "Image Width",
+                MIS_03: "Maximum Image Width",
+                MIS_04: "Image Spacing Height",
+            },
+        },
+            Match = {
+                "zh-TW": Display_Lang.Traditional,
+                "zh-HK": Display_Lang.Traditional,
+                "zh-MO": Display_Lang.Traditional,
+                "zh-CN": Display_Lang.Simplified,
+                "zh-SG": Display_Lang.Simplified,
+                "en-US": Display_Lang.English,
+                ja: Display_Lang.Japan,
             };
-        }
-    }();
-    GF = new class Global_Function {
-        constructor() {
-            this.ScrollPixels = 2;
-            this.ScrollInterval = 800;
-            this.fix_data = null;
-            this.save_data = new Map();
-            this.fix_name_support = {
-                pixiv: undefined,
-                fanbox: undefined
-            };
-            this.fix_tag_support = {
-                ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
-                Patreon: "https://www.patreon.com/user?u={id}",
-                Fantia: "https://fantia.jp/fanclubs/{id}/posts",
-                Pixiv: "https://www.pixiv.net/users/{id}/artworks",
-                Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
-                NAME: /Fansly|OnlyFans/gi,
-                OnlyFans: "https://onlyfans.com/{name}",
-                Fansly: "https://fansly.com/{name}/posts"
-            };
-            this.new_data = () => def.Storage("fix_record_v2", {
-                type: localStorage
-            }) || new Map();
-            this.fix_url = url => {
-                url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/);
-                url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, ""));
-                return url.length >= 3 ? [url[0], url[2]] : url;
-            };
-            this.save_record = async save => {
-                await def.Storage("fix_record_v2", {
-                    type: localStorage,
-                    value: new Map([...this.new_data(), ...save])
+        (async () => {
+            const DV = Syn.Store("g", "DataVersion", 0);
+            if (DV < 1) {
+                ["MenuSet", "ImgSet", "language"].forEach((key) => {
+                    Syn.Store("d", key);
                 });
-                this.save_data.clear();
-            };
-            this.save_work = def.Debounce(() => {
-                this.save_record(this.save_data);
-            }, 1e3);
-            this.fix_update = async (href, id, name_onj, tag_obj, text) => {
-                const edit = GM_addElement("fix_edit", {
-                    id: id,
-                    class: "edit_artist",
-                    textContent: "Edit"
-                });
-                name_onj.parentNode.insertBefore(edit, name_onj);
-                name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
-                const tag_text = tag_obj.textContent;
-                const support_id = this.fix_tag_support.ID;
-                const support_name = this.fix_tag_support.NAME;
-                if (support_id.test(tag_text)) {
-                    tag_obj.innerHTML = tag_text.replace(support_id, tag => {
-                        return `<fix_tag jump="${this.fix_tag_support[tag].replace("{id}", id)}">${tag}</fix_tag>`;
-                    });
-                } else if (support_name.test(tag_text)) {
-                    tag_obj.innerHTML = tag_text.replace(support_name, tag => {
-                        return `<fix_tag jump="${this.fix_tag_support[tag].replace("{name}", id)}">${tag}</fix_tag>`;
-                    });
-                }
-            };
-            this.Get = async (url, headers = {}) => {
-                return new Promise(resolve => {
-                    GM_xmlhttpRequest({
-                        method: "GET",
-                        url: url,
-                        headers: headers,
-                        onload: response => resolve(response),
-                        onerror: () => resolve(),
-                        ontimeout: () => resolve()
-                    });
-                });
-            };
-            this.get_pixiv_name = async id => {
-                const response = await this.Get(`https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`, {
-                    referer: "https://www.pixiv.net/"
-                });
-                if (response.status === 200) {
-                    const user = JSON.parse(response.responseText);
-                    let user_name = user.body.name;
-                    user_name = user_name.replace(/(c\d+)?([日月火水木金土]曜日?|[123１２３一二三]日目?)[東南西北]..?\d+\w?/i, "");
-                    user_name = user_name.replace(/[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi, "");
-                    user_name = user_name.replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, "").trim();
-                    return user_name;
-                } else {
-                    return undefined;
-                }
-            };
-            this.fix = async object => {
-                const {
-                    Url,
-                    TailId,
-                    Website,
-                    NameObject,
-                    TagObject
-                } = object;
-                let Record = this.fix_data.get(TailId);
-                if (Record) {
-                    this.fix_update(Url, TailId, NameObject, TagObject, Record);
-                } else {
-                    if (this.fix_name_support.hasOwnProperty(Website)) {
-                        Record = await this.get_pixiv_name(TailId) || NameObject.textContent;
-                        this.fix_update(Url, TailId, NameObject, TagObject, Record);
-                        this.save_data.set(TailId, Record);
-                        this.save_work();
-                    } else {
-                        Record = NameObject.textContent;
-                        this.fix_update(Url, TailId, NameObject, TagObject, Record);
+                Syn.Store("s", "DataVersion", 1);
+            }
+        })();
+        const Color = Syn.Device.Host.startsWith("coomer")
+            ? "#99ddff !important"
+            : "#e8a17d !important";
+        const SaveKey = {
+            Img: "ImgStyle",
+            Lang: "Language",
+            Menu: "MenuPoint",
+        };
+        const UserSet = {
+            MenuSet: () => {
+                return (
+                    Syn.Store("g", SaveKey.Menu) ?? {
+                        Top: "10vh",
+                        Left: "10vw",
                     }
-                }
-            };
-        }
-        async SidebarCollapse() {
-            if (def.Device.Type() == "Mobile") {
-                return;
-            }
-            def.AddStyle(`
-                .global-sidebar {
-                    opacity: 0;
-                    height: 100%;
-                    width: 10rem;
-                    display: flex;
-                    position: fixed;
-                    padding: 0.5em 0;
-                    transition: 0.8s;
-                    background: #282a2e;
-                    flex-direction: column;
-                    transform: translateX(-9rem);
-                }
-                .global-sidebar:hover {opacity: 1; transform: translateX(0rem);}
-                .content-wrapper.shifted {transition: 0.7s; margin-left: 0rem;}
-                .global-sidebar:hover + .content-wrapper.shifted {margin-left: 10rem;}
-            `, "Effects");
-        }
-        async DeleteNotice() {
-            def.$$("body > div.content-wrapper.shifted > a")?.remove();
-        }
-        async FixArtist() {
-            GF.fix_data = GF.new_data();
-            DM.Dependencies("Global");
-            async function search_page_fix(items) {
-                items.setAttribute("fix", true);
-                const url = items.href;
-                const img = def.$$("img", {
-                    root: items
-                });
-                const parse = GF.fix_url(url);
-                img.setAttribute("jump", url);
-                items.removeAttribute("href");
-                img.removeAttribute("src");
-                GF.fix({
-                    Url: url,
-                    TailId: parse[1],
-                    Website: parse[0],
-                    NameObject: def.$$(".user-card__name", {
-                        root: items
-                    }),
-                    TagObject: def.$$(".user-card__service", {
-                        root: items
-                    })
-                });
-            }
-            async function other_page_fix(artist, tag = "", href = null, reTag = "<fix_view>") {
-                try {
-                    const parent = artist.parentNode;
-                    const url = href || parent.href;
-                    const parse = GF.fix_url(url);
-                    await GF.fix({
-                        Url: url,
-                        TailId: parse[1],
-                        Website: parse[0],
-                        NameObject: artist,
-                        TagObject: tag
-                    });
-                    $(parent).replaceWith(function () {
-                        return $(reTag, {
-                            html: $(this).html()
-                        });
-                    });
-                } catch { }
-            }
-            async function dynamic_fix(Listen, Operat, Mode = null) {
-                let observer, options;
-                def.Observer(Listen, () => {
-                    GF.fix_data = GF.new_data();
-                    const wait = setInterval(() => {
-                        const operat = typeof Operat === "string" ? def.$$(Operat) : Operat;
-                        if (operat) {
-                            clearInterval(wait);
-                            switch (Mode) {
-                                case 1:
-                                    other_page_fix(operat);
-                                    setTimeout(() => {
-                                        observer.disconnect();
-                                        observer.observe(Listen.children[0], options);
-                                    }, 300);
-                                    break;
+                );
+            },
+            ImgSet: () => {
+                return (
+                    Syn.Store("g", SaveKey.Img) ?? {
+                        Width: "auto",
+                        Height: "auto",
+                        Spacing: "0px",
+                        MaxWidth: "100%",
+                    }
+                );
+            },
+        };
+        let ImgRule, MenuRule;
+        const ImportantStyle = async (element, property, value) => {
+            requestAnimationFrame(() => {
+                element.style.setProperty(property, value, "important");
+            });
+        };
+        const NormalStyle = (element, property, value) => {
+            requestAnimationFrame(() => {
+                element.style[property] = value;
+            });
+        };
+        const Style_Pointer = {
+            Top: (value) => NormalStyle(MenuRule[1], "top", value),
+            Left: (value) => NormalStyle(MenuRule[1], "left", value),
+            Width: (value) => ImportantStyle(ImgRule[1], "width", value),
+            Height: (value) => ImportantStyle(ImgRule[1], "height", value),
+            MaxWidth: (value) => ImportantStyle(ImgRule[1], "max-width", value),
+            Spacing: (value) => ImportantStyle(ImgRule[1], "margin", `${value} auto`),
+        };
+        const Style = {
+            Global: async () => {
+                Syn.AddStyle(
+                    `
+                    /* 搜尋頁面的樣式 */
+                    fix_tag:hover { color: ${Color}; }
+                    .fancy-image__image, fix_name, fix_tag, fix_edit {
+                        cursor: pointer;
+                    }
+                    .user-card__info {
+                        display: flex;
+                        flex-direction: column;
+                        align-items: flex-start;
+                    }
+                    fix_name {
+                        color: #fff;
+                        font-size: 28px;
+                        font-weight: 500;
+                        max-width: 320px;
+                        overflow: hidden;
+                        padding: .25rem .1rem;
+                        border-radius: .25rem;
+                        white-space: nowrap;
+                        text-overflow: ellipsis;
+                    }
+                    .edit_artist {
+                        position: absolute;
+                        top: 36%;
+                        right: 8%;
+                        color: #fff;
+                        display: none;
+                        font-size: 14px;
+                        font-weight: 700;
+                        background: #666;
+                        white-space: nowrap;
+                        padding: .25rem .5rem;
+                        border-radius: .25rem;
+                        transform: translateY(-100%);
+                    }
+                    .edit_textarea {
+                        color: #fff;
+                        display: block;
+                        font-size: 30px;
+                        padding: 6px 1px;
+                        line-height: 5vh;
+                        text-align: center;
+                    }
+                    .user-card:hover .edit_artist {
+                        display: block;
+                    }
+                    .user-card:hover fix_name {
+                        background-color: ${Color};
+                    }
+                    .edit_textarea ~ fix_name,
+                    .edit_textarea ~ .edit_artist {
+                        display: none !important;
+                    }
 
-                                default:
-                                    def.$$("a", {
-                                        all: true,
-                                        root: operat
-                                    }).forEach(items => {
-                                        !items.getAttribute("fix") && search_page_fix(items);
-                                    });
+                    /* 預覽頁面的樣式 */
+                    fix_view {
+                        display: flex;
+                        flex-flow: wrap;
+                        align-items: center;
+                    }
+                    fix_view fix_name {
+                        font-size: 2rem;
+                        font-weight: 700;
+                        padding: .25rem 3rem;
+                        border-radius: .25rem;
+                        transition: background-color 0.3s ease;
+                    }
+                    fix_view .edit_artist {
+                        top: 40%;
+                        right: 5%;
+                        transform: translateY(-80%);
+                    }
+                    fix_view:hover fix_name {
+                        background-color: ${Color};
+                    }
+                    fix_view:hover .edit_artist {
+                        display: block;
+                    }
+
+                    /* 內容頁面的樣式 */
+                    fix_cont {
+                        display: flex;
+                        justify-content: space-around;
+                    }
+                    fix_cont fix_name {
+                        color: ${Color};
+                        font-size: 1.25em;
+                        display: inline-block;
+                    }
+                    fix_cont .edit_artist {
+                        top: 95%;
+                        right: -10%;
+                    }
+                    fix_cont:hover fix_name {
+                        background-color: #fff;
+                    }
+                    fix_cont:hover .edit_artist {
+                        display: block;
+                    }
+                `,
+                    "Global-Effects",
+                    false
+                );
+            },
+            Preview: async () => {
+                Syn.AddStyle(
+                    `
+                    .gif-overlay {
+                        top: 45%;
+                        left: 50%;
+                        width: 60%;
+                        height: 60%;
+                        opacity: 0.5;
+                        z-index: 9999;
+                        position: absolute;
+                        border-radius: 50%;
+                        background-size: contain;
+                        background-position: center;
+                        background-repeat: no-repeat;
+                        transform: translate(-50%, -50%);
+                        background-image: url("${GM_getResourceURL(
+                        "loading"
+                    )}");
+                    }
+                    .card-list__items {
+                        gap: 0.5em;
+                        display: flex;
+                        grid-gap: 0.5em;
+                        position: relative;
+                        align-items: var(--local-align);
+                        flex-flow: var(--local-flex-flow);
+                        justify-content: var(--local-justify);
+                    }
+                `,
+                    "Preview-Effects",
+                    false
+                );
+            },
+            Postview: async () => {
+                const set = UserSet.ImgSet();
+                const width = Syn.Device.iW() / 2;
+                Syn.AddStyle(
+                    `
+                    .Image-loading-indicator {
+                        min-width: 50vW;
+                        min-height: 50vh;
+                        max-width: ${width}px;
+                        max-height: ${(width * 9) / 16}px;
+                        border: 1px solid #fafafa;
+                    }
+                    .Image-style, figure img {
+                        display: block;
+                        width: ${set.Width} !important;
+                        height: ${set.Height} !important;
+                        margin: ${set.Spacing} auto !important;
+                        max-width: ${set.MaxWidth} !important;
+                    }
+                    .Image-loading-indicator:hover {
+                        cursor: pointer;
+                    }
+                `,
+                    "Image-Custom-Style",
+                    false
+                );
+                ImgRule = Syn.$$("#Image-Custom-Style")?.sheet.cssRules;
+            },
+            Awesome: async () => {
+                Syn.AddStyle(
+                    `
+                    ${GM_getResourceText("font-awesome")}
+                    #next_box a {
+                        cursor: pointer;
+                    }
+                    #next_box a:hover {
+                        background-color: ${Color};
+                    }
+            `,
+                    "Font-awesome",
+                    false
+                );
+            },
+            Menu: () => {
+                const set = UserSet.MenuSet();
+                Syn.AddScript(
+                    `
+                    function check(value) {
+                        return value.toString().length > 4 || value > 1000
+                            ? 1000 : value < 0 ? "" : value;
+                    }
+                `,
+                    "Menu-Settings",
+                    false
+                );
+                Syn.AddStyle(
+                    `
+                    .modal-background {
+                        top: 0;
+                        left: 0;
+                        width: 100%;
+                        height: 100%;
+                        display: flex;
+                        z-index: 9999;
+                        overflow: auto;
+                        position: fixed;
+                        pointer-events: none;
+                    }
+                    /* 模態介面 */
+                    .modal-interface {
+                        top: ${set.Top};
+                        left: ${set.Left};
+                        margin: 0;
+                        display: flex;
+                        overflow: auto;
+                        position: fixed;
+                        border-radius: 5px;
+                        pointer-events: auto;
+                        background-color: #2C2E3E;
+                        border: 3px solid #EE2B47;
+                    }
+                    /* 模態內容盒 */
+                    .modal-box {
+                        padding: 0.5rem;
+                        height: 50vh;
+                        width: 32vw;
+                    }
+                    /* 菜單框架 */
+                    .menu {
+                        width: 5.5vw;
+                        overflow: auto;
+                        text-align: center;
+                        vertical-align: top;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                    }
+                    /* 菜單文字標題 */
+                    .menu-text {
+                        color: #EE2B47;
+                        cursor: default;
+                        padding: 0.2rem;
+                        margin: 0.3rem;
+                        margin-bottom: 1.5rem;
+                        white-space: nowrap;
+                        border-radius: 10px;
+                        border: 4px solid #f05d73;
+                        background-color: #1f202c;
+                    }
+                    /* 菜單選項按鈕 */
+                    .menu-options {
+                        cursor: pointer;
+                        font-size: 1.4rem;
+                        color: #F6F6F6;
+                        font-weight: bold;
+                        border-radius: 5px;
+                        margin-bottom: 1.2rem;
+                        border: 5px inset #EE2B47;
+                        background-color: #6e7292;
+                        transition: color 0.8s, background-color 0.8s;
+                    }
+                    .menu-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .menu-options:disabled {
+                        color: #6e7292;
+                        cursor: default;
+                        background-color: #c5c5c5;
+                        border: 5px inset #faa5b2;
+                    }
+                    /* 設置內容框架 */
+                    .content {
+                        height: 48vh;
+                        width: 28vw;
+                        overflow: auto;
+                        padding: 0px 1rem;
+                        border-radius: 2px;
+                        vertical-align: top;
+                        border-top: 2px solid #F6F6F6;
+                        border-right: 2px solid #F6F6F6;
+                    }
+                    .narrative { color: #EE2B47; }
+                    .Image-input-settings {
+                        width: 8rem;
+                        color: #F6F6F6;
+                        text-align: center;
+                        font-size: 1.5rem;
+                        border-radius: 15px;
+                        border: 3px inset #EE2B47;
+                        background-color: #202127;
+                    }
+                    .Image-input-settings:disabled {
+                        border: 3px inset #faa5b2;
+                        background-color: #5a5a5a;
+                    }
+                    /* 底部按鈕框架 */
+                    .button-area {
+                        display: flex;
+                        padding: 0.3rem;
+                        border-left: none;
+                        border-radius: 2px;
+                        border: 2px solid #F6F6F6;
+                        justify-content: space-between;
+                    }
+                    .button-area select {
+                        color: #F6F6F6;
+                        margin-right: 1.5rem;
+                        border: 3px inset #EE2B47;
+                        background-color: #6e7292;
+                    }
+                    /* 底部選項 */
+                    .button-options {
+                        color: #F6F6F6;
+                        cursor: pointer;
+                        font-size: 0.8rem;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        white-space: nowrap;
+                        background-color: #6e7292;
+                        border: 3px inset #EE2B47;
+                        transition: color 0.5s, background-color 0.5s;
+                    }
+                    .button-options:hover {
+                        color: #EE2B47;
+                        background-color: #F6F6F6;
+                    }
+                    .button-space { margin: 0 0.6rem; }
+                    .form-hidden {
+                        opacity: 0;
+                        height: 0;
+                        width: 0;
+                        overflow: hidden;
+                        transition: opacity 0.8s, height 0.8s, width 0.8s;
+                    }
+                    .toggle-menu {
+                        height: 0;
+                        width: 0;
+                        padding: 0;
+                        margin: 0;
+                    }
+                    /* 整體框線 */
+                    table, td {
+                        margin: 0px;
+                        padding: 0px;
+                        overflow: auto;
+                        border-spacing: 0px;
+                    }
+                    .modal-background p {
+                        display: flex;
+                        flex-wrap: nowrap;
+                    }
+                    option { color: #F6F6F6; }
+                    ul {
+                        list-style: none;
+                        padding: 0px;
+                        margin: 0px;
+                    }
+                `,
+                    "Menu-Custom-Style",
+                    false
+                );
+                MenuRule = Syn.$$("#Menu-Custom-Style")?.sheet.cssRules;
+                Syn.StoreListen(Object.values(SaveKey), (call) => {
+                    if (call.far) {
+                        if (Syn.Type(call.nv) == "String") {
+                            MenuTrigger(Match[call.nv]);
+                        } else {
+                            for (const [key, value] of Object.entries(call.nv)) {
+                                Style_Pointer[key](value);
                             }
                         }
-                    });
-                }, {
-                    subtree: false
-                }, back => {
-                    observer = back.ob;
-                    options = back.op;
-                });
-            }
-            if (PM.Match.Search) {
-                const card_items = def.$$(".card-list__items");
-                if (PM.LinksPage.test(url)) {
-                    const artist = def.$$("span[itemprop='name']");
-                    artist && other_page_fix(artist);
-                    def.$$("a", {
-                        all: true,
-                        root: card_items
-                    }).forEach(items => {
-                        search_page_fix(items);
-                    });
-                    url.endsWith("new") && dynamic_fix(card_items, card_items);
-                } else {
-                    dynamic_fix(card_items, card_items);
-                    GM_addElement(card_items, "fix-trigger", {
-                        style: "display: none;"
-                    });
-                }
-            } else if (PM.Match.Content) {
-                const artist = def.$$(".post__user-name");
-                const title = def.$$("h1 span:nth-child(2)");
-                other_page_fix(artist, title, artist.href, "<fix_cont>");
-            } else {
-                const artist = def.$$("span[itemprop='name']");
-                if (artist) {
-                    other_page_fix(artist);
-                    if (Preview.QuickPostToggle > 0) {
-                        setTimeout(() => {
-                            dynamic_fix(def.$$("section"), "span[itemprop='name']", 1);
-                        }, 300);
                     }
+                });
+            },
+        };
+        return {
+            IsContent: Content.test(Url),
+            IsAnnouncement: Announcement.test(Url),
+            IsSearch: Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
+            IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
+            Language: () => {
+                const log = Syn.Store("g", SaveKey.Lang);
+                return {
+                    log: log,
+                    lang: Match[log] ?? Match["en-US"],
+                };
+            },
+            Rendering: ({ content }) =>
+                React.createElement("div", {
+                    dangerouslySetInnerHTML: {
+                        __html: content,
+                    },
+                }),
+            ...UserSet,
+            Style: Style,
+            Color: Color,
+            SaveKey: SaveKey,
+            Style_Pointer: Style_Pointer,
+            Link: Link,
+            Posts: Posts,
+            User: User,
+            Favor: Favor,
+            Search: Search,
+            Content: Content,
+            FavorArtist: FavorArtist,
+            Announcement: Announcement,
+        };
+    })();
+    const Enhance = (() => {
+        const Validate = (Bool, Num) => {
+            return Bool && Syn.Type(Bool) == "Boolean" && Syn.Type(Num) == "Number"
+                ? true
+                : false;
+        };
+        const Order = {
+            Global: [
+                "SidebarCollapse",
+                "DeleteNotice",
+                "BlockAds",
+                "TextToLink",
+                "FixArtist",
+                "BackToTop",
+                "KeyScroll",
+            ],
+            Preview: ["NewTabOpens", "QuickPostToggle", "CardZoom", "CardText"],
+            Content: [
+                "LinkBeautify",
+                "VideoBeautify",
+                "OriginalImage",
+                "ExtraButton",
+                "CommentFormat",
+            ],
+        };
+        const LoadFunc = {
+            global_cache: undefined,
+            preview_cache: undefined,
+            content_cache: undefined,
+            Global: function () {
+                if (!this.global_cache) this.global_cache = Global_Function();
+                return this.global_cache;
+            },
+            Preview: function () {
+                if (!this.preview_cache) this.preview_cache = Preview_Function();
+                return this.preview_cache;
+            },
+            Content: function () {
+                if (!this.content_cache) this.content_cache = Content_Function();
+                return this.content_cache;
+            },
+        };
+        const Global_Initial = {
+            FixArtist: {
+                ...User_Config.Global.FixArtist,
+            },
+            TextToLink: {
+                ...User_Config.Global.TextToLink,
+            },
+        };
+        async function Call(page, config = User_Config[page]) {
+            const func = LoadFunc[page]();
+            for (const ord of Order[page]) {
+                const { enable, mode, ...other } = config[ord] ?? {};
+                if (Validate(enable, mode)) {
+                    func[ord]?.({
+                        mode: mode,
+                        ...other,
+                    });
                 }
             }
-            const Device = def.Device.Type();
-            def.AddListener(document.body, "click", event => {
-                const target = event.target;
-                if (target.matches("fix_edit")) {
-                    const display = target.nextElementSibling;
-                    const text = GM_addElement("textarea", {
-                        class: "edit_textarea",
-                        style: `height: ${display.scrollHeight + 10}px;`
+        }
+        return {
+            Run: async () => {
+                Call("Global");
+                if (DLL.IsAllPreview) Call("Preview");
+                else if (DLL.IsContent) {
+                    DLL.Style.Postview();
+                    Call("Content");
+                    DLL.Style.Menu();
+                    MenuTrigger(DLL.Language().lang);
+                }
+            },
+            ExtraInitial: async () => {
+                Call("Global", Global_Initial);
+                Call("Content");
+            },
+        };
+    })();
+    Enhance.Run();
+    function Global_Function() {
+        return {
+            SidebarCollapse: async (Config) => {
+                if (Syn.Device.Type() === "Mobile") return;
+                Syn.AddStyle(
+                    `
+                    .global-sidebar {
+                        opacity: 0;
+                        height: 100%;
+                        width: 10rem;
+                        display: flex;
+                        position: fixed;
+                        padding: 0.5em 0;
+                        transition: 0.8s;
+                        background: #282a2e;
+                        flex-direction: column;
+                        transform: translateX(-9rem);
+                    }
+                    .global-sidebar:hover {opacity: 1; transform: translateX(0rem);}
+                    .content-wrapper.shifted {transition: 0.7s; margin-left: 0rem;}
+                    .global-sidebar:hover + .content-wrapper.shifted {margin-left: 10rem;}
+                `,
+                    "Collapse_Effects",
+                    false
+                );
+            },
+            DeleteNotice: async (Config) => {
+                Syn.$$("body > div.content-wrapper.shifted > a")?.remove();
+            },
+            BlockAds: async (Config) => {
+                Syn.AddStyle(
+                    `
+                    .ipprtcnt, .root--ujvuu, .ad-container {display: none !important}
+                `,
+                    "Ad-blocking-style",
+                    false
+                );
+                Syn.AddScript(
+                    `
+                    const XMLRequest = XMLHttpRequest.prototype.open;
+                    const Ad_observer = new MutationObserver(() => {
+                        XMLHttpRequest.prototype.open = function(method, Url) {
+                            if (Url.endsWith(".m3u8") || Url === "https://s.magsrv.com/v1/Syn.php") {return}
+                            XMLRequest.apply(this, arguments);
+                        };
+                        document.querySelector("div.ex-over-btn")?.click();
+                        document.querySelector(".root--ujvuu button")?.click();
+                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                     });
-                    const original_name = display.textContent;
-                    text.value = original_name.trim();
-                    display.parentNode.insertBefore(text, target);
-                    text.scrollTop = 0;
-                    setTimeout(() => {
-                        text.focus();
-                        setTimeout(() => {
-                            def.Listen(text, "blur", () => {
-                                const change_name = text.value.trim();
-                                if (change_name != original_name) {
-                                    display.textContent = change_name;
-                                    GF.save_record(new Map([[target.id, change_name]]));
-                                }
-                                text.remove();
-                            }, {
-                                once: true,
-                                passive: true
-                            });
-                        }, 50);
-                    }, 300);
-                } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
-                    const jump = target.getAttribute("jump");
-                    if (!target.parentNode.matches("fix_cont") && jump) {
-                        PM.Match.Search && Device == "Mobile" ? location.assign(jump) : GM_openInTab(jump, {
-                            active: false,
-                            insert: false
+                    Ad_observer.observe(document.head, {childList: true, subtree: true});
+                `,
+                    "Ad-blocking-script",
+                    false
+                );
+            },
+            TextToLink: async (Config) => {
+                if (!DLL.IsContent && !DLL.IsAnnouncement) return;
+                let Text;
+                const TextToLink_Requ = {
+                    Protocol_F: /^(?!https?:\/\/)/,
+                    Exclusion_F: /onfanbokkusuokibalab\.net/,
+                    URL_F:
+                        /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
+                    ParseModify: async function (father, content) {
+                        if (this.Exclusion_F.test(content)) return;
+                        father.innerHTML = content.replace(this.URL_F, (url) => {
+                            const decode = decodeURIComponent(url).trim();
+                            return `<a href="${decode.replace(
+                                this.Protocol_F,
+                                "https://"
+                            )}">${decode}</a>`;
                         });
-                    } else if (jump) {
-                        location.assign(jump);
+                    },
+                    Process: async function (pre) {
+                        Text = pre.textContent;
+                        this.URL_F.test(Text) && this.ParseModify(pre, Text);
+                    },
+                    Multiprocessing: async function (root) {
+                        for (const p of Syn.$$("p", {
+                            all: true,
+                            root: root,
+                        })) {
+                            Text = p.textContent;
+                            this.URL_F.test(Text) && this.ParseModify(p, Text);
+                        }
+                        for (const a of Syn.$$("a", {
+                            all: true,
+                            root: root,
+                        })) {
+                            !a.href && this.ParseModify(a, a.textContent);
+                        }
+                    },
+                    JumpTrigger: async (root) => {
+                        const [Newtab, Active, Insert] = [
+                            Config.newtab ?? true,
+                            Config.newtab_active ?? false,
+                            Config.newtab_insert ?? false,
+                        ];
+                        Syn.Listen(
+                            root,
+                            "click",
+                            (event) => {
+                                const target = event.target.closest("a:not(.fileThumb)");
+                                target &&
+                                    (event.preventDefault(),
+                                        !Newtab
+                                            ? location.assign(target.href)
+                                            : GM_openInTab(target.href, {
+                                                active: Active,
+                                                insert: Insert,
+                                            }));
+                            },
+                            {
+                                capture: true,
+                            }
+                        );
+                    },
+                };
+                if (DLL.IsContent) {
+                    Syn.WaitElem(
+                        "div.post__body",
+                        (body) => {
+                            TextToLink_Requ.JumpTrigger(body);
+                            const [article, content] = [
+                                Syn.$$("article", {
+                                    root: body,
+                                }),
+                                Syn.$$("div.post__content", {
+                                    root: body,
+                                }),
+                            ];
+                            if (article) {
+                                for (const span of Syn.$$("span.choice-text", {
+                                    all: true,
+                                    root: article,
+                                })) {
+                                    TextToLink_Requ.ParseModify(span, span.textContent);
+                                }
+                            } else if (content) {
+                                const pre = Syn.$$("pre", {
+                                    root: content,
+                                });
+                                pre
+                                    ? TextToLink_Requ.Process(pre)
+                                    : TextToLink_Requ.Multiprocessing(content);
+                            }
+                        },
+                        {
+                            throttle: 600,
+                        }
+                    );
+                } else if (DLL.IsAnnouncement) {
+                    Syn.WaitElem(
+                        "div.card-list__items pre",
+                        (content) => {
+                            TextToLink_Requ.JumpTrigger(Syn.$$("div.card-list__items"));
+                            for (const pre of content) {
+                                pre.childNodes.length > 1
+                                    ? TextToLink_Requ.Multiprocessing(pre)
+                                    : TextToLink_Requ.Process(pre);
+                            }
+                        },
+                        {
+                            raf: true,
+                            all: true,
+                        }
+                    );
+                }
+            },
+            FixArtist: async (Config) => {
+                DLL.Style.Global();
+                let Record_Cache = null;
+                const Fix_Cache = new Map();
+                const Fix_Requ = {
+                    Get_Record: () =>
+                        Syn.Storage("fix_record_v2", {
+                            type: localStorage,
+                            error: new Map(),
+                        }),
+                    Save_Record: async function (save) {
+                        await Syn.Storage("fix_record_v2", {
+                            type: localStorage,
+                            value: new Map([...this.Get_Record(), ...save]),
+                        });
+                        Fix_Cache.clear();
+                    },
+                    Save_Work: (() =>
+                        Syn.Debounce(() => Fix_Requ.Save_Record(Fix_Cache), 1e3))(),
+                    Fix_Name_Support: new Set(["pixiv", "fanbox"]),
+                    Fix_Tag_Support: {
+                        ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
+                        Patreon: "https://www.patreon.com/user?u={id}",
+                        Fantia: "https://fantia.jp/fanclubs/{id}/posts",
+                        Pixiv: "https://www.pixiv.net/users/{id}/artworks",
+                        Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
+                        NAME: /Fansly|OnlyFans/gi,
+                        OnlyFans: "https://onlyfans.com/{name}",
+                        Fansly: "https://fansly.com/{name}/posts",
+                    },
+                    Fix_Request: async function (url, headers = {}) {
+                        return new Promise((resolve) => {
+                            GM_xmlhttpRequest({
+                                method: "GET",
+                                url: url,
+                                headers: headers,
+                                onload: (response) => resolve(response),
+                                onerror: () => resolve(),
+                                ontimeout: () => resolve(),
+                            });
+                        });
+                    },
+                    Get_Pixiv_Name: async function (id) {
+                        const response = await this.Fix_Request(
+                            `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`,
+                            {
+                                referer: "https://www.pixiv.net/",
+                            }
+                        );
+                        if (response.status === 200) {
+                            const user = JSON.parse(response.responseText);
+                            let user_name = user.body.name;
+                            user_name = user_name.replace(
+                                /(c\d+)?([日月火水木金土]曜日?|[123１２３一二三]日目?)[東南西北]..?\d+\w?/i,
+                                ""
+                            );
+                            user_name = user_name.replace(
+                                /[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi,
+                                ""
+                            );
+                            user_name = user_name
+                                .replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, "")
+                                .trim();
+                            return user_name;
+                        } else return;
+                    },
+                    Fix_Url: function (url) {
+                        url =
+                            url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) ||
+                            url.match(/\/([^\/]+)\/([^\/]+)$/);
+                        url = url
+                            .splice(1)
+                            .map((url) =>
+                                url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")
+                            );
+                        return url.length >= 3 ? [url[0], url[2]] : url;
+                    },
+                    Fix_Update_Ui: async function (href, id, name_onj, tag_obj, text) {
+                        const edit = GM_addElement("fix_edit", {
+                            id: id,
+                            class: "edit_artist",
+                            textContent: "Edit",
+                        });
+                        name_onj.parentNode.insertBefore(edit, name_onj);
+                        name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
+                        const [tag_text, support_id, support_name] = [
+                            tag_obj.textContent,
+                            this.Fix_Tag_Support.ID,
+                            this.Fix_Tag_Support.NAME,
+                        ];
+                        if (support_id.test(tag_text)) {
+                            tag_obj.innerHTML = tag_text.replace(support_id, (tag) => {
+                                return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace(
+                                    "{id}",
+                                    id
+                                )}">${tag}</fix_tag>`;
+                            });
+                        } else if (support_name.test(tag_text)) {
+                            tag_obj.innerHTML = tag_text.replace(support_name, (tag) => {
+                                return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace(
+                                    "{name}",
+                                    id
+                                )}">${tag}</fix_tag>`;
+                            });
+                        }
+                    },
+                    Fix_Trigger: async function (object) {
+                        const { Url, TailId, Website, NameObject, TagObject } = object;
+                        let Record = Record_Cache.get(TailId);
+                        if (Record) {
+                            this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                        } else {
+                            if (this.Fix_Name_Support.has(Website)) {
+                                Record =
+                                    (await this.Get_Pixiv_Name(TailId)) ?? NameObject.textContent;
+                                this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                                Fix_Cache.set(TailId, Record);
+                                this.Save_Work();
+                            } else {
+                                Record = NameObject.textContent;
+                                this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                            }
+                        }
+                    },
+                    Search_Fix: async function (items) {
+                        items.setAttribute("fix", true);
+                        const url = items.href;
+                        const img = Syn.$$("img", {
+                            root: items,
+                        });
+                        const parse = this.Fix_Url(url);
+                        img.setAttribute("jump", url);
+                        items.removeAttribute("href");
+                        img.removeAttribute("src");
+                        this.Fix_Trigger({
+                            Url: url,
+                            TailId: parse[1],
+                            Website: parse[0],
+                            NameObject: Syn.$$(".user-card__name", {
+                                root: items,
+                            }),
+                            TagObject: Syn.$$(".user-card__service", {
+                                root: items,
+                            }),
+                        });
+                    },
+                    Other_Fix: async function (
+                        artist,
+                        tag = "",
+                        href = null,
+                        reTag = "<fix_view>"
+                    ) {
+                        try {
+                            const parent = artist.parentNode;
+                            const url = href ?? parent.href;
+                            const parse = this.Fix_Url(url);
+                            await this.Fix_Trigger({
+                                Url: url,
+                                TailId: parse[1],
+                                Website: parse[0],
+                                NameObject: artist,
+                                TagObject: tag,
+                            });
+                            $(parent).replaceWith(function () {
+                                return $(reTag, {
+                                    html: $(this).html(),
+                                });
+                            });
+                        } catch { }
+                    },
+                    Dynamic_Fix: async function (Listen, Operat, Config = null) {
+                        let observer, options;
+                        Syn.Observer(
+                            Listen,
+                            () => {
+                                Record_Cache = this.Get_Record();
+                                const wait = setInterval(() => {
+                                    const operat =
+                                        typeof Operat === "string" ? Syn.$$(Operat) : Operat;
+                                    if (operat) {
+                                        clearInterval(wait);
+                                        switch (Config) {
+                                            case 1:
+                                                this.Other_Fix(operat);
+                                                setTimeout(() => {
+                                                    observer.disconnect();
+                                                    observer.observe(Listen.children[0], options);
+                                                }, 300);
+                                                break;
+
+                                            default:
+                                                for (const items of Syn.$$("a", {
+                                                    all: true,
+                                                    root: operat,
+                                                })) {
+                                                    !items.getAttribute("fix") && this.Search_Fix(items);
+                                                }
+                                        }
+                                    }
+                                });
+                            },
+                            {
+                                subtree: false,
+                            },
+                            (back) => {
+                                observer = back.ob;
+                                options = back.op;
+                            }
+                        );
+                    },
+                };
+                const [Device, Newtab, Active, Insert] = [
+                    Syn.Device.Type(),
+                    Config.newtab ?? true,
+                    Config.newtab_active ?? false,
+                    Config.newtab_insert ?? false,
+                ];
+                Syn.Listen(
+                    document.body,
+                    "click",
+                    (event) => {
+                        const target = event.target;
+                        if (target.matches("fix_edit")) {
+                            const display = target.nextElementSibling;
+                            const text = GM_addElement("textarea", {
+                                class: "edit_textarea",
+                                style: `height: ${display.scrollHeight + 10}px;`,
+                            });
+                            const original_name = display.textContent;
+                            text.value = original_name.trim();
+                            display.parentNode.insertBefore(text, target);
+                            text.scrollTop = 0;
+                            setTimeout(() => {
+                                text.focus();
+                                setTimeout(() => {
+                                    Syn.Listen(
+                                        text,
+                                        "blur",
+                                        () => {
+                                            const change_name = text.value.trim();
+                                            if (change_name != original_name) {
+                                                display.textContent = change_name;
+                                                Fix_Requ.Save_Record(
+                                                    new Map([[target.id, change_name]])
+                                                );
+                                            }
+                                            text.remove();
+                                        },
+                                        {
+                                            once: true,
+                                            passive: true,
+                                        }
+                                    );
+                                }, 50);
+                            }, 300);
+                        } else if (
+                            target.matches("fix_name") ||
+                            target.matches("fix_tag") ||
+                            target.matches("img")
+                        ) {
+                            const jump = target.getAttribute("jump");
+                            if (!target.parentNode.matches("fix_cont") && jump) {
+                                !Newtab || (DLL.IsSearch && Device == "Mobile")
+                                    ? location.assign(jump)
+                                    : GM_openInTab(jump, {
+                                        active: Active,
+                                        insert: Insert,
+                                    });
+                            } else if (jump) {
+                                location.assign(jump);
+                            }
+                        }
+                    },
+                    {
+                        capture: true,
+                        passive: true,
+                    }
+                );
+                Record_Cache = Fix_Requ.Get_Record();
+                if (DLL.IsSearch) {
+                    const card_items = Syn.$$(".card-list__items");
+                    if (DLL.Link.test(Url)) {
+                        const artist = Syn.$$("span[itemprop='name']");
+                        artist && Fix_Requ.Other_Fix(artist);
+                        for (const items of Syn.$$("a", {
+                            all: true,
+                            root: card_items,
+                        })) {
+                            Fix_Requ.Search_Fix(items);
+                        }
+                        Url.endsWith("new") && Fix_Requ.Dynamic_Fix(card_items, card_items);
+                    } else {
+                        Fix_Requ.Dynamic_Fix(card_items, card_items);
+                        GM_addElement(card_items, "fix-trigger", {
+                            style: "display: none;",
+                        });
+                    }
+                } else if (DLL.IsContent) {
+                    const [artist, title] = [
+                        Syn.$$(".post__user-name"),
+                        Syn.$$("h1 span:nth-child(2)"),
+                    ];
+                    Fix_Requ.Other_Fix(artist, title, artist.href, "<fix_cont>");
+                } else {
+                    const artist = Syn.$$("span[itemprop='name']");
+                    if (artist) {
+                        Fix_Requ.Other_Fix(artist);
+                        if (User_Config.Preview.QuickPostToggle.enable) {
+                            setTimeout(() => {
+                                Fix_Requ.Dynamic_Fix(
+                                    Syn.$$("section"),
+                                    "span[itemprop='name']",
+                                    1
+                                );
+                            }, 300);
+                        }
                     }
                 }
-            }, {
-                capture: true,
-                passive: true
-            });
-        }
-        async BackToTop() {
-            def.AddListener(document.body, "pointerup", event => {
-                event.target.closest("#paginator-bottom") && def.$$("#paginator-top").scrollIntoView();
-            }, {
-                capture: true,
-                passive: true
-            });
-        }
-        async BlockAds() {
-            def.AddStyle(`.ad-container, .root--ujvuu {display: none !important}`, "Ad-blocking-style");
-            def.AddScript(`
-                const XMLRequest = XMLHttpRequest.prototype.open;
-                const Ad_observer = new MutationObserver(() => {
-                    XMLHttpRequest.prototype.open = function(method, url) {
-                        if (url.endsWith(".m3u8") || url === "https://s.magsrv.com/v1/def.php") {return}
-                        XMLRequest.apply(this, arguments);
-                    };
-                    document.querySelector("div.ex-over-btn")?.click();
-                    document.querySelector(".root--ujvuu button")?.click();
-                    document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
-                });
-                Ad_observer.observe(document.head, {childList: true, subtree: true});
-            `, "Ad-blocking-script");
-        }
-        async KeyScroll(Mode) {
-            if (def.Device.Type() == "Mobile") {
-                return;
-            }
-            let Scroll, Up_scroll = false, Down_scroll = false;
-            const TopDetected = def.Throttle(() => {
-                Up_scroll = def.Device.sY() == 0 ? false : true;
-            }, 600);
-            const BottomDetected = def.Throttle(() => {
-                Down_scroll = def.Device.sY() + def.Device.iH() >= document.documentElement.scrollHeight ? false : true;
-            }, 600);
-            switch (Mode) {
-                case 2:
-                    Scroll = Move => {
-                        const Interval = setInterval(() => {
-                            if (!Up_scroll && !Down_scroll) {
-                                clearInterval(Interval);
-                            }
+            },
+            BackToTop: async (Config) => {
+                Syn.Listen(
+                    document.body,
+                    "pointerup",
+                    (event) => {
+                        event.target.closest("#paginator-bottom") &&
+                            Syn.$$("#paginator-top").scrollIntoView();
+                    },
+                    {
+                        capture: true,
+                        passive: true,
+                    }
+                );
+            },
+            KeyScroll: async (Config) => {
+                if (Syn.Device.Type() === "Mobile") return;
+                const Scroll_Requ = {
+                    Scroll_Pixels: 2,
+                    Scroll_Interval: 800,
+                };
+                const UP_ScrollSpeed = Scroll_Requ.Scroll_Pixels * -1;
+                let Scroll,
+                    Up_scroll = false,
+                    Down_scroll = false;
+                const [TopDetected, BottomDetected] = [
+                    Syn.Throttle(() => {
+                        Up_scroll = Syn.Device.sY() == 0 ? false : true;
+                    }, 600),
+                    Syn.Throttle(() => {
+                        Down_scroll =
+                            Syn.Device.sY() + Syn.Device.iH() >=
+                                document.documentElement.scrollHeight
+                                ? false
+                                : true;
+                    }, 600),
+                ];
+                switch (Config.mode) {
+                    case 2:
+                        Scroll = (Move) => {
+                            const Interval = setInterval(() => {
+                                if (!Up_scroll && !Down_scroll) {
+                                    clearInterval(Interval);
+                                }
+                                if (Up_scroll && Move < 0) {
+                                    window.scrollBy(0, Move);
+                                    TopDetected();
+                                } else if (Down_scroll && Move > 0) {
+                                    window.scrollBy(0, Move);
+                                    BottomDetected();
+                                }
+                            }, Scroll_Requ.Scroll_Interval);
+                        };
+
+                    default:
+                        Scroll = (Move) => {
                             if (Up_scroll && Move < 0) {
                                 window.scrollBy(0, Move);
                                 TopDetected();
+                                requestAnimationFrame(() => Scroll(Move));
                             } else if (Down_scroll && Move > 0) {
                                 window.scrollBy(0, Move);
                                 BottomDetected();
+                                requestAnimationFrame(() => Scroll(Move));
                             }
-                        }, GF.ScrollInterval);
-                    };
-
-                default:
-                    Scroll = Move => {
-                        if (Up_scroll && Move < 0) {
-                            window.scrollBy(0, Move);
-                            TopDetected();
-                            requestAnimationFrame(() => Scroll(Move));
-                        } else if (Down_scroll && Move > 0) {
-                            window.scrollBy(0, Move);
-                            BottomDetected();
-                            requestAnimationFrame(() => Scroll(Move));
-                        }
-                    };
-            }
-            const UP_ScrollSpeed = GF.ScrollPixels * -1;
-            def.AddListener(window, "keydown", def.Throttle(event => {
-                const key = event.key;
-                if (key == "ArrowUp") {
-                    event.stopImmediatePropagation();
-                    event.preventDefault();
-                    if (Up_scroll) {
-                        Up_scroll = false;
-                    } else if (!Up_scroll || Down_scroll) {
-                        Down_scroll = false;
-                        Up_scroll = true;
-                        Scroll(UP_ScrollSpeed);
-                    }
-                } else if (key == "ArrowDown") {
-                    event.stopImmediatePropagation();
-                    event.preventDefault();
-                    if (Down_scroll) {
-                        Down_scroll = false;
-                    } else if (Up_scroll || !Down_scroll) {
-                        Up_scroll = false;
-                        Down_scroll = true;
-                        Scroll(GF.ScrollPixels);
-                    }
+                        };
                 }
-            }, 100), {
-                capture: true
-            });
-        }
-    }();
-    class Preview_Function {
-        async QuickPostToggle() {
-            DM.Dependencies("Preview");
-            let Old_data, New_data, item;
-            async function Request(link) {
-                Old_data = def.$$("section");
-                item = def.$$(".card-list__items");
-                requestAnimationFrame(() => {
-                    GM_addElement(item, "img", {
-                        class: "gif-overlay"
-                    });
-                });
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: link,
-                    nocache: false,
-                    onload: response => {
-                        New_data = def.$$("section", {
-                            root: response.responseXML
-                        });
-                        ReactDOM.render(React.createElement(Rendering, {
-                            content: New_data.innerHTML
-                        }), Old_data);
-                        history.pushState(null, null, link);
-                    },
-                    onerror: error => {
-                        Request(link);
-                    }
-                });
-            }
-            def.Listen(document.body, "click", event => {
-                const target = event.target.closest("menu a");
-                target && (event.preventDefault(), Request(target.href));
-            }, {
-                capture: true
-            });
-        }
-        async NewTabOpens() {
-            def.Listen(document.body, "click", event => {
-                const target = event.target.closest("article a");
-                target && (event.preventDefault(), GM_openInTab(target.href, {
-                    active: false,
-                    insert: false
-                }));
-            }, {
-                capture: true
-            });
-        }
-        async CardText(Mode) {
-            switch (Mode) {
-                case 2:
-                    def.AddStyle(`
-                        .post-card__header, .post-card__footer {
-                            opacity: 0.4;
-                            transition: opacity 0.3s;
-                        }
-                        a:hover .post-card__header,
-                        a:hover .post-card__footer {
-                            opacity: 1;
-                        }
-                    `, "Effects");
-                    break;
-
-                default:
-                    def.AddStyle(`
-                        .post-card__header {
-                            opacity: 0;
-                            z-index: 1;
-                            padding: 5px;
-                            pointer-events: none;
-                            transform: translateY(-6vh);
-                        }
-                        .post-card__footer {
-                            opacity: 0;
-                            z-index: 1;
-                            padding: 5px;
-                            pointer-events: none;
-                            transform: translateY(6vh);
-                        }
-                        a:hover .post-card__header,
-                        a:hover .post-card__footer {
-                            opacity: 1;
-                            pointer-events: auto;
-                            transform: translateY(0vh);
-                            transition: transform 0.4s, opacity 0.6s;
-                        }
-                    `, "Effects");
-            }
-        }
-        async CardZoom(Mode) {
-            switch (Mode) {
-                case 2:
-                    def.AddStyle(`
-                        .post-card a:hover {
-                            overflow: auto;
-                            z-index: 99999;
-                            background: #000;
-                            border: 1px solid #fff6;
-                            transform: scale(1.6, 1.5);
-                        }
-                        .post-card a::-webkit-scrollbar {
-                            width: 0;
-                            height: 0;
-                        }
-                        .post-card a:hover .post-card__image-container {
-                            position: relative;
-                        }
-                    `, "Effects");
-
-                default:
-                    def.AddStyle(`
-                        * { --card-size: 13vw; }
-                        .post-card { margin: .3vw; }
-                        .post-card a img { border-radius: 8px; }
-                        .post-card a {
-                            border-radius: 8px;
-                            border: 3px solid #fff6;
-                            transition: transform 0.4s;
-                        }
-                    `, "Effects");
-            }
-        }
-    }
-    class Content_Function {
-        async TextToLink(Mode) {
-            let text;
-            const Protocol_F = /^(?!https?:\/\/)/, Exclusion_F = /onfanbokkusuokibalab\.net/, URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g;
-            async function Analysis(father, text) {
-                if (!Exclusion_F.test(text)) {
-                    father.innerHTML = text.replace(URL_F, url => {
-                        const decode = decodeURIComponent(url).trim();
-                        return `<a href="${decode.replace(Protocol_F, "https://")}">${decode}</a>`;
-                    });
-                }
-            }
-            async function JumpTrigger(root) {
-                def.AddListener(root, "click", event => {
-                    const target = event.target.closest("a");
-                    target && (event.preventDefault(), window.open(target.href));
-                }, {
-                    capture: true
-                });
-            }
-            switch (Mode) {
-                case 2:
-                    def.WaitElem("div.card-list__items pre", content => {
-                        JumpTrigger(def.$$("div.card-list__items"));
-                        content.forEach(pre => {
-                            if (pre.childNodes.length > 1) {
-                                def.$$("p", {
-                                    all: true,
-                                    root: pre
-                                }).forEach(p => {
-                                    text = p.textContent;
-                                    URL_F.test(text) && Analysis(p, text);
-                                });
-                                def.$$("a", {
-                                    all: true,
-                                    root: pre
-                                }).forEach(a => {
-                                    !a.href && Analysis(a, a.textContent);
-                                });
-                            } else {
-                                text = pre.textContent;
-                                URL_F.test(text) && Analysis(pre, text);
+                Syn.Listen(
+                    window,
+                    "keydown",
+                    Syn.Throttle((event) => {
+                        const key = event.key;
+                        if (key == "ArrowUp") {
+                            event.stopImmediatePropagation();
+                            event.preventDefault();
+                            if (Up_scroll) {
+                                Up_scroll = false;
+                            } else if (!Up_scroll || Down_scroll) {
+                                Down_scroll = false;
+                                Up_scroll = true;
+                                Scroll(UP_ScrollSpeed);
                             }
-                        });
-                    }, {
-                        raf: true,
-                        all: true
-                    });
-                    break;
-
-                default:
-                    def.WaitElem("div.post__body", body => {
-                        JumpTrigger(body);
-                        const article = def.$$("article", {
-                            root: body
-                        });
-                        const content = def.$$("div.post__content", {
-                            root: body
-                        });
-                        if (article) {
-                            def.$$("span.choice-text", {
-                                all: true,
-                                root: article
-                            }).forEach(span => {
-                                Analysis(span, span.textContent);
-                            });
-                        } else if (content) {
-                            const pre = def.$$("pre", {
-                                root: content
-                            });
-                            if (pre) {
-                                text = pre.textContent;
-                                URL_F.test(text) && Analysis(pre, text);
-                            } else {
-                                def.$$("p", {
-                                    all: true,
-                                    root: content
-                                }).forEach(p => {
-                                    text = p.textContent;
-                                    URL_F.test(text) && Analysis(p, text);
-                                });
-                                def.$$("a", {
-                                    all: true,
-                                    root: content
-                                }).forEach(a => {
-                                    !a.href && Analysis(a, a.textContent);
-                                });
+                        } else if (key == "ArrowDown") {
+                            event.stopImmediatePropagation();
+                            event.preventDefault();
+                            if (Down_scroll) {
+                                Down_scroll = false;
+                            } else if (Up_scroll || !Down_scroll) {
+                                Up_scroll = false;
+                                Down_scroll = true;
+                                Scroll(Scroll_Requ.Scroll_Pixels);
                             }
                         }
-                    }, {
-                        throttle: 600
-                    });
-            }
-        }
-        async LinkBeautify() {
-            def.WaitElem("a.post__attachment-link", post => {
-                post.forEach(link => {
-                    link.setAttribute("download", "");
-                    link.href = decodeURIComponent(link.href);
-                    link.textContent = link.textContent.replace("Download", "").trim();
-                    const browse = link.nextElementSibling;
-                    if (browse) {
-                        browse.style.position = "relative";
-                        GM_xmlhttpRequest({
-                            method: "GET",
-                            url: browse.href,
-                            onload: response => {
-                                const main = def.$$("main", {
-                                    root: response.responseXML
-                                });
-                                const View = GM_addElement("Viewer", {
-                                    class: "View"
-                                });
-                                const Buffer = document.createDocumentFragment();
-                                def.$$("br", {
-                                    all: true,
-                                    root: main
-                                }).forEach(br => {
-                                    Buffer.append(document.createTextNode(br.previousSibling.textContent.trim()), br);
-                                });
-                                View.appendChild(Buffer);
-                                browse.appendChild(View);
-                            }
-                        });
-                    }
-                });
-            }, {
-                all: true,
-                throttle: 600
-            });
-            def.AddStyle(`
-                .View {
-                    top: -10px;
-                    padding: 10%;
-                    display: none;
-                    overflow: auto;
-                    color: #f2f2f2;
-                    font-size: 14px;
-                    font-weight: 600;
-                    position: absolute;
-                    white-space: nowrap;
-                    border-radius: .5rem;
-                    left: calc(100% + 10px);
-                    border: 1px solid #737373;
-                    background-color: #3b3e44;
-                }
-                a:hover .View { display: block }
-            `, "Effects");
-        }
-        async VideoBeautify(Mode) {
-            def.AddStyle(`
-                .video-title {margin-top: 0.5rem;}
-                .post-video {height: 50%; width: 60%;}
-            `, "Effects");
-            def.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li", parents => {
-                def.WaitElem("a.post__attachment-link", post => {
-                    function VideoRendering({
-                        stream
-                    }) {
-                        return React.createElement("summary", {
-                            className: "video-title"
-                        }, React.createElement("video", {
-                            key: "video",
-                            controls: true,
-                            preload: "auto",
-                            "data-setup": JSON.stringify({}),
-                            className: "post-video"
-                        }, React.createElement("source", {
-                            key: "source",
-                            src: stream.src,
-                            type: stream.type
-                        })));
-                    }
-                    parents.forEach(li => {
-                        let title = def.$$("summary", {
-                            root: li
-                        }), stream = def.$$("source", {
-                            root: li
-                        });
-                        if (title && stream) {
-                            post.forEach(link => {
-                                if (link.textContent.includes(title.textContent)) {
-                                    switch (Mode) {
-                                        case 2:
-                                            link.parentNode.remove();
-                                            title = link;
-
-                                        default:
-                                            title = link.cloneNode(true);
-                                            return;
-                                    }
-                                }
-                            });
-                            ReactDOM.render(React.createElement(VideoRendering, {
-                                stream: stream
-                            }), li);
-                            li.insertBefore(title, def.$$("summary", {
-                                root: li
-                            }));
-                        }
-                    });
-                }, {
-                    all: true,
-                    throttle: 600
-                });
-            }, {
-                all: true,
-                throttle: 600
-            });
-        }
-        async OriginalImage(Mode) {
-            let img, a;
-            DM.Dependencies("Postview");
-            def.WaitElem("div.post__thumbnail", thumbnail => {
-                function ImgRendering({
-                    ID,
-                    href
-                }) {
-                    return React.createElement("div", {
-                        id: ID,
-                        className: "Image-link"
-                    }, React.createElement("img", {
-                        key: "img",
-                        src: href.href,
-                        className: "Image-loading-indicator Image-style",
-                        onLoad: function () {
-                            def.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
-                        },
-                        onError: function () {
-                            Reload(def.$$(`#${ID} img`), 10);
-                        }
-                    }));
-                }
-                async function FastAuto() {
-                    thumbnail.forEach((object, index) => {
-                        setTimeout(() => {
-                            object.removeAttribute("class");
-                            a = def.$$("a", {
-                                root: object
-                            });
-                            ReactDOM.render(React.createElement(ImgRendering, {
-                                ID: `IMG-${index}`,
-                                href: a
-                            }), object);
-                        }, index * 300);
-                    });
-                    def.AddListener(document.body, "click", event => {
-                        const target = event.target.matches(".Image-link img");
-                        if (target && target.alt == "Loading Failed") {
-                            const src = img.src;
-                            img.src = "";
-                            img.src = src;
-                        }
-                    }, {
+                    }, 100),
+                    {
                         capture: true,
-                        passive: true
-                    });
-                }
-                function Replace(index) {
-                    if (index == thumbnail.length) {
-                        return;
                     }
-                    const object = thumbnail[index];
-                    object.removeAttribute("class");
-                    a = def.$$("a", {
-                        root: object
-                    });
-                    img = def.$$("img", {
-                        root: a
-                    });
-                    Object.assign(img, {
-                        className: "Image-loading-indicator Image-style",
-                        src: a.href
-                    });
-                    img.removeAttribute("data-src");
-                    a.id = `IMG-${index}`;
-                    a.removeAttribute("href");
-                    a.removeAttribute("download");
-                    img.onload = function () {
-                        img.classList.remove("Image-loading-indicator");
-                        Replace(++index);
-                    };
-                }
-                const observer = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {
-                        if (entry.isIntersecting) {
-                            const object = entry.target;
-                            observer.unobserve(object);
-                            ReactDOM.render(React.createElement(ImgRendering, {
-                                ID: object.alt,
-                                href: def.$$("a", {
-                                    root: object
-                                })
-                            }), object);
-                            object.removeAttribute("class");
-                        }
-                    });
-                }, {
-                    threshold: .3
-                });
-                switch (Mode) {
-                    case 2:
-                        Replace(0);
-                        break;
-
-                    case 3:
-                        thumbnail.forEach((object, index) => {
-                            object.alt = `IMG-${index}`;
-                            observer.observe(object);
+                );
+            },
+        };
+    }
+    function Preview_Function() {
+        return {
+            NewTabOpens: async (Config) => {
+                const [Newtab, Active, Insert] = [
+                    Config.newtab ?? true,
+                    Config.newtab_active ?? false,
+                    Config.newtab_insert ?? false,
+                ];
+                Syn.Listen(
+                    document.body,
+                    "click",
+                    (event) => {
+                        const target = event.target.closest("article a");
+                        target &&
+                            (event.preventDefault(),
+                                !Newtab
+                                    ? location.assign(target.href)
+                                    : GM_openInTab(target.href, {
+                                        active: Active,
+                                        insert: Insert,
+                                    }));
+                    },
+                    {
+                        capture: true,
+                    }
+                );
+            },
+            QuickPostToggle: async (Config) => {
+                DLL.Style.Preview();
+                Syn.Listen(
+                    document.body,
+                    "click",
+                    (event) => {
+                        const target = event.target.closest("menu a");
+                        target && (event.preventDefault(), GetNextPage(target.href));
+                    },
+                    {
+                        capture: true,
+                    }
+                );
+                async function GetNextPage(link) {
+                    const old_section = Syn.$$("section");
+                    const items = Syn.$$(".card-list__items");
+                    requestAnimationFrame(() => {
+                        GM_addElement(items, "img", {
+                            class: "gif-overlay",
                         });
+                    });
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: link,
+                        nocache: false,
+                        onload: (response) => {
+                            const new_section = Syn.$$("section", {
+                                root: response.responseXML,
+                            });
+                            ReactDOM.render(
+                                React.createElement(DLL.Rendering, {
+                                    content: new_section.innerHTML,
+                                }),
+                                old_section
+                            );
+                            history.pushState(null, null, link);
+                        },
+                        onerror: (error) => {
+                            GetNextPage(link);
+                        },
+                    });
+                }
+            },
+            CardZoom: async (Config) => {
+                switch (Config.mode) {
+                    case 2:
+                        Syn.AddStyle(
+                            `
+                            .post-card a:hover {
+                                overflow: auto;
+                                z-index: 99999;
+                                background: #000;
+                                border: 1px solid #fff6;
+                                transform: scale(1.6, 1.5);
+                            }
+                            .post-card a::-webkit-scrollbar {
+                                width: 0;
+                                height: 0;
+                            }
+                            .post-card a:hover .post-card__image-container {
+                                position: relative;
+                            }
+                        `,
+                            "CardZoom_Effects_2",
+                            false
+                        );
+
+                    default:
+                        Syn.AddStyle(
+                            `
+                            * { --card-size: 13vw; }
+                            .post-card { margin: .3vw; }
+                            .post-card a img { border-radius: 8px; }
+                            .post-card a {
+                                border-radius: 8px;
+                                border: 3px solid #fff6;
+                                transition: transform 0.4s;
+                            }
+                        `,
+                            "CardZoom_Effects",
+                            false
+                        );
+                }
+            },
+            CardText: async (Config) => {
+                if (Syn.Device.Type() === "Mobile") return;
+                switch (Config.mode) {
+                    case 2:
+                        Syn.AddStyle(
+                            `
+                            .post-card__header, .post-card__footer {
+                                opacity: 0.4;
+                                transition: opacity 0.3s;
+                            }
+                            a:hover .post-card__header,
+                            a:hover .post-card__footer {
+                                opacity: 1;
+                            }
+                        `,
+                            "CardText_Effects_2",
+                            false
+                        );
                         break;
 
                     default:
-                        if (document.visibilityState === "hidden") {
-                            def.AddListener(document, "visibilitychange", () => {
-                                document.visibilityState === "visible" && FastAuto();
-                            }, {
-                                once: true
-                            });
-                        } else {
-                            FastAuto();
-                        }
-                }
-            }, {
-                all: true,
-                throttle: 600
-            });
-            async function Reload(Img, Retry) {
-                if (Retry > 0) {
-                    setTimeout(() => {
-                        let src = Img.src;
-                        Img.src = "";
-                        Object.assign(Img, {
-                            src: src,
-                            alt: "Loading Failed"
-                        });
-                        Img.onload = function () {
-                            Img.classList.remove("Image-loading-indicator");
-                        };
-                        Img.onerror = function () {
-                            Reload(Img, Retry - 1);
-                        };
-                    }, 1e3);
-                }
-            }
-        }
-        async CommentFormat() {
-            def.AddStyle(`
-                .post__comments {display: flex; flex-wrap: wrap;}
-                .post__comments>*:last-child {margin-bottom: 0.5rem;}
-                .comment {
-                    margin: 0.5rem;
-                    max-width: 25rem;
-                    border-radius: 10px;
-                    flex-basis: calc(35%);
-                    word-break: break-all;
-                    border: 0.125em solid var(--colour1-secondary);
-                }
-            `, "Effects");
-        }
-        async ExtraButton() {
-            DM.Dependencies("Awesome");
-            async function Initialization() {
-                const Call = {
-                    USE: (Select, FuncName) => {
-                        Select > 0 && FuncName(Select);
-                    },
-                    FixArtist: s => Call.USE(s, GF.FixArtist),
-                    TextToLink: s => Call.USE(s, CF.TextToLink),
-                    LinkBeautify: s => Call.USE(s, CF.LinkBeautify),
-                    OriginalImage: s => Call.USE(s, CF.OriginalImage),
-                    VideoBeautify: s => Call.USE(s, CF.VideoBeautify),
-                    CommentFormat: s => Call.USE(s, CF.CommentFormat),
-                    ExtraButton: s => Call.USE(s, CF.ExtraButton)
-                }, Start = async Type => {
-                    Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set));
-                };
-                Start(Global);
-                Start(Content);
-                def.$$("div.post__content p", {
-                    all: true
-                }).forEach(p => {
-                    p.childNodes.forEach(node => {
-                        node.nodeName == "BR" && node.parentNode.remove();
-                    });
-                });
-                def.$$("div.post__content a", {
-                    all: true
-                }).forEach(a => {
-                    /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
-                });
-                def.$$("h1.post__title").scrollIntoView();
-            }
-            async function AjexReplace(url, old_main) {
-                GM_xmlhttpRequest({
-                    method: "GET",
-                    url: url,
-                    nocache: false,
-                    onload: response => {
-                        let New_main = def.$$("main", {
-                            root: response.responseXML
-                        });
-                        ReactDOM.render(React.createElement(Rendering, {
-                            content: New_main.innerHTML
-                        }), old_main);
-                        history.pushState(null, null, url);
-                        setTimeout(Initialization(), 500);
-                    }
-                });
-            }
-            def.WaitElem("h2.site-section__subheading", comments => {
-                const prev = def.$$("a.post__nav-link.prev");
-                const next = def.$$("a.post__nav-link.next");
-                const svg = document.createElement("svg");
-                svg.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
-                        <style>svg{fill: ${PM.Match.Color}}</style>
-                        <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
-                    </svg>
-                `;
-                def.Buffer.appendChild(svg);
-                def.Listen(svg, "click", () => {
-                    def.$$("header").scrollIntoView();
-                }, {
-                    capture: true,
-                    passive: true
-                });
-                try {
-                    const span = document.createElement("span");
-                    span.id = "next_box";
-                    span.style = "float: right";
-                    const next_btn = next.cloneNode(true);
-                    next_btn.setAttribute("jump", next_btn.href);
-                    next_btn.removeAttribute("href");
-                    span.appendChild(next_btn);
-                    def.Buffer.appendChild(span);
-                    def.Listen(next_btn, "click", () => {
-                        AjexReplace(next_btn.getAttribute("jump"), def.$$("main"));
-                    }, {
-                        capture: true,
-                        once: true
-                    });
-                } catch { }
-                comments.appendChild(def.Buffer);
-            }, {
-                throttle: 600
-            });
-        }
-    }
-    DM = new class Dependencies_And_Menu {
-        ImgRules = null;
-        GetSet = null;
-        Set = null;
-        styleRules = {
-            img_h: value => requestAnimationFrame(() => {
-                DM.ImgRules[0].style.height = value;
-            }),
-            img_w: value => requestAnimationFrame(() => {
-                DM.ImgRules[0].style.width = value;
-            }),
-            img_mw: value => requestAnimationFrame(() => {
-                DM.ImgRules[0].style.maxWidth = value;
-            }),
-            img_gap: value => requestAnimationFrame(() => {
-                DM.ImgRules[0].style.margin = `${value} auto`;
-            }),
-            MT: value => requestAnimationFrame(() => {
-                DM.ImgRules[4].style.top = value;
-            }),
-            ML: value => requestAnimationFrame(() => {
-                DM.ImgRules[4].style.left = value;
-            })
-        };
-        Dependencies(type) {
-            let Color, Width;
-            switch (type) {
-                case "Global":
-                    Color = PM.Match.Color;
-                    def.AddStyle(`
-                        /* 搜尋頁面的樣式 */
-                        fix_tag:hover { color: ${Color}; }
-                        .fancy-image__image, fix_name, fix_tag, fix_edit {
-                            cursor: pointer;
-                        }
-                        .user-card__info {
-                            display: flex;
-                            flex-direction: column;
-                            align-items: flex-start;
-                        }
-                        fix_name {
-                            color: #fff;
-                            font-size: 28px;
-                            font-weight: 500;
-                            max-width: 320px;
-                            overflow: hidden;
-                            padding: .25rem .1rem;
-                            border-radius: .25rem;
-                            white-space: nowrap;
-                            text-overflow: ellipsis;
-                        }
-                        .edit_artist {
-                            position: absolute;
-                            top: 36%;
-                            right: 8%;
-                            color: #fff;
-                            display: none;
-                            font-size: 14px;
-                            font-weight: 700;
-                            background: #666;
-                            white-space: nowrap;
-                            padding: .25rem .5rem;
-                            border-radius: .25rem;
-                            transform: translateY(-100%);
-                        }
-                        .edit_textarea {
-                            color: #fff;
-                            display: block;
-                            font-size: 30px;
-                            padding: 6px 1px;
-                            line-height: 5vh;
-                            text-align: center;
-                        }
-                        .user-card:hover .edit_artist {
-                            display: block;
-                        }
-                        .user-card:hover fix_name {
-                            background-color: ${Color};
-                        }
-                        .edit_textarea ~ fix_name,
-                        .edit_textarea ~ .edit_artist {
-                            display: none !important;
-                        }
-
-                        /* 預覽頁面的樣式 */
-                        fix_view {
-                            display: flex;
-                            flex-flow: wrap;
-                            align-items: center;
-                        }
-                        fix_view fix_name {
-                            font-size: 2rem;
-                            font-weight: 700;
-                            padding: .25rem 3rem;
-                            border-radius: .25rem;
-                            transition: background-color 0.3s ease;
-                        }
-                        fix_view .edit_artist {
-                            top: 40%;
-                            right: 5%;
-                            transform: translateY(-80%);
-                        }
-                        fix_view:hover fix_name {
-                            background-color: ${Color};
-                        }
-                        fix_view:hover .edit_artist {
-                            display: block;
-                        }
-
-                        /* 內容頁面的樣式 */
-                        fix_cont {
-                            display: flex;
-                            justify-content: space-around;
-                        }
-                        fix_cont fix_name {
-                            color: ${Color};
-                            font-size: 1.25em;
-                            display: inline-block;
-                        }
-                        fix_cont .edit_artist {
-                            top: 95%;
-                            right: -10%;
-                        }
-                        fix_cont:hover fix_name {
-                            background-color: #fff;
-                        }
-                        fix_cont:hover .edit_artist {
-                            display: block;
-                        }
-                        `, "Global-Effects");
-                    break;
-
-                case "Preview":
-                    def.AddStyle(`
-                        .gif-overlay {
-                            top: 45%;
-                            left: 50%;
-                            width: 60%;
-                            height: 60%;
-                            opacity: 0.5;
-                            z-index: 9999;
-                            position: absolute;
-                            border-radius: 50%;
-                            background-size: contain;
-                            background-position: center;
-                            background-repeat: no-repeat;
-                            transform: translate(-50%, -50%);
-                            background-image: url("${GM_getResourceURL("loading")}");
-                        }
-                        .card-list__items {
-                            gap: 0.5em;
-                            display: flex;
-                            grid-gap: 0.5em;
-                            position: relative;
-                            align-items: var(--local-align);
-                            flex-flow: var(--local-flex-flow);
-                            justify-content: var(--local-justify);
-                        }
-                    `, "Preview-Effects");
-                    break;
-
-                case "Postview":
-                    DM.GetSet = {
-                        MenuSet: () => {
-                            const data = def.store("g", "MenuSet") || [{
-                                MT: "2vh",
-                                ML: "50vw"
-                            }];
-                            return data[0];
-                        },
-                        ImgSet: () => {
-                            const data = def.store("g", "ImgSet") || [{
-                                img_h: "auto",
-                                img_w: "auto",
-                                img_mw: "100%",
-                                img_gap: "0px"
-                            }];
-                            return data[0];
-                        }
-                    };
-                    DM.Set = DM.GetSet.ImgSet();
-                    Width = def.Device.iW() / 2;
-                    def.AddStyle(`
-                        .Image-style {
-                            display: block;
-                            width: ${DM.Set.img_w};
-                            height: ${DM.Set.img_h};
-                            margin: ${DM.Set.img_gap} auto;
-                            max-width: ${DM.Set.img_mw};
-                        }
-                        .Image-loading-indicator {
-                            min-width: 50vW;
-                            min-height: 50vh;
-                            max-width: ${Width}px;
-                            max-height: ${Width * 9 / 16}px;
-                            border: 1px solid #fafafa;
-                        }
-                        .Image-loading-indicator:hover {
-                            cursor: pointer;
-                        }
-                        `, "Custom-style");
-                    break;
-
-                case "Awesome":
-                    def.AddStyle(`
-                        ${GM_getResourceText("font-awesome")}
-                        #next_box a {
-                            cursor: pointer;
-                        }
-                        #next_box a:hover {
-                            background-color: ${PM.Match.Color};
-                        }
-                    `, "font-awesome");
-                    break;
-
-                case "Menu":
-                    DM.Set = DM.GetSet.MenuSet();
-                    def.AddScript(`
-                            function check(value) {
-                                return value.toString().length > 4 || value > 1000
-                                    ? 1000 : value < 0 ? "" : value;
-                            }
-                    `);
-                    def.AddStyle(`
-                            .modal-background {
-                                top: 0;
-                                left: 0;
-                                width: 100%;
-                                height: 100%;
-                                display: flex;
-                                z-index: 9999;
-                                overflow: auto;
-                                position: fixed;
-                                pointer-events: none;
-                            }
-                            /* 模態介面 */
-                            .modal-interface {
-                                top: ${DM.Set.MT};
-                                left: ${DM.Set.ML};
-                                margin: 0;
-                                display: flex;
-                                overflow: auto;
-                                position: fixed;
-                                border-radius: 5px;
-                                pointer-events: auto;
-                                background-color: #2C2E3E;
-                                border: 3px solid #EE2B47;
-                            }
-                            /* 模態內容盒 */
-                            .modal-box {
-                                padding: 0.5rem;
-                                height: 50vh;
-                                width: 32vw;
-                            }
-                            /* 菜單框架 */
-                            .menu {
-                                width: 5.5vw;
-                                overflow: auto;
-                                text-align: center;
-                                vertical-align: top;
-                                border-radius: 2px;
-                                border: 2px solid #F6F6F6;
-                            }
-                            /* 菜單文字標題 */
-                            .menu-text {
-                                color: #EE2B47;
-                                cursor: default;
-                                padding: 0.2rem;
-                                margin: 0.3rem;
-                                margin-bottom: 1.5rem;
-                                white-space: nowrap;
-                                border-radius: 10px;
-                                border: 4px solid #f05d73;
-                                background-color: #1f202c;
-                            }
-                            /* 菜單選項按鈕 */
-                            .menu-options {
-                                cursor: pointer;
-                                font-size: 1.4rem;
-                                color: #F6F6F6;
-                                font-weight: bold;
-                                border-radius: 5px;
-                                margin-bottom: 1.2rem;
-                                border: 5px inset #EE2B47;
-                                background-color: #6e7292;
-                                transition: color 0.8s, background-color 0.8s;
-                            }
-                            .menu-options:hover {
-                                color: #EE2B47;
-                                background-color: #F6F6F6;
-                            }
-                            .menu-options:disabled {
-                                color: #6e7292;
-                                cursor: default;
-                                background-color: #c5c5c5;
-                                border: 5px inset #faa5b2;
-                            }
-                            /* 設置內容框架 */
-                            .content {
-                                height: 48vh;
-                                width: 28vw;
-                                overflow: auto;
-                                padding: 0px 1rem;
-                                border-radius: 2px;
-                                vertical-align: top;
-                                border-top: 2px solid #F6F6F6;
-                                border-right: 2px solid #F6F6F6;
-                            }
-                            .narrative { color: #EE2B47; }
-                            .Image-input-settings {
-                                width: 8rem;
-                                color: #F6F6F6;
-                                text-align: center;
-                                font-size: 1.5rem;
-                                border-radius: 15px;
-                                border: 3px inset #EE2B47;
-                                background-color: #202127;
-                            }
-                            .Image-input-settings:disabled {
-                                border: 3px inset #faa5b2;
-                                background-color: #5a5a5a;
-                            }
-                            /* 底部按鈕框架 */
-                            .button-area {
-                                display: flex;
-                                padding: 0.3rem;
-                                border-left: none;
-                                border-radius: 2px;
-                                border: 2px solid #F6F6F6;
-                                justify-content: space-between;
-                            }
-                            .button-area select {
-                                color: #F6F6F6;
-                                margin-right: 1.5rem;
-                                border: 3px inset #EE2B47;
-                                background-color: #6e7292;
-                            }
-                            /* 底部選項 */
-                            .button-options {
-                                color: #F6F6F6;
-                                cursor: pointer;
-                                font-size: 0.8rem;
-                                font-weight: bold;
-                                border-radius: 10px;
-                                white-space: nowrap;
-                                background-color: #6e7292;
-                                border: 3px inset #EE2B47;
-                                transition: color 0.5s, background-color 0.5s;
-                            }
-                            .button-options:hover {
-                                color: #EE2B47;
-                                background-color: #F6F6F6;
-                            }
-                            .button-space { margin: 0 0.6rem; }
-                            .form-hidden {
+                        Syn.AddStyle(
+                            `
+                            .post-card__header {
                                 opacity: 0;
-                                height: 0;
-                                width: 0;
-                                overflow: hidden;
-                                transition: opacity 0.8s, height 0.8s, width 0.8s;
+                                z-index: 1;
+                                padding: 5px;
+                                pointer-events: none;
+                                transform: translateY(-6vh);
                             }
-                            .toggle-menu {
-                                height: 0;
-                                width: 0;
-                                padding: 0;
-                                margin: 0;
+                            .post-card__footer {
+                                opacity: 0;
+                                z-index: 1;
+                                padding: 5px;
+                                pointer-events: none;
+                                transform: translateY(6vh);
                             }
-                            /* 整體框線 */
-                            table, td {
-                                margin: 0px;
-                                padding: 0px;
-                                overflow: auto;
-                                border-spacing: 0px;
+                            a:hover .post-card__header,
+                            a:hover .post-card__footer {
+                                opacity: 1;
+                                pointer-events: auto;
+                                transform: translateY(0vh);
+                                transition: transform 0.4s, opacity 0.6s;
                             }
-                            .modal-background p {
-                                display: flex;
-                                flex-wrap: nowrap;
-                            }
-                            option { color: #F6F6F6; }
-                            ul {
-                                list-style: none;
-                                padding: 0px;
-                                margin: 0px;
-                            }
-                    `, "Custom-style");
-                    document.querySelector("#Custom-style").sheet.cssRules[0];
-                    DM.ImgRules = def.$$("#Custom-style").sheet.cssRules;
-                    def.storeListen(["MenuSet", "ImgSet", "language"], call => {
-                        if (call.far) {
-                            let nv = call.nv;
-                            switch (call.key) {
-                                case "MenuSet":
-                                    nv = nv[0];
-                                    DM.styleRules["MT"](nv.MT);
-                                    DM.styleRules["ML"](nv.ML);
-                                    break;
-
-                                case "ImgSet":
-                                    nv = nv[0];
-                                    DM.styleRules["img_h"](nv.img_h);
-                                    DM.styleRules["img_w"](nv.img_w);
-                                    DM.styleRules["img_mw"](nv.img_mw);
-                                    DM.styleRules["img_gap"](nv.img_gap);
-                                    break;
-
-                                case "language":
-                                    MenuLangSwitch(nv);
-                            }
-                        }
-                    });
-                    break;
-            }
-        }
-        async Menu() {
-            if (!def.$$(".modal-background")) {
-                DM.Set = DM.GetSet.ImgSet();
-                let parent, child, img_input, img_select, img_set, analyze;
-                const img_data = [DM.Set.img_h, DM.Set.img_w, DM.Set.img_mw, DM.Set.img_gap];
-                const menu = `
-                    <div class="modal-background">
-                        <div class="modal-interface">
-                            <table class="modal-box">
-                                <tr>
-                                    <td class="menu">
-                                        <h2 class="menu-text">${Lang.MT_01}</h2>
-                                        <ul>
-                                            <li>
-                                                <a class="toggle-menu" href="#image-settings-show">
-                                                    <button class="menu-options" id="image-settings">${Lang.MO_01}</button>
-                                                </a>
-                                            <li>
-                                            <li>
-                                                <a class="toggle-menu" href="#">
-                                                    <button class="menu-options" disabled>null</button>
-                                                </a>
-                                            <li>
-                                        </ul>
-                                    </td>
-                                    <td>
-                                        <table>
-                                            <tr>
-                                                <td class="content" id="set-content">
-                                                    <div id="image-settings-show" class="form-hidden">
-                                                        <div>
-                                                            <h2 class="narrative">${Lang.MIS_01}：</h2>
-                                                            <p><input type="number" id="img_h" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                        </div>
-                                                        <div>
-                                                            <h2 class="narrative">${Lang.MIS_02}：</h2>
-                                                            <p><input type="number" id="img_w" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                        </div>
-                                                        <div>
-                                                            <h2 class="narrative">${Lang.MIS_03}：</h2>
-                                                            <p><input type="number" id="img_mw" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                        </div>
-                                                        <div>
-                                                            <h2 class="narrative">${Lang.MIS_04}：</h2>
-                                                            <p><input type="number" id="img_gap" class="Image-input-settings" oninput="value = check(value)"></p>
-                                                        </div>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                            <tr>
-                                                <td class="button-area">
-                                                    <select id="language">
-                                                        <option value="" disabled selected>${Lang.ML_01}</option>
-                                                        <option value="en">${Lang.ML_02}</option>
-                                                        <option value="zh-TW">${Lang.ML_03}</option>
-                                                        <option value="zh-CN">${Lang.ML_04}</option>
-                                                        <option value="ja">${Lang.ML_05}</option>
-                                                    </select>
-                                                    <button id="readsettings" class="button-options" disabled>${Lang.MB_01}</button>
-                                                    <span class="button-space"></span>
-                                                    <button id="closure" class="button-options">${Lang.MB_02}</button>
-                                                    <span class="button-space"></span>
-                                                    <button id="application" class="button-options">${Lang.MB_03}</button>
-                                                </td>
-                                            </tr>
-                                        </table>
-                                    </td>
-                                </tr>
-                            </table>
-                        </div>
-                    </div>
-                `;
-                const UnitOptions = `
-                    <select class="Image-input-settings" style="margin-left: 1rem;">
-                        <option value="px" selected>px</option>
-                        <option value="%">%</option>
-                        <option value="rem">rem</option>
-                        <option value="vh">vh</option>
-                        <option value="vw">vw</option>
-                        <option value="auto">auto</option>
-                    </select>
-                `;
-                $(document.body).append(menu);
-                $(".modal-interface").draggable({
-                    cursor: "grabbing"
-                });
-                $(".modal-interface").tabs();
-                async function PictureSettings() {
-                    $on(".Image-input-settings", "input change", function (event) {
-                        event.stopPropagation();
-                        const target = $(this), value = target.val(), id = target.attr("id");
-                        parent = target.closest("div");
-                        if (isNaN(value)) {
-                            child = parent.find("input");
-                            if (value === "auto") {
-                                child.prop("disabled", true);
-                                DM.styleRules[child.attr("id")](value);
-                            } else {
-                                child.prop("disabled", false);
-                                DM.styleRules[child.attr("id")](`${child.val()}${value}`);
-                            }
-                        } else {
-                            child = parent.find("select");
-                            DM.styleRules[id](`${value}${child.val()}`);
-                        }
-                    });
+                        `,
+                            "CardText_Effects",
+                            false
+                        );
                 }
-                $("#language").val(def.store("g", "language", null, ""));
-                $on("#language", "input change", function (event) {
-                    event.stopPropagation();
-                    $("#language").off("input change");
-                    const value = $(this).val();
-                    MenuLangSwitch(value);
-                    def.store("s", "language", value);
-                    Menu_Save();
-                    DM.Menu();
-                });
-                let save = {}, set_value;
-                $on(".modal-interface", "click", function (event) {
-                    const id = $(event.target).attr("id");
-                    if (id == "image-settings") {
-                        img_set = $("#image-settings-show");
-                        if (img_set.css("opacity") === "0") {
-                            img_set.find("p").each(function () {
-                                $(this).append(UnitOptions);
-                            });
-                            img_set.css({
-                                height: "auto",
-                                width: "auto",
-                                opacity: 1
-                            });
-                            $("#readsettings").prop("disabled", false);
-                            PictureSettings();
-                        }
-                    } else if (id == "readsettings") {
-                        img_set = $("#image-settings-show").find("p");
-                        img_data.forEach((read, index) => {
-                            img_input = img_set.eq(index).find("input");
-                            img_select = img_set.eq(index).find("select");
-                            if (read == "auto") {
-                                img_input.prop("disabled", true);
-                                img_select.val(read);
-                            } else {
-                                analyze = read.match(/^(\d+)(\D+)$/);
-                                img_input.val(analyze[1]);
-                                img_select.val(analyze[2]);
-                            }
-                        });
-                    } else if (id == "application") {
-                        img_set = $("#image-settings-show").find("p");
-                        img_data.forEach((read, index) => {
-                            img_input = img_set.eq(index).find("input");
-                            img_select = img_set.eq(index).find("select");
-                            if (img_select.val() == "auto") {
-                                set_value = "auto";
-                            } else if (img_input.val() == "") {
-                                set_value = read;
-                            } else {
-                                set_value = `${img_input.val()}${img_select.val()}`;
-                            }
-                            save[img_input.attr("id")] = set_value;
-                        });
-                        def.store("s", "ImgSet", [save]);
-                        Menu_Save();
-                    } else if (id == "closure") {
-                        Menu_Close();
-                    }
-                });
-                async function Menu_Close() {
-                    $(".modal-background").off();
-                    $(".modal-background").remove();
-                }
-                function Menu_Save() {
-                    const menu_interface = $(".modal-interface");
-                    const top = menu_interface.css("top");
-                    const left = menu_interface.css("left");
-                    def.store("s", "MenuSet", [{
-                        MT: top,
-                        ML: left
-                    }]);
-                    DM.styleRules["MT"](top);
-                    DM.styleRules["ML"](left);
-                    Menu_Close();
-                }
-            }
-        }
-        language(lang) {
-            const Display = {
-                Traditional: {
-                    RM_01: "📝 設置選單",
-                    MT_01: "設置菜單",
-                    MO_01: "圖像設置",
-                    MB_01: "讀取設定",
-                    MB_02: "關閉離開",
-                    MB_03: "保存應用",
-                    ML_01: "語言",
-                    ML_02: "英文",
-                    ML_03: "繁體",
-                    ML_04: "簡體",
-                    ML_05: "日文",
-                    MIS_01: "圖片高度",
-                    MIS_02: "圖片寬度",
-                    MIS_03: "圖片最大寬度",
-                    MIS_04: "圖片間隔高度"
-                },
-                Simplified: {
-                    RM_01: "📝 设置菜单",
-                    MT_01: "设置菜单",
-                    MO_01: "图像设置",
-                    MB_01: "读取设置",
-                    MB_02: "关闭退出",
-                    MB_03: "保存应用",
-                    ML_01: "语言",
-                    ML_02: "英文",
-                    ML_03: "繁体",
-                    ML_04: "简体",
-                    ML_05: "日文",
-                    MIS_01: "图片高度",
-                    MIS_02: "图片宽度",
-                    MIS_03: "图片最大宽度",
-                    MIS_04: "图片间隔高度"
-                },
-                Japan: {
-                    RM_01: "📝 設定メニュー",
-                    MT_01: "設定メニュー",
-                    MO_01: "画像設定",
-                    MB_01: "設定の読み込み",
-                    MB_02: "閉じて終了する",
-                    MB_03: "保存して適用する",
-                    ML_01: "言語",
-                    ML_02: "英語",
-                    ML_03: "繁体字",
-                    ML_04: "簡体字",
-                    ML_05: "日本語",
-                    MIS_01: "画像の高さ",
-                    MIS_02: "画像の幅",
-                    MIS_03: "画像の最大幅",
-                    MIS_04: "画像の間隔の高さ"
-                },
-                English: {
-                    RM_01: "📝 Settings Menu",
-                    MT_01: "Settings Menu",
-                    MO_01: "Image Settings",
-                    MB_01: "Load Settings",
-                    MB_02: "Close and Exit",
-                    MB_03: "Save and Apply",
-                    ML_01: "Language",
-                    ML_02: "English",
-                    ML_03: "Traditional Chinese",
-                    ML_04: "Simplified Chinese",
-                    ML_05: "Japanese",
-                    MIS_01: "Image Height",
-                    MIS_02: "Image Width",
-                    MIS_03: "Maximum Image Width",
-                    MIS_04: "Image Spacing Height"
-                }
-            }, Match = {
-                "zh-TW": Display.Traditional,
-                "zh-HK": Display.Traditional,
-                "zh-MO": Display.Traditional,
-                "zh-CN": Display.Simplified,
-                "zh-SG": Display.Simplified,
-                "en-US": Display.English,
-                ja: Display.Japan
-            };
-            return Match[lang] || Match["en-US"];
-        }
-    }();
-    new class Enhance {
-        constructor() {
-            this.Run();
-        }
-        async Run() {
-            const Call = {
-                USE: (Select, FuncName) => {
-                    Select > 0 && FuncName(Select);
-                },
-                SidebarCollapse: s => Call.USE(s, GF.SidebarCollapse),
-                DeleteNotice: s => Call.USE(s, GF.DeleteNotice),
-                FixArtist: s => Call.USE(s, GF.FixArtist),
-                BackToTop: s => Call.USE(s, GF.BackToTop),
-                BlockAds: s => Call.USE(s, GF.BlockAds),
-                KeyScroll: s => Call.USE(s, GF.KeyScroll),
-                QuickPostToggle: s => Call.USE(s, PF.QuickPostToggle),
-                NewTabOpens: s => Call.USE(s, PF.NewTabOpens),
-                CardText: s => Call.USE(s, PF.CardText),
-                CardZoom: s => Call.USE(s, PF.CardZoom),
-                TextToLink: s => Call.USE(s, CF.TextToLink),
-                LinkBeautify: s => Call.USE(s, CF.LinkBeautify),
-                OriginalImage: s => Call.USE(s, CF.OriginalImage),
-                VideoBeautify: s => Call.USE(s, CF.VideoBeautify),
-                CommentFormat: s => Call.USE(s, CF.CommentFormat),
-                ExtraButton: s => Call.USE(s, CF.ExtraButton)
-            }, Start = async Type => {
-                Object.entries(Type).forEach(([func, set]) => Call.hasOwnProperty(func) && Call[func](set));
-            };
-            Start(Global);
-            if (PM.Match.AllPreview) {
-                PF = new Preview_Function();
-                Start(Preview);
-            } else if (PM.Match.Announcement) {
-                CF = new Content_Function();
-                Start(Special);
-            } else if (PM.Match.Content) {
-                CF = new Content_Function();
-                Start(Content);
-                DM.Dependencies("Menu");
-                MenuLangSwitch(def.store("g", "language"));
-            }
-        }
-    }();
-    function Rendering({
-        content
-    }) {
-        return React.createElement("div", {
-            dangerouslySetInnerHTML: {
-                __html: content
-            }
-        });
+            },
+        };
     }
-    function MenuLangSwitch(lang) {
-        Lang = DM.language(lang);
-        def.Menu({
-            [Lang.RM_01]: {
-                func: () => DM.Menu()
-            }
-        });
+    function Content_Function() {
+        return {
+            LinkBeautify: async function (Config) {
+                Syn.AddStyle(
+                    `
+                    .View {
+                        top: -10px;
+                        padding: 10%;
+                        display: none;
+                        overflow: auto;
+                        color: #f2f2f2;
+                        font-size: 14px;
+                        font-weight: 600;
+                        position: absolute;
+                        white-space: nowrap;
+                        border-radius: .5rem;
+                        left: calc(100% + 10px);
+                        border: 1px solid #737373;
+                        background-color: #3b3e44;
+                    }
+                    a:hover .View { display: block }
+                `,
+                    "Link_Effects",
+                    false
+                );
+                Syn.WaitElem(
+                    "a.post__attachment-link",
+                    (post) => {
+                        async function ShowBrowse(Browse) {
+                            GM_xmlhttpRequest({
+                                method: "GET",
+                                url: Browse.href,
+                                onload: (response) => {
+                                    const Main = Syn.$$("main", {
+                                        root: response.responseXML,
+                                    });
+                                    const View = GM_addElement("View", {
+                                        class: "View",
+                                    });
+                                    const Buffer = document.createDocumentFragment();
+                                    for (const br of Syn.$$("br", {
+                                        all: true,
+                                        root: Main,
+                                    })) {
+                                        Buffer.append(
+                                            document.createTextNode(
+                                                br.previousSibling.textContent.trim()
+                                            ),
+                                            br
+                                        );
+                                    }
+                                    View.appendChild(Buffer);
+                                    Browse.appendChild(View);
+                                },
+                                onerror: (error) => {
+                                    ShowBrowse(Browse);
+                                },
+                            });
+                        }
+                        for (const link of post) {
+                            link.setAttribute("download", "");
+                            link.href = decodeURIComponent(link.href);
+                            link.textContent = link.textContent
+                                .replace("Download", "")
+                                .trim();
+                            const Browse = link.nextElementSibling;
+                            if (!Browse) continue;
+                            Browse.style.position = "relative";
+                            ShowBrowse(Browse);
+                        }
+                    },
+                    {
+                        all: true,
+                        throttle: 600,
+                    }
+                );
+            },
+            VideoBeautify: async function (Config) {
+                Syn.AddStyle(
+                    `
+                    .video-title {margin-top: 0.5rem;}
+                    .post-video {height: 50%; width: 60%;}
+                `,
+                    "Video_Effects",
+                    false
+                );
+                Syn.WaitElem(
+                    "ul[style*='text-align: center;list-style-type: none;'] li:not([id])",
+                    (parents) => {
+                        Syn.WaitElem(
+                            "a.post__attachment-link",
+                            (post) => {
+                                function VideoRendering({ stream }) {
+                                    return React.createElement(
+                                        "summary",
+                                        {
+                                            className: "video-title",
+                                        },
+                                        React.createElement(
+                                            "video",
+                                            {
+                                                key: "video",
+                                                controls: true,
+                                                preload: "auto",
+                                                "data-setup": JSON.stringify({}),
+                                                className: "post-video",
+                                            },
+                                            React.createElement("source", {
+                                                key: "source",
+                                                src: stream.src,
+                                                type: stream.type,
+                                            })
+                                        )
+                                    );
+                                }
+                                for (const li of parents) {
+                                    let [node, title, stream] = [
+                                        undefined,
+                                        Syn.$$("summary", {
+                                            root: li,
+                                        }),
+                                        Syn.$$("source", {
+                                            root: li,
+                                        }),
+                                    ];
+                                    if (!title || !stream) continue;
+                                    if (title.previousElementSibling) continue;
+                                    for (const link of post) {
+                                        if (link.textContent.includes(title.textContent)) {
+                                            switch (Config.mode) {
+                                                case 2:
+                                                    link.parentNode.remove();
+
+                                                default:
+                                                    node = link.cloneNode(true);
+                                            }
+                                        }
+                                    }
+                                    ReactDOM.render(
+                                        React.createElement(VideoRendering, {
+                                            stream: stream,
+                                        }),
+                                        li
+                                    );
+                                    li.insertBefore(
+                                        node,
+                                        Syn.$$("summary", {
+                                            root: li,
+                                        })
+                                    );
+                                }
+                            },
+                            {
+                                all: true,
+                                throttle: 300,
+                            }
+                        );
+                    },
+                    {
+                        all: true,
+                        throttle: 600,
+                    }
+                );
+            },
+            OriginalImage: async function (Config) {
+                Syn.WaitElem(
+                    "div.post__thumbnail",
+                    (thumbnail) => {
+                        const Origina_Requ = {
+                            Reload: async (Img, Retry) => {
+                                if (Retry > 0) {
+                                    setTimeout(() => {
+                                        const src = Img.src;
+                                        Img.src = "";
+                                        Object.assign(Img, {
+                                            src: src,
+                                            alt: "Loading Failed",
+                                        });
+                                        Img.onload = function () {
+                                            Img.classList.remove("Image-loading-indicator");
+                                        };
+                                        Img.onerror = function () {
+                                            Origina_Requ.Reload(Img, Retry - 1);
+                                        };
+                                    }, 1e3);
+                                }
+                            },
+                            FailedClick: async () => {
+                                Syn.Listen(
+                                    document.body,
+                                    "click",
+                                    (event) => {
+                                        const target = event.target.matches(".Image-link img");
+                                        if (target && target.alt == "Loading Failed") {
+                                            const src = img.src;
+                                            img.src = "";
+                                            img.src = src;
+                                        }
+                                    },
+                                    {
+                                        capture: true,
+                                        passive: true,
+                                    }
+                                );
+                            },
+                            ImgRendering: ({ ID, href }) => {
+                                return React.createElement(
+                                    "div",
+                                    {
+                                        id: ID,
+                                        className: "Image-link",
+                                    },
+                                    React.createElement("img", {
+                                        key: "img",
+                                        src: href.href,
+                                        className: "Image-loading-indicator Image-style",
+                                        onLoad: function () {
+                                            Syn.$$(`#${ID} img`).classList.remove(
+                                                "Image-loading-indicator"
+                                            );
+                                        },
+                                        onError: function () {
+                                            Origina_Requ.Reload(Syn.$$(`#${ID} img`), 10);
+                                        },
+                                    })
+                                );
+                            },
+                            FastAuto: async function () {
+                                this.FailedClick();
+                                thumbnail.forEach((object, index) => {
+                                    setTimeout(() => {
+                                        object.removeAttribute("class");
+                                        a = Syn.$$("a", {
+                                            root: object,
+                                        });
+                                        ReactDOM.render(
+                                            React.createElement(this.ImgRendering, {
+                                                ID: `IMG-${index}`,
+                                                href: a,
+                                            }),
+                                            object
+                                        );
+                                    }, index * 300);
+                                });
+                            },
+                            SlowAuto: async (index) => {
+                                if (index == thumbnail.length) return;
+                                const object = thumbnail[index];
+                                object.removeAttribute("class");
+                                a = Syn.$$("a", {
+                                    root: object,
+                                });
+                                img = Syn.$$("img", {
+                                    root: a,
+                                });
+                                Object.assign(img, {
+                                    className: "Image-loading-indicator Image-style",
+                                    src: a.href,
+                                });
+                                img.removeAttribute("data-src");
+                                a.id = `IMG-${index}`;
+                                a.removeAttribute("href");
+                                a.removeAttribute("download");
+                                img.onload = function () {
+                                    img.classList.remove("Image-loading-indicator");
+                                    Origina_Requ.SlowAuto(++index);
+                                };
+                            },
+                            ObserveTrigger: function () {
+                                this.FailedClick();
+                                const observer = new IntersectionObserver(
+                                    (observed) => {
+                                        observed.forEach((entry) => {
+                                            if (entry.isIntersecting) {
+                                                const object = entry.target;
+                                                observer.unobserve(object);
+                                                ReactDOM.render(
+                                                    React.createElement(this.ImgRendering, {
+                                                        ID: object.alt,
+                                                        href: Syn.$$("a", {
+                                                            root: object,
+                                                        }),
+                                                    }),
+                                                    object
+                                                );
+                                                object.removeAttribute("class");
+                                            }
+                                        });
+                                    },
+                                    {
+                                        threshold: 0.3,
+                                    }
+                                );
+                                return observer;
+                            },
+                        };
+                        switch (Config.mode) {
+                            case 2:
+                                Origina_Requ.SlowAuto(0);
+                                break;
+
+                            case 3:
+                                const observer = Origina_Requ.ObserveTrigger();
+                                thumbnail.forEach((object, index) => {
+                                    object.alt = `IMG-${index}`;
+                                    observer.observe(object);
+                                });
+                                break;
+
+                            default:
+                                if (document.visibilityState === "hidden") {
+                                    Syn.Listen(
+                                        document,
+                                        "visibilitychange",
+                                        () => {
+                                            document.visibilityState === "visible" &&
+                                                Origina_Requ.FastAuto();
+                                        },
+                                        {
+                                            once: true,
+                                        }
+                                    );
+                                } else Origina_Requ.FastAuto();
+                        }
+                    },
+                    {
+                        all: true,
+                        throttle: 600,
+                    }
+                );
+            },
+            ExtraButton: async function (Config) {
+                DLL.Style.Awesome();
+                async function GetNextPage(url, old_main) {
+                    GM_xmlhttpRequest({
+                        method: "GET",
+                        url: url,
+                        nocache: false,
+                        onload: (response) => {
+                            const New_main = Syn.$$("main", {
+                                root: response.responseXML,
+                            });
+                            ReactDOM.render(
+                                React.createElement(DLL.Rendering, {
+                                    content: New_main.innerHTML,
+                                }),
+                                old_main
+                            );
+                            history.pushState(null, null, url);
+                            setTimeout(() => {
+                                Enhance.ExtraInitial();
+                                Syn.WaitElem(
+                                    "div.post__content",
+                                    (post) => {
+                                        Syn.$$("p", {
+                                            all: true,
+                                            root: post,
+                                        }).forEach((p) => {
+                                            p.childNodes.forEach((node) => {
+                                                node.nodeName == "BR" && node.parentNode.remove();
+                                            });
+                                        });
+                                        Syn.$$("a", {
+                                            all: true,
+                                            root: post,
+                                        }).forEach((a) => {
+                                            /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
+                                        });
+                                    },
+                                    {
+                                        throttle: 300,
+                                    }
+                                );
+                                Syn.$$("h1.post__title").scrollIntoView();
+                            }, 100);
+                        },
+                        onerror: (error) => {
+                            GetNextPage(url, old_main);
+                        },
+                    });
+                }
+                Syn.WaitElem(
+                    "h2.site-section__subheading",
+                    (comments) => {
+                        const [Prev, Next, Svg, Span, Buffer] = [
+                            Syn.$$("a.post__nav-link.prev"),
+                            Syn.$$("a.post__nav-link.next"),
+                            document.createElement("svg"),
+                            document.createElement("span"),
+                            document.createDocumentFragment(),
+                        ];
+                        Svg.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
+                            <style>svg{fill: ${DLL.Color}}</style>
+                            <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
+                        </svg>
+                    `;
+                        Span.id = "next_box";
+                        Span.style = "float: right";
+                        const Next_btn = Next.cloneNode(true);
+                        Next_btn.setAttribute("jump", Next_btn.href);
+                        Next_btn.removeAttribute("href");
+                        Syn.Listen(
+                            Svg,
+                            "click",
+                            () => {
+                                Syn.$$("header").scrollIntoView();
+                            },
+                            {
+                                capture: true,
+                                passive: true,
+                            }
+                        );
+                        Syn.Listen(
+                            Next_btn,
+                            "click",
+                            () => {
+                                GetNextPage(Next_btn.getAttribute("jump"), Syn.$$("main"));
+                            },
+                            {
+                                capture: true,
+                                once: true,
+                            }
+                        );
+                        Span.appendChild(Next_btn);
+                        Buffer.append(Svg, Span);
+                        comments.appendChild(Buffer);
+                    },
+                    {
+                        throttle: 600,
+                    }
+                );
+            },
+            CommentFormat: async function (Config) {
+                Syn.AddStyle(
+                    `
+                    .post__comments {display: flex; flex-wrap: wrap;}
+                    .post__comments>*:last-child {margin-bottom: 0.5rem;}
+                    .comment {
+                        margin: 0.5rem;
+                        max-width: 25rem;
+                        border-radius: 10px;
+                        flex-basis: calc(35%);
+                        word-break: break-all;
+                        border: 0.125em solid var(--colour1-secondary);
+                    }
+                `,
+                    "Comment_Effects",
+                    false
+                );
+            },
+        };
     }
     async function $on(element, type, listener) {
         $(element).on(type, listener);
+    }
+    async function MenuTrigger(lang) {
+        Syn.Menu({
+            [lang.RM_01]: {
+                func: () => Create_Menu(),
+            },
+        });
+    }
+    function Create_Menu() {
+        if (Syn.$$(".modal-background")) return;
+        const set = DLL.ImgSet();
+        const { log, lang } = DLL.Language();
+        const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing];
+        let analyze,
+            parent,
+            child,
+            img_set,
+            img_input,
+            img_select,
+            set_value,
+            save_cache = {};
+        const menu = `
+            <div class="modal-background">
+                <div class="modal-interface">
+                    <table class="modal-box">
+                        <tr>
+                            <td class="menu">
+                                <h2 class="menu-text">${lang.MT_01}</h2>
+                                <ul>
+                                    <li>
+                                        <a class="toggle-menu" href="#image-settings-show">
+                                            <button class="menu-options" id="image-settings">${lang.MO_01}</button>
+                                        </a>
+                                    <li>
+                                    <li>
+                                        <a class="toggle-menu" href="#">
+                                            <button class="menu-options" disabled>null</button>
+                                        </a>
+                                    <li>
+                                </ul>
+                            </td>
+                            <td>
+                                <table>
+                                    <tr>
+                                        <td class="content" id="set-content">
+                                            <div id="image-settings-show" class="form-hidden">
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_01}：</h2>
+                                                    <p><input type="number" id="Height" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_02}：</h2>
+                                                    <p><input type="number" id="Width" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_03}：</h2>
+                                                    <p><input type="number" id="MaxWidth" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                                <div>
+                                                    <h2 class="narrative">${lang.MIS_04}：</h2>
+                                                    <p><input type="number" id="Spacing" class="Image-input-settings" oninput="value = check(value)"></p>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                    <tr>
+                                        <td class="button-area">
+                                            <select id="language">
+                                                <option value="" disabled selected>${lang.ML_01}</option>
+                                                <option value="en-US">${lang.ML_02}</option>
+                                                <option value="zh-TW">${lang.ML_03}</option>
+                                                <option value="zh-CN">${lang.ML_04}</option>
+                                                <option value="ja">${lang.ML_05}</option>
+                                            </select>
+                                            <button id="readsettings" class="button-options" disabled>${lang.MB_01}</button>
+                                            <span class="button-space"></span>
+                                            <button id="closure" class="button-options">${lang.MB_02}</button>
+                                            <span class="button-space"></span>
+                                            <button id="application" class="button-options">${lang.MB_03}</button>
+                                        </td>
+                                    </tr>
+                                </table>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        `;
+        $(document.body).append(menu);
+        $(".modal-interface").draggable({
+            cursor: "grabbing",
+        });
+        $(".modal-interface").tabs();
+        const UnitOptions = `
+            <select class="Image-input-settings" style="margin-left: 1rem;">
+                <option value="px" selected>px</option>
+                <option value="%">%</option>
+                <option value="rem">rem</option>
+                <option value="vh">vh</option>
+                <option value="vw">vw</option>
+                <option value="auto">auto</option>
+            </select>
+        `;
+        const Menu_Requ = {
+            Menu_Close: () => {
+                $(".modal-background")?.off();
+                $(".modal-background")?.remove();
+            },
+            Menu_Save: () => {
+                const menu_interface = $(".modal-interface");
+                const top = menu_interface.css("top");
+                const left = menu_interface.css("left");
+                Syn.Store("s", DLL.SaveKey.Menu, {
+                    Top: top,
+                    Left: left,
+                });
+                DLL.Style_Pointer.Top(top);
+                DLL.Style_Pointer.Left(left);
+            },
+            Img_Save: () => {
+                img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+                    if (img_select.val() == "auto") {
+                        set_value = "auto";
+                    } else if (img_input.val() == "") {
+                        set_value = read;
+                    } else {
+                        set_value = `${img_input.val()}${img_select.val()}`;
+                    }
+                    save_cache[img_input.attr("id")] = set_value;
+                });
+                Syn.Store("s", DLL.SaveKey.Img, save_cache);
+            },
+            ImageSettings: async () => {
+                $on(".Image-input-settings", "input change", function (event) {
+                    event.stopPropagation();
+                    const target = $(this),
+                        value = target.val(),
+                        id = target.attr("id");
+                    parent = target.closest("div");
+                    if (isNaN(value)) {
+                        child = parent.find("input");
+                        if (value === "auto") {
+                            child.prop("disabled", true);
+                            DLL.Style_Pointer[child.attr("id")](value);
+                        } else {
+                            child.prop("disabled", false);
+                            DLL.Style_Pointer[child.attr("id")](`${child.val()}${value}`);
+                        }
+                    } else {
+                        child = parent.find("select");
+                        DLL.Style_Pointer[id](`${value}${child.val()}`);
+                    }
+                });
+            },
+        };
+        $("#language").val(log ?? "en-US");
+        $on("#language", "input change", function (event) {
+            event.stopPropagation();
+            $("#language").off("input change");
+            const value = $(this).val();
+            Syn.Store("s", DLL.SaveKey.Lang, value);
+            Menu_Requ.Menu_Save();
+            Menu_Requ.Menu_Close();
+            MenuTrigger(DLL.Language().lang);
+            Create_Menu();
+        });
+        $on(".modal-interface", "click", function (event) {
+            const id = $(event.target).attr("id");
+            if (id == "image-settings") {
+                img_set = $("#image-settings-show");
+                if (img_set.css("opacity") === "0") {
+                    img_set.find("p").each(function () {
+                        $(this).append(UnitOptions);
+                    });
+                    img_set.css({
+                        height: "auto",
+                        width: "auto",
+                        opacity: 1,
+                    });
+                    $("#readsettings").prop("disabled", false);
+                    Menu_Requ.ImageSettings();
+                }
+            } else if (id == "readsettings") {
+                img_set = $("#image-settings-show").find("p");
+                img_data.forEach((read, index) => {
+                    img_input = img_set.eq(index).find("input");
+                    img_select = img_set.eq(index).find("select");
+                    if (read == "auto") {
+                        img_input.prop("disabled", true);
+                        img_select.val(read);
+                    } else {
+                        analyze = read.match(/^(\d+)(\D+)$/);
+                        img_input.val(analyze[1]);
+                        img_select.val(analyze[2]);
+                    }
+                });
+            } else if (id == "application") {
+                Menu_Requ.Img_Save();
+                Menu_Requ.Menu_Save();
+                Menu_Requ.Menu_Close();
+            } else if (id == "closure") {
+                Menu_Requ.Menu_Close();
+            }
+        });
     }
 })();
