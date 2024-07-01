@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/06/30
+// @version      2024/07/01
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -842,8 +842,8 @@ const Syn = (()=> {
          */
         StoreListen: async(object, callback)=> {
             object.forEach(label => {
-                if (!this.Mark[label]) {
-                    this.Mark[label] = true;
+                if (!Mark[label]) {
+                    Mark[label] = true;
                     GM_addValueChangeListener(label, function(key, old_value, new_value, remote) {
                         callback({key, ov: old_value, nv: new_value, far: remote});
                     })
