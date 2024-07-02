@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta
+// @version      0.0.49-Beta1
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -36,19 +36,13 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1403241/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
 // @resource     loading https://cdnjs.cloudflare.com/ajax/libs/lightbox2/2.11.3/images/loading.gif
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
-
-/**
- * 等待修正
- * 
- * 藝術家修復 監聽 多次創建
- */
 
 (async function () {
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
@@ -682,7 +676,7 @@
                         URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
                         ParseModify: async function (father, content) { // 解析後轉換網址
                             if (this.Exclusion_F.test(content)) return;
-    
+
                             father.innerHTML = content.replace(this.URL_F, url => {
                                 const decode = decodeURIComponent(url).trim();
                                 return `<a href="${decode.replace(this.Protocol_F, "https://")}">${decode}</a>`;
@@ -709,10 +703,10 @@
                                 Config.newtab_active ?? false,
                                 Config.newtab_insert ?? false,
                             ];
-    
+
                             Syn.Listen(root, "click", event => {
                                 const target = event.target.closest("a:not(.fileThumb)");
-    
+
                                 target && (
                                     event.preventDefault(),
                                     !Newtab
@@ -725,6 +719,179 @@
                 };
                 return this.TextToLink_Cache;
             },
+            FixArtist_Cache: undefined,
+            FixArtist_Dependent: function () {
+                if (!this.FixArtist_Cache) {
+                    const Fix_Requ = { // 宣告修復需要的函數
+                        Record_Cache: undefined, // 讀取修復紀錄 用於緩存
+                        Fix_Cache: new Map(), // 修復後 用於緩存
+                        Get_Record: () => Syn.Storage("fix_record_v2", { type: localStorage, error: new Map() }),
+                        Save_Record: async function (save) {
+                            await Syn.Storage("fix_record_v2",
+                                {
+                                    type: localStorage,
+                                    value: new Map([...this.Get_Record(), ...save]) // 取得完整數據並合併
+                                }
+                            );
+                            this.Fix_Cache.clear();
+                        },
+                        Save_Work: (() => Syn.Debounce(() => Fix_Requ.Save_Record(Fix_Requ.Fix_Cache), 1000))(),
+                        Fix_Name_Support: new Set(["pixiv", "fanbox"]),
+                        Fix_Tag_Support: {
+                            ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
+                            Patreon: "https://www.patreon.com/user?u={id}",
+                            Fantia: "https://fantia.jp/fanclubs/{id}/posts",
+                            Pixiv: "https://www.pixiv.net/users/{id}/artworks",
+                            Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
+
+                            NAME: /Fansly|OnlyFans/gi,
+                            OnlyFans: "https://onlyfans.com/{name}",
+                            Fansly: "https://fansly.com/{name}/posts",
+                        },
+                        Fix_Request: async function (url, headers={}) { // 請求修復數據
+                            return new Promise(resolve => {
+                                GM_xmlhttpRequest({
+                                    method: "GET",
+                                    url: url,
+                                    headers: headers,
+                                    onload: response => resolve(response),
+                                    onerror: () => resolve(),
+                                    ontimeout: () => resolve()
+                                })
+                            });
+                        },
+                        Get_Pixiv_Name: async function (id) { // 取得 Pixiv 名稱
+                            const response = await this.Fix_Request(
+                                `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`, {referer: "https://www.pixiv.net/"}
+                            );
+                            if (response.status === 200) {
+                                const user = JSON.parse(response.responseText);
+                                let user_name = user.body.name;
+                                user_name = user_name.replace(/(c\d+)?([日月火水木金土]曜日?|[123１２３一二三]日目?)[東南西北]..?\d+\w?/i, '');
+                                user_name = user_name.replace(/[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi, '');
+                                user_name = user_name.replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, '').trim();
+                                return user_name;
+                            } else return;
+                        },
+                        Fix_Url: function (url) { // 連結網址修復
+                            url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
+                            url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")); // 排除不必要字串
+                            return url.length >= 3 ? [url[0], url[2]] : url;
+                        },
+                        Fix_Update_Ui: async function (href, id, name_onj, tag_obj, text) { // 修復後更新 UI
+                            /* 創建編輯按鈕 */
+                            const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
+                            name_onj.parentNode.insertBefore(edit, name_onj);
+                            name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
+
+                            /* 取得支援修復的正則 */
+                            const [tag_text, support_id, support_name] = [
+                                tag_obj.textContent,
+                                this.Fix_Tag_Support.ID,
+                                this.Fix_Tag_Support.NAME
+                            ];
+
+                            if (support_id.test(tag_text)) {
+                                tag_obj.innerHTML = tag_text.replace(support_id, tag => {
+                                    return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace("{id}", id)}">${tag}</fix_tag>`;
+                                });
+                            } else if (support_name.test(tag_text)) {
+                                tag_obj.innerHTML = tag_text.replace(support_name, tag => {
+                                    return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace("{name}", id)}">${tag}</fix_tag>`;
+                                });
+                            }
+                        },
+                        Fix_Trigger: async function (object) { // 觸發修復
+                            const {Url, TailId, Website, NameObject, TagObject} = object;
+
+                            let Record = this.Record_Cache.get(TailId); // 從緩存 使用尾部 ID 取出對應紀錄
+
+                            if (Record) {
+                                this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                            } else {
+                                if (this.Fix_Name_Support.has(Website)) {
+                                    Record = await this.Get_Pixiv_Name(TailId) ?? NameObject.textContent;
+                                    this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                                    this.Fix_Cache.set(TailId, Record); // 添加數據
+                                    this.Save_Work(); // 呼叫保存工作
+                                } else {
+                                    Record = NameObject.textContent;
+                                    this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
+                                }
+                            }
+                        },
+                        /* ===== 前置處理觸發 ===== */
+                        Search_Fix: async function (items) { // 針對 搜尋頁, 那種有許多用戶卡的
+                            items.setAttribute("fix", true); // 添加修復標籤
+
+                            const url = items.href;
+                            const img = Syn.$$("img", {root: items});
+                            const parse = this.Fix_Url(url);
+
+                            img.setAttribute("jump", url); // 圖片設置跳轉連結
+                            items.removeAttribute("href"); // 刪除原始跳轉連結
+                            img.removeAttribute("src"); // 刪除圖片跳轉連結
+
+                            this.Fix_Trigger({
+                                Url: url, // 跳轉連結
+                                TailId: parse[1], // 尾部 id 標號
+                                Website: parse[0], // 網站
+                                NameObject: Syn.$$(".user-card__name", {root: items}), // 名稱物件
+                                TagObject: Syn.$$(".user-card__service", {root: items}) // 標籤物件
+                            });
+                        },
+                        Other_Fix: async function (artist, tag="", href=null, reTag="<fix_view>") { // 針對其餘頁面的修復
+                            try {
+                                const parent = artist.parentNode;
+                                const url = href ?? parent.href;
+                                const parse = this.Fix_Url(url);
+
+                                await this.Fix_Trigger({
+                                    Url: url,
+                                    TailId: parse[1],
+                                    Website: parse[0],
+                                    NameObject: artist,
+                                    TagObject: tag
+                                });
+
+                                $(parent).replaceWith(function() {
+                                    return $(reTag, { html: $(this).html()})
+                                });
+                            } catch {/* 防止動態監聽進行二次操作時的錯誤 (因為 DOM 已經被修改) */}
+                        },
+                        Dynamic_Fix: async function (Listen, Operat,  Config=null) {
+                            let observer, options;
+                            Syn.Observer(Listen, ()=> {
+                                this.Record_Cache = this.Get_Record(); // 觸發時重新抓取
+                                const wait = setInterval(()=> { // 為了確保找到 Operat 元素
+                                    const operat = typeof Operat === "string" ? Syn.$$(Operat) : Operat;
+                                    if (operat) {
+                                        clearInterval(wait);
+                                        switch (Config) {
+                                            case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
+                                                this.Other_Fix(operat);
+                                                setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
+                                                    observer.disconnect();
+                                                    observer.observe(Listen.children[0], options);
+                                                }, 300);
+                                                break;
+                                            default: // 針對搜尋頁的動態監聽
+                                                for (const items of Syn.$$("a", {all: true, root: operat})) {
+                                                    !items.getAttribute("fix") && this.Search_Fix(items); // 沒有修復標籤的才修復
+                                                }
+                                        }
+                                    }
+                                })
+                            }, {subtree: false}, back => {
+                                observer = back.ob;
+                                options = back.op;
+                            });
+                        }
+                    }
+                    this.FixArtist_Cache = Fix_Requ;
+                };
+                return this.FixArtist_Cache;
+            }
         }
 
         return {
@@ -812,173 +979,7 @@
             },
             FixArtist: async (Config) => { /* 修復藝術家名稱 */
                 DLL.Style.Global(); // 導入 Global 頁面樣式
-
-                let Record_Cache = null; // 讀取修復紀錄 用於緩存
-                const Fix_Cache = new Map(); // 修復後 用於緩存
-                const Fix_Requ = { // 宣告修復需要的函數
-                    Get_Record: () => Syn.Storage("fix_record_v2", { type: localStorage, error: new Map() }),
-                    Save_Record: async function (save) {
-                        await Syn.Storage("fix_record_v2",
-                            {
-                                type: localStorage,
-                                value: new Map([...this.Get_Record(), ...save]) // 取得完整數據並合併
-                            }
-                        );
-                        Fix_Cache.clear();
-                    },
-                    Save_Work: (() => Syn.Debounce(() => Fix_Requ.Save_Record(Fix_Cache), 1000))(),
-                    Fix_Name_Support: new Set(["pixiv", "fanbox"]),
-                    Fix_Tag_Support: {
-                        ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
-                        Patreon: "https://www.patreon.com/user?u={id}",
-                        Fantia: "https://fantia.jp/fanclubs/{id}/posts",
-                        Pixiv: "https://www.pixiv.net/users/{id}/artworks",
-                        Fanbox: "https://www.pixiv.net/fanbox/creator/{id}",
-
-                        NAME: /Fansly|OnlyFans/gi,
-                        OnlyFans: "https://onlyfans.com/{name}",
-                        Fansly: "https://fansly.com/{name}/posts",
-                    },
-                    Fix_Request: async function (url, headers={}) { // 請求修復數據
-                        return new Promise(resolve => {
-                            GM_xmlhttpRequest({
-                                method: "GET",
-                                url: url,
-                                headers: headers,
-                                onload: response => resolve(response),
-                                onerror: () => resolve(),
-                                ontimeout: () => resolve()
-                            })
-                        });
-                    },
-                    Get_Pixiv_Name: async function (id) { // 取得 Pixiv 名稱
-                        const response = await this.Fix_Request(
-                            `https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`, {referer: "https://www.pixiv.net/"}
-                        );
-                        if (response.status === 200) {
-                            const user = JSON.parse(response.responseText);
-                            let user_name = user.body.name;
-                            user_name = user_name.replace(/(c\d+)?([日月火水木金土]曜日?|[123１２３一二三]日目?)[東南西北]..?\d+\w?/i, '');
-                            user_name = user_name.replace(/[@＠]?(fanbox|fantia|skeb|ファンボ|リクエスト|お?仕事|新刊|単行本|同人誌)+(.*(更新|募集|公開|開設|開始|発売|販売|委託|休止|停止)+中?[!！]?$|$)/gi, '');
-                            user_name = user_name.replace(/\(\)|（）|「」|【】|[@＠_＿]+$/g, '').trim();
-                            return user_name;
-                        } else return;
-                    },
-                    Fix_Url: function (url) { // 連結網址修復
-                        url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/); // 匹配出三段類型, 或兩段類型的格式
-                        url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, "")); // 排除不必要字串
-                        return url.length >= 3 ? [url[0], url[2]] : url;
-                    },
-                    Fix_Update_Ui: async function (href, id, name_onj, tag_obj, text) { // 修復後更新 UI
-                        /* 創建編輯按鈕 */
-                        const edit = GM_addElement("fix_edit", { id: id, class: "edit_artist", textContent: "Edit" });
-                        name_onj.parentNode.insertBefore(edit, name_onj);
-                        name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
-
-                        /* 取得支援修復的正則 */
-                        const [tag_text, support_id, support_name] = [
-                            tag_obj.textContent,
-                            this.Fix_Tag_Support.ID,
-                            this.Fix_Tag_Support.NAME
-                        ];
-
-                        if (support_id.test(tag_text)) {
-                            tag_obj.innerHTML = tag_text.replace(support_id, tag => {
-                                return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace("{id}", id)}">${tag}</fix_tag>`;
-                            });
-                        } else if (support_name.test(tag_text)) {
-                            tag_obj.innerHTML = tag_text.replace(support_name, tag => {
-                                return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace("{name}", id)}">${tag}</fix_tag>`;
-                            });
-                        }
-                    },
-                    Fix_Trigger: async function (object) { // 觸發修復
-                        const {Url, TailId, Website, NameObject, TagObject} = object;
-
-                        let Record = Record_Cache.get(TailId); // 從緩存 使用尾部 ID 取出對應紀錄
-
-                        if (Record) {
-                            this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
-                        } else {
-                            if (this.Fix_Name_Support.has(Website)) {
-                                Record = await this.Get_Pixiv_Name(TailId) ?? NameObject.textContent;
-                                this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
-                                Fix_Cache.set(TailId, Record); // 添加數據
-                                this.Save_Work(); // 呼叫保存工作
-                            } else {
-                                Record = NameObject.textContent;
-                                this.Fix_Update_Ui(Url, TailId, NameObject, TagObject, Record);
-                            }
-                        }
-                    },
-                    /* ===== 前置處理觸發 ===== */
-                    Search_Fix: async function (items) { // 針對 搜尋頁, 那種有許多用戶卡的
-                        items.setAttribute("fix", true); // 添加修復標籤
-
-                        const url = items.href;
-                        const img = Syn.$$("img", {root: items});
-                        const parse = this.Fix_Url(url);
-
-                        img.setAttribute("jump", url); // 圖片設置跳轉連結
-                        items.removeAttribute("href"); // 刪除原始跳轉連結
-                        img.removeAttribute("src"); // 刪除圖片跳轉連結
-
-                        this.Fix_Trigger({
-                            Url: url, // 跳轉連結
-                            TailId: parse[1], // 尾部 id 標號
-                            Website: parse[0], // 網站
-                            NameObject: Syn.$$(".user-card__name", {root: items}), // 名稱物件
-                            TagObject: Syn.$$(".user-card__service", {root: items}) // 標籤物件
-                        });
-                    },
-                    Other_Fix: async function (artist, tag="", href=null, reTag="<fix_view>") { // 針對其餘頁面的修復
-                        try {
-                            const parent = artist.parentNode;
-                            const url = href ?? parent.href;
-                            const parse = this.Fix_Url(url);
-
-                            await this.Fix_Trigger({
-                                Url: url,
-                                TailId: parse[1],
-                                Website: parse[0],
-                                NameObject: artist,
-                                TagObject: tag
-                            });
-
-                            $(parent).replaceWith(function() {
-                                return $(reTag, { html: $(this).html()})
-                            });
-                        } catch {/* 防止動態監聽進行二次操作時的錯誤 (因為 DOM 已經被修改) */}
-                    },
-                    Dynamic_Fix: async function (Listen, Operat,  Config=null) {
-                        let observer, options;
-                        Syn.Observer(Listen, ()=> {
-                            Record_Cache = this.Get_Record(); // 觸發時重新抓取
-                            const wait = setInterval(()=> { // 為了確保找到 Operat 元素
-                                const operat = typeof Operat === "string" ? Syn.$$(Operat) : Operat;
-                                if (operat) {
-                                    clearInterval(wait);
-                                    switch (Config) {
-                                        case 1: // 針對 QuickPostToggle 的動態監聽 (也可以直接在 QuickPost 寫初始化呼叫)
-                                            this.Other_Fix(operat);
-                                            setTimeout(()=> { // 修復後延遲一下, 斷開原先觀察對象, 設置為子元素, 原因是因為 react 渲染造成 dom 的修改, 需重新設置
-                                                observer.disconnect();
-                                                observer.observe(Listen.children[0], options);
-                                            }, 300);
-                                            break;
-                                        default: // 針對搜尋頁的動態監聽
-                                            for (const items of Syn.$$("a", {all: true, root: operat})) {
-                                                !items.getAttribute("fix") && this.Search_Fix(items); // 沒有修復標籤的才修復
-                                            }
-                                    }
-                                }
-                            })
-                        }, {subtree: false}, back => {
-                            observer = back.ob;
-                            options = back.op;
-                        });
-                    }
-                }
+                const Func = LoadFunc.FixArtist_Dependent();
 
                 // 監聽點擊事件
                 const [Device, Newtab, Active, Insert] = [
@@ -988,7 +989,7 @@
                     Config.newtab_insert ?? false,
                 ];
 
-                Syn.Listen(document.body, "click", event=> {
+                Syn.AddListener(document.body, "click", event=> {
                     const target = event.target;
 
                     if (target.matches("fix_edit")) {
@@ -1010,7 +1011,7 @@
                                     const change_name = text.value.trim();
                                     if (change_name != original_name) {
                                         display.textContent = change_name; // 修改顯示名
-                                        Fix_Requ.Save_Record(new Map([[target.id, change_name]])); // 保存修改名
+                                        Func.Save_Record(new Map([[target.id, change_name]])); // 保存修改名
                                     }
                                     text.remove();
                                 }, { once: true, passive: true });
@@ -1026,23 +1027,23 @@
                             location.assign(jump);
                         }
                     }
-                }, { capture: true, passive: true });
+                }, { capture: true, passive: true, mark: "FixArtist" });
 
-                Record_Cache = Fix_Requ.Get_Record(); // 讀取修復 數據到緩存
+                Func.Record_Cache = Func.Get_Record(); // 讀取修復 數據到緩存
                 // 搜尋頁面, 與一些特殊預覽頁
                 if (DLL.IsSearch) {
                     const card_items = Syn.$$(".card-list__items");
 
                     if (DLL.Link.test(Url)) {
                         const artist = Syn.$$("span[itemprop='name']");
-                        artist && Fix_Requ.Other_Fix(artist); // 預覽頁的 名稱修復
+                        artist && Func.Other_Fix(artist); // 預覽頁的 名稱修復
 
                         for (const items of Syn.$$("a", {all: true, root: card_items})) { // 針對 links 頁面的 card
-                            Fix_Requ.Search_Fix(items);
+                            Func.Search_Fix(items);
                         }
-                        Url.endsWith("new") && Fix_Requ.Dynamic_Fix(card_items, card_items); // 針對 links/new 頁面的 card
+                        Url.endsWith("new") && Func.Dynamic_Fix(card_items, card_items); // 針對 links/new 頁面的 card
                     } else { //! 還需要測試
-                        Fix_Requ.Dynamic_Fix(card_items, card_items);
+                        Func.Dynamic_Fix(card_items, card_items);
                         GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
                     }
 
@@ -1051,25 +1052,25 @@
                         Syn.$$(".post__user-name"),
                         Syn.$$("h1 span:nth-child(2)")
                     ];
-                    Fix_Requ.Other_Fix(artist, title, artist.href, "<fix_cont>");
+                    Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
 
                 } else { // 預覽頁面
                     const artist = Syn.$$("span[itemprop='name']");
                     if(artist) {
-                        Fix_Requ.Other_Fix(artist);
+                        Func.Other_Fix(artist);
 
                         if (User_Config.Preview.QuickPostToggle.enable) { // 啟用該功能才需要動態監聽
                             setTimeout(()=> {
-                                Fix_Requ.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
+                                Func.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
                             }, 300);
                         }
                     }
                 }
             },
             BackToTop: async (Config) => { /* 翻頁後回到頂部 */
-                Syn.Listen(document.body, "pointerup", event=> {
+                Syn.AddListener(document.body, "pointerup", event=> {
                     event.target.closest("#paginator-bottom") && Syn.$$("#paginator-top").scrollIntoView();
-                }, { capture: true, passive: true });
+                }, { capture: true, passive: true, mark: "BackToTop" });
             },
             KeyScroll: async (Config) => { /* 快捷自動滾動 */
                 if (Syn.Device.Type() === "Mobile") return;
@@ -1163,7 +1164,7 @@
                     Config.newtab_insert ?? false,
                 ];
 
-                Syn.Listen(document.body, "click", event => {
+                Syn.AddListener(document.body, "click", event => {
                     const target = event.target.closest("article a");
 
                     target && (
@@ -1172,16 +1173,16 @@
                             ? location.assign(target.href)
                             : GM_openInTab(target.href, { active: Active, insert: Insert })
                     );
-                }, {capture: true});
+                }, {capture: true, mark: "NewTabOpens"});
             },
             QuickPostToggle: async (Config) => { /* 預覽換頁 快速切換 */
                 DLL.Style.Preview(); // 導入 Preview 頁面樣式
 
                 // 監聽觸發 獲取下一頁數據
-                Syn.Listen(document.body, "click", event => {
+                Syn.AddListener(document.body, "click", event => {
                     const target = event.target.closest("menu a");
                     target && (event.preventDefault(), GetNextPage(target.href));
-                }, {capture: true});
+                }, {capture: true, mark: "QuickPostToggle"});
 
                 async function GetNextPage(link) {
                     const old_section = Syn.$$("section"); // 獲取當前頁面的 section
@@ -1446,7 +1447,7 @@
                     /**
                      * 這邊的邏輯, 因為是有延遲運行, 如果還在運行當中,
                      * 頁面被 ExtraButton 的功能進行換頁, 就會出現報錯, 但我懶的處理
-                     * 
+                     *
                      * 另外這邊不使用 LoadFunc 懶加載的方式, 也是因為當 ExtraButton 換頁, 先前的函數還沒運行完成
                      * 再次添加新的數據, 會有各種神奇的錯誤, 所以只能每次重新宣告
                      */
@@ -1497,7 +1498,7 @@
                             thumbnail.forEach((object, index) => {
                                 setTimeout(()=> {
                                     object.removeAttribute("class");
-                                    a = Syn.$$("a", {root: object});
+                                    const a = Syn.$$("a", {root: object});
                                     ReactDOM.render(React.createElement(this.ImgRendering, { ID: `IMG-${index}`, href: a }), object);
                                 }, index * 300);
                             });
@@ -1507,8 +1508,8 @@
                             const object = thumbnail[index];
                             object.removeAttribute("class");
 
-                            a = Syn.$$("a", {root: object});
-                            img = Syn.$$("img", {root: a});
+                            const a = Syn.$$("a", {root: object});
+                            const img = Syn.$$("img", {root: a});
 
                             Object.assign(img, {
                                 className: "Image-loading-indicator Image-style",
@@ -1527,7 +1528,7 @@
                         },
                         ObserveTrigger: function() { // mode 3 (觀察觸發)
                             this.FailedClick();
-                            const observer = new IntersectionObserver(observed => {
+                            return new IntersectionObserver(observed => {
                                 observed.forEach(entry => {
                                     if (entry.isIntersecting) {
                                         const object = entry.target;
@@ -1537,17 +1538,17 @@
                                     }
                                 });
                             }, { threshold: 0.3 });
-                            return observer;
                         }
                     };
 
                     /* 模式選擇 */
+                    let observer;
                     switch (Config.mode) {
                         case 2:
                             Origina_Requ.SlowAuto(0);
                             break;
                         case 3:
-                            const observer = Origina_Requ.ObserveTrigger();
+                            observer = Origina_Requ.ObserveTrigger();
                             thumbnail.forEach((object, index) => {
                                 object.alt = `IMG-${index}`;
                                 observer.observe(object);
