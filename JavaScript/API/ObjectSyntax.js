@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/07/01
+// @version      2024/07/03
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -190,7 +190,7 @@ const Syn = (()=> {
         },
 
         /**
-         * * { 簡化版監聽器 (不可刪除, 且不檢測是否重複添加, 但會回傳註冊狀態) }
+         * * { 簡化版監聽器 (不可刪除, 不檢測是否重複添加, 但可回傳註冊狀態) }
          * @param {string} element - 添加元素
          * @param {string} type    - 監聽器類型
          * @param {*} listener     - 監聽後操作
@@ -218,11 +218,20 @@ const Syn = (()=> {
         },
 
         /**
-         * * { 添加監聽器 (可刪除, 且會檢測是否重複添加) }
+         * * { 添加監聽器 (可刪除, element 和 type 不能有完全重複的, 將會被排除) }
          * @param {string} element - 添加元素
          * @param {string} type    - 監聽器類型
          * @param {*} listener     - 監聽後操作
          * @param {object} add     - 附加功能
+         *
+         * @example
+         * 可附加的 add 選項
+         * {
+         *   once: true,
+         *   passive: true,
+         *   capture: true,
+         *   mark: "自訂檢測 key" (預設是由 element 作為 key)
+         * }
          */
         AddListener: async(
             element,
@@ -230,20 +239,24 @@ const Syn = (()=> {
             listener,
             add={}
         )=> {
-            const Listener = ListenerRecord.get(element);
-            if (!Listener || !Listener?.has(type)) {
-                element.addEventListener(type, listener, add);
-                if (!Listener) {
-                    ListenerRecord.set(element, new Map());
-                }
-                ListenerRecord.get(element).set(type, listener);
-            }
+            const { mark, ...options } = add;
+            const key = mark ?? element;
+            const Record = ListenerRecord.get(key);
+
+            if (Record?.has(type)) return;
+            element.addEventListener(type, listener, options);
+
+            if (!Record) ListenerRecord.set(key, new Map());
+            ListenerRecord.get(key).set(type, listener);
         },
 
         /**
          * * { 刪除 監聽器 }
          * @param {string} element - 添加元素
          * @param {string} type    - 監聽器類型
+         * 
+         * @example
+         * RemovListener("監聽的物件" or "自訂 key", "監聽的類型")
          */
         RemovListener: (element, type)=> {
             const Listen = ListenerRecord.get(element)?.get(type);
