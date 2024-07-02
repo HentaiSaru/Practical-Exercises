@@ -44,6 +44,12 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
 
+/**
+ * 等待修正
+ * 
+ * 藝術家修復 監聽 多次創建
+ */
+
 (async function () {
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
@@ -602,20 +608,20 @@
         };
         // 懶加載函數
         const LoadFunc = {
-            global_cache: undefined,
-            preview_cache: undefined,
-            content_cache: undefined,
+            Global_Cache: undefined,
+            Preview_Cache: undefined,
+            Content_Cache: undefined,
             Global: function() {
-                if (!this.global_cache) this.global_cache = Global_Function();
-                return this.global_cache;
+                if (!this.Global_Cache) this.Global_Cache = Global_Function();
+                return this.Global_Cache;
             },
             Preview: function() {
-                if (!this.preview_cache) this.preview_cache = Preview_Function();
-                return this.preview_cache;
+                if (!this.Preview_Cache) this.Preview_Cache = Preview_Function();
+                return this.Preview_Cache;
             },
             Content: function() {
-                if (!this.content_cache) this.content_cache = Content_Function();
-                return this.content_cache;
+                if (!this.Content_Cache) this.Content_Cache = Content_Function();
+                return this.Content_Cache;
             }
         };
         // 用於 Extra 翻頁後初始化
@@ -629,15 +635,16 @@
         };
 
         // 解析配置調用對應功能
+        let Ord;
         async function Call(page, config=User_Config[page]) {
             const func = LoadFunc[page](); // 載入對應函數
 
-            for (const ord of Order[page]) { // 避免空值時, 解構出現例外, 給予其預設值
-                const {enable, mode, ...other} = config[ord] ?? {};
+            for (Ord of Order[page]) { // 避免空值時, 解構出現例外, 給予其預設值
+                const {enable, mode, ...other} = config[Ord] ?? {};
 
                 if (Validate(enable, mode)) {
                     // 將模式與, 可能有的其他選項, 作為 Config 傳遞
-                    func[ord]?.({mode, ...other});
+                    func[Ord]?.({mode, ...other});
                 }
             }
         }
@@ -665,6 +672,61 @@
 
     /* ==================== 全域功能 ==================== */
     function Global_Function() {
+        const LoadFunc = {
+            TextToLink_Cache: undefined,
+            TextToLink_Dependent: function (Config) {
+                if (!this.TextToLink_Cache) {
+                    this.TextToLink_Cache = {
+                        Protocol_F: /^(?!https?:\/\/)/,
+                        Exclusion_F: /onfanbokkusuokibalab\.net/,
+                        URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
+                        ParseModify: async function (father, content) { // 解析後轉換網址
+                            if (this.Exclusion_F.test(content)) return;
+    
+                            father.innerHTML = content.replace(this.URL_F, url => {
+                                const decode = decodeURIComponent(url).trim();
+                                return `<a href="${decode.replace(this.Protocol_F, "https://")}">${decode}</a>`;
+                            });
+                        },
+                        Process: async function(pre) { // 處理只有 pre
+                            const Text = pre.textContent;
+                            this.URL_F.test(Text) && this.ParseModify(pre, Text);
+                        },
+                        Multiprocessing: async function(root) { // 處理有 p 和 a 的狀況
+                            for (const p of Syn.$$("p", {all: true, root: root})) {
+                                const Text = p.textContent;
+                                this.URL_F.test(Text) && this.ParseModify(p, Text);
+                            }
+
+                            let a; // 先宣告在運行, 速度會更快
+                            for (a of Syn.$$("a", {all: true, root: root})) {
+                                !a.href && this.ParseModify(a, a.textContent);
+                            }
+                        },
+                        JumpTrigger: async (root) => { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
+                            const [Newtab, Active, Insert] = [
+                                Config.newtab ?? true,
+                                Config.newtab_active ?? false,
+                                Config.newtab_insert ?? false,
+                            ];
+    
+                            Syn.Listen(root, "click", event => {
+                                const target = event.target.closest("a:not(.fileThumb)");
+    
+                                target && (
+                                    event.preventDefault(),
+                                    !Newtab
+                                        ? location.assign(target.href)
+                                        : GM_openInTab(target.href, { active: Active, insert: Insert })
+                                );
+                            }, {capture: true});
+                        }
+                    }
+                };
+                return this.TextToLink_Cache;
+            },
+        }
+
         return {
             SidebarCollapse: async (Config) => { /* 收縮側邊攔 */
                 if (Syn.Device.Type() === "Mobile") return;
@@ -711,57 +773,11 @@
             TextToLink: async (Config) => { /* 連結文本轉連結 */
                 if (!DLL.IsContent && !DLL.IsAnnouncement) return;
 
-                let Text;
-
-                const TextToLink_Requ = { // 轉換連結需要的函數
-                    Protocol_F: /^(?!https?:\/\/)/,
-                    Exclusion_F: /onfanbokkusuokibalab\.net/,
-                    URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
-                    ParseModify: async function (father, content) { // 解析後轉換網址
-                        if (this.Exclusion_F.test(content)) return;
-
-                        father.innerHTML = content.replace(this.URL_F, url => {
-                            const decode = decodeURIComponent(url).trim();
-                            return `<a href="${decode.replace(this.Protocol_F, "https://")}">${decode}</a>`;
-                        });
-                    },
-                    Process: async function(pre) { // 處理只有 pre
-                        Text = pre.textContent;
-                        this.URL_F.test(Text) && this.ParseModify(pre, Text);
-                    },
-                    Multiprocessing: async function(root) { // 處理有 p 和 a 的狀況
-                        for (const p of Syn.$$("p", {all: true, root: root})) {
-                            Text = p.textContent;
-                            this.URL_F.test(Text) && this.ParseModify(p, Text);
-                        }
-
-                        for (const a of Syn.$$("a", {all: true, root: root})) {
-                            !a.href && this.ParseModify(a, a.textContent);
-                        }
-                    },
-                    JumpTrigger: async (root) => { // 將該區塊的所有 a 觸發跳轉, 改成開新分頁
-                        const [Newtab, Active, Insert] = [
-                            Config.newtab ?? true,
-                            Config.newtab_active ?? false,
-                            Config.newtab_insert ?? false,
-                        ];
-
-                        Syn.Listen(root, "click", event => {
-                            const target = event.target.closest("a:not(.fileThumb)");
-
-                            target && (
-                                event.preventDefault(),
-                                !Newtab
-                                    ? location.assign(target.href)
-                                    : GM_openInTab(target.href, { active: Active, insert: Insert })
-                            );
-                        }, {capture: true});
-                    }
-                }
+                const Func = LoadFunc.TextToLink_Dependent(Config);
 
                 if (DLL.IsContent) {
                     Syn.WaitElem("div.post__body", body => {
-                        TextToLink_Requ.JumpTrigger(body);
+                        Func.JumpTrigger(body);
 
                         const [article, content] = [
                             Syn.$$("article", {root: body}),
@@ -769,25 +785,27 @@
                         ];
 
                         if (article) {
-                            for (const span of Syn.$$("span.choice-text", {all: true, root: article})) {
-                                TextToLink_Requ.ParseModify(span, span.textContent);
+                            let span;
+                            for (span of Syn.$$("span.choice-text", {all: true, root: article})) {
+                                Func.ParseModify(span, span.textContent);
                             }
                         } else if (content) {
                             const pre = Syn.$$("pre", {root: content});
                             pre
-                                ? TextToLink_Requ.Process(pre)
-                                : TextToLink_Requ.Multiprocessing(content);
+                                ? Func.Process(pre)
+                                : Func.Multiprocessing(content);
                         }
                     }, {throttle: 600});
 
                 } else if (DLL.IsAnnouncement) {
                     Syn.WaitElem("div.card-list__items pre", content => {
-                        TextToLink_Requ.JumpTrigger(Syn.$$("div.card-list__items"));
+                        Func.JumpTrigger(Syn.$$("div.card-list__items"));
 
-                        for (const pre of content) {
+                        let pre;
+                        for (pre of content) {
                             pre.childNodes.length > 1
-                                ? TextToLink_Requ.Multiprocessing(pre)
-                                : TextToLink_Requ.Process(pre);
+                                ? Func.Multiprocessing(pre)
+                                : Func.Process(pre);
                         }
                     }, {raf: true, all: true});
                 }
@@ -1260,6 +1278,91 @@
 
     /* ==================== 內容頁功能 ==================== */
     function Content_Function() {
+        const LoadFunc = {
+            LinkBeautify_Cache: undefined,
+            LinkBeautify_Dependent: function () {
+                if (!this.LinkBeautify_Cache) {
+                    this.LinkBeautify_Cache = async function ShowBrowse(Browse) {
+                            GM_xmlhttpRequest({
+                                method: "GET",
+                                url: Browse.href,
+                                onload: response => {
+                                    const Main = Syn.$$("main", {root: response.responseXML});
+                                    const View = GM_addElement("View", {class: "View"});
+                                    const Buffer = document.createDocumentFragment();
+                                    for (const br of Syn.$$("br", {all: true, root: Main})) { // 取得 br 數據
+                                        Buffer.append( // 將以下元素都添加到 Buffer
+                                            document.createTextNode(br.previousSibling.textContent.trim()),
+                                            br
+                                        );
+                                    }
+                                    View.appendChild(Buffer);
+                                    Browse.appendChild(View);
+                                },
+                                onerror: error => {ShowBrowse(Browse)}
+                            });
+                        }
+                };
+                return this.LinkBeautify_Cache;
+            },
+            VideoBeautify_Cache: undefined,
+            VideoBeautify_Dependent: function () {
+                if (!this.VideoBeautify_Cache) {
+                    this.VideoBeautify_Cache = function VideoRendering({ stream }) {
+                        return React.createElement("summary", {
+                                className: "video-title"
+                            } , React.createElement("video", {
+                                key: "video",
+                                controls: true,
+                                preload: "auto",
+                                "data-setup": JSON.stringify({}),
+                                className: "post-video",
+                            },
+                            React.createElement("source", {
+                                key: "source",
+                                src: stream.src,
+                                type: stream.type
+                            })
+                        ));
+                    }
+                };
+                return this.VideoBeautify_Cache;
+            },
+            ExtraButton_Cache: undefined,
+            ExtraButton_Dependent: function() {
+                if (!this.ExtraButton_Cache) {
+                    this.ExtraButton_Cache = async function GetNextPage(url, old_main) {
+                        GM_xmlhttpRequest({
+                            method: "GET",
+                            url: url,
+                            nocache: false,
+                            onload: response => {
+                                const New_main = Syn.$$("main", {root: response.responseXML});
+                                ReactDOM.render(React.createElement(DLL.Rendering, { content: New_main.innerHTML }), old_main);
+                                history.pushState(null, null, url);
+                                setTimeout(()=> {
+                                    Enhance.ExtraInitial(); // 重新呼叫增強
+                                    Syn.WaitElem("div.post__content", post=> {
+                                        // 刪除所有只有 br 標籤的元素
+                                        Syn.$$("p", {all: true, root: post}).forEach(p=> {
+                                            p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
+                                        });
+                                        // 刪除所有是圖片連結的 a
+                                        Syn.$$("a", {all: true, root: post}).forEach(a=> {
+                                            /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()
+                                        });
+                                    }, {throttle: 300});
+                                    Syn.$$("h1.post__title").scrollIntoView(); // 滾動到上方
+                                }, 300);
+                            },
+                            onerror: error => {GetNextPage(url, old_main)}
+                        });
+                    }
+                };
+                return this.ExtraButton_Cache;
+            }
+        }
+
         return {
             LinkBeautify: async function (Config) { /* 懸浮於 browse » 標籤時, 直接展示文件, 刪除下載連結前的 download 字樣, 並解析轉換連結 */
                 Syn.AddStyle(`
@@ -1281,26 +1384,7 @@
                     a:hover .View { display: block }
                 `, "Link_Effects", false);
                 Syn.WaitElem("a.post__attachment-link", post => {
-                    async function ShowBrowse(Browse) {
-                        GM_xmlhttpRequest({
-                            method: "GET",
-                            url: Browse.href,
-                            onload: response => {
-                                const Main = Syn.$$("main", {root: response.responseXML});
-                                const View = GM_addElement("View", {class: "View"});
-                                const Buffer = document.createDocumentFragment();
-                                for (const br of Syn.$$("br", {all: true, root: Main})) { // 取得 br 數據
-                                    Buffer.append( // 將以下元素都添加到 Buffer
-                                        document.createTextNode(br.previousSibling.textContent.trim()),
-                                        br
-                                    );
-                                }
-                                View.appendChild(Buffer);
-                                Browse.appendChild(View);
-                            },
-                            onerror: error => {ShowBrowse(Browse)}
-                        });
-                    }
+                    const ShowBrowse = LoadFunc.LinkBeautify_Dependent();
 
                     for (const link of post) {
                         link.setAttribute("download", ""); // 修改標籤字樣
@@ -1322,25 +1406,10 @@
                 `, "Video_Effects", false);
                 Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
                     Syn.WaitElem("a.post__attachment-link", post => {
-                        function VideoRendering({ stream }) {
-                            return React.createElement("summary", {
-                                    className: "video-title"
-                                } , React.createElement("video", {
-                                    key: "video",
-                                    controls: true,
-                                    preload: "auto",
-                                    "data-setup": JSON.stringify({}),
-                                    className: "post-video",
-                                },
-                                React.createElement("source", {
-                                    key: "source",
-                                    src: stream.src,
-                                    type: stream.type
-                                })
-                            ));
-                        }
+                        const VideoRendering = LoadFunc.VideoBeautify_Dependent();
 
-                        for (const li of parents) {
+                        let li;
+                        for (li of parents) {
                             let [node, title, stream] = [
                                 undefined,
                                 Syn.$$("summary", {root: li}),
@@ -1350,7 +1419,8 @@
                             if (!title || !stream) continue;
                             if (title.previousElementSibling) continue; // 排除極端狀況下的重複添加
 
-                            for (const link of post) {
+                            let link;
+                            for (link of post) {
                                 if (link.textContent.includes(title.textContent)) {
                                     switch (Config.mode) {
                                         case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
@@ -1373,6 +1443,13 @@
             OriginalImage: async function (Config) { /* 自動載入原圖 */
                 Syn.WaitElem("div.post__thumbnail", thumbnail => {
 
+                    /**
+                     * 這邊的邏輯, 因為是有延遲運行, 如果還在運行當中,
+                     * 頁面被 ExtraButton 的功能進行換頁, 就會出現報錯, 但我懶的處理
+                     * 
+                     * 另外這邊不使用 LoadFunc 懶加載的方式, 也是因為當 ExtraButton 換頁, 先前的函數還沒運行完成
+                     * 再次添加新的數據, 會有各種神奇的錯誤, 所以只能每次重新宣告
+                     */
                     const Origina_Requ = { // 自動原圖所需
                         Reload: async (Img, Retry) => { // 載入原圖 (死圖重試)
                             if (Retry > 0) {
@@ -1389,8 +1466,8 @@
                             }
                         },
                         FailedClick: async () => {
-                            // 監聽點擊事件 當點擊的是載入失敗的圖片才觸發
-                            Syn.Listen(document.body, "click", event => {
+                            //! 監聽點擊事件 當點擊的是載入失敗的圖片才觸發 (監聽對象 需要測試)
+                            Syn.Listen(Syn.$$("div.post__files"), "click", event => {
                                 const target = event.target.matches(".Image-link img");
                                 if (target && target.alt == "Loading Failed") {
                                     const src = img.src;
@@ -1462,7 +1539,7 @@
                             }, { threshold: 0.3 });
                             return observer;
                         }
-                    }
+                    };
 
                     /* 模式選擇 */
                     switch (Config.mode) {
@@ -1486,36 +1563,9 @@
                     }
                 }, {all: true, throttle: 600});
             },
-            ExtraButton: async function (Config) { /* 下方額外擴充按鈕 */
+            ExtraButton: async function (Config) { /* 下方額外擴充按鈕 (這個該死的功能, 在換頁後會造成其他功能各種 Bug, 浪費我許多時間處理, 真不知道我寫他幹嘛) */
                 DLL.Style.Awesome(); // 導入 Awesome 需求樣式
-
-                async function GetNextPage(url, old_main) {
-                    GM_xmlhttpRequest({
-                        method: "GET",
-                        url: url,
-                        nocache: false,
-                        onload: response => {
-                            const New_main = Syn.$$("main", {root: response.responseXML});
-                            ReactDOM.render(React.createElement(DLL.Rendering, { content: New_main.innerHTML }), old_main);
-                            history.pushState(null, null, url);
-                            setTimeout(()=> {
-                                Enhance.ExtraInitial(); // 重新呼叫增強
-                                Syn.WaitElem("div.post__content", post=> {
-                                    // 刪除所有只有 br 標籤的元素
-                                    Syn.$$("p", {all: true, root: post}).forEach(p=> {
-                                        p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
-                                    });
-                                    // 刪除所有是圖片連結的 a
-                                    Syn.$$("a", {all: true, root: post}).forEach(a=> {
-                                        /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()
-                                    });
-                                }, {throttle: 300});
-                                Syn.$$("h1.post__title").scrollIntoView(); // 滾動到上方
-                            }, 100);
-                        },
-                        onerror: error => {GetNextPage(url, old_main)}
-                    });
-                }
+                const GetNextPage = LoadFunc.ExtraButton_Dependent();
 
                 Syn.WaitElem("h2.site-section__subheading", comments => {
                     const [Prev, Next, Svg, Span, Buffer] = [
