@@ -50,7 +50,7 @@
                 if (remote) { // 來自其他窗口修改
                     clearTimeout(self.Timer);
                     GM_removeValueChangeListener(self.VCL);
-                    self.Display && console.log(`舊 ${self.Record_key} 函數定時器已被清除`);
+                    self.Display && console.log(`舊 ${self.Record_key} 簽到函數定時器已被清除`);
                 }
             });
         };
@@ -71,8 +71,8 @@
             GM_setValue(this.Record_key, waiting_time); // 紀錄時間
 
             if (this.Display) {
-                console.group("設置定時器");
-                console.log(`設定觸發的函數名: ${this.Record_key}`);
+                console.group("設置簽到定時器");
+                console.log(`觸發的簽到函數: ${this.Record_key}`);
                 console.log(this.ShowTime.Get(waiting_time));
                 console.groupEnd();
             }
