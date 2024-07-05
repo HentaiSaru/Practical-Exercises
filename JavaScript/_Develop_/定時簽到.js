@@ -9,6 +9,7 @@
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/10233/10233926.png
 
 // @run-at       document-start
 // @grant        GM_setValue
@@ -22,15 +23,106 @@
     // 不是每個網頁都能這樣檢測
     if (window.opener && window.opener !== window) return;
 
+    const Syn = (()=> {
+        const [
+            day_ms, minute_ms, seconds_ms
+        ] = [
+            (24 * 60 ** 2 * 1e3), (60 ** 2 * 1e3), (60 * 1e3)
+        ];
+
+        // 去抖動
+        function Debounce(func, delay=500) {
+            let timer = null;
+            return (...args) => {
+                clearTimeout(timer);
+                timer = setTimeout(function() {
+                    func(...args);
+                }, delay);
+            }
+        };
+
+        // 等待多元素改 (改成使用 Debounce, 處理 ajex 生成網頁)
+        async function WaitMap(selectors, found, {
+            raf=false,
+            timeout=10,
+            debounce=800,
+            subtree=true,
+            childList=true,
+            attributes=false,
+            characterData=false,
+            timeoutResult=false,
+            object=document.body,
+        }={}) {
+            let timer, elements;
+
+            if (raf) {
+                let AnimationFrame;
+
+                const query = () => {
+                    elements = selectors.map(selector => object.querySelector(selector));
+                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                        cancelAnimationFrame(AnimationFrame);
+                        clearTimeout(timer);
+                        found(elements);
+                    } else {
+                        AnimationFrame = requestAnimationFrame(query);
+                    }
+                };
+
+                AnimationFrame = requestAnimationFrame(query);
+
+                timer = setTimeout(() => {
+                    cancelAnimationFrame(AnimationFrame);
+                    timeoutResult && found(elements);
+                }, (1000 * timeout));
+
+            } else {
+                const observer = new MutationObserver(Debounce(() => {
+                    elements = selectors.map(selector => object.querySelector(selector));
+                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                        observer.disconnect();
+                        clearTimeout(timer);
+                        found(elements);
+                    }
+                }, debounce));
+
+                observer.observe(object, {
+                    subtree: subtree,
+                    childList: childList,
+                    attributes: attributes,
+                    characterData: characterData
+                });
+
+                timer = setTimeout(() => {
+                    observer.disconnect();
+                    timeoutResult && found(elements);
+                }, (1000 * timeout));
+            }
+        };
+
+        return {
+            WaitMap,
+            TimeFormat: (ms) => { // 將 (毫秒) 格式化
+                const [
+                    hour, minute, seconds,
+                ] = [
+                    Math.floor((ms % day_ms) / minute_ms),
+                    Math.floor((ms % minute_ms) / seconds_ms),
+                    Math.floor((ms % seconds_ms) / 1e3)
+                ];
+                return `距離觸發還剩: ${hour} 小時 ${minute} 分鐘 ${seconds} 秒`;
+            }
+        }
+    })();
+
     class TimerGeneration {
         constructor() {
-            this.Dev = false; // 不要亂開
+            this.Dev = false; // 不要打開
             this.Display = true;
 
             this.VCL = null;
             this.Timer = null;
             this.Record_key = null;
-            this.ShowTime = TimeFormat();
         };
 
         // 獲取到 到隔天整點相差毫秒
@@ -73,7 +165,7 @@
             if (this.Display) {
                 console.group("設置簽到定時器");
                 console.log(`觸發的簽到函數: ${this.Record_key}`);
-                console.log(this.ShowTime.Get(waiting_time));
+                console.log(Syn.TimeFormat(waiting_time));
                 console.groupEnd();
             }
 
@@ -82,12 +174,12 @@
 
     };
 
-    class Checkin {
+    (new class Checkin {
         async ZoneZero_Checkin() {
             const Open_win = window.open("https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091");
             Open_win.onload = () => {
                 Open_win.document.querySelector("div.components-pc-assets-__dialog_---dialog-close---3G9gO2")?.click(); // 關閉彈窗
-                WaitMap([
+                Syn.WaitMap([
                     "img.mhy-hoyolab-account-block__avatar-icon",
                     "p.components-pc-assets-__main-module_---day---3Q5I5A.day span",
                     "div.components-pc-assets-__prize-list_---list---26M_YG"
@@ -112,7 +204,7 @@
         };
 
         async Main_Generate() {
-            const Run = [this.ZoneZero_Checkin];
+            const Run = [this.ZoneZero_Checkin]; // 添加需要簽到的
 
             let Gen;
             for (Gen of Run) {
@@ -120,100 +212,5 @@
                 Timer.SetTimer(Gen);
             }
         };
-    };
-
-    // 將 (毫秒) 格式化
-    function TimeFormat() {
-        const [
-            day_ms, minute_ms, seconds_ms
-        ] = [
-            (24 * 60 ** 2 * 1e3), (60 ** 2 * 1e3), (60 * 1e3)
-        ];
-
-        return {
-            Get: (ms) => {
-                const [
-                    hour, minute, seconds,
-                ] = [
-                    Math.floor((ms % day_ms) / minute_ms),
-                    Math.floor((ms % minute_ms) / seconds_ms),
-                    Math.floor((ms % seconds_ms) / 1e3)
-                ];
-                return `距離觸發還剩: ${hour} 小時 ${minute} 分鐘 ${seconds} 秒`;
-            }
-        }
-    };
-
-    // 去抖動
-    function Debounce(func, delay=500) {
-        let timer = null;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(function() {
-                func(...args);
-            }, delay);
-        }
-    };
-
-    // 等待多元素改 (改成使用 Debounce, 處理 ajex 生成網頁)
-    async function WaitMap(selectors, found, {
-        raf=false,
-        timeout=10,
-        debounce=800,
-        subtree=true,
-        childList=true,
-        attributes=false,
-        characterData=false,
-        timeoutResult=false,
-        object=document.body,
-    }={}) {
-        let timer, elements;
-
-        if (raf) {
-            let AnimationFrame;
-
-            const query = () => {
-                elements = selectors.map(selector => object.querySelector(selector));
-                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                    cancelAnimationFrame(AnimationFrame);
-                    clearTimeout(timer);
-                    found(elements);
-                } else {
-                    AnimationFrame = requestAnimationFrame(query);
-                }
-            };
-
-            AnimationFrame = requestAnimationFrame(query);
-
-            timer = setTimeout(() => {
-                cancelAnimationFrame(AnimationFrame);
-                timeoutResult && found(elements);
-            }, (1000 * timeout));
-
-        } else {
-            const observer = new MutationObserver(Debounce(() => {
-                elements = selectors.map(selector => object.querySelector(selector));
-                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    found(elements);
-                }
-            }, debounce));
-
-            observer.observe(object, {
-                subtree: subtree,
-                childList: childList,
-                attributes: attributes,
-                characterData: characterData
-            });
-
-            timer = setTimeout(() => {
-                observer.disconnect();
-                timeoutResult && found(elements);
-            }, (1000 * timeout));
-        }
-    };
-
-    const CK = new Checkin();
-    CK.Main_Generate();
+    }).Main_Generate();
 })();
