@@ -12,6 +12,7 @@
 // @icon         https://cdn-icons-png.flaticon.com/512/10233/10233926.png
 
 // @run-at       document-start
+// @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
@@ -20,9 +21,6 @@
 // ==/UserScript==
 
 (async function() {
-    // 不是每個網頁都能這樣檢測
-    if (window.opener && window.opener !== window) return;
-
     const Syn = (()=> {
         const [
             day_ms, minute_ms, seconds_ms
@@ -30,74 +28,32 @@
             (24 * 60 ** 2 * 1e3), (60 ** 2 * 1e3), (60 * 1e3)
         ];
 
-        // 去抖動
-        function Debounce(func, delay=500) {
-            let timer = null;
-            return (...args) => {
-                clearTimeout(timer);
-                timer = setTimeout(function() {
-                    func(...args);
-                }, delay);
-            }
-        };
-
-        // 等待多元素改 (改成使用 Debounce, 處理 ajex 生成網頁)
+        // 等待多元素 改
         async function WaitMap(selectors, found, {
-            raf=false,
             timeout=10,
-            debounce=800,
-            subtree=true,
-            childList=true,
-            attributes=false,
-            characterData=false,
             timeoutResult=false,
-            object=document.body,
+            object=document,
         }={}) {
-            let timer, elements;
+            let timer, elements, AnimationFrame;
 
-            if (raf) {
-                let AnimationFrame;
-
-                const query = () => {
-                    elements = selectors.map(selector => object.querySelector(selector));
-                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                        cancelAnimationFrame(AnimationFrame);
-                        clearTimeout(timer);
-                        found(elements);
-                    } else {
-                        AnimationFrame = requestAnimationFrame(query);
-                    }
-                };
-
-                AnimationFrame = requestAnimationFrame(query);
-
-                timer = setTimeout(() => {
+            const query = () => {
+                elements = selectors.map(selector => object.querySelector(selector));
+                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                     cancelAnimationFrame(AnimationFrame);
-                    timeoutResult && found(elements);
-                }, (1000 * timeout));
+                    clearTimeout(timer);
+                    found(elements);
+                } else {
+                    AnimationFrame = requestAnimationFrame(query);
+                }
+            };
 
-            } else {
-                const observer = new MutationObserver(Debounce(() => {
-                    elements = selectors.map(selector => object.querySelector(selector));
-                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                        observer.disconnect();
-                        clearTimeout(timer);
-                        found(elements);
-                    }
-                }, debounce));
+            AnimationFrame = requestAnimationFrame(query);
 
-                observer.observe(object, {
-                    subtree: subtree,
-                    childList: childList,
-                    attributes: attributes,
-                    characterData: characterData
-                });
+            timer = setTimeout(() => {
+                cancelAnimationFrame(AnimationFrame);
+                timeoutResult && found(elements);
+            }, (1000 * timeout));
 
-                timer = setTimeout(() => {
-                    observer.disconnect();
-                    timeoutResult && found(elements);
-                }, (1000 * timeout));
-            }
         };
 
         return {
@@ -114,6 +70,14 @@
             }
         }
     })();
+
+    // 不是每個網頁都能這樣檢測
+    if (window.opener && window.opener !== window) {
+        window.addEventListener("message", event => {
+            eval(event.data); // 解決跨域操作問題 (這不是很好的方式)
+        });
+        return;
+    }
 
     class TimerGeneration {
         constructor() {
@@ -174,33 +138,42 @@
 
     };
 
-    (new class Checkin {
+    (new class Checkin { // 無法跨域操作
         async ZoneZero_Checkin() {
-            const Open_win = window.open("https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091");
-            Open_win.onload = () => {
-                Open_win.document.querySelector("div.components-pc-assets-__dialog_---dialog-close---3G9gO2")?.click(); // 關閉彈窗
-                Syn.WaitMap([
-                    "img.mhy-hoyolab-account-block__avatar-icon",
-                    "p.components-pc-assets-__main-module_---day---3Q5I5A.day span",
-                    "div.components-pc-assets-__prize-list_---list---26M_YG"
-                ], found=> {
-                    const [icon, day, prize] = found;
-                    if (icon.src.startsWith("data:image/png;base64")) {
-                        alert("未登入無法自動簽到");
-                        return;
-                    }
+            const url = new URL("https://act.hoyolab.com/bbs/event/signin/zzz/e202406031448091.html?act_id=e202406031448091");
+            const Open_win = window.open(url.href);
+            const load = setInterval(()=> { // 對於跨域只能用這種方式
+                if (Open_win) {
+                    clearInterval(load);
+                    setTimeout(()=> { // 等待對象監聽器創建完成
+                        Open_win.postMessage(`
+                            document.querySelector("div.components-pc-assets-__dialog_---dialog-close---3G9gO2")?.click();
+                            Syn.WaitMap([
+                                "img.mhy-hoyolab-account-block__avatar-icon",
+                                "p.components-pc-assets-__main-module_---day---3Q5I5A.day span",
+                                "div.components-pc-assets-__prize-list_---list---26M_YG"
+                            ], found=> {
+                                const [icon, day, prize] = found;
 
-                    const checkinday = (+day.textContent + 1);
-                    const checkin = [...prize.querySelectorAll("span.components-pc-assets-__prize-list_---no---3smN44")].some(span=> {
-                        if (span.textContent.includes(checkinday)) {
-                            span.click();
-                            return true;
-                        }
-                    });
+                                if (icon.src.startsWith("data:image/png;base64")) {
+                                    alert("未登入無法自動簽到");
+                                    return;
+                                }
 
-                    if (checkin) Open_win.close();
-                }, {object: Open_win.document, timeoutResult: true});
-            }
+                                const checkinday = (+day.textContent + 1);
+                                const checkin = [...prize.querySelectorAll("span.components-pc-assets-__prize-list_---no---3smN44")].some(span=> {
+                                    if (span.textContent.includes(checkinday)) {
+                                        span.click();
+                                        return true;
+                                    }
+                                });
+
+                                checkin ? window.close() : alert("自動簽到失敗");
+                            }, {timeoutResult: true});
+                    `, url.origin);
+                    }, 3e3);
+                }
+            }, 1e3);
         };
 
         async Main_Generate() {
