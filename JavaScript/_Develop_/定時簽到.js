@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         定時簽到
 // @version      0.0.1
-// @author       HentaiSaru
+// @author       Canaan HS
 // @description  定時簽到
 
 // @noframes

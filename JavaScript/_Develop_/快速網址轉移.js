@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         __簡易書籤__
 // @version      0.0.1
-// @author       HentaiSaru
+// @author       Canaan HS
 // @description  將網頁添加至書籤中保存, 一鍵快速導入導出, 一鍵快速開啟所有書籤
 
 // @noframes
