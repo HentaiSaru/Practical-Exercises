@@ -1,7 +1,15 @@
 
 
 // 傳入要打印排序的物件
-Object_sorting();
+Object_sorting(TT);
+
+// Array_to_Object();
+
+function Array_to_Object(array) {
+    for (const data of array) {
+        console.log(`"${data['k']}": "${data['v']}",`);
+    }
+}
 
 function Object_sorting(...obj) {
     const sort = [];
@@ -13,7 +21,7 @@ function Object_sorting(...obj) {
         const merge = key + value;
         sort.push({
             "length": merge.length,
-            "data": { [key]: value }
+            "data": { [key.toLowerCase()]: value }
         });
     });
 
