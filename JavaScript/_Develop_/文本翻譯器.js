@@ -20,6 +20,9 @@
 
     // 類型標籤
     const TT = {
+        "hidden sex": "隱藏性愛",
+        "vore": "吞入",
+        "horns": "洞角",
         "3d": "3D",
         "cat": "貓",
         "dog": "狗",
@@ -142,8 +145,8 @@
         "force": "力量",
         "oil": "油覆蓋皮膚",
         "donkey": "毛驢",
-        "drunk": "喝醉的",
-        "hairy": "多毛的",
+        "drunk": "喝醉",
+        "hairy": "多毛",
         "vomit": "嘔吐物",
         "mature": "成熟",
         "priest": "牧師",
@@ -265,10 +268,10 @@
         "nipples": "乳頭",
         "costume": "服飾",
         "no bra": "沒有胸罩",
-        "yuri": "女同(GL)",
+        "yuri": "百合 (GL)",
         "cowman": "男奶牛人",
         "femdom": "女性支配",
-        "yaoi": "男同(BL)",
+        "yaoi": "男同 (BL)",
         "balljob": "睪丸交",
         "corset": "緊身胸衣",
         "cowgirl": "奶牛娘",
@@ -341,11 +344,11 @@
         "buttocks": "臀部",
         "violence": "暴力",
         "sister": "姐姐或妹妹",
-        "glasses": "戴眼鏡的",
+        "glasses": "戴眼鏡",
         "rewrite": "重新修改",
         "tailjob": "尾巴性交",
         "fundoshi": "兜襠布",
-        "tanlines": "曬黑的",
+        "tanlines": "曬黑",
         "wolf boy": "男狼人",
         "gang rape": "輪姦",
         "imageset": "圖片集",
@@ -482,7 +485,7 @@
         "psssession": "佔據",
         "blindfold": "矇住眼睛",
         "christmas": "聖誕服裝",
-        "themeless": "無主題的",
+        "themeless": "無主題",
         "sunglasses": "太陽鏡",
         "full color": "全彩色",
         "compilation": "編輯",
@@ -528,18 +531,18 @@
         "toddlercon": "嬰兒控",
         "robot girl": "機器娘",
         "schoolgirl": "女學生",
-        "realporn": "真正的色情",
+        "realporn": "真實色情",
         "school boy": "男學生",
-        "guys only": "只有男的",
+        "guys only": "只有男性",
         "sex addict": "性成癮",
         "cum in eye": "射在眼精",
         "absorption": "吞噬吸收",
-        "animated": "GIF動畫的",
+        "animated": "動畫",
         "armpit sex": "腋下性愛",
         "brain fuck": "入腦性交",
         "cosplaying": "角色扮演",
         "cunnilingus": "舔陰部",
-        "incomplete": "不完整的",
+        "incomplete": "不完整",
         "mecha girl": "機甲少女",
         "public use": "公眾使用",
         "race queen": "賽車女郎",
@@ -788,6 +791,8 @@
 
     // 動漫與遊戲
     const AG = {
+        "fate/grand order": "FGO",
+        "fate grand order": "FGO",
         "touhou": "東方",
         "moetan": "萌單",
         "fate": "Fate",
@@ -830,6 +835,7 @@
 
     // 藝術家 繪師
     const Artist = {
+        "kaguyuzu": "カグユヅ",
         "shuhan": "主犯",
         "miki hime": "みき姫",
         "zurikishi": "ずり騎士",
@@ -919,19 +925,23 @@
 
     // 長句子
     const LongWords = {
+        "go back": "返回",
         "sign in": "登入",
         "all time": "全部時間",
         "safe mode": "安全模式",
         "post tags": "發佈標籤",
+        "learn more": "了解更多",
         "contact us": "聯絡我們",
         "my account": "我的帳戶",
         "total count": "總共數量",
         "other sites": "其他網站",
         "popular now": "現在熱門",
         "new uploads": "最新上傳",
+        "related tags": "有關標籤",
         "hidden posts": "隱藏貼文",
         "img servers": "圖片伺服器",
         "find similar": "尋找類似",
+        "access denied": "拒絕訪問",
         "view original": "查看原圖",
         "reset password": "重置密碼",
         "post a comment": "發佈評論",
@@ -939,7 +949,9 @@
         "setting weights": "設定權重",
         "resize to window": "調整視窗大小",
         "artist's commentary": "繪師的評論",
+        "to post a comment.": "到帖子發佈評論",
         "there are no comments": "沒有評論",
+        "there are no comments.": "沒有評論",
         "tags export settings": "標籤導出設定",
         "you are not logged in.": "你沒有登入",
         "this post is pending approval.": "這篇文章正在等待審核"
@@ -947,9 +959,11 @@
 
     // 單詞
     const SingleWords = {
+        "to": "到",
         "or": "或",
         "day": "天",
         "ago": "前",
+        "from": "從",
         "any": "任何",
         "year": "年",
         "all": "全部",
@@ -963,6 +977,7 @@
         "chat": "聊天",
         "hour": "小時",
         "month": "月",
+        "years": "年",
         "info": "資訊",
         "week": "星期",
         "name": "名稱",
@@ -986,6 +1001,9 @@
         "send": "發送",
         "user": "用戶",
         "file": "文件",
+        "topic": "話題",
+        "flags": "標記",
+        "hours": "小時",
         "order": "排序",
         "style": "樣式",
         "tos": "服務條款",
@@ -1023,6 +1041,10 @@
         "guest": "訪客",
         "theme": "主題",
         "group": "群組",
+        "search": "搜索",
+        "reason": "原因",
+        "events": "事件",
+        "seconds": "秒",
         "circle": "圈子",
         "faults": "故障",
         "action": "行動",
@@ -1033,7 +1055,6 @@
         "groups": "群組",
         "random": "隨機",
         "invert": "反選",
-        "search": "搜索",
         "export": "導出",
         "enable": "啟用",
         "medium": "中等",
@@ -1061,6 +1082,7 @@
         "remove": "移除",
         "liked": "已喜歡",
         "artist": "繪師",
+        "appeals": "申訴",
         "aliases": "別名",
         "general": "一般",
         "minutes": "分鐘",
@@ -1115,6 +1137,7 @@
         "updated": "已更新",
         "removed": "已移除",
         "replied": "已回覆",
+        "approvals": "批准",
         "ascending": "升序",
         "metadata": "元數據",
         "character": "人物",
@@ -1137,6 +1160,7 @@
         "searched": "已搜索",
         "moderator": "版主",
         "inactive": "不活躍",
+        "moderation": "管理",
         "descending": "降序",
         "ambiguous": "模糊的",
         "characters": "人物",
@@ -1154,15 +1178,19 @@
         "recommended": "推薦",
         "following": "正在關注",
         "downloaded": "已下載",
+        "implications": "影響",
+        "replacements": "替換",
         "notification": "通知",
         "verification": "驗證",
+        "disapprovals": "不批准",
         "questionable": "不確定",
         "notifications": "通知",
+        "mod actions": "管理員操作",
         "blacklisted": "列入黑名單"
     };
 
     // 合併成單詞表 (優先度越高的越後面, 因為後添加會覆蓋前面重複的)
-    const WordsList = Object.assign({}, SingleWords, LongWords, Language, Characters, Artist, AG, TT);
+    const WordsList = Object.assign(SingleWords, LongWords, Language, Characters, Artist, AG, TT);
 
     const Syntax = (()=> {
         function Debounce(func, delay=500) {
@@ -1182,7 +1210,7 @@
                     observer.disconnect();
                     found(element);
                 }
-            }, 300));
+            }, 100));
 
             observer.observe(document, {
                 subtree: true,
@@ -1214,28 +1242,24 @@
             return nodes;
         };
 
-        function Transform(textNode) {
+        async function Transform(textNode) {
             textNode.textContent =
-            textNode.textContent.replace(/[\p{L}]+(?:[^()\[\]{}\.\t])+[\p{L}]*/gu, content => {
-                const low_content = content.toLowerCase();
-                return WordsList[low_content] ?? content;
-            });
-            textNode.textContent = // 翻譯例外狀況
-            textNode.textContent.replace(/[\p{L}]+/gu, content => {
-                const low_content = content.toLowerCase();
-                return WordsList[low_content] ?? content;
-            });
+            textNode.textContent.replace(/[\p{L}]+(?:[^()\[\]{}\t])+[\p{L}]\.*/gu,
+            content => WordsList[content.toLowerCase()] ?? content);
+            textNode.textContent =
+            textNode.textContent.replace(/[\p{L}]+/gu,
+            content => WordsList[content.toLowerCase()] ?? content); // 翻譯個別單字 (例外狀況)
         };
 
         return {
             WaitElem,
-            Translator: (root) => {
+            Translator: async (root) => {
                 getTextNodes(root).forEach(textNode => Transform(textNode));
             },
         }
     })();
 
-    Syntax.WaitElem("body", async(body) => {
+    Syntax.WaitElem("body", body => {
         Syntax.Translator(body); // 開始立即觸發
 
         let mutation; // 監聽後續變化
@@ -1244,7 +1268,7 @@
                 if (mutation.type === 'childList' && mutation.addedNodes.length > 0) {
                     mutation.addedNodes.forEach(node => {
                         if (node.textContent != '') {
-                            Syntax.Translator(node);
+                            Syntax.Translator(body);
                         }
                     })
                 }
