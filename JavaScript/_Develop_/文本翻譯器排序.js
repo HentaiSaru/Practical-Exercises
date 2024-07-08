@@ -1,4 +1,4 @@
-
+const TT = {}
 
 // 傳入要打印排序的物件
 Object_sorting(TT);
