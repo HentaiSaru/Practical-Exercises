@@ -64,6 +64,8 @@ let test1 = {"object1": "物件1", "object2": "物件2", "object3": "物件3"};
 
 //Log("測試", Object.entries(test1));
 
-"8 months, 3 weeks ago".replace(/[\p{L}]+/gu, content => {
-    console.log(content);
-});
+const Teststr = ""
+
+Teststr.replace(/[\p{L}]+(?:[^()\[\]{}\t])+[\p{L}]\.*/gu, t => {
+
+})
