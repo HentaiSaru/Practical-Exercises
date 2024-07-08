@@ -1,7 +1,8 @@
-const TT = {}
+import path from "path";
+import open from "fs";
 
-// 傳入要打印排序的物件
-Object_sorting(TT);
+// 傳入要排序的物件
+Object_sorting();
 
 // Array_to_Object();
 
@@ -21,7 +22,7 @@ function Object_sorting(...obj) {
         const merge = key + value;
         sort.push({
             "length": merge.length,
-            "data": { [key.toLowerCase()]: value }
+            "data": { [key.toLowerCase().trim()]: value.trim() }
         });
     });
 
@@ -36,7 +37,12 @@ function Object_sorting(...obj) {
     });
 
     // 打印格式
-    const formattedOutput = JSON.stringify(sortedComp, null, 2).replace(/"([^"]+)":/g, '"$1":');
-
-    console.log(formattedOutput);
+    const formattedOutput = JSON.stringify(sortedComp, null, 4).replace(/"([^"]+)":/g, '"$1":');
+    OutPut(formattedOutput);
 };
+
+function OutPut(data) {
+    open.writeFile("R:/DataBase.json", data, err => {
+        err ? console.log("輸出失敗") : console.log("輸出成功");
+    });
+}

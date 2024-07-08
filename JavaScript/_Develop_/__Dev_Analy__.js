@@ -1,6 +1,6 @@
 // https://greasyfork.org/zh-TW/scripts/462234-message
 // https://greasyfork.org/zh-TW/scripts/449512-xtiper
-(function() {
+(function () {
     // 整個文檔的滾動高
     document.documentElement.scrollHeight
     // 整個可視區域的滾動高
