@@ -1,5 +1,3 @@
-import { json } from "stream/consumers";
-
 const user = [
     {
         name: "aaa",
@@ -66,8 +64,8 @@ let test1 = {"object1": "物件1", "object2": "物件2", "object3": "物件3"};
 
 //Log("測試", Object.entries(test1));
 
-const Teststr = ""
+const Teststr = "abcde"
 
 Teststr.replace(/[\p{L}]+(?:[^()\[\]{}\t])+[\p{L}]\.*/gu, t => {
-    console.log(t);
+    console.log(null ?? "測試");
 })
