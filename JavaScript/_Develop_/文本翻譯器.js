@@ -54,43 +54,19 @@
 
     /* =========================================== */
 
-    let [Dev, Time, Words, Timestamp] = [ // 取得字典數據, 和時間戳
+    let [Dev, Factory, Time, Dict, Timestamp] = [ // 開發設置, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
         false,
+        TranslationFactory(),
         new Date().getTime(),
         GM_getValue("LocalWords", null),
-        GM_getValue("UpdateTimestamp", null)
+        GM_getValue("UpdateTimestamp", null),
     ];
 
-    if (Dev || !Words || !Timestamp || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新
-        Words = await GetWords();
-
-        if (Object.keys(Words).length > 0) {
-            GM_setValue("LocalWords", Words);
-            GM_setValue("UpdateTimestamp", new Date().getTime());
-
-            console.log("%c數據更新成功", `
-                padding: 5px;
-                color: #9BEC00;
-                font-weight: bold;
-                border-radius: 10px;
-                background-color: #597445;
-                border: 2px solid #597445;
-            `);
-        } else {
-            console.log("%c數據更新失敗", `
-                padding: 5px;
-                color: #FF0000;
-                font-weight: bold;
-                border-radius: 10px;
-                background-color: #A91D3A;
-                border: 2px solid #A91D3A;
-            `);
-        }
+    if (Dev || !Dict || !Timestamp || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新
+        Dict = await UpdateWordsDict();
     };
 
-    const Factory = TranslationFactory(); // 調用工廠
-    let Dict = Object.assign(Words, Customize); // 生成數據
-
+    Object.assign(Dict, Customize); // 初始合併
     WaitElem("body", body => { // 等待頁面載入
         Factory.Translator(body); // 開始立即觸發
 
@@ -108,6 +84,15 @@
             }
         }, 200));
         observer.observe(body, options);
+
+        GM_registerMenuCommand("🆕 更新字典", async ()=> {
+            observer.disconnect();
+
+            Dict = await UpdateWordsDict();
+
+            Factory.Translator(body);
+            observer.observe(body, options);
+        });
 
         GM_registerMenuCommand("⚛️ 兩極反轉", ()=> {
             observer.disconnect();
@@ -166,23 +151,64 @@
     };
 
     // 取得單字表
-    async function GetWords() {
+    async function GetWordsDict() {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: "GET",
                 responseType: "json",
-                url: "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/JSDB/Dict.json",
+                url: "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/JSDB/All_Words.json",
                 onload: response => {
                     if (response.status === 200) {
                         const data = response.response;
                         if (typeof data === "object" && Object.keys(data).length > 0) {
                             resolve(data);
-                        } else reject({});
-                    } else reject({});
+                        } else {
+                            console.error("請求為空數據");
+                            resolve({});
+                        }
+                    } else {
+                        console.error("連線異常, 更新地址可能是錯的");
+                        resolve({});
+                    }
                 },
-                onerror: error => reject({})
+                onerror: error => {
+                    console.error("連線異常");
+                    resolve({});
+                }
             })
         })
+    };
+
+    /* 更新數據 */
+    async function UpdateWordsDict() {
+        const WordsDict = await GetWordsDict();
+
+        if (Object.keys(WordsDict).length > 0) {
+            GM_setValue("LocalWords", WordsDict);
+            GM_setValue("UpdateTimestamp", new Date().getTime());
+
+            console.log("%c數據更新成功", `
+                padding: 5px;
+                color: #9BEC00;
+                font-weight: bold;
+                border-radius: 10px;
+                background-color: #597445;
+                border: 2px solid #597445;
+            `);
+
+            return Object.assign(WordsDict, Customize);
+        } else {
+            console.log("%c數據更新失敗", `
+                padding: 5px;
+                color: #FF0000;
+                font-weight: bold;
+                border-radius: 10px;
+                background-color: #A91D3A;
+                border: 2px solid #A91D3A;
+            `);
+
+            return Object.assign(GM_getValue("LocalWords", {}), Customize);
+        }
     };
 
     function Debounce(func, delay=100) {
