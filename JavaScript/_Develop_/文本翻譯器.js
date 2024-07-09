@@ -26,6 +26,7 @@
 /**
  * Data Reference Sources:
  * https://github.com/EhTagTranslation/Database
+ * https://github.com/DominikDoom/a1111-sd-webui-tagcomplete
  * https://github.com/scooderic/exhentai-tags-chinese-translation
  * https://greasyfork.org/zh-TW/scripts/20312-e-hentai-tag-list-for-chinese
  */
@@ -54,21 +55,51 @@
 
     /* =========================================== */
 
-    let [Dev, Factory, Time, Dict, Timestamp] = [ // 開發設置, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
-        false,
+    let [Translated, Factory, Time, Dict, Timestamp] = [ // 翻譯判斷, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
+        true,
         TranslationFactory(),
         new Date().getTime(),
         GM_getValue("LocalWords", null),
         GM_getValue("UpdateTimestamp", null),
     ];
 
-    if (Dev || !Dict || !Timestamp || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新
+    if (!Dict || !Timestamp || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新
         Dict = await UpdateWordsDict();
     };
 
-    Object.assign(Dict, Customize); // 初始合併
+    // 字典操作
+    const Dictionary = {
+        NormalDict: undefined,
+        ReverseDict: undefined,
+        RefreshNormal: function() {
+            this.NormalDict = Dict;
+        },
+        RefreshReverse: function() { // 反轉會自動刷新 Normal
+            this.RefreshNormal();
+            this.ReverseDict = Object.entries(this.NormalDict).reduce((acc, [key, value]) => {
+                acc[value] = key;
+                return acc;
+            }, {});
+        },
+        RefreshDict: function() {
+            Dict = Translated
+                ? (
+                    Translated=false,
+                    this.ReverseDict
+                ) : (
+                    Translated=true,
+                    this.NormalDict
+                );
+        },
+        Init: function() {
+            Object.assign(Dict, Customize); // 初始合併字典
+            this.RefreshReverse();
+        }
+    };
+
+    Dictionary.Init();
     WaitElem("body", body => { // 等待頁面載入
-        Factory.Translator(body); // 開始立即觸發
+        const RunFactory = () => Factory.Translator(body);
 
         let mutation; // 監聽後續變化
         const options = {
@@ -78,32 +109,40 @@
         const observer = new MutationObserver(Debounce((mutationsList, observer) => {
             for (mutation of mutationsList) {
                 if (mutation.type === 'childList' || mutation.type === 'characterData') {
-                    Factory.Translator(body);
+                    RunFactory();
                     break;
                 }
             }
         }, 200));
-        observer.observe(body, options);
+        // 啟動觀察
+        const StartOb = () => {
+            RunFactory();
+            observer.observe(body, options);
+        };
+        StartOb();
+        // 斷開觀察
+        const DisOB = () => observer.disconnect();
+
+        /* ----- 創建按鈕 ----- */
 
         GM_registerMenuCommand("🆕 更新字典", async ()=> {
-            observer.disconnect();
-
+            DisOB();
+            Translated = true;
             Dict = await UpdateWordsDict();
 
-            Factory.Translator(body);
-            observer.observe(body, options);
+            // 更新字典時, 需要先反向一次, 在將其轉換 (避免不完全的刷新)
+            Dictionary.RefreshReverse();
+            Dictionary.RefreshDict();
+            RunFactory();
+
+            Dictionary.RefreshDict();
+            StartOb();
         });
 
         GM_registerMenuCommand("⚛️ 兩極反轉", ()=> {
-            observer.disconnect();
-
-            Dict = Object.entries(Dict).reduce((acc, [key, value]) => {
-                acc[value] = key;
-                return acc;
-            }, {});
-
-            Factory.Translator(body);
-            observer.observe(body, options);
+            DisOB();
+            Dictionary.RefreshDict();
+            StartOb();
         }, {
             accessKey: "c",
             autoClose: false,
@@ -139,8 +178,8 @@
             textNode.textContent.replace(/[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu,
             content => Dict[content.toLowerCase()] ?? content);
             textNode.textContent =
-            textNode.textContent.replace(/[\d\p{L}]+/gu,
-            content => Dict[content.toLowerCase()] ?? content); // 翻譯個別單字 (例外狀況)
+            textNode.textContent.replace(/[\d\p{L}]+/gu, // 翻譯個別單字 (例外狀況)
+            content => Dict[content.toLowerCase()] ?? content);
         };
 
         return {
