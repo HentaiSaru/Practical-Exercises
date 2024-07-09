@@ -40,7 +40,7 @@
         "": "",
         /* Character */
         "": "",
-        /* Title */
+        /* Parody */
         "": "",
         /* Artist */
         "": "",
