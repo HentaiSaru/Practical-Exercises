@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         簡易翻譯器
+// @name         簡易文本轉換器
 // @version      0.0.1
 // @author       Canaan HS
-// @description  高效將英文翻譯成繁體中文 (實驗項目)
+// @description  高效將 指定文本 轉換為 自定文本
 
 // @connect      *
 // @match        *://yande.re/*
@@ -32,7 +32,43 @@
  */
 
 (async function() {
-    // 自定字典  (key 值必須全部都是小寫)
+    const Config = {
+        DictionaryType: {
+            Type: ["All_Words"],
+            /**
+             * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words", 打更多只會讓處理變慢)
+             * 範例: ["Short", "Long", "Tags"]
+             * 
+             * All_Words: 全部
+             * Tags: 標籤
+             * Short: 短語
+             * Long: 長語
+             * Language: 語言
+             * Character: 角色
+             * Parody: 原作
+             * Artist: 繪師
+             * Group: 社團
+             * Beautify: 美化用的
+             */
+        },
+        TranslationReversal: {
+            HotKey: true, // 啟用快捷反轉 (alt + b)
+            FocusOnRecovery: true, // 以下說明
+            /**
+             * 專注於反轉 (也不是 100% 反轉成功, 只是成功率較高)
+             *
+             * 1. 轉換時型能開銷較高
+             * 2. 轉換時有時會有疊加錯誤 (數據越多可能性越高)
+             *
+             * 不專注於反轉
+             *
+             * 1. 性能開銷較低處理的更快
+             * 2. 反轉時常常會有許多無法反轉的狀況
+             */
+        },
+    };
+
+    // 自定轉換字典  { "要轉換的字串": "轉換成的字串" }, 要轉換字串中, 如果包含英文, 全部都要小寫
     const Customize = {
         "apple": "蘋果", // 範例
         /* Beautify */
@@ -63,9 +99,12 @@
         GM_getValue("UpdateTimestamp", null),
     ];
 
-    if (!Dict || !Timestamp || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新
+    if (!Dict || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新 (自動更新 12 小時)
         Dict = await UpdateWordsDict();
     };
+
+    // 解構設置 (不做數據判斷, 亂給就壞給你看)
+    const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
 
     // 字典操作
     const Dictionary = {
@@ -90,7 +129,7 @@
                     this.NormalDict
                 );
         },
-        Init: function() { // 初始化 (重新獲取完整字典, 並刷新兩種不同狀態的保存)
+        Init: function() { // 初始化 (重新獲取完整字典, 並刷新兩種不同狀態的緩存)
             Object.assign(Dict, Customize);
             this.RefreshNormal();
             this.RefreshReverse();
@@ -99,7 +138,7 @@
 
     Dictionary.Init();
     WaitElem("body", body => { // 等待頁面載入
-        const RunFactory = () => Factory.Trigger(body);
+        const RunFactory = () => Factory.Trigger(body, Translation.FocusOnRecovery);
 
         let mutation; // 監聽後續變化
         const options = {
@@ -140,14 +179,25 @@
             StartOb();
         });
 
-        GM_registerMenuCommand("⚛️ 兩極反轉", ()=> {
+        function ThePolesAreReversed() {
             DisOB();
             Dictionary.RefreshDict();
             StartOb();
-        }, {
+        };
+
+        GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
             accessKey: "c",
             autoClose: false,
         });
+
+        if (Translation.HotKey) {
+            document.addEventListener("keydown", event=> {
+                if (event.altKey && event.key.toLowerCase() == "b") {
+                    event.preventDefault();
+                    ThePolesAreReversed();
+                }
+            });
+        }
     });
 
     /* =========================================== */
@@ -178,33 +228,46 @@
 
         const ShortWordRegular = /[\d\p{L}]+/gu;
         const LongWordRegular = /[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu;
+        const FactoryCore = {
+            FocusRecovery: async (textNode)=> {
+                textNode.textContent = textNode.textContent.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
+                textNode.textContent = textNode.textContent.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
+            },
+            FocusTranslate: async (textNode)=> {
+                textNode.textContent = textNode.textContent.replace(LongWordRegular, Long =>
+                    Dict[Long.toLowerCase()] ?? Long.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
+                );
+            }
+        };
 
-        /* 只能翻譯, 恢復不完全
-        textNode.textContent = textNode.textContent.replace(LongWordRegular, Long =>
-            Dict[Long.toLowerCase()] ?? Long.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
-        );
-        */
-
-        async function Translator(textNode) {
-            let content = textNode.textContent;
-            content = content.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long)
-            textNode.textContent = content.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
-        }
+        const FocusType = {
+            followed: undefined,
+            Get: function(focus) {
+                if (!this.followed) this.followed = focus ? FactoryCore["FocusRecovery"] : FactoryCore["FocusTranslate"];
+                return this.followed;
+            }
+        };
 
         return {
-            Trigger: async (root) => {
-                getTextNodes(root).forEach(textNode => Translator(textNode));
+            Trigger: async (root, focus) => {
+                const Core = FocusType.Get(focus);
+                getTextNodes(root).forEach(textNode => Core(textNode));
+                // 轉換 input 內的提示文本
+                // document.querySelectorAll("input[placeholder]").forEach(input => {
+                    // input.getAttribute("placeholder")
+                    // input.setAttribute("placeholder", "測試");
+                // });
             },
         }
     };
 
     // 取得單字表
-    async function GetWordsDict() {
+    async function GetWordsDict(type) {
         return new Promise((resolve, reject) => {
             GM_xmlhttpRequest({
                 method: "GET",
                 responseType: "json",
-                url: "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/JSDB/All_Words.json",
+                url: `https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/JSDB/${type}.json`,
                 onload: response => {
                     if (response.status === 200) {
                         const data = response.response;
@@ -229,7 +292,11 @@
 
     /* 更新數據 */
     async function UpdateWordsDict() {
-        const WordsDict = await GetWordsDict();
+        let WordsDict = {};
+
+        for (const type of DictType.Type) {
+            Object.assign(WordsDict, await GetWordsDict(type));
+        };
 
         if (Object.keys(WordsDict).length > 0) {
             GM_setValue("LocalWords", WordsDict);
