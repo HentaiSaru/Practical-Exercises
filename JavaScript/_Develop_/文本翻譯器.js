@@ -71,17 +71,16 @@
     const Dictionary = {
         NormalDict: undefined,
         ReverseDict: undefined,
-        RefreshNormal: function() {
+        RefreshNormal: function() { // 正常字典的緩存
             this.NormalDict = Dict;
         },
-        RefreshReverse: function() { // 反轉會自動刷新 Normal
-            this.RefreshNormal();
+        RefreshReverse: function() { // 刷新反向字典
             this.ReverseDict = Object.entries(this.NormalDict).reduce((acc, [key, value]) => {
                 acc[value] = key;
                 return acc;
             }, {});
         },
-        RefreshDict: function() {
+        RefreshDict: function() { // 刷新翻譯狀態
             Dict = Translated
                 ? (
                     Translated=false,
@@ -91,15 +90,16 @@
                     this.NormalDict
                 );
         },
-        Init: function() {
-            Object.assign(Dict, Customize); // 初始合併字典
+        Init: function() { // 初始化 (重新獲取完整字典, 並刷新兩種不同狀態的保存)
+            Object.assign(Dict, Customize);
+            this.RefreshNormal();
             this.RefreshReverse();
         }
     };
 
     Dictionary.Init();
     WaitElem("body", body => { // 等待頁面載入
-        const RunFactory = () => Factory.Translator(body);
+        const RunFactory = () => Factory.Trigger(body);
 
         let mutation; // 監聽後續變化
         const options = {
@@ -114,14 +114,15 @@
                 }
             }
         }, 200));
+
         // 啟動觀察
         const StartOb = () => {
             RunFactory();
             observer.observe(body, options);
         };
-        StartOb();
         // 斷開觀察
         const DisOB = () => observer.disconnect();
+        StartOb(); //首次運行
 
         /* ----- 創建按鈕 ----- */
 
@@ -131,7 +132,7 @@
             Dict = await UpdateWordsDict();
 
             // 更新字典時, 需要先反向一次, 在將其轉換 (避免不完全的刷新)
-            Dictionary.RefreshReverse();
+            Dictionary.Init();
             Dictionary.RefreshDict();
             RunFactory();
 
@@ -153,38 +154,46 @@
 
     function TranslationFactory() {
         function getTextNodes(root) {
-            const tree = document.createTreeWalker( // 過濾出所有可用 文字節點
+            const tree = document.createTreeWalker( // 過濾出所有可用文字節點
                 root,
                 NodeFilter.SHOW_TEXT,
                 {
                     acceptNode: (node) => {
-                        const content = node.nodeValue.trim();
-                        return content == '' || !/[\w\p{L}]/u.test(content)
-                        ? NodeFilter.FILTER_REJECT
-                        : NodeFilter.FILTER_ACCEPT;
+                        const content = node.textContent.trim();
+                        if (content == '') return NodeFilter.FILTER_REJECT;
+                        if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content)) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+                        return NodeFilter.FILTER_ACCEPT;
                     }
                 }
             );
-
-            let node;
+        
             const nodes = [];
-            while (node = tree.nextNode()) {
-                nodes.push(node);
+            while (tree.nextNode()) {
+                nodes.push(tree.currentNode);
             }
             return nodes;
         };
-        async function Transform(textNode) {
-            textNode.textContent =
-            textNode.textContent.replace(/[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu,
-            content => Dict[content.toLowerCase()] ?? content);
-            textNode.textContent =
-            textNode.textContent.replace(/[\d\p{L}]+/gu, // 翻譯個別單字 (例外狀況)
-            content => Dict[content.toLowerCase()] ?? content);
-        };
+
+        const ShortWordRegular = /[\d\p{L}]+/gu;
+        const LongWordRegular = /[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu;
+
+        /* 只能翻譯, 恢復不完全
+        textNode.textContent = textNode.textContent.replace(LongWordRegular, Long =>
+            Dict[Long.toLowerCase()] ?? Long.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
+        );
+        */
+
+        async function Translator(textNode) {
+            let content = textNode.textContent;
+            content = content.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
+            textNode.textContent = content.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
+        }
 
         return {
-            Translator: async (root) => { // 當需要遍歷多個節點
-                getTextNodes(root).forEach(textNode => Transform(textNode));
+            Trigger: async (root) => {
+                getTextNodes(root).forEach(textNode => Translator(textNode));
             },
         }
     };
