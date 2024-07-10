@@ -187,8 +187,8 @@
 
         async function Translator(textNode) {
             let content = textNode.textContent;
-            content = content.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
-            textNode.textContent = content.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
+            content = content.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long)
+            textNode.textContent = content.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
         }
 
         return {
