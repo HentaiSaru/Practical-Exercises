@@ -91,6 +91,9 @@
 
     /* =========================================== */
 
+    // 解構設置 (不做數據判斷, 亂給就壞給你看)
+    const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
+    // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
     let [Translated, Factory, Time, Dict, Timestamp] = [ // 翻譯判斷, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
         true,
         TranslationFactory(),
@@ -102,9 +105,6 @@
     if (!Dict || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新 (自動更新 12 小時)
         Dict = await UpdateWordsDict();
     };
-
-    // 解構設置 (不做數據判斷, 亂給就壞給你看)
-    const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
 
     // 字典操作
     const Dictionary = {
@@ -138,7 +138,7 @@
 
     Dictionary.Init();
     WaitElem("body", body => { // 等待頁面載入
-        const RunFactory = () => Factory.Trigger(body, Translation.FocusOnRecovery);
+        const RunFactory = () => Factory.Trigger(body);
 
         let mutation; // 監聽後續變化
         const options = {
@@ -226,39 +226,57 @@
             return nodes;
         };
 
-        const ShortWordRegular = /[\d\p{L}]+/gu;
-        const LongWordRegular = /[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu;
-        const FactoryCore = {
-            FocusRecovery: async (textNode)=> {
-                textNode.textContent = textNode.textContent.replace(LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
-                textNode.textContent = textNode.textContent.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
+        const TCore = { // 翻譯核心
+            __ShortWordRegular: /[\d\p{L}]+/gu,
+            __LongWordRegular: /[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu,
+            OnlyLong: function(text) {
+                return text.replace(this.__LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
             },
-            FocusTranslate: async (textNode)=> {
-                textNode.textContent = textNode.textContent.replace(LongWordRegular, Long =>
-                    Dict[Long.toLowerCase()] ?? Long.replace(ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short)
-                );
+            OnlyShort: function(text) {
+                return text.replace(this.__ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
+            },
+            LongShort: function(text) {
+                return text.replace(this.__LongWordRegular, Long => Dict[Long.toLowerCase()] ?? this.OnlyShort(Long));
             }
         };
 
-        const FocusType = {
-            followed: undefined,
-            Get: function(focus) {
-                if (!this.followed) this.followed = focus ? FactoryCore["FocusRecovery"] : FactoryCore["FocusTranslate"];
-                return this.followed;
+        const OCore = { // 操作核心
+            FocusTextRecovery: async (textNode)=> {
+                textNode.textContent = TCore.OnlyLong(textNode.textContent);
+                textNode.textContent = TCore.OnlyShort(textNode.textContent);
+            },
+            FocusTextTranslate: async (textNode)=> {
+                textNode.textContent = TCore.LongShort(textNode.textContent);
+            },
+            FocusInputRecovery: async (inputNode)=> {
+                inputNode.setAttribute("placeholder", TCore.OnlyLong(inputNode.getAttribute("placeholder")));
+                inputNode.setAttribute("placeholder", TCore.OnlyShort(inputNode.getAttribute("placeholder")));
+            },
+            FocusInputTranslate: async (inputNode)=> {
+                inputNode.setAttribute("placeholder", TCore.LongShort(inputNode.getAttribute("placeholder")));
+            },
+        };
+
+        const FactoryOperation = {
+            // 選擇運行核心
+            __FocusTextCore: Translation.FocusOnRecovery ? OCore.FocusTextRecovery : OCore.FocusTextTranslate,
+            __FocusInputCore: Translation.FocusOnRecovery ? OCore.FocusInputRecovery : OCore.FocusInputTranslate,
+            OperationText: function(root) {
+                return Promise.all(getTextNodes(root).map(textNode => this.__FocusTextCore(textNode)));
+            },
+            OperationInput: function(root) {
+                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode=> this.__FocusInputCore(inputNode)));
             }
         };
 
         return {
-            Trigger: async (root, focus) => {
-                const Core = FocusType.Get(focus);
-                getTextNodes(root).forEach(textNode => Core(textNode));
-                // 轉換 input 內的提示文本
-                // document.querySelectorAll("input[placeholder]").forEach(input => {
-                    // input.getAttribute("placeholder")
-                    // input.setAttribute("placeholder", "測試");
-                // });
-            },
-        }
+            Trigger: async (root) => {
+                await Promise.all([
+                    FactoryOperation.OperationText(root),
+                    FactoryOperation.OperationInput(root)
+                ]);
+            }
+        };
     };
 
     // 取得單字表
