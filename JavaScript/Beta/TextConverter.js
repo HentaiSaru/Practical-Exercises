@@ -94,12 +94,10 @@
     // 解構設置 (不做數據判斷, 亂給就壞給你看)
     const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
     // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    let [Translated, Factory, Time, Dict, Timestamp] = [ // 翻譯判斷, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
-        true,
-        TranslationFactory(),
-        new Date().getTime(),
-        GM_getValue("LocalWords", null),
-        GM_getValue("UpdateTimestamp", null),
+    let [Dev, Translated, Factory, Time, Dict, Timestamp] = [ // 開發者模式, 翻譯判斷, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
+        false, true,
+        TranslationFactory(), new Date().getTime(),
+        GM_getValue("LocalWords", null), GM_getValue("UpdateTimestamp", null),
     ];
 
     if (!Dict || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新 (自動更新 12 小時)
@@ -152,7 +150,7 @@
                     break;
                 }
             }
-        }, 200));
+        }, 500));
 
         // 啟動觀察
         const StartOb = () => {
@@ -161,9 +159,20 @@
         };
         // 斷開觀察
         const DisOB = () => observer.disconnect();
-        StartOb(); //首次運行
+        !Dev && StartOb(); //首次運行 (開發者模式下不會自動運行)
+
+        function ThePolesAreReversed() {
+            DisOB();
+            Dictionary.RefreshDict();
+            StartOb();
+        };
 
         /* ----- 創建按鈕 ----- */
+
+        if (Dev) {
+            GM_registerMenuCommand("💬 展示匹配文本", ()=> {Factory.Dev(body)}, {autoClose: false});
+            GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {Factory.Dev(body, false)});
+        };
 
         GM_registerMenuCommand("🆕 更新字典", async ()=> {
             DisOB();
@@ -179,25 +188,18 @@
             StartOb();
         });
 
-        function ThePolesAreReversed() {
-            DisOB();
-            Dictionary.RefreshDict();
-            StartOb();
-        };
-
         GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
-            accessKey: "c",
-            autoClose: false,
+            accessKey: "c", autoClose: false,
         });
 
-        if (Translation.HotKey) {
+        if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event=> {
                 if (event.altKey && event.key.toLowerCase() == "b") {
                     event.preventDefault();
                     ThePolesAreReversed();
                 }
-            });
-        }
+            })
+        };
     });
 
     /* =========================================== */
@@ -228,19 +230,38 @@
 
         const TCore = { // 翻譯核心
             __ShortWordRegular: /[\d\p{L}]+/gu,
-            __LongWordRegular: /[\d\p{L}]+(?:[^()\[\]{}\t])+[\d\p{L}]\.*/gu,
+            __LongWordRegular: /[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu,
+            __Clean: (text) => text.trim().toLowerCase(),
+            Dev_MatchObj: function(text) {
+                const Sresult = text?.match(this.__ShortWordRegular)?.map(Short => {
+                    const Clean = this.__Clean(Short);
+                    return [Clean, Dict[Clean] ?? ""];
+                }) ?? [];
+                
+                const Lresult = text?.match(this.__LongWordRegular)?.map(Long => {
+                    const Clean = this.__Clean(Long);
+                    return [Clean, Dict[Clean] ?? ""];
+                }) ?? [];
+
+                return [Sresult, Lresult]
+                    .flat().filter(([Key, Value]) => Key && !/^\d+$/.test(Key)) // 過濾全都是數字 和 空的 key
+                    .reduce((acc, [Key, Value]) => {
+                        acc[Key] = Value;
+                        return acc;
+                    }, {});
+            },
             OnlyLong: function(text) {
-                return text.replace(this.__LongWordRegular, Long => Dict[Long.toLowerCase()] ?? Long);
+                return text?.replace(this.__LongWordRegular, Long => Dict[this.__Clean(Long)] ?? Long);
             },
             OnlyShort: function(text) {
-                return text.replace(this.__ShortWordRegular, Short => Dict[Short.toLowerCase()] ?? Short);
+                return text?.replace(this.__ShortWordRegular, Short => Dict[this.__Clean(Short)] ?? Short);
             },
             LongShort: function(text) {
-                return text.replace(this.__LongWordRegular, Long => Dict[Long.toLowerCase()] ?? this.OnlyShort(Long));
+                return text?.replace(this.__LongWordRegular, Long => Dict[this.__Clean(Long)] ?? this.OnlyShort(Long));
             }
         };
 
-        const OCore = { // 操作核心
+        const RefreshUICore = {
             FocusTextRecovery: async (textNode)=> {
                 textNode.textContent = TCore.OnlyLong(textNode.textContent);
                 textNode.textContent = TCore.OnlyShort(textNode.textContent);
@@ -249,31 +270,53 @@
                 textNode.textContent = TCore.LongShort(textNode.textContent);
             },
             FocusInputRecovery: async (inputNode)=> {
+                inputNode.value = TCore.OnlyLong(inputNode.value);
+                inputNode.value = TCore.OnlyShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.OnlyLong(inputNode.getAttribute("placeholder")));
                 inputNode.setAttribute("placeholder", TCore.OnlyShort(inputNode.getAttribute("placeholder")));
             },
             FocusInputTranslate: async (inputNode)=> {
+                inputNode.value = TCore.LongShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.LongShort(inputNode.getAttribute("placeholder")));
             },
         };
 
-        const FactoryOperation = {
-            // 選擇運行核心
-            __FocusTextCore: Translation.FocusOnRecovery ? OCore.FocusTextRecovery : OCore.FocusTextTranslate,
-            __FocusInputCore: Translation.FocusOnRecovery ? OCore.FocusInputRecovery : OCore.FocusInputTranslate,
+        const ProcessingDataCore = {
+            __FocusTextCore: Translation.FocusOnRecovery ? RefreshUICore.FocusTextRecovery : RefreshUICore.FocusTextTranslate,
+            __FocusInputCore: Translation.FocusOnRecovery ? RefreshUICore.FocusInputRecovery : RefreshUICore.FocusInputTranslate,
+            Dev_Operation: function(root, print) {
+                const results = {};
+                [
+                    ...getTextNodes(root).map(textNode => textNode.textContent),
+                    ...[...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode =>
+                    [inputNode.value, inputNode.getAttribute("placeholder")]).flat().filter(value=> value && value != '')
+                ].map(text=> Object.assign(results, TCore.Dev_MatchObj(text)));
+
+                if (print) console.table(results);
+                else {
+                    const Json = document.createElement("a");
+                    Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(results, null, 4))}`;
+                    Json.download = "MatchWords.json";
+                    Json.click();
+                    setTimeout(()=>{Json.remove()}, 500);
+                };
+            },
             OperationText: function(root) {
                 return Promise.all(getTextNodes(root).map(textNode => this.__FocusTextCore(textNode)));
             },
             OperationInput: function(root) {
-                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode=> this.__FocusInputCore(inputNode)));
-            }
+                return Promise.all([...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode=> this.__FocusInputCore(inputNode)));
+            },
         };
 
         return {
+            Dev: async (root, print=true) => {
+                ProcessingDataCore.Dev_Operation(root, print);
+            },
             Trigger: async (root) => {
                 await Promise.all([
-                    FactoryOperation.OperationText(root),
-                    FactoryOperation.OperationInput(root)
+                    ProcessingDataCore.OperationText(root),
+                    ProcessingDataCore.OperationInput(root)
                 ]);
             }
         };
