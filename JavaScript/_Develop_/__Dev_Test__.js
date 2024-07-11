@@ -62,10 +62,11 @@ let test1 = {"object1": "物件1", "object2": "物件2", "object3": "物件3"};
 "Array"
 "Object"
 
-//Log("測試", Object.entries(test1));
 
-const Teststr = "abcde"
+Translation("");
 
-Teststr.replace(/[\p{L}]+(?:[^()\[\]{}\t])+[\p{L}]\.*/gu, t => {
-    console.log(null ?? "測試");
-})
+function Translation(text) {
+    text.replace(/[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu, t => {
+        console.log(`"${t.trim()}"`);
+    })
+}
