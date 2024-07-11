@@ -13,8 +13,31 @@
 // ==/UserScript==
 
 (async function() {
+    const Def = Syn();
 
-    const Syn = (()=> {
+    // 查找: 標題, 解壓密碼, 聲明框架, 其餘為要刪除的對象
+    Def.WaitMap([
+        "h1.entry-title", "#custom_html-11", "#wppd-disclaimer-container", // 這排不要修改 (如果有一個找不到, 就不會運作)
+        "#custom_html-13", "#custom_html-14", "#text-4" // 這排為刪除元素, 可以自由增減
+    ], found=> {
+        const [title, password, container,...needless] = found;
+
+        Def.AddStyle(`
+            #wppd-disclaimer-container {
+                border-radius: 10px;
+                background-color: rgb(36, 37, 37);
+            };
+        `);
+
+        const clone = title.cloneNode(true);
+        clone.style.fontSize = "24px";
+
+        container.replaceChildren(clone, password);
+        needless.forEach(node => node.remove());
+
+    }, {timeout: 15, throttle: 300});
+
+    function Syn() {
         function Throttle (func, delay) {
             let lastTime = 0;
             return (...args) => {
@@ -74,25 +97,5 @@
             AddStyle,
             WaitMap,
         }
-    })();
-
-    // 查找: 標題, 解壓密碼, 聲明框架, 其餘為要刪除的對象
-    Syn.WaitMap([
-        "h1.entry-title", "#custom_html-11", "#wppd-disclaimer-container",
-        "#custom_html-13", "#custom_html-14", "#text-4"
-    ], found=> {
-        const [title, password, container,...needless] = found;
-
-        Syn.AddStyle(`
-            .wppd-disclaimer-container.red {
-                border-radius: 10px;
-                background-color: rgb(36, 37, 37);
-            }
-        `);
-
-        container.replaceChildren(title.cloneNode(true), password);
-        needless.forEach(node => node.remove());
-
-    }, {timeout: 15, throttle: 300});
-
+    };
 })();
