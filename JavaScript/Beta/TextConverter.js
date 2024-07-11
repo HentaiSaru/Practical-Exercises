@@ -32,17 +32,18 @@
  */
 
 (async function() {
+    /* 數據量越多 Bug 機率越高 */
     const Config = {
         DictionaryType: {
             Type: ["All_Words"],
             /**
-             * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words", 打更多只會讓處理變慢)
+             * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words", 打更多只會讓處理變慢, 不做數據判斷, 亂給就壞給你看)
              * 範例: ["Short", "Long", "Tags"]
              * 
              * All_Words: 全部
              * Tags: 標籤
-             * Short: 短語
-             * Long: 長語
+             * Short: 短單詞
+             * Long: 長單詞
              * Language: 語言
              * Character: 角色
              * Parody: 原作
@@ -57,13 +58,13 @@
             /**
              * 專注於反轉 (也不是 100% 反轉成功, 只是成功率較高)
              *
-             * 1. 轉換時型能開銷較高
+             * 1. 轉換時性能開銷較高
              * 2. 轉換時有時會有疊加錯誤 (數據越多可能性越高)
              *
              * 不專注於反轉
              *
              * 1. 性能開銷較低處理的更快
-             * 2. 反轉時常常會有許多無法反轉的狀況
+             * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
              */
         },
     };
@@ -79,6 +80,8 @@
         "": "",
         /* Parody */
         "": "",
+        /* Group */
+        "": "",
         /* Artist */
         "": "",
         /* Long */
@@ -87,14 +90,15 @@
         "": "",
         /* Tags */
         "": "",
+        
     };
 
     /* =========================================== */
 
-    // 解構設置 (不做數據判斷, 亂給就壞給你看)
+    // 解構設置
     const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
     // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    let [Dev, Translated, Factory, Time, Dict, Timestamp] = [ // 開發者模式, 翻譯判斷, 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
+    let [Dev, Translated, Factory, Time, Dict, Timestamp] = [ // 開發者模式, 翻譯判斷 (不要修改), 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
         false, true,
         TranslationFactory(), new Date().getTime(),
         GM_getValue("LocalWords", null), GM_getValue("UpdateTimestamp", null),
@@ -170,6 +174,7 @@
         /* ----- 創建按鈕 ----- */
 
         if (Dev) {
+            Translated = false;
             GM_registerMenuCommand("💬 展示匹配文本", ()=> {Factory.Dev(body)}, {autoClose: false});
             GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {Factory.Dev(body, false)});
         };
@@ -186,6 +191,11 @@
 
             Dictionary.RefreshDict();
             StartOb();
+        });
+
+        GM_registerMenuCommand("🚮 清空字典", ()=> {
+            GM_setValue("LocalWords", {});
+            location.reload();
         });
 
         GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
@@ -262,20 +272,20 @@
         };
 
         const RefreshUICore = {
-            FocusTextRecovery: async (textNode)=> {
+            FocusTextRecovery: (textNode) => {
                 textNode.textContent = TCore.OnlyLong(textNode.textContent);
                 textNode.textContent = TCore.OnlyShort(textNode.textContent);
             },
-            FocusTextTranslate: async (textNode)=> {
+            FocusTextTranslate: (textNode) => {
                 textNode.textContent = TCore.LongShort(textNode.textContent);
             },
-            FocusInputRecovery: async (inputNode)=> {
+            FocusInputRecovery: (inputNode) => {
                 inputNode.value = TCore.OnlyLong(inputNode.value);
                 inputNode.value = TCore.OnlyShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.OnlyLong(inputNode.getAttribute("placeholder")));
                 inputNode.setAttribute("placeholder", TCore.OnlyShort(inputNode.getAttribute("placeholder")));
             },
-            FocusInputTranslate: async (inputNode)=> {
+            FocusInputTranslate: (inputNode) => {
                 inputNode.value = TCore.LongShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.LongShort(inputNode.getAttribute("placeholder")));
             },
@@ -302,22 +312,20 @@
                 };
             },
             OperationText: function(root) {
-                return Promise.all(getTextNodes(root).map(textNode => this.__FocusTextCore(textNode)));
+                getTextNodes(root).map(textNode => this.__FocusTextCore(textNode));
             },
             OperationInput: function(root) {
-                return Promise.all([...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode=> this.__FocusInputCore(inputNode)));
+                [...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode=> this.__FocusInputCore(inputNode));
             },
         };
 
         return {
-            Dev: async (root, print=true) => {
+            Dev: (root, print=true) => {
                 ProcessingDataCore.Dev_Operation(root, print);
             },
-            Trigger: async (root) => {
-                await Promise.all([
-                    ProcessingDataCore.OperationText(root),
-                    ProcessingDataCore.OperationInput(root)
-                ]);
+            Trigger: (root) => {
+                ProcessingDataCore.OperationText(root);
+                ProcessingDataCore.OperationInput(root);
             }
         };
     };
@@ -353,13 +361,17 @@
 
     /* 更新數據 */
     async function UpdateWordsDict() {
-        let WordsDict = {};
+        let WordsDict = {}, Dtype = DictType.Type;
 
-        for (const type of DictType.Type) {
+        if (Dtype.length <= 0) return {};
+
+        for (const type of Dtype) {
             Object.assign(WordsDict, await GetWordsDict(type));
         };
 
         if (Object.keys(WordsDict).length > 0) {
+            Object.assign(WordsDict, Customize);
+
             GM_setValue("LocalWords", WordsDict);
             GM_setValue("UpdateTimestamp", new Date().getTime());
 
@@ -372,7 +384,7 @@
                 border: 2px solid #597445;
             `);
 
-            return Object.assign(WordsDict, Customize);
+            return WordsDict;
         } else {
             console.log("%c數據更新失敗", `
                 padding: 5px;
