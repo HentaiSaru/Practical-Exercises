@@ -32,23 +32,24 @@
  */
 
 (async function() {
-    /* 數據量越多 Bug 機率越高 */
     const Config = {
         DictionaryType: {
-            Type: ["All_Words"],
+            Type: ["All_Words"], // 不需要導入留空 []
             /**
              * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words", 打更多只會讓處理變慢, 不做數據判斷, 亂給就壞給你看)
+             *
+             * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
              * 範例: ["Short", "Long", "Tags"]
-             * 
+             *
              * All_Words: 全部
              * Tags: 標籤
-             * Short: 短單詞
-             * Long: 長單詞
              * Language: 語言
              * Character: 角色
              * Parody: 原作
              * Artist: 繪師
              * Group: 社團
+             * Short: 短單詞
+             * Long: 長單詞
              * Beautify: 美化用的
              */
         },
@@ -69,7 +70,11 @@
         },
     };
 
-    // 自定轉換字典  { "要轉換的字串": "轉換成的字串" }, 要轉換字串中, 如果包含英文, 全部都要小寫
+    /**
+     * 自定轉換字典  { "要轉換的字串": "轉換成的字串" }, 要轉換字串中, 如果包含英文, 全部都要小寫
+     *
+     * 自定字典的優先級更高, 他會覆蓋掉導入的字典
+     */
     const Customize = {
         "apple": "蘋果", // 範例
         /* Beautify */
@@ -90,10 +95,9 @@
         "": "",
         /* Tags */
         "": "",
-        
     };
 
-    /* =========================================== */
+    /* ====================== 不瞭解不要修改下方參數 ===================== */
 
     // 解構設置
     const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
@@ -137,16 +141,16 @@
             this.RefreshReverse();
         }
     };
-
     Dictionary.Init();
+
     WaitElem("body", body => { // 等待頁面載入
         const RunFactory = () => Factory.Trigger(body);
 
-        let mutation; // 監聽後續變化
         const options = {
             subtree: true,
             childList: true,
         };
+        let mutation; // 監聽後續變化
         const observer = new MutationObserver(Debounce((mutationsList, observer) => {
             for (mutation of mutationsList) {
                 if (mutation.type === 'childList' || mutation.type === 'characterData') {
@@ -161,9 +165,10 @@
             RunFactory();
             observer.observe(body, options);
         };
+
         // 斷開觀察
         const DisOB = () => observer.disconnect();
-        !Dev && StartOb(); //首次運行 (開發者模式下不會自動運行)
+        !Dev && StartOb(); //首次運行 (開發者模式下不會自動運行, 因為有可能轉換不回來)
 
         function ThePolesAreReversed() {
             DisOB();
@@ -175,13 +180,23 @@
 
         if (Dev) {
             Translated = false;
-            GM_registerMenuCommand("💬 展示匹配文本", ()=> {Factory.Dev(body)}, {autoClose: false});
-            GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {Factory.Dev(body, false)});
+            GM_registerMenuCommand("💬 展示匹配文本", ()=> {
+                Factory.Dev(body)
+            }, {
+                autoClose: false,
+                title: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
+            });
+            GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {
+                Factory.Dev(body, false)
+            }, {
+                title: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
+            });
         };
 
         GM_registerMenuCommand("🆕 更新字典", async ()=> {
             DisOB();
             Translated = true;
+            GM_setValue("Clear", false);
             Dict = await UpdateWordsDict();
 
             // 更新字典時, 需要先反向一次, 在將其轉換 (避免不完全的刷新)
@@ -191,15 +206,22 @@
 
             Dictionary.RefreshDict();
             StartOb();
+        }, {
+            title: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
         });
 
         GM_registerMenuCommand("🚮 清空字典", ()=> {
             GM_setValue("LocalWords", {});
+            GM_setValue("Clear", true);
             location.reload();
+        }, {
+            title: "清除本地緩存的字典",
         });
 
         GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
-            accessKey: "c", autoClose: false,
+            accessKey: "c",
+            autoClose: false,
+            title: "互相反轉變更後的文本",
         });
 
         if (Dev || Translation.HotKey) {
@@ -216,21 +238,21 @@
 
     function TranslationFactory() {
         function getTextNodes(root) {
-            const tree = document.createTreeWalker( // 過濾出所有可用文字節點
+            const tree = document.createTreeWalker(
                 root,
                 NodeFilter.SHOW_TEXT,
                 {
                     acceptNode: (node) => {
                         const content = node.textContent.trim();
                         if (content == '') return NodeFilter.FILTER_REJECT;
-                        if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content)) {
+                        if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content)) { // 過濾部份不需要數據
                             return NodeFilter.FILTER_REJECT;
                         }
                         return NodeFilter.FILTER_ACCEPT;
                     }
                 }
             );
-        
+
             const nodes = [];
             while (tree.nextNode()) {
                 nodes.push(tree.currentNode);
@@ -247,7 +269,7 @@
                     const Clean = this.__Clean(Short);
                     return [Clean, Dict[Clean] ?? ""];
                 }) ?? [];
-                
+
                 const Lresult = text?.match(this.__LongWordRegular)?.map(Long => {
                     const Clean = this.__Clean(Long);
                     return [Clean, Dict[Clean] ?? ""];
@@ -272,20 +294,20 @@
         };
 
         const RefreshUICore = {
-            FocusTextRecovery: (textNode) => {
+            FocusTextRecovery: async (textNode) => {
                 textNode.textContent = TCore.OnlyLong(textNode.textContent);
                 textNode.textContent = TCore.OnlyShort(textNode.textContent);
             },
-            FocusTextTranslate: (textNode) => {
+            FocusTextTranslate: async (textNode) => {
                 textNode.textContent = TCore.LongShort(textNode.textContent);
             },
-            FocusInputRecovery: (inputNode) => {
+            FocusInputRecovery: async (inputNode) => {
                 inputNode.value = TCore.OnlyLong(inputNode.value);
                 inputNode.value = TCore.OnlyShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.OnlyLong(inputNode.getAttribute("placeholder")));
                 inputNode.setAttribute("placeholder", TCore.OnlyShort(inputNode.getAttribute("placeholder")));
             },
-            FocusInputTranslate: (inputNode) => {
+            FocusInputTranslate: async (inputNode) => {
                 inputNode.value = TCore.LongShort(inputNode.value);
                 inputNode.setAttribute("placeholder", TCore.LongShort(inputNode.getAttribute("placeholder")));
             },
@@ -311,11 +333,11 @@
                     setTimeout(()=>{Json.remove()}, 500);
                 };
             },
-            OperationText: function(root) {
-                getTextNodes(root).map(textNode => this.__FocusTextCore(textNode));
+            OperationText: async function(root) {
+                return Promise.all(getTextNodes(root).map(textNode => this.__FocusTextCore(textNode)));
             },
-            OperationInput: function(root) {
-                [...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode=> this.__FocusInputCore(inputNode));
+            OperationInput: async function(root) {
+                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode=> this.__FocusInputCore(inputNode)));
             },
         };
 
@@ -323,9 +345,11 @@
             Dev: (root, print=true) => {
                 ProcessingDataCore.Dev_Operation(root, print);
             },
-            Trigger: (root) => {
-                ProcessingDataCore.OperationText(root);
-                ProcessingDataCore.OperationInput(root);
+            Trigger: async (root) => {
+                await Promise.all([
+                    ProcessingDataCore.OperationText(root),
+                    ProcessingDataCore.OperationInput(root)
+                ]);
             }
         };
     };
@@ -347,7 +371,7 @@
                             resolve({});
                         }
                     } else {
-                        console.error("連線異常, 更新地址可能是錯的");
+                        console.error("連線異常, 地址類型可能是錯的");
                         resolve({});
                     }
                 },
@@ -361,11 +385,13 @@
 
     /* 更新數據 */
     async function UpdateWordsDict() {
-        let WordsDict = {}, Dtype = DictType.Type;
+        let WordsDict = {}, Dtype = DictType.Type ?? [];
 
-        if (Dtype.length <= 0) return {};
+        if (Dtype.length <= 0 || GM_getValue("Clear")) return {};
 
         for (const type of Dtype) {
+            if (type === "") continue;
+
             Object.assign(WordsDict, await GetWordsDict(type));
         };
 
@@ -409,7 +435,6 @@
         }
     };
 
-    // 等待元素
     async function WaitElem(selector, found) {
         const observer = new MutationObserver(Debounce(() => {
             const element = document.querySelector(selector);
