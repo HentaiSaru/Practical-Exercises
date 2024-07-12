@@ -5,6 +5,7 @@
 // @description  將免則聲明區塊替換成 標題文字 與 解壓密碼, 並刪除不需要元素
 
 // @match        *://hgamefree.info/adult-video-game/*
+// @match        *://hgamefree.info/r18-vr-computer-animation/*
 // @icon         https://hgamefree.info/wp-content/uploads/fbrfg/favicon-32x32.png
 
 // @license      MIT
