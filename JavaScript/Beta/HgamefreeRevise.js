@@ -9,6 +9,7 @@
 // @icon         https://hgamefree.info/wp-content/uploads/fbrfg/favicon-32x32.png
 
 // @license      MIT
+// @grant        none
 // @run-at       document-body
 // @namespace    https://greasyfork.org/users/989635
 // ==/UserScript==

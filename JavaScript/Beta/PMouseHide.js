@@ -22,6 +22,7 @@
 // @run-at       document-start
 
 // @license      MIT
+// @grant        none
 // @namespace    https://greasyfork.org/users/989635
 // ==/UserScript==
 
