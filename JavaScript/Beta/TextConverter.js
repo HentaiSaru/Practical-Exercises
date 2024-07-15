@@ -360,7 +360,7 @@
             GM_xmlhttpRequest({
                 method: "GET",
                 responseType: "json",
-                url: `https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/JSDB/${type}.json`,
+                url: `https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/Words/${type}.json`,
                 onload: response => {
                     if (response.status === 200) {
                         const data = response.response;
