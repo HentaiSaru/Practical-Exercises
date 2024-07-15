@@ -94,6 +94,8 @@ class Collection {
  * [滑鼠點擊]: "click"
  * [滑鼠點兩下]: "dblclick"
  * [滑鼠滾動]: "scroll"
+ * [提交表單]: "submit"
+ * [大小調整]: "resize"
  * [滑鼠放開]: "mouseup" / "pointerup"
  * [滑鼠按下]: "mousedown" / "pointerdown"
  * [滑鼠移入]: "mouseover" / "pointerover" | 在目標上反覆觸發
@@ -112,9 +114,8 @@ class Collection {
  * [鍵盤按下]: "keydown"
  * [元素獲得焦點]: "focus" (通常用於 input 或 textarea)
  * [元素失去焦點]: "blur" (通常用於 input 或 textarea)
- * [提交表單]: "submit"
- * [大小調整]: "resize"
  * [頁面資源載入完成]: "load" (通常用於圖片、音頻、影片等)
+ * [DOM 樹插入節點]: "DOMNodeInserted"
  * [DOM 樹載入完成]: "DOMContentLoaded"
  * [歷史紀錄變化]: "popstate" (url 的轉變)
  * [用戶離開頁面]: "beforeunload"
