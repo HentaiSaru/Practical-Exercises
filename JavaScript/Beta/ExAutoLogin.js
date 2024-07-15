@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.28
+// @version      0.0.29
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -32,46 +32,26 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.5/js.cookie.min.js
-// @require      https://update.greasyfork.org/scripts/487608/1365414/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
 
-(function() {
-    const def = new Syntax(), domain = location.hostname, lang = language(navigator.language);
+(async () => {
+    const [domain, lang] = [
+        Syn.Device.Host, language(Syn.Device.Lang)
+    ];
+    const CKOP = CookieFactory();
 
-    class Cookie_Operations {
+    (new class AutoLogin {
         constructor() {
-            /* 取得 Cookies */
-            this.GetCookie = () => Cookies.get();
-            /* 添加 cookie */
-            this.AddCookie = (LoginCookies) => {
-                let cookie, date = new Date();
-                date.setFullYear(date.getFullYear() + 1);
-                for (cookie of LoginCookies) {
-                    Cookies.set(cookie.name, cookie.value, { expires: date });
-                }
-            }
-            /* 刪除 cookie */
-            this.DeleteCookie = () => {
-                for (const Name of Object.keys(Cookies.get())) {
-                    Cookies.remove(Name, { path: "/" });
-                    Cookies.remove(Name, { path: "/", domain: `.${domain}` });
-                }
-            }
-        }
-    }
-
-    (new class AutoLogin extends Cookie_Operations {
-        constructor() {
-            super();
             this.modal = null;
 
             /* 共享帳號 */
             this.Share = () => {
                 return {
-                    1: [{"name":"igneous","value":"cjlxia7km3va6v1cbly"},{"name":"ipb_member_id","value":"8176350"},{"name":"ipb_pass_hash","value":"ff951af3fcfdf0d596e284bfc2fc8812"},{"name":"sl","value":"dm_2"}],
-                    2: [{"name":"igneous","value":"day3o30a0n6zig1cbm2"},{"name":"ipb_member_id","value":"8176372"},{"name":"ipb_pass_hash","value":"7838c2242a12a66e0ed4e0401f1c2a42"},{"name":"sl","value":"dm_2"}],
+                    1: [{"name":"igneous","value":"8j3gl61cimcvn91edy0"},{"name":"ipb_member_id","value":"8176350"},{"name":"ipb_pass_hash","value":"ff951af3fcfdf0d596e284bfc2fc8812"},{"name":"sl","value":"dm_2"}],
+                    2: [{"name":"igneous","value":"313q5ge1709ny21edy3"},{"name":"ipb_member_id","value":"8176372"},{"name":"ipb_pass_hash","value":"7838c2242a12a66e0ed4e0401f1c2a42"},{"name":"sl","value":"dm_2"}],
                     3: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
                     4: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
                     5: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
@@ -124,20 +104,20 @@
 
             /* 監聽選單切換, 全局套用 */
             this.GlobalMenuToggle = async() => {
-                def.storeListen(["Expand"], listen=> {
+                Syn.StoreListen(["Expand"], listen=> {
                     listen.far && this.MenuToggle();
                 });
             }
 
             /* 切換開合選單 */
             this.MenuToggle = async() => {
-                const state = def.store("g", "Expand", false),
+                const state = Syn.Store("g", "Expand", false),
                 disp = state ? lang.RM_C1 : lang.RM_C0;
-                def.Menu({
+                Syn.Menu({
                     [disp]: {func: ()=> {
                         state
-                        ? def.store("s", "Expand", false)
-                        : def.store("s", "Expand", true);
+                        ? Syn.Store("s", "Expand", false)
+                        : Syn.Store("s", "Expand", true);
                         this.MenuToggle();
                     }, hotkey: "c", close: false}
                 }, "Switch");
@@ -147,7 +127,7 @@
 
             /* 創建延伸選單 */
             this.Expand = async() => {
-                def.Menu({
+                Syn.Menu({
                     [lang.RM_01]: {func: ()=> this.GetCookieAutomatically() },
                     [lang.RM_02]: {func: ()=> this.ManualSetting() },
                     [lang.RM_03]: {func: ()=> this.ViewSaveCookie() },
@@ -164,33 +144,17 @@
 
         /* 主要調用 */
         async Main() {
-            let CurrentTime = new Date(), DetectionTime = def.Storage("DetectionTime");
+            let CurrentTime = new Date(), DetectionTime = Syn.Storage("DetectionTime", {type: localStorage});
             DetectionTime = DetectionTime ? new Date(DetectionTime) : new Date(CurrentTime.getTime() + 11 * 60 * 1000);
 
-            const Conversion = (DetectionTime - CurrentTime) / (1000 * 60), self = this; // 轉換時間
+            const Conversion = (CurrentTime - DetectionTime) / (1000 * 60); // 轉換時間
             if (Conversion >= 10) { // 隔 10 分鐘檢測
-                const cookie = def.store("gj", "E/Ex_Cookies");
-                cookie && CookieCheck(cookie);
-                def.Storage("DetectionTime", {value: CurrentTime.getTime()});
-            }
-
-            /* 登入檢測 */
-            async function CookieCheck(cookies) {
-                let RequiredCookies = ["ipb_member_id", "ipb_pass_hash"];
-                if (domain == "exhentai.org") {RequiredCookies.unshift("igneous")}
-
-                const cookie = new Set(Object.keys(self.GetCookie()));
-                const CookieFound = RequiredCookies.every(Name => cookie.has(Name));
-
-                if (!CookieFound) { // 判斷
-                    self.DeleteCookie();
-                    self.AddCookie(cookies);
-                    location.reload();
-                }
+                const cookie = Syn.Store("gj", "E/Ex_Cookies");
+                cookie && CKOP.Verify(cookie);
             }
 
             /* 創建選單 */
-            def.Menu({[lang.RM_00]: {func: ()=> this.SharedLogin()}});
+            Syn.Menu({[lang.RM_00]: {func: ()=> this.SharedLogin()}});
             this.MenuToggle();
             this.GlobalMenuToggle();
         }
@@ -198,7 +162,7 @@
         /* 共享號登入 */
         async SharedLogin() {
             this.CreateDetection();
-            const Share = this.Share(), AccountQuantity = Object.keys(Share).length, Igneous = this.GetCookie().igneous;
+            const Share = this.Share(), AccountQuantity = Object.keys(Share).length, Igneous = CKOP.Get().igneous;
 
             // 創建選項模板
             let Select = $(`<select id="account-select" class="acc-select"></select>`), Value;
@@ -233,10 +197,8 @@
 
                 const target = click.target;
                 if (target.id == "login") {
-                    self.DeleteCookie();
-                    def.Storage("DetectionTime", {value: new Date().getTime()});
-                    self.AddCookie(Share[+$("#account-select").val()]);
-                    location.reload();
+                    CKOP.Delete();
+                    CKOP.Add(Share[+$("#account-select").val()]);
                 } else if (target.className == "modal-background") {
                     self.DeleteMenu();
                 }
@@ -246,7 +208,7 @@
         /* 自動獲取 Cookies */
         async GetCookieAutomatically() {
             let cookie_box = [];
-            for (const [name, value] of Object.entries(this.GetCookie())) {
+            for (const [name, value] of Object.entries(CKOP.Get())) {
                 cookie_box.push({"name": name, "value" : value});
             }
             cookie_box.length > 1
@@ -274,7 +236,7 @@
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "save") {
-                    def.store("s", "E/Ex_Cookies", cookies);
+                    Syn.Store("s", "E/Ex_Cookies", cookies);
                     self.Growl(lang.SM_05, "jGrowl", 1500);
                     self.DeleteMenu();
                 } else if (target.className == "modal-background" || target.id == "close") {
@@ -335,7 +297,7 @@
                 const target = click.target;
                 if (target.className == "modal-background" || target.id == "close") {
                     click.preventDefault();
-                    cookie && def.store("s", "E/Ex_Cookies", cookie);
+                    cookie && Syn.Store("s", "E/Ex_Cookies", cookie);
                     self.DeleteMenu();
                 }
             });
@@ -355,7 +317,7 @@
                 </div>
             `
             this.CreateMenu();
-            const cookie = def.store("gj", "E/Ex_Cookies");
+            const cookie = Syn.Store("gj", "E/Ex_Cookies");
             const textarea = $("<textarea>").attr({
                 rows: 20,
                 cols: 50,
@@ -376,7 +338,7 @@
                         image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                         timeout: 3000
                     });
-                    def.store("sj", "E/Ex_Cookies", JSON.parse($("#view_SC").val()));
+                    Syn.Store("sj", "E/Ex_Cookies", JSON.parse($("#view_SC").val()));
                     self.DeleteMenu();
                 } else if (target.className == "modal-background" || target.id == "close") {
                     self.DeleteMenu();
@@ -387,10 +349,8 @@
         /* 手動注入 Cookies 登入 */
         async CookieInjection() {
             try {
-                this.DeleteCookie();
-                this.AddCookie(def.store("gj", "E/Ex_Cookies"));
-                def.Storage("DetectionTime", {value: new Date().getTime()});
-                location.reload();
+                CKOP.Delete();
+                CKOP.Add(Syn.Store("gj", "E/Ex_Cookies"));
             } catch (error) {
                 alert(lang.SM_16);
             }
@@ -398,11 +358,10 @@
 
         /* 清除登入狀態 */
         async ClearLogin() {
-            this.DeleteCookie();
+            CKOP.Delete();;
             location.reload();
         }
     }).Main();
-
     (new class Style {
         /* 導入 Style */
         async Import() {
@@ -419,7 +378,7 @@
                 show_style = "background-color: #34353b; border: 2px ridge #5C0D12;"
                 acc_style = "color: #f1f1f1; background-color: #34353b; border: 2px solid #8d8d8d;"
                 button_style = "color: #fefefe; border: 2px solid #8d8d8d; background-color: #34353b;"
-                def.AddStyle(`
+                Syn.AddStyle(`
                     body {
                         padding: 2px;
                         color: #f1f1f1;
@@ -427,8 +386,8 @@
                         background: #34353b;
                     }
                 `)
-            }
-            def.AddStyle(`
+            };
+            Syn.AddStyle(`
                 ${GM_getResourceText("jgrowl-css")}
                 .jGrowl {
                     ${jGrowl_style}
@@ -538,6 +497,41 @@
             `);
         }
     }).Import();
+
+    function CookieFactory() {
+        let Cookie = undefined;
+
+        let Today = new Date();
+        Today.setFullYear(Today.getFullYear() + 1);
+
+        let RequiredCookie = ["ipb_member_id", "ipb_pass_hash"];
+        if (domain == "exhentai.org") RequiredCookie.unshift("igneous");
+
+        return {
+            Get: () => Cookies.get(), /* 取得 cookie */
+            Add: function (LoginCookies) { /* 添加 cookie */
+                for (Cookie of LoginCookies) {
+                    Cookies.set(Cookie.name, Cookie.value, { expires: Today });
+                };
+                Syn.Storage("DetectionTime", {type: localStorage, value: new Date().getTime()});
+                location.reload();
+            },
+            Delete: function () { /* 刪除 cookie */
+                for (Cookie of Object.keys(this.Get())) {
+                    Cookies.remove(Cookie, { path: "/" });
+                    Cookies.remove(Cookie, { path: "/", domain: `.${domain}` });
+                }
+            },
+            Verify: function (Cookies) { /* 驗證所需 cookie */
+                const VCookie = new Set(Object.keys(this.Get()));
+                const Result = RequiredCookie.every(Name => VCookie.has(Name));
+                if (!Result) {
+                    this.Delete();
+                    this.Add(Cookies);
+                }
+            }
+        }
+    };
 
     function language(lang) {
         const Display = {
@@ -696,6 +690,6 @@
             "zh-HK": Display.Traditional,
             "zh-MO": Display.Traditional,
         };
-        return Match[lang] || Match["en-US"];
-    }
+        return Match[lang] ?? Match["en-US"];
+    };
 })();
