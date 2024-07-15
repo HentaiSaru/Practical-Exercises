@@ -14,6 +14,7 @@
 // @description:ko      E/Ex - 공유 계정 로그인, 자동으로 쿠키 가져오기, 쿠키 수동 입력, 로컬 백업 및 백업 보기, 자동 로그인 감지
 // @description:en      E/Ex - Shared account login, automatic cookie retrieval, manual cookie input, local backup, and backup viewing, automatic login detection
 
+// @connect      *
 // @match        *://e-hentai.org/*
 // @match        *://exhentai.org/*
 // @icon         https://e-hentai.org/favicon.ico
@@ -25,6 +26,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_notification
+// @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
@@ -38,9 +40,8 @@
 // ==/UserScript==
 
 (async () => {
-    const [domain, lang] = [
-        Syn.Device.Host, language(Syn.Device.Lang)
-    ];
+    const lang =language(Syn.Device.Lang);
+    const domain = Syn.Device.Host;
     const CKOP = CookieFactory();
 
     (new class AutoLogin {
@@ -48,16 +49,7 @@
             this.modal = null;
 
             /* 共享帳號 */
-            this.Share = () => {
-                return {
-                    1: [{"name":"igneous","value":"8j3gl61cimcvn91edy0"},{"name":"ipb_member_id","value":"8176350"},{"name":"ipb_pass_hash","value":"ff951af3fcfdf0d596e284bfc2fc8812"},{"name":"sl","value":"dm_2"}],
-                    2: [{"name":"igneous","value":"313q5ge1709ny21edy3"},{"name":"ipb_member_id","value":"8176372"},{"name":"ipb_pass_hash","value":"7838c2242a12a66e0ed4e0401f1c2a42"},{"name":"sl","value":"dm_2"}],
-                    3: [{"name":"igneous","value":"eebe6f1e6"},{"name":"ipb_member_id","value":"7498513"},{"name":"ipb_pass_hash","value":"e36bf990b97f805acb2dd5588440c203"},{"name":"sl","value":"dm_2"}],
-                    4: [{"name":"igneous","value":"3fef094b8"},{"name":"ipb_member_id","value":"5191636"},{"name":"ipb_pass_hash","value":"544b6a81f07d356f3753032183d1fdfb"},{"name":"sl","value":"dm_2"}],
-                    5: [{"name":"igneous","value":"a471a8815"},{"name":"ipb_member_id","value":"7317440"},{"name":"ipb_pass_hash","value":"dbba714316273efe9198992d40a20172"},{"name":"sl","value":"dm_2"}],
-                    6: [{"name":"igneous","value":"cf2fa3bca"},{"name":"ipb_member_id","value":"7711946"},{"name":"ipb_pass_hash","value":"15f08fb3ee7a311293b00d888c6889a7"},{"name":"sl","value":"dm_2"}],
-                }
-            }
+            this.Share = Syn.Store("g", "Share") ?? this.UpdateShared();
 
             /* 添加監聽器 */
             this.on = async(element, type, listener) => {
@@ -147,7 +139,8 @@
             let CurrentTime = new Date(), DetectionTime = Syn.Storage("DetectionTime", {type: localStorage});
             DetectionTime = DetectionTime ? new Date(DetectionTime) : new Date(CurrentTime.getTime() + 11 * 60 * 1000);
 
-            const Conversion = (CurrentTime - DetectionTime) / (1000 * 60); // 轉換時間
+            const Conversion = Math.abs(DetectionTime - CurrentTime) / (1000 * 60); // 轉換時間 (舊版相容, 使用 abs)
+            console.warn(Conversion);
             if (Conversion >= 10) { // 隔 10 分鐘檢測
                 const cookie = Syn.Store("gj", "E/Ex_Cookies");
                 cookie && CKOP.Verify(cookie);
@@ -159,10 +152,59 @@
             this.GlobalMenuToggle();
         }
 
+        /* 請求共享數據 */
+        async GetSharedDict() {
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    responseType: "json",
+                    url: "https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/Share/ExShare.json",
+                    onload: response => {
+                        if (response.status === 200) {
+                            const data = response.response;
+                            if (typeof data === "object" && Object.keys(data).length > 0) {
+                                resolve(data);
+                            } else {
+                                console.error(lang.SS_05);
+                                resolve({});
+                            }
+                        } else {
+                            console.error(lang.SS_06);
+                            resolve({});
+                        }
+                    },
+                    onerror: error => {
+                        console.error(lang.SS_07, error);
+                        resolve({});
+                    }
+                })
+            })
+        }
+
+        /* 更新共享數據 */
+        async UpdateShared() {
+            const Shared = await this.GetSharedDict();
+            if (Object.keys(Shared).length > 0) {
+                this.Share = Shared;
+                Syn.Store("s", "Share", Shared);
+                this.Growl(lang.SS_03, "jGrowl", 1500);
+
+                const modal = Syn.$$(".modal-background");
+                if (modal) {
+                    setTimeout(()=> {
+                        modal.remove();
+                        this.SharedLogin();
+                    }, 800);
+                }
+            } else {
+                this.Growl(lang.SS_04, "jGrowl", 1500);
+            }
+        }
+
         /* 共享號登入 */
         async SharedLogin() {
             this.CreateDetection();
-            const Share = this.Share(), AccountQuantity = Object.keys(Share).length, Igneous = CKOP.Get().igneous;
+            const Share = this.Share, AccountQuantity = Object.keys(Share).length, Igneous = CKOP.Get().igneous;
 
             // 創建選項模板
             let Select = $(`<select id="account-select" class="acc-select"></select>`), Value;
@@ -170,16 +212,17 @@
                 if (Share[i][0].value == Igneous) {
                     Value = i;
                 }
-                Select.append($("<option>").attr({value: i}).text(`${lang.SM_19} ${i}`));
+                Select.append($("<option>").attr({value: i}).text(`${lang.SM_16} ${i}`));
             }
 
             // 創建菜單模板
             this.modal = $(`
                 <div class="modal-background">
                     <div class="acc-modal">
-                        <h1>${lang.SM_17}</h1>
-                        <div class="acc-flex">
-                            ${Select.prop("outerHTML")}
+                        <h1>${lang.SM_15}</h1>
+                        <div class="acc-select-flex">${Select.prop("outerHTML")}</div>
+                        <div class="acc-button-flex">
+                            <button class="modal-button" id="update">${lang.SM_17}</button>
                             <button class="modal-button" id="login">${lang.SM_18}</button>
                         </div>
                     </div>
@@ -197,8 +240,9 @@
 
                 const target = click.target;
                 if (target.id == "login") {
-                    CKOP.Delete();
-                    CKOP.Add(Share[+$("#account-select").val()]);
+                    CKOP.ReAdd(Share[+$("#account-select").val()]);
+                } else if (target.id == "update") {
+                    self.UpdateShared();
                 } else if (target.className == "modal-background") {
                     self.DeleteMenu();
                 }
@@ -213,7 +257,7 @@
             }
             cookie_box.length > 1
             ? this.Cookie_Show(JSON.stringify(cookie_box, null, 4))
-            : alert(lang.SM_15);
+            : alert(lang.SS_01);
         }
         /* 展示自動獲取 Cookies */
         async Cookie_Show(cookies){
@@ -349,16 +393,15 @@
         /* 手動注入 Cookies 登入 */
         async CookieInjection() {
             try {
-                CKOP.Delete();
-                CKOP.Add(Syn.Store("gj", "E/Ex_Cookies"));
+                CKOP.ReAdd(Syn.Store("gj", "E/Ex_Cookies"));
             } catch (error) {
-                alert(lang.SM_16);
+                alert(lang.SS_02);
             }
         }
 
         /* 清除登入狀態 */
         async ClearLogin() {
-            CKOP.Delete();;
+            CKOP.Delete();
             location.reload();
         }
     }).Main();
@@ -416,16 +459,20 @@
                 }
                 .acc-modal {
                     ${show_style}
-                    width: 20%;
+                    width: 16%;
                     overflow: auto;
                     margin: 10rem auto;
                     border-radius: 10px;
                 }
-                .acc-flex {
+                .acc-select-flex {
                     display: flex;
                     align-items: center;
                     flex-direction: initial;
                     justify-content: space-around;
+                }
+                .acc-button-flex {
+                    display: flex;
+                    justify-content: center;
                 }
                 .acc-select {
                     ${acc_style}
@@ -509,8 +556,8 @@
 
         return {
             Get: () => Cookies.get(), /* 取得 cookie */
-            Add: function (LoginCookies) { /* 添加 cookie */
-                for (Cookie of LoginCookies) {
+            Add: function (AddCookies) { /* 添加 cookie */
+                for (Cookie of AddCookies) {
                     Cookies.set(Cookie.name, Cookie.value, { expires: Today });
                 };
                 Syn.Storage("DetectionTime", {type: localStorage, value: new Date().getTime()});
@@ -521,6 +568,10 @@
                     Cookies.remove(Cookie, { path: "/" });
                     Cookies.remove(Cookie, { path: "/", domain: `.${domain}` });
                 }
+            },
+            ReAdd: function (Cookies) { /* 重新添加 */
+                this.Delete();
+                this.Add(Cookies);
             },
             Verify: function (Cookies) { /* 驗證所需 cookie */
                 const VCookie = new Set(Object.keys(this.Get()));
@@ -558,11 +609,17 @@
                 SM_12: "下方選填 也可不修改",
                 SM_13: "[確認輸入正確]按下退出選單保存",
                 SM_14: "當前設置 Cookies",
-                SM_15: "未獲取到 Cookies !!\n\n請先登入帳戶",
-                SM_16: "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置",
-                SM_17: "帳戶選擇",
+                SM_15: "帳戶選擇",
+                SM_16: "帳戶",
+                SM_17: "更新",
                 SM_18: "登入",
-                SM_19: "帳號"
+                SS_01: "未獲取到 Cookies !!\n\n請先登入帳戶",
+                SS_02: "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置",
+                SS_03: "共享數據獲取成功",
+                SS_04: "共享數據獲取失敗",
+                SS_05: "請求為空數據",
+                SS_06: "連線異常, 地址類型可能是錯的",
+                SS_07: "請求錯誤: "
             },
             Simplified: {
                 RM_00: "🍪 共享登录",
@@ -587,98 +644,122 @@
                 SM_12: "下方选填 也可不修改",
                 SM_13: "[确认输入正确]按下退出菜单保存",
                 SM_14: "当前设置 Cookies",
-                SM_15: "未获取到 Cookies !!\n\n请先登录账户",
-                SM_16: "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
-                SM_17: "帐户选择",
+                SM_15: "账户选择",
+                SM_16: "账户",
+                SM_17: "更新",
                 SM_18: "登录",
-                SM_19: "帐号"
+                SS_01: "未获取到 Cookies !!\n\n请先登录账户",
+                SS_02: "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
+                SS_03: "共享数据获取成功",
+                SS_04: "共享数据获取失败",
+                SS_05: "请求为空数据",
+                SS_06: "连接异常, 地址类型可能是错的",
+                SS_07: "请求错误: "
             },
             English: {
                 RM_00: "🍪 Shared Login",
-                RM_C0: "📂 Expand menu",
-                RM_C1: "📁 Collapse menu",
-                RM_01: "📜 Automatically get",
-                RM_02: "📝 Manual input",
-                RM_03: "🔍 View saved",
-                RM_04: "🔃 Manual injection",
+                RM_C0: "📂 Expand Menu",
+                RM_C1: "📁 Collapse Menu",
+                RM_01: "📜 Auto Retrieve",
+                RM_02: "📝 Manual Input",
+                RM_03: "🔍 View Saved",
+                RM_04: "🔃 Manual Injection",
                 RM_05: "🗑️ Clear Login",
-                SM_01: "Confirm selected cookies",
-                SM_02: "Confirm save",
-                SM_03: "Cancel and exit",
-                SM_04: "Exit menu",
-                SM_05: "Saved successfully!",
-                SM_06: "Change save",
-                SM_07: "Change notification",
-                SM_08: "Changes saved",
-                SM_09: "Set cookies",
-                SM_10: "Need to log in to Ex",
-                SM_11: "Required fields",
-                SM_12: "Optional below, can also not be modified",
-                SM_13: "[Make sure the input is correct] Press to exit the menu and save",
-                SM_14: "Current cookie settings",
-                SM_15: "Failed to get Cookies !!\n\nPlease log in to your account first",
-                SM_16: "No injectable cookies detected !!\n\nPlease set from the menu",
-                SM_17: "Account Selection",
-                SM_18: "Log In",
-                SM_19: "Account"
+                SM_01: "Confirm Selected Cookies",
+                SM_02: "Confirm Save",
+                SM_03: "Cancel Exit",
+                SM_04: "Exit Menu",
+                SM_05: "Save Successful!",
+                SM_06: "Change Saved",
+                SM_07: "Change Notification",
+                SM_08: "Changes Saved",
+                SM_09: "Set Cookies",
+                SM_10: "Required for Ex Login",
+                SM_11: "Mandatory Field",
+                SM_12: "Optional Below, No Changes Needed",
+                SM_13: "[Confirm Correct Input] Press Exit Menu to Save",
+                SM_14: "Current Set Cookies",
+                SM_15: "Account Selection",
+                SM_16: "Account",
+                SM_17: "Update",
+                SM_18: "Login",
+                SS_01: "No Cookies Retrieved !!\n\nPlease Login First",
+                SS_02: "No Injectable Cookies Detected !!\n\nPlease Set in Menu",
+                SS_03: "Shared Data Retrieval Successful",
+                SS_04: "Shared Data Retrieval Failed",
+                SS_05: "Request Contains No Data",
+                SS_06: "Connection Error, Address Type May Be Wrong",
+                SS_07: "Request Error: "
             },
             Korea: {
                 RM_00: "🍪 공유 로그인",
-                RM_C0: "📂 메뉴 펼치기",
-                RM_C1: "📁 메뉴 접기",
-                RM_01: "📜 자동으로 가져오기",
+                RM_C0: "📂 메뉴 확장",
+                RM_C1: "📁 메뉴 축소",
+                RM_01: "📜 자동 가져오기",
                 RM_02: "📝 수동 입력",
-                RM_03: "🔍 저장된 것 보기",
+                RM_03: "🔍 저장 보기",
                 RM_04: "🔃 수동 주입",
                 RM_05: "🗑️ 로그인 지우기",
                 SM_01: "선택한 쿠키 확인",
                 SM_02: "저장 확인",
-                SM_03: "취소하고 종료",
+                SM_03: "취소 종료",
                 SM_04: "메뉴 종료",
                 SM_05: "저장 성공!",
                 SM_06: "변경 저장",
                 SM_07: "변경 알림",
-                SM_08: "변경 사항이 저장되었습니다",
+                SM_08: "변경 사항 저장됨",
                 SM_09: "쿠키 설정",
-                SM_10: "Ex에 로그인해야합니다",
+                SM_10: "Ex 로그인에 필요",
                 SM_11: "필수 항목",
-                SM_12: "아래는 선택적으로 수정하지 않아도됩니다",
-                SM_13: "[입력이 올바른지 확인하세요] 메뉴를 종료하고 저장하려면 누르세요",
-                SM_14: "현재 쿠키 설정",
-                SM_15: "Cookies를 가져오지 못했습니다 !!\n\n먼저 계정에 로그인하십시오",
-                SM_16: "주입 가능한 쿠키가 감지되지 않았습니다 !!\n\n메뉴에서 설정하세요",
-                SM_17: "계정 선택",
+                SM_12: "아래 선택 항목, 변경 필요 없음",
+                SM_13: "[입력 정확성 확인] 메뉴 종료를 눌러 저장",
+                SM_14: "현재 설정된 쿠키",
+                SM_15: "계정 선택",
+                SM_16: "계정",
+                SM_17: "업데이트",
                 SM_18: "로그인",
-                SM_19: "계정"
+                SS_01: "쿠키를 가져오지 못했습니다 !!\n\n먼저 로그인 해주세요",
+                SS_02: "주입 가능한 쿠키를 감지하지 못했습니다 !!\n\n메뉴에서 설정해 주세요",
+                SS_03: "공유 데이터 가져오기 성공",
+                SS_04: "공유 데이터 가져오기 실패",
+                SS_05: "요청 데이터가 비어 있습니다",
+                SS_06: "연결 오류, 주소 유형이 잘못되었을 수 있습니다",
+                SS_07: "요청 오류: "
             },
             Japan: {
                 RM_00: "🍪 共有ログイン",
-                RM_C0: "📂 メニューを展開する",
-                RM_C1: "📁 メニューを折りたたむ",
+                RM_C0: "📂 メニュー展開",
+                RM_C1: "📁 メニュー折りたたみ",
                 RM_01: "📜 自動取得",
                 RM_02: "📝 手動入力",
-                RM_03: "🔍 保存を見る",
+                RM_03: "🔍 保存を表示",
                 RM_04: "🔃 手動注入",
-                RM_05: "🗑️ ログインをクリア",
-                SM_01: "選択したクッキーを確認する",
-                SM_02: "保存を確認する",
-                SM_03: "キャンセルして終了する",
-                SM_04: "メニューを終了する",
-                SM_05: "保存に成功しました!",
-                SM_06: "変更の保存",
+                RM_05: "🗑️ ログインクリア",
+                SM_01: "選択したクッキーを確認",
+                SM_02: "保存を確認",
+                SM_03: "キャンセルして終了",
+                SM_04: "メニューを終了",
+                SM_05: "保存成功!",
+                SM_06: "変更を保存",
                 SM_07: "変更通知",
                 SM_08: "変更が保存されました",
-                SM_09: "クッキーの設定",
-                SM_10: "Exにログインする必要があります",
+                SM_09: "クッキーを設定",
+                SM_10: "Exログインに必要",
                 SM_11: "必須項目",
-                SM_12: "下記は任意で、変更しなくても構いません",
-                SM_13: "[正しく入力されていることを確認してください]メニューを終了して保存します",
-                SM_14: "現在のクッキーの設定",
-                SM_15: "Cookies を取得できませんでした !!\n\n最初にアカウントにログインしてください",
-                SM_16: "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
-                SM_17: "アカウント选択",
+                SM_12: "下の選択肢、変更の必要はありません",
+                SM_13: "[入力が正しいことを確認] メニュー終了を押して保存",
+                SM_14: "現在設定されているクッキー",
+                SM_15: "アカウント選択",
+                SM_16: "アカウント",
+                SM_17: "更新",
                 SM_18: "ログイン",
-                SM_19: "アカウント"
+                SS_01: "クッキーを取得できませんでした!!\n\n先にログインしてください",
+                SS_02: "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
+                SS_03: "共有データの取得に成功しました",
+                SS_04: "共有データの取得に失敗しました",
+                SS_05: "リクエストが空データです",
+                SS_06: "接続エラー、アドレスタイプが間違っている可能性があります",
+                SS_07: "リクエストエラー: "
             }
         }, Match = {
             "ko": Display.Korea,
