@@ -108,7 +108,7 @@
         GM_getValue("LocalWords", null), GM_getValue("UpdateTimestamp", null),
     ];
 
-    if (!Dict || (Time - Timestamp) > (36e5 * 12)) { // 檢測更新 (自動更新 12 小時)
+    if (!Dict || (Time - Timestamp) > (36e5 * 24)) { // 檢測更新 (自動更新 24 小時)
         Dict = await UpdateWordsDict();
     };
 
