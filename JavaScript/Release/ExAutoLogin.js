@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.29
+// @version      0.0.30
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -33,7 +33,6 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/js-cookie/3.0.5/js.cookie.min.js
 // @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
@@ -132,7 +131,6 @@
             });
             DetectionTime = DetectionTime ? new Date(DetectionTime) : new Date(CurrentTime.getTime() + 11 * 60 * 1e3);
             const Conversion = Math.abs(DetectionTime - CurrentTime) / (1e3 * 60);
-            console.warn(Conversion);
             if (Conversion >= 10) {
                 const cookie = Syn.Store("gj", "E/Ex_Cookies");
                 cookie && CKOP.Verify(cookie);
@@ -511,34 +509,35 @@
     }().Import();
     function CookieFactory() {
         let Cookie = undefined;
-        let Today = new Date();
+        const Today = new Date();
         Today.setFullYear(Today.getFullYear() + 1);
+        const Expires = Today.toUTCString();
+        const UnixUTC = new Date(0).toUTCString();
         let RequiredCookie = ["ipb_member_id", "ipb_pass_hash"];
         if (domain == "exhentai.org") RequiredCookie.unshift("igneous");
         return {
-            Get: () => Cookies.get(),
-            Add: function (AddCookies) {
-                for (Cookie of AddCookies) {
-                    Cookies.set(Cookie.name, Cookie.value, {
-                        expires: Today
-                    });
-                }
+            Get: () => {
+                return document.cookie.split("; ").reduce((acc, cookie) => {
+                    const [name, value] = cookie.split("=");
+                    acc[decodeURIComponent(name)] = decodeURIComponent(value);
+                    return acc;
+                }, {});
+            },
+            Add: function (CookieObject) {
                 Syn.Storage("DetectionTime", {
                     type: localStorage,
                     value: new Date().getTime()
                 });
+                for (Cookie of CookieObject) {
+                    document.cookie = `${encodeURIComponent(Cookie.name)}=${encodeURIComponent(Cookie.value)}; domain=.${domain}; path=/; expires=${Expires};`;
+                }
                 location.reload();
             },
             Delete: function () {
-                for (Cookie of Object.keys(this.Get())) {
-                    Cookies.remove(Cookie, {
-                        path: "/"
-                    });
-                    Cookies.remove(Cookie, {
-                        path: "/",
-                        domain: `.${domain}`
-                    });
-                }
+                Object.keys(this.Get()).forEach(Name => {
+                    document.cookie = `${Name}=; expires=${UnixUTC}; path=/;`;
+                    document.cookie = `${Name}=; expires=${UnixUTC}; path=/; domain=.${domain}`;
+                });
             },
             ReAdd: function (Cookies) {
                 this.Delete();
@@ -550,6 +549,11 @@
                 if (!Result) {
                     this.Delete();
                     this.Add(Cookies);
+                } else {
+                    Syn.Storage("DetectionTime", {
+                        type: localStorage,
+                        value: new Date().getTime()
+                    });
                 }
             }
         };
