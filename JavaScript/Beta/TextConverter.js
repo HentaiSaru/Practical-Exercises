@@ -31,7 +31,7 @@
  * https://greasyfork.org/zh-TW/scripts/20312-e-hentai-tag-list-for-chinese
  */
 
-(async function() {
+(async () => {
     const Config = {
         DictionaryType: {
             Type: ["All_Words"], // 不需要導入留空 []
