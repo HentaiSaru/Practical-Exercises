@@ -57,12 +57,12 @@
             HotKey: true, // 啟用快捷反轉 (alt + b)
             FocusOnRecovery: true, // 以下說明
             /**
-             * 專注於反轉 (也不是 100% 反轉成功, 只是成功率較高)
+             * !! 專注於反轉 (也不是 100% 反轉成功, 只是成功率較高)
              *
              * 1. 轉換時性能開銷較高
-             * 2. 轉換時有時會有疊加錯誤 (數據越多可能性越高)
+             * 2. 轉換時可能會有重複疊加錯誤
              *
-             * 不專注於反轉
+             * !! 不專注於反轉
              *
              * 1. 性能開銷較低處理的更快
              * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
@@ -77,24 +77,6 @@
      */
     const Customize = {
         "apple": "蘋果", // 範例
-        /* Beautify */
-        "": "",
-        /* Language */
-        "": "",
-        /* Character */
-        "": "",
-        /* Parody */
-        "": "",
-        /* Group */
-        "": "",
-        /* Artist */
-        "": "",
-        /* Long */
-        "": "",
-        /* Short */
-        "": "",
-        /* Tags */
-        "": "",
     };
 
     /* ====================== 不瞭解不要修改下方參數 ===================== */
@@ -102,10 +84,17 @@
     // 解構設置
     const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
     // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    let [Dev, Translated, Factory, Time, Dict, Timestamp] = [ // 開發者模式, 翻譯判斷 (不要修改), 翻譯工廠, 當前時間, 本地數據, 上次更新時間戳
-        false, true,
-        TranslationFactory(), new Date().getTime(),
-        GM_getValue("LocalWords", null), GM_getValue("UpdateTimestamp", null),
+    const [Dev, Factory, Time, Timestamp] = [ // 開發者模式, 翻譯工廠調用, 當前時間戳, 紀錄時間戳
+        false,
+        TranslationFactory(),
+        new Date().getTime(),
+        GM_getValue("UpdateTimestamp", null)
+    ];
+
+    let [Translated, TranslatedRecord, Dict] = [ // 判斷翻譯狀態 (不要改), 紀錄翻譯紀錄, 本地翻譯字典
+        true,
+        new Set(),
+        GM_getValue("LocalWords", null)
     ];
 
     if (!Dict || (Time - Timestamp) > (36e5 * 24)) { // 檢測更新 (自動更新 24 小時)
@@ -135,6 +124,9 @@
                     this.NormalDict
                 );
         },
+        ReleaseMemory: function() { // 釋放翻譯字典緩存 (不包含自定)
+            Dict = this.NormalDict = this.ReverseDict = {};
+        },
         Init: function() { // 初始化 (重新獲取完整字典, 並刷新兩種不同狀態的緩存)
             Object.assign(Dict, Customize);
             this.RefreshNormal();
@@ -149,6 +141,7 @@
         const options = {
             subtree: true,
             childList: true,
+            characterData: true,
         };
         let mutation; // 監聽後續變化
         const observer = new MutationObserver(Debounce((mutationsList, observer) => {
@@ -158,7 +151,7 @@
                     break;
                 }
             }
-        }, 500));
+        }, 300));
 
         // 啟動觀察
         const StartOb = () => {
@@ -168,9 +161,11 @@
 
         // 斷開觀察
         const DisOB = () => observer.disconnect();
-        !Dev && StartOb(); //首次運行 (開發者模式下不會自動運行, 因為有可能轉換不回來)
+        !Dev && StartOb(); // 首次運行 (開發者模式下不會自動運行, 因為有可能轉換不回來)
 
         function ThePolesAreReversed() {
+            TranslatedRecord = new Set(); // 反轉時需要先清空紀錄
+
             DisOB();
             Dictionary.RefreshDict();
             StartOb();
@@ -181,15 +176,24 @@
         if (Dev) {
             Translated = false;
             GM_registerMenuCommand("💬 展示匹配文本", ()=> {
-                Factory.Dev(body)
+                Factory.Dev(body);
             }, {
                 autoClose: false,
                 title: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
             });
             GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {
-                Factory.Dev(body, false)
+                Factory.Dev(body, false);
             }, {
                 title: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
+            });
+            GM_registerMenuCommand("♻️ 釋放字典緩存", ()=> {
+                Dictionary.ReleaseMemory();
+            }, {
+                title: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
+            });
+            GM_registerMenuCommand("➖➖➖➖➖➖", ()=> {}, {
+                autoClose: false,
+                title: "開發者模式分隔線",
             });
         };
 
@@ -334,10 +338,18 @@
                 };
             },
             OperationText: async function(root) {
-                return Promise.all(getTextNodes(root).map(textNode => this.__FocusTextCore(textNode)));
+                return Promise.all(getTextNodes(root).map(textNode => {
+                    if (TranslatedRecord.has(textNode)) return Promise.resolve(); // 無腦制止翻譯無限疊加狀況 (當然會導致記憶體使用更多) (會有疊加是因為監聽動態變化 反覆觸發)
+                    TranslatedRecord.add(textNode);
+                    return this.__FocusTextCore(textNode)
+                }));
             },
             OperationInput: async function(root) {
-                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode=> this.__FocusInputCore(inputNode)));
+                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode=> {
+                    if (TranslatedRecord.has(inputNode)) return Promise.resolve();
+                    TranslatedRecord.add(inputNode);
+                    return this.__FocusInputCore(inputNode)
+                }));
             },
         };
 
