@@ -265,16 +265,16 @@
         };
 
         const TCore = { // 翻譯核心
-            __ShortWordRegular: /[\d\p{L}]+/gu,
-            __LongWordRegular: /[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu,
+            __ShortWordRegex: /[\d\p{L}]+/gu,
+            __LongWordRegex: /[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu,
             __Clean: (text) => text.trim().toLowerCase(),
             Dev_MatchObj: function(text) {
-                const Sresult = text?.match(this.__ShortWordRegular)?.map(Short => {
+                const Sresult = text?.match(this.__ShortWordRegex)?.map(Short => {
                     const Clean = this.__Clean(Short);
                     return [Clean, Dict[Clean] ?? ""];
                 }) ?? [];
 
-                const Lresult = text?.match(this.__LongWordRegular)?.map(Long => {
+                const Lresult = text?.match(this.__LongWordRegex)?.map(Long => {
                     const Clean = this.__Clean(Long);
                     return [Clean, Dict[Clean] ?? ""];
                 }) ?? [];
@@ -287,13 +287,13 @@
                     }, {});
             },
             OnlyLong: function(text) {
-                return text?.replace(this.__LongWordRegular, Long => Dict[this.__Clean(Long)] ?? Long);
+                return text?.replace(this.__LongWordRegex, Long => Dict[this.__Clean(Long)] ?? Long);
             },
             OnlyShort: function(text) {
-                return text?.replace(this.__ShortWordRegular, Short => Dict[this.__Clean(Short)] ?? Short);
+                return text?.replace(this.__ShortWordRegex, Short => Dict[this.__Clean(Short)] ?? Short);
             },
-            LongShort: function(text) {
-                return text?.replace(this.__LongWordRegular, Long => Dict[this.__Clean(Long)] ?? this.OnlyShort(Long));
+            LongShort: function(text) { // 已長單詞為主, 不存在才去找短單詞
+                return text?.replace(this.__LongWordRegex, Long => Dict[this.__Clean(Long)] ?? this.OnlyShort(Long));
             }
         };
 
