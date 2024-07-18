@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/07/03
+// @version      2024/07/19
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -683,12 +683,12 @@ const Syn = (()=> {
 
         /**
          * * { 獲取運行經過時間 }
-         * @param {Date.now()} time - 傳入 Date.now()
+         * @param {performance.now()} time - 傳入 performance.now()
          * @param {string} show - 顯示的說明文字
          * @param {string} {style} - 展示的風格
          * @param {boolean} {log} - 是否直接打印
          *
-         * @returns {Date.now()}
+         * @returns {performance.now()}
          *
          * @example
          * let start = Runtime();
@@ -703,10 +703,10 @@ const Syn = (()=> {
             log=true
         }={})=> {
             return !time
-            ? Date.now()
+            ? performance.now()
             : log 
-            ? console.log(style, `${show} ${((Date.now()-time)/1e3)}s`)
-            : (Date.now() - time);
+            ? console.log(style, `${show} ${((performance.now()-time)/1e3).toFixed(3)}s`)
+            : (performance.now() - time);
         },
 
         /**
