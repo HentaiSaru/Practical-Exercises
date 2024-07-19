@@ -692,31 +692,36 @@ class Syntax {
     }
 
     /**
-     ** { 獲取運行經過時間 }
-     * @param {performance.now()} time - 傳入 performance.now()
-     * @param {string} show - 顯示的說明文字
-     * @param {string} {style} - 展示的風格
+     * * { 獲取運行經過時間 }
+     * @param {performance.now() | null} time - 傳入 performance.now() 或 空值
      * @param {boolean} {log} - 是否直接打印
-     *
+     * @param {boolean} {format} - 使用格式轉換為秒數
+     * @param {string} {lable} - 打印的說明文字
+     * @param {string} {style} - 打印的風格
+     * 
      * @returns {performance.now()}
-     *
+     * 
      * @example
      * let start = Runtime();
-     * let end = Runtime(start);
+     * let end = Runtime(start, {log: false});
      * console.log(end);
-     *
+     * 
      * let start = Runtime();
-     * Runtime(start, true);
+     * Runtime(start);
      */
-    Runtime(time=null, show="Elapsed Time:", {
-        style="\x1b[1m\x1b[36m%s\x1b[0m",
-        log=true
-    }={}) {
-        return !time
-        ? performance.now()
-        : log
-        ? console.log(style, `${show} ${((performance.now()-time)/1e3).toFixed(3)}s`)
-        : (performance.now() - time);
+    Runtime(time = null, {
+        log = true,
+        format = true,
+        label = "Elapsed Time:",
+        style = "\x1b[1m\x1b[36m%s\x1b[0m"
+    } = {}) {
+        if (!time) return performance.now();
+
+        const result = format
+            ? `${((performance.now() - time) / 1e3).toPrecision(3)}s`
+            : performance.now() - time;
+
+        return log ? console.log(style, `${label} ${result}`) : result;
     }
 
     /**
