@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.33
+// @version      0.0.34
 // @author       Canaan HS
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -27,7 +27,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1413068/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
 // ==/UserScript==
 
 (async ()=> {
@@ -85,7 +85,7 @@
             };
             /*  開發模式 - 時間打印 (語法簡化) */
             this.DevTimePrint = (title, show) => {
-                this.DevPrint(title, this.Runtime(this.RST, null, {log: false}), show);
+                this.DevPrint(title, this.Runtime(this.RST, {log: false}), show);
             };
 
             /**
