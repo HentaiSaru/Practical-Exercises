@@ -313,8 +313,7 @@
                 if (NotBanned) {
                     const FindMedia = this.Debounce((func) => {
                         const media_object = [
-                            ...this.$$("video", {all: true}),
-                            ...this.$$("audio", {all: true})
+                            ...this.$$("video, audio", {all: true})
                         ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
                         media_object.length > 0 && func(media_object);
                     }, 400);
