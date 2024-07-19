@@ -174,8 +174,10 @@
 
                         // 極簡化
                         if (this.Store("g", "Minimalist")) {
+                            this.TitleOb.observe(title, this.TitleOp);
                             this.StyleTransform([document.body], "overflow", "hidden");
-                            this.StyleTransform([end, below, secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_03, state));
+                            this.StyleTransform([h1, end, below, secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_03, state));
+                            document.title = "...";
                         } else {
                             // 標題
                             if (this.Store("g", "Title")) {
@@ -202,19 +204,8 @@
 
                         // 調整操作
                         const Modify = {
-                            Minimalist: (Mode, Save=true) => { // 這個比較特別, 他時直接在這操作存儲, 所以 Save 是 Boolen
-                                if (Mode) {
-                                    Save && this.Store("s", "Minimalist", false);
-                                    this.StyleTransform([document.body], "overflow", "hidden");
-                                    this.StyleTransform([end, below, secondary, related], "display", "none");
-                                } else {
-                                    Save && this.Store("s", "Minimalist", true);
-                                    this.StyleTransform([document.body], "overflow", "auto");
-                                    this.StyleTransform([end, below, secondary, related], "display", "block");
-                                }
-                            },
                             Title: (Mode, Save="Title") => { // 以下的 Save 不需要, 就傳遞 false 或是 空值
-                                Mode = Save ? Mode : !Mode; // 全局修改時的判斷 Mode 需要是反的, 剛好全局判斷的 Save 始終為 false, 所以這樣寫
+                                Mode = Save ? Mode : !Mode; // 同上
 
                                 document.title = Mode ? (
                                     this.TitleOb.disconnect(), this.TitleFormat(h1)
@@ -222,6 +213,21 @@
                                     this.TitleOb.observe(title, this.TitleOp), "..."
                                 );
                                 this.HideJudgment(h1, Save);
+                            },
+                            Minimalist: (Mode, Save=true) => { // 這個比較特別, 他時直接在這操作存儲, 所以 Save 是 Boolen
+                                Mode = Save ? Mode : !Mode; // 全局修改時的判斷 Mode 需要是反的, 剛好全局判斷的 Save 始終為 false, 所以這樣寫
+
+                                if (Mode) {
+                                    Modify.Title(false, false);
+                                    Save && this.Store("s", "Minimalist", false);
+                                    this.StyleTransform([document.body], "overflow", "auto");
+                                    this.StyleTransform([end, below, secondary, related], "display", "block");
+                                } else {
+                                    Modify.Title(true, false);
+                                    Save && this.Store("s", "Minimalist", true);
+                                    this.StyleTransform([document.body], "overflow", "hidden");
+                                    this.StyleTransform([end, below, secondary, related], "display", "none");
+                                }
                             },
                             RecomViewing: (Mode, Save="RecomViewing") => {
                                 if (inner.childElementCount > 1) {
@@ -246,7 +252,7 @@
                         this.AddListener(document, "keydown", event => {
                             if (this.HotKey.MinimaList(event)) {
                                 event.preventDefault();
-                                Modify.Minimalist(this.Store("g", "Minimalist"), true);
+                                Modify.Minimalist(this.Store("g", "Minimalist"));
                             } else if (this.HotKey.Title(event)) {
                                 event.preventDefault();
                                 Modify.Title(document.title == "...");
