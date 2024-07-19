@@ -32,15 +32,15 @@
 (async ()=> {
     const Config = {
         Dev: false,
-        GlobalChange: true, // 全局同時修改
+        GlobalChange: true,
         HotKey: {
-            Adapt: k => k.key.toLowerCase(), // <- 適配大小寫差異
-            Title: k => k.altKey && Config.HotKey.Adapt(k) == "t", // 標題
-            MinimaList: k => k.ctrlKey && Config.HotKey.Adapt(k) == "z", // 極簡化
-            RecomViewing: k => k.altKey && Config.HotKey.Adapt(k) == "1", // 推薦觀看
-            Comment: k => k.altKey && Config.HotKey.Adapt(k) == "2", // 留言區
-            FunctionBar: k => k.altKey && Config.HotKey.Adapt(k) == "3", // 功能區
-            ListDesc: k => k.altKey && Config.HotKey.Adapt(k) == "4" // 播放清單資訊 
+            Adapt: k => k.key.toLowerCase(),
+            Title: k => k.altKey && Config.HotKey.Adapt(k) == "t",
+            MinimaList: k => k.ctrlKey && Config.HotKey.Adapt(k) == "z",
+            RecomViewing: k => k.altKey && Config.HotKey.Adapt(k) == "1",
+            Comment: k => k.altKey && Config.HotKey.Adapt(k) == "2",
+            FunctionBar: k => k.altKey && Config.HotKey.Adapt(k) == "3",
+            ListDesc: k => k.altKey && Config.HotKey.Adapt(k) == "4"
         }
     };
     new class Tool extends Syntax {
@@ -59,24 +59,17 @@
             this.Page = (url) => this.Video.test(url) ? "Video" : this.Playlist.test(url) ? "Playlist" : "NotSupport";
             this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "");
             this.SetAttri = async (object, label) => object.setAttribute(label, true);
-            this.TitleOb = new MutationObserver(()=> {document.title != "..." && (document.title = "...")});
+            this.TitleOb = new MutationObserver(()=> document.title != "..." && (document.title = "..."));
             this.TitleOp = {childList: true, subtree: false};
             this.DevPrint = (title, content, show=Config.Dev) => this.Log(title, content, {dev: show, collapsed: false});
             this.DevTimePrint = (title, show) => this.DevPrint(title, this.Runtime(this.RST, {log: false}), show);
             this.HideJudgment = async (Element, setKey=null) => {
-                if (Element.style.display == "none" || this.TFT) {
-                    Element.style.display = "block"; setKey && this.Store("s", setKey, false);
-                } else {
-                    Element.style.display = "none"; setKey && this.Store("s", setKey, true);
-                }
+                if (Element.style.display == "none" || this.TFT) {Element.style.display = "block"; setKey && this.Store("s", setKey, false)}
+                else {Element.style.display = "none"; setKey && this.Store("s", setKey, true)}
             };
             this.StyleTransform = async (ObjList, Type, Style) => {
                 ObjList.forEach(element=>{element.style[Type] = Style});
-                if (Config.Dev) {
-                    return new Promise(resolve => {
-                        resolve(ObjList.every(element => element.style[Type] == Style))
-                    });
-                }
+                if (Config.Dev) return new Promise(resolve => {resolve(ObjList.every(element => element.style[Type] == Style))});
             };
         };
         async Detec() {
@@ -88,9 +81,7 @@
             this.DevPrint(this.Lang.DP_01, Page);
             if (Page == "NotSupport") return;
             this.WaitElem("#columns, #contents", trigger=> {
-                if (!trigger) {
-                    this.Log(this.Lang.ET_01, trigger, {type: "error"}); return;
-                }
+                if (!trigger) {this.Log(this.Lang.ET_01, trigger, {type: "error"}); return;}
                 if (Page == "Video" && !trigger.hasAttribute(this.HVM)) {
                     Config.Dev && (this.RST = this.Runtime());
                     this.AddStyle(`
@@ -106,52 +97,54 @@
                         this.SetAttri(trigger, this.HVM);
                         if (!this.MRM) this.MRM = GM_registerMenuCommand(this.Lang.MT_01, ()=> {alert(this.Lang.MC_01)});
                         if (this.Store("g", "Minimalist")) {
+                            this.TitleOb.observe(title, this.TitleOp);
                             this.StyleTransform([document.body], "overflow", "hidden");
-                            this.StyleTransform([end, below, secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_03, state));
+                            this.StyleTransform([h1, end, below, secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_03, state));
+                            document.title = "...";
                         } else {
                             if (this.Store("g", "Title")) {
                                 this.TitleOb.observe(title, this.TitleOp);
                                 this.StyleTransform([h1], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_04, state));
                                 document.title = "...";
                             };
-                            if (this.Store("g", "RecomViewing")) {this.StyleTransform([secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_05, state))};
-                            if (this.Store("g", "Comment")) {this.StyleTransform([comments], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_06, state))};
-                            if (this.Store("g", "FunctionBar")) {this.StyleTransform([actions], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_07, state))};
+                            if (this.Store("g", "RecomViewing")) this.StyleTransform([secondary, related], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_05, state));
+                            if (this.Store("g", "Comment")) this.StyleTransform([comments], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_06, state));
+                            if (this.Store("g", "FunctionBar")) this.StyleTransform([actions], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_07, state));
                         };
                         const Modify = {
-                            Minimalist: (Mode, Save=true) => {
-                                if (Mode) {
-                                    Save && this.Store("s", "Minimalist", false);
-                                    this.StyleTransform([document.body], "overflow", "hidden");
-                                    this.StyleTransform([end, below, secondary, related], "display", "none");
-                                } else {
-                                    Save && this.Store("s", "Minimalist", true);
-                                    this.StyleTransform([document.body], "overflow", "auto");
-                                    this.StyleTransform([end, below, secondary, related], "display", "block");
-                                }
-                            },
                             Title: (Mode, Save="Title") => {
                                 Mode = Save ? Mode : !Mode;
                                 document.title = Mode ? (this.TitleOb.disconnect(), this.TitleFormat(h1)) : (this.TitleOb.observe(title, this.TitleOp), "...");
                                 this.HideJudgment(h1, Save);
                             },
-                            RecomViewing: (Mode, Save="RecomViewing") => {
-                                if (inner.childElementCount > 1) {
-                                    this.HideJudgment(secondary);
-                                    this.HideJudgment(related, Save);
-                                    this.TFT = false;
+                            Minimalist: (Mode, Save=true) => {
+                                Mode = Save ? Mode : !Mode;
+                                if (Mode) {
+                                    Modify.Title(false, false);
+                                    Save && this.Store("s", "Minimalist", false);
+                                    this.StyleTransform([document.body], "overflow", "auto");
+                                    this.StyleTransform([end, below, secondary, related], "display", "block");
                                 } else {
-                                    this.HideJudgment(related, Save);
-                                    this.TFT = true;
+                                    Modify.Title(true, false);
+                                    Save && this.Store("s", "Minimalist", true);
+                                    this.StyleTransform([document.body], "overflow", "hidden");
+                                    this.StyleTransform([end, below, secondary, related], "display", "none");
                                 }
                             },
-                            Comment: (Mode, Save="Comment") => {this.HideJudgment(comments, Save)},
-                            FunctionBar: (Mode, Save="FunctionBar") => {this.HideJudgment(actions, Save)}
+                            RecomViewing: (Mode, Save="RecomViewing") => {
+                                if (inner.childElementCount > 1) {
+                                    this.HideJudgment(secondary); this.HideJudgment(related, Save); this.TFT = false;
+                                } else {
+                                    this.HideJudgment(related, Save); this.TFT = true;
+                                }
+                            },
+                            Comment: (Mode, Save="Comment") => this.HideJudgment(comments, Save),
+                            FunctionBar: (Mode, Save="FunctionBar") => this.HideJudgment(actions, Save)
                         };
                         this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
                             if (this.HotKey.MinimaList(event)) {
-                                event.preventDefault(); Modify.Minimalist(this.Store("g", "Minimalist"), true);
+                                event.preventDefault(); Modify.Minimalist(this.Store("g", "Minimalist"));
                             } else if (this.HotKey.Title(event)) {
                                 event.preventDefault(); Modify.Title(document.title == "...");
                             } else if (this.HotKey.RecomViewing(event)) {
@@ -163,9 +156,7 @@
                             }
                         }, {capture: true});
                         if (Config.GlobalChange && !this.GCM) {
-                            this.StoreListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {
-                                if (call.far) Modify[call.key](call.nv, false);
-                            });
+                            this.StoreListen(["Minimalist", "Title", "RecomViewing", "Comment", "FunctionBar"], call=> {if (call.far) Modify[call.key](call.nv, false)});
                             this.GCM = true;
                         };
                     }, {throttle: 100, characterData: true, timeoutResult: true});
@@ -175,12 +166,10 @@
                         this.DevPrint(this.Lang.DP_02, playlist);
                         this.SetAttri(trigger, this.HPM);
                         if (!this.MRM) this.MRM = GM_registerMenuCommand(this.Lang.MT_01, ()=> {alert(this.Lang.MC_01)});
-                        if (this.Store("g", "ListDesc")) {this.StyleTransform([playlist], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_08, state))};
+                        if (this.Store("g", "ListDesc")) this.StyleTransform([playlist], "display", "none").then(state => this.DevTimePrint(this.Lang.DP_08, state));
                         this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
-                            if (this.HotKey.ListDesc(event)) {
-                                event.preventDefault(); this.HideJudgment(playlist, "ListDesc");
-                            }
+                            if (this.HotKey.ListDesc(event)) {event.preventDefault(); this.HideJudgment(playlist, "ListDesc")}
                         });
                     }, {throttle: 100, characterData: true, timeoutResult: true});
                 };
@@ -243,7 +232,7 @@
                     \r(Ctrl + Z)：Use Simplification`,
                     ET_01: "Frame search failed",DP_01: "Page type",DP_02: "Hide elements",DP_03: "Minimalize",DP_04: "Hide title",DP_05: "Hide recommended views",DP_06: "Hide comments section",DP_07: "Hide feature options",DP_08: "Hide playlist information",
                 },
-            }, Match = {ko: Display.Korea, ja: Display.Japan, "en-US": Display.English, "zh-CN": Display.Simplified, "zh-SG": Display.Simplified, "zh-TW": Display.Traditional, "zh-HK": Display.Traditional, "zh-MO": Display.Traditional}
+            }, Match = {ko: Display.Korea, ja: Display.Japan,"en-US": Display.English,"zh-CN": Display.Simplified,"zh-SG": Display.Simplified,"zh-TW": Display.Traditional,"zh-HK": Display.Traditional,"zh-MO": Display.Traditional}
             return Match[lang] ?? Match["en-US"];
         };
     }().Detec();
