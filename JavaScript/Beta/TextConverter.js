@@ -34,32 +34,35 @@
 (async () => {
     const Config = {
         LoadDictionary: {
-            Data: ["All_Words"], // 不需要留空 [], ""
             /**
              * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words")
              *
-             * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
-             * 
              * 範例:
              * 單導入: "Short"
+             * 無導入: [] or ""
              * 多導入: ["Short", "Long", "Tags"]
              * 自定導入: "自己的數據庫 Url" (建議網址是一個 Json, 導入的數據必須是 JavaScript 物件)
              *
-             * All_Words: 全部
-             * Tags: 標籤
-             * Language: 語言
-             * Character: 角色
-             * Parody: 原作
-             * Artist: 繪師
-             * Group: 社團
-             * Short: 短單詞
-             * Long: 長單詞
-             * Beautify: 美化用的
+             * 可導入字典
+             *
+             * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
+             *
+             * 全部: "All_Words"
+             * 標籤: "Tags"
+             * 語言: "Language"
+             * 角色: "Character"
+             * 作品: "Parody"
+             * 繪師: "Artist"
+             * 社團: "Group"
+             * 短單詞: "Short"
+             * 長單詞: "Long"
+             * 美化用: "Beautify"
+             *
+             * 參數 =>
              */
+            Data: "All_Words"
         },
         TranslationReversal: {
-            HotKey: true, // 啟用快捷反轉 (alt + b)
-            FocusOnRecovery: true, // 以下說明
             /**
              * !! 專注於反轉 (也不是 100% 反轉成功, 只是成功率較高)
              *
@@ -71,6 +74,8 @@
              * 1. 性能開銷較低處理的更快
              * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
              */
+            HotKey: true, // 啟用快捷反轉 (alt + b)
+            FocusOnRecovery: true // 是否專注於反轉
         },
     };
 
@@ -87,8 +92,8 @@
 
     // 解構設置
     const [LoadDict, Translation] = [Config.LoadDictionary, Config.TranslationReversal];
-    // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    const [Dev, Update, Factory, Time, Timestamp] = [ // 開發者模式, 翻譯工廠調用, 當前時間戳, 紀錄時間戳
+    // 這邊分開解構, 是因為 Transl 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
+    const [Dev, Update, Transl, Time, Timestamp] = [ // 開發者模式, 更新函數, 翻譯函數, 當前時間戳, 紀錄時間戳
         false,
         UpdateWordsDict(),
         TranslationFactory(),
@@ -142,7 +147,7 @@
     Dictionary.Init();
 
     WaitElem("body", body => { // 等待頁面載入
-        const RunFactory = () => Factory.Trigger(body);
+        const RunFactory = () => Transl.Trigger(body);
 
         const options = {
             subtree: true,
@@ -181,13 +186,13 @@
         if (Dev) {
             Translated = false;
             GM_registerMenuCommand("💬 展示匹配文本", ()=> {
-                Factory.Dev(body);
+                Transl.Dev(body);
             }, {
                 autoClose: false,
                 title: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
             });
             GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {
-                Factory.Dev(body, false);
+                Transl.Dev(body, false);
             }, {
                 title: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
             });
