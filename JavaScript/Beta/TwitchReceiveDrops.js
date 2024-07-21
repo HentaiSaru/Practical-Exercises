@@ -274,7 +274,7 @@
             async function DirectorySearch(NewWindow) {
                 const observer = new MutationObserver(Throttle(()=> {
                     article = NewWindow.document.getElementsByTagName(self.Article);
-                    if (article.length > 20) { // 找到大於 20 個頻道
+                    if (article.length > 10) { // 找到大於 10 個頻道
                         observer.disconnect();
 
                         // 解析 Tag
@@ -290,26 +290,34 @@
                             self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
                         } else {
                             function Language(lang) {
-                                const Display = {
-                                    Simplified: {title: "搜索失败", text: "找不到启用掉落的频道"},
-                                    Traditional: {title: "搜尋失敗", text: "找不到啟用掉落的頻道"},
-                                    Korea: {title: "검색 실패", text: "드롭이 활성화된 채널을 찾을 수 없습니다"},
-                                    Japan: {title: "検索失敗", text: "ドロップが有効なチャンネルが見つかりません"},
-                                    English: {title: "Search failed", text: "Can't find a channel with drops enabled"},
+                                const Word = {
+                                    Traditional: {},
+                                    Simplified: {搜尋失敗: "搜索失败", 找不到啟用掉落的頻道: "找不到启用掉落的频道"},
+                                    Korea: {搜尋失敗: "검색 실패", 找不到啟用掉落的頻道: "드롭이 활성화된 채널을 찾을 수 없습니다"},
+                                    Japan: {搜尋失敗: "検索失敗", 找不到啟用掉落的頻道: "ドロップが有効なチャンネルが見つかりません"},
+                                    English: {搜尋失敗: "Search failed", 找不到啟用掉落的頻道: "Can't find a channel with drops enabled"},
                                 }, Match = {
-                                    "ko": Display.Korea,
-                                    "ja": Display.Japan,
-                                    "en-US": Display.English,
-                                    "zh-CN": Display.Simplified,
-                                    "zh-SG": Display.Simplified,
-                                    "zh-TW": Display.Traditional,
-                                    "zh-HK": Display.Traditional,
-                                    "zh-MO": Display.Traditional,
-                                }
-                                return Match[lang] || Match["en-US"];
+                                    ko: Word.Korea,
+                                    ja: Word.Japan,
+                                    "en-US": Word.English,
+                                    "zh-CN": Word.Simplified,
+                                    "zh-SG": Word.Simplified,
+                                    "zh-TW": Word.Traditional,
+                                    "zh-HK": Word.Traditional,
+                                    "zh-MO": Word.Traditional,
+                                },
+                                ML = Match[lang] ?? Match["en-US"];
+
+                                return {
+                                    Transl: (Str) => ML[Str] ?? Str,
+                                };
                             }
-                            const show = Language(navigator.language);
-                            GM_notification({title: show.title, text: show.text});
+
+                            const Lang = Language(navigator.language);
+                            GM_notification({
+                                title: Lang.Transl("搜尋失敗"),
+                                text: Lang.Transl("找不到啟用掉落的頻道")
+                            });
                         }
                     }
                 }, 300));
