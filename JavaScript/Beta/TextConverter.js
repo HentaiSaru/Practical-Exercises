@@ -33,13 +33,17 @@
 
 (async () => {
     const Config = {
-        DictionaryType: {
-            Type: ["All_Words"], // 不需要導入留空 []
+        LoadDictionary: {
+            Data: ["All_Words"], // 不需要留空 [], ""
             /**
-             * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words", 打更多只會讓處理變慢, 不做數據判斷, 亂給就壞給你看)
+             * 載入數據庫類型 (要載入全部, 就輸入一個 "All_Words")
              *
              * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
-             * 範例: ["Short", "Long", "Tags"]
+             * 
+             * 範例:
+             * 單導入: "Short"
+             * 多導入: ["Short", "Long", "Tags"]
+             * 自定導入: "自己的數據庫 Url" (建議網址是一個 Json, 導入的數據必須是 JavaScript 物件)
              *
              * All_Words: 全部
              * Tags: 標籤
@@ -82,10 +86,11 @@
     /* ====================== 不瞭解不要修改下方參數 ===================== */
 
     // 解構設置
-    const [DictType, Translation] = [Config.DictionaryType, Config.TranslationReversal];
+    const [LoadDict, Translation] = [Config.LoadDictionary, Config.TranslationReversal];
     // 這邊分開解構, 是因為 Factory 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    const [Dev, Factory, Time, Timestamp] = [ // 開發者模式, 翻譯工廠調用, 當前時間戳, 紀錄時間戳
+    const [Dev, Update, Factory, Time, Timestamp] = [ // 開發者模式, 翻譯工廠調用, 當前時間戳, 紀錄時間戳
         false,
+        UpdateWordsDict(),
         TranslationFactory(),
         new Date().getTime(),
         GM_getValue("UpdateTimestamp", null)
@@ -98,7 +103,7 @@
     ];
 
     if (!Dict || (Time - Timestamp) > (36e5 * 24)) { // 檢測更新 (自動更新 24 小時)
-        Dict = await UpdateWordsDict();
+        Dict = await Update.Reques();
     };
 
     // 字典操作
@@ -115,6 +120,7 @@
             }, {});
         },
         RefreshDict: function() { // 刷新翻譯狀態
+            TranslatedRecord = new Set(); // 刷新翻譯紀錄
             Dict = Translated
                 ? (
                     Translated=false,
@@ -163,9 +169,8 @@
         const DisOB = () => observer.disconnect();
         !Dev && StartOb(); // 首次運行 (開發者模式下不會自動運行, 因為有可能轉換不回來)
 
+        // 反轉
         function ThePolesAreReversed() {
-            TranslatedRecord = new Set(); // 反轉時需要先清空紀錄
-
             DisOB();
             Dictionary.RefreshDict();
             StartOb();
@@ -201,15 +206,14 @@
             DisOB();
             Translated = true;
             GM_setValue("Clear", false);
-            Dict = await UpdateWordsDict();
 
-            // 更新字典時, 需要先反向一次, 在將其轉換 (避免不完全的刷新)
-            Dictionary.Init();
-            Dictionary.RefreshDict();
-            RunFactory();
+            Dictionary.RefreshDict(); // 將字典刷新為反向字典
+            RunFactory(); // 觸發一次反向恢復
 
-            Dictionary.RefreshDict();
-            StartOb();
+            Dict = await Update.Reques(); // 請求新的字典
+            Dictionary.Init(); // 更新後重新初始化 緩存
+
+            ThePolesAreReversed(); // 再次觸發反轉, 並恢復監聽
         }, {
             title: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
         });
@@ -366,74 +370,106 @@
         };
     };
 
-    // 取得單字表
-    async function GetWordsDict(type) {
-        return new Promise((resolve, reject) => {
-            GM_xmlhttpRequest({
-                method: "GET",
-                responseType: "json",
-                url: `https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/Words/${type}.json`,
-                onload: response => {
-                    if (response.status === 200) {
-                        const data = response.response;
-                        if (typeof data === "object" && Object.keys(data).length > 0) {
-                            resolve(data);
-                        } else {
-                            console.error("請求為空數據");
-                            resolve({});
-                        }
-                    } else {
-                        console.error("連線異常, 地址類型可能是錯的");
-                        resolve({});
-                    }
-                },
-                onerror: error => {
-                    console.error("連線異常");
-                    resolve({});
-                }
-            })
-        })
-    };
-
     /* 更新數據 */
-    async function UpdateWordsDict() {
-        let WordsDict = {}, Dtype = DictType.Type ?? [];
-
-        if (Dtype.length <= 0 || GM_getValue("Clear")) return {};
-
-        for (const type of Dtype) {
-            if (type === "") continue;
-
-            Object.assign(WordsDict, await GetWordsDict(type));
+    function UpdateWordsDict() {
+        const ObjType = (object) => Object.prototype.toString.call(object).slice(8, -1);
+        const Parse = { // 解析數據
+            Url: (str) => {
+                try {
+                    new URL(str); return true;
+                } catch {return false}
+            },
+            ExtenName: (link)=> {
+                try {
+                    return link.match(/\.([^.]+)$/)[1].toLowerCase() || "json";
+                } catch {return "json"}
+            },
+            Array: (data)=> {
+                data = data.filter(d => d.trim() !== ""); // 過濾空字串
+                return {State: data.length > 0, Type: "arr", Data: data}
+            },
+            String: (data)=> {return {State: data != "", Type: "str", Data: data} },
+            Undefined: ()=> {return {State: false} },
         };
 
-        if (Object.keys(WordsDict).length > 0) {
-            Object.assign(WordsDict, Customize);
+        // 請求字典
+        const RequestDict = (data) => {
+            // 解析請求的 Url 是完整的連結, 還是單個字串
+            const URL = Parse.Url(data) ? data : `https://raw.githubusercontent.com/Canaan-HS/Script-DataBase/main/Words/${data}.json`;
 
-            GM_setValue("LocalWords", WordsDict);
-            GM_setValue("UpdateTimestamp", new Date().getTime());
+            return new Promise((resolve, reject) => {
+                GM_xmlhttpRequest({
+                    method: "GET",
+                    responseType: Parse.ExtenName(URL), // 自動解析類型
+                    url: URL,
+                    onload: response => {
+                        if (response.status === 200) {
+                            const data = response.response; // 只能獲取物件類型
+                            if (typeof data === "object" && Object.keys(data).length > 0) {
+                                resolve(data);
+                            } else {
+                                console.error("請求為空數據");
+                                resolve({});
+                            }
+                        } else {
+                            console.error("連線異常, 地址類型可能是錯的");
+                            resolve({});
+                        }
+                    },
+                    onerror: error => {
+                        console.error("連線異常");
+                        resolve({});
+                    }
+                })
+            })
+        };
 
-            console.log("%c數據更新成功", `
-                padding: 5px;
-                color: #9BEC00;
-                font-weight: bold;
-                border-radius: 10px;
-                background-color: #597445;
-                border: 2px solid #597445;
-            `);
+        return {
+            Reques: async () => {
+                const {State, Type, Data} = Parse[ObjType(LoadDict?.Data)](LoadDict?.Data); // 解構數據 (避免可能的例外)
+                const DefaultDict = Object.assign(Dict ?? {}, Customize);
 
-            return WordsDict;
-        } else {
-            console.log("%c數據更新失敗", `
-                padding: 5px;
-                color: #FF0000;
-                font-weight: bold;
-                border-radius: 10px;
-                background-color: #A91D3A;
-                border: 2px solid #A91D3A;
-            `);
+                // 當解構狀態為 false, 或有清理標記, 直接回傳預設字典
+                if (!State || GM_getValue("Clear")) return DefaultDict;
 
-            return Object.assign(GM_getValue("LocalWords", {}), Customize);
+                const CacheDict = {};
+                if (Type == "str") Object.assign(CacheDict, await RequestDict(Data)); // 是字串直接傳遞
+                else if (Type == "arr") { // 是列表的傳遞
+                    for (const data of Data) {
+                        Object.assign(CacheDict, await RequestDict(data));
+                    }
+                };
+
+                if (Object.keys(CacheDict).length > 0) {
+                    Dictionary.ReleaseMemory(); // 如果有更新就釋放掉原先的字典 (新的字典數據 比 預設原本的少, 就需要釋放掉, 避免數據累加)
+                    Object.assign(CacheDict, Customize); // 只保留新的字典
+
+                    GM_setValue("LocalWords", CacheDict);
+                    GM_setValue("UpdateTimestamp", new Date().getTime());
+
+                    console.log("%c數據更新成功", `
+                        padding: 5px;
+                        color: #9BEC00;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        background-color: #597445;
+                        border: 2px solid #597445;
+                    `);
+
+                    return CacheDict;
+                } else {
+                    console.log("%c數據更新失敗", `
+                        padding: 5px;
+                        color: #FF0000;
+                        font-weight: bold;
+                        border-radius: 10px;
+                        background-color: #A91D3A;
+                        border: 2px solid #A91D3A;
+                    `);
+
+                    return DefaultDict;
+                };
+            }
         }
     };
 
