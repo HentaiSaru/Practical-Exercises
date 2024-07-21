@@ -62,11 +62,12 @@ let test1 = {"object1": "物件1", "object2": "物件2", "object3": "物件3"};
 "Array"
 "Object"
 
-
-Translation("");
-
 function Translation(text) {
+    if (text.length == 0) return;
+
     text.replace(/[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu, t => {
         console.log(`"${t.trim()}"`);
     })
 }
+
+Translation("");
