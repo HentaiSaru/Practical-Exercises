@@ -104,12 +104,8 @@
     let [Translated, TranslatedRecord, Dict] = [ // 判斷翻譯狀態 (不要改), 紀錄翻譯紀錄, 本地翻譯字典
         true,
         new Set(),
-        GM_getValue("LocalWords", null)
+        GM_getValue("LocalWords", null) ?? await Update.Reques() // 無字典立即請求 (通常只會在第一次運行)
     ];
-
-    if (!Dict || (Time - Timestamp) > (36e5 * 24)) { // 檢測更新 (自動更新 24 小時)
-        Dict = await Update.Reques();
-    };
 
     // 字典操作
     const Dictionary = {
@@ -164,7 +160,7 @@
             }
         }, 300));
 
-        // 啟動觀察
+        // 啟動觀察 (啟動時會觸發轉換)
         const StartOb = () => {
             RunFactory();
             observer.observe(body, options);
@@ -174,11 +170,13 @@
         const DisOB = () => observer.disconnect();
         !Dev && StartOb(); // 首次運行 (開發者模式下不會自動運行, 因為有可能轉換不回來)
 
-        // 反轉
-        function ThePolesAreReversed() {
+        // 反轉 參數: (是否恢復監聽)
+        function ThePolesAreReversed(RecoverOB=true) {
             DisOB();
             Dictionary.RefreshDict();
-            StartOb();
+
+            // 不恢復觀察, 就由該函數直接觸發轉換
+            RecoverOB ? StartOb() : RunFactory();
         };
 
         /* ----- 創建按鈕 ----- */
@@ -208,17 +206,15 @@
         };
 
         GM_registerMenuCommand("🆕 更新字典", async ()=> {
-            DisOB();
             Translated = true;
             GM_setValue("Clear", false);
 
-            Dictionary.RefreshDict(); // 將字典刷新為反向字典
-            RunFactory(); // 觸發一次反向恢復
+            ThePolesAreReversed(false); // 反轉一次, 並且不恢復觀察 (在更新前直接恢復一次, 是因為更新後 Dict 會被覆蓋, 可能會轉不回來)
 
             Dict = await Update.Reques(); // 請求新的字典
             Dictionary.Init(); // 更新後重新初始化 緩存
 
-            ThePolesAreReversed(); // 再次觸發反轉, 並恢復監聽
+            ThePolesAreReversed(); // 再次觸發反轉, 並恢復觀察
         }, {
             title: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
         });
@@ -245,6 +241,15 @@
                 }
             })
         };
+
+        if ((Time - Timestamp) > (36e5 * 24)) { // 24 小時更新
+            Update.Reques().then(data=> { // 不 await 的更新
+                Dict = data;
+                Dictionary.Init(); // 初始化
+                ThePolesAreReversed(false); // 反轉兩次
+                ThePolesAreReversed();
+            });
+        }
     });
 
     /* =========================================== */
@@ -432,7 +437,7 @@
         return {
             Reques: async () => {
                 const {State, Type, Data} = Parse[ObjType(LoadDict?.Data)](LoadDict?.Data); // 解構數據 (避免可能的例外)
-                const DefaultDict = Object.assign(Dict ?? {}, Customize);
+                const DefaultDict = Object.assign(GM_getValue("LocalWords", {}), Customize);
 
                 // 當解構狀態為 false, 或有清理標記, 直接回傳預設字典
                 if (!State || GM_getValue("Clear")) return DefaultDict;
@@ -446,7 +451,6 @@
                 };
 
                 if (Object.keys(CacheDict).length > 0) {
-                    Dictionary.ReleaseMemory(); // 如果有更新就釋放掉原先的字典 (新的字典數據 比 預設原本的少, 就需要釋放掉, 避免數據累加)
                     Object.assign(CacheDict, Customize); // 只保留新的字典
 
                     GM_setValue("LocalWords", CacheDict);
