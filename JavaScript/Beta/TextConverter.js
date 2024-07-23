@@ -92,23 +92,19 @@
 
     // 解構設置
     const [LoadDict, Translation] = [Config.LoadDictionary, Config.TranslationReversal];
-    // 這邊分開解構, 是因為 Transl 會掉用 Translation 的數據, 如果晚宣告或是一起解構, 會找不到
-    const [Dev, Update, Transl, Time, Timestamp] = [ // 開發者模式, 更新函數, 翻譯函數, 當前時間戳, 紀錄時間戳
-        false,
-        UpdateWordsDict(),
-        TranslationFactory(),
-        new Date().getTime(),
-        GM_getValue("UpdateTimestamp", null)
-    ];
 
-    let [Translated, TranslatedRecord, Dict] = [ // 判斷翻譯狀態 (不要改), 紀錄翻譯紀錄, 本地翻譯字典
-        true,
-        new Set(),
-        GM_getValue("LocalWords", null) ?? await Update.Reques() // 無字典立即請求 (通常只會在第一次運行)
-    ];
+    // Transl 會調用 Translation 的數據, 如果晚宣告會找不到
+    const Dev = false; // 開發者模式
+    const Update = UpdateWordsDict(); // 更新函數
+    const Transl = TranslationFactory(); // 翻譯函數
+    const Time = new Date().getTime(); // 當前時間戳
+    const Timestamp = GM_getValue("UpdateTimestamp", null); // 紀錄時間戳
 
-    // 字典操作
-    const Dictionary = {
+    let Translated = true; // 判斷翻譯狀態 (不要修改)
+    let TranslatedRecord = new Set(); // 紀錄翻譯紀錄, 避免疊加轉換問題
+    let Dict = GM_getValue("LocalWords", null) ?? await Update.Reques(); // 本地翻譯字典 (無字典立即請求, 通常只會在第一次運行)
+
+    const Dictionary = { // 字典操作
         NormalDict: undefined,
         ReverseDict: undefined,
         RefreshNormal: function() { // 正常字典的緩存
