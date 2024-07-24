@@ -21,10 +21,12 @@
 // @grant        GM_setClipboard
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
+// @grant        GM_unregisterMenuCommand
+// @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1382008/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // ==/UserScript==
 
 (function() {
@@ -42,7 +44,7 @@
             // 解析域名
             this.DomainName = (url) => {
                 return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
-            }
+            };
 
             // 數據轉 pako 的數組
             this.DataToPako = (str) => pako.deflateRaw(str).toString();
@@ -109,7 +111,7 @@
                 } else {
                     alert("無保存的書籤");
                 }
-            }
+            };
 
             // 導入數據
             this.Import = (data) => {
@@ -125,7 +127,7 @@
                 } catch {
                     alert("導入錯誤");
                 }
-            }
+            };
 
             // 導出數據
             this.Export = () => {
@@ -141,7 +143,7 @@
                 } else {
                     return false;
                 }
-            }
+            };
         }
 
         /* 添加書籤 */
@@ -175,7 +177,25 @@
             } catch (error) {
                 alert(error);
             }
-        }
+        };
+
+        /* 觀察批次訊號 */
+        async BatchAddObser() {
+            Syn.StoreListen(["BatchTrigger"], call=> {
+                if (call.far && call.nv == Syn.Device.Host) { // 同樣域名的觸發
+                    this.Add();
+                }
+            })
+        };
+
+        /* 觸發批次添加 */
+        BatchAddTrigger() {
+            Syn.Store("s", "BatchTrigger", Syn.Device.Host);
+            setTimeout(()=> {
+                Syn.Store("d", "BatchTrigger"); // 一秒後刪除觸發標記
+                this.Add(); // 添加自己
+            }, 1e3);
+        };
 
         /* 讀取書籤 */
         Read() {
@@ -189,7 +209,7 @@
                     }, 500 * index);
                 })
             }
-        }
+        };
 
         /* 導入 Json */
         Import_Json() {
@@ -218,13 +238,13 @@
                     }
                 }
             }, {once: true, passive: true});
-        }
+        };
 
         /* 導入 剪貼簿 */
         Import_Clipboard() {
             const data = prompt("貼上導入的數據: ");
             data && this.Import(data);
-        }
+        };
 
         /* 導出 Json */
         Export_Json() {
@@ -238,7 +258,7 @@
                     })
                 });
             }
-        }
+        };
 
         /* 導出 剪貼簿 */
         Export_Clipboard() {
@@ -251,19 +271,63 @@
                     timeout: 1500
                 })
             }
-        }
+        };
+
+        /* 菜單工廠 */
+        async MenuFactory() {
+            let SwitchStatus = false;
+
+            const self = this;
+            const ExpandText = "展開菜單";
+            const CollapseText = "收合菜單";
+
+            function Collapse() { // 移除收合菜單
+                for (let i=1; i <= 4; i++) {
+                    GM_unregisterMenuCommand("Expand-" + i)
+                }
+            };
+
+            function Expand() { // 展開添加菜單
+                Syn.Menu({
+                    "📥️ 導出 [Json]": {func: ()=> self.Export_Json()},
+                    "📥️ 導出 [剪貼簿]": {func: ()=> self.Export_Clipboard()},
+                    "📤️ 導入 [Json]": {func: ()=> self.Import_Json()},
+                    "📤️ 導入 [剪貼簿]": {func: ()=> self.Import_Clipboard()},
+                }, "Expand");
+            };
+
+            function MenuToggle() { // 觸發器
+                const DisplayText = SwitchStatus ? CollapseText : ExpandText;
+
+                Syn.Menu({ // 預設都是關閉狀態 (不會紀錄設置)
+                    [`➖➖➖${DisplayText}➖➖➖`]: {func: ()=> {
+                        SwitchStatus = SwitchStatus ? false : true; // 先更新狀態
+                        MenuToggle(); // 根據狀態刷新自己顯示
+
+                        // 最後呼叫開合 (順序改了可能導致排版亂掉)
+                        !SwitchStatus ? Collapse() : Expand(); // 因為狀態先被更新 (所以判斷要用反)
+                    }, close: false}
+                }, "Toggle");
+            };
+
+            MenuToggle(); // 初始化調用
+        };
 
         /* 菜單創建 */
         async Create() {
+            this.BatchAddObser();
+
             Syn.Menu({
                 "🔖 添加書籤": {func: ()=> this.Add()},
-                "📖 開啟書籤": {func: ()=> this.Read()},
-                "📥️ 導出 [Json]": {func: ()=> this.Export_Json()},
-                "📥️ 導出 [剪貼簿]": {func: ()=> this.Export_Clipboard()},
-                "📤️ 導入 [Json]": {func: ()=> this.Import_Json()},
-                "📤️ 導入 [剪貼簿]": {func: ()=> this.Import_Clipboard()},
+                "🔖 批量添加": {func: ()=> this.BatchAddTrigger()},
+                "📖 開啟書籤": {func: ()=> this.Read()}
             });
-        }
+
+            // 創建收合菜單
+            setTimeout(()=> {
+                this.MenuFactory();
+            }, 1e3);
+        };
     }).Create();
 
 })();
