@@ -20,13 +20,17 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
 // @require      https://update.greasyfork.org/scripts/487608/1382007/ClassSyntax_min.js
 // ==/UserScript==
 
-(function () {
+/* 未來添加
+
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.2/jquery-ui.min.js
+*/
+
+(async () => {
     /**
      * 選單設置
      *
