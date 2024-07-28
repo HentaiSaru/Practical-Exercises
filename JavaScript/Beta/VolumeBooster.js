@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         媒體音量增強器
-// @version      0.0.36-Beta
+// @version      0.0.36
 // @author       Canaan HS
 // @description  增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
 // @description:zh-TW 增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
@@ -75,7 +75,7 @@
         /* 媒體添加增益節點 */
         BoosterFactory(media_object, search_time) {
             try {
-                if (!this.AudioContext) throw this.Lang.BT1;
+                if (!this.AudioContext) throw this.Lang.Transl("不支援音頻增強節點");
                 if (!this.MediaContent) this.MediaContent = new this.AudioContext();
 
                 const nodecount = this.EnhanceNodes.length; // 紀錄運行前的節點數
@@ -137,7 +137,7 @@
                 // 打印完成狀態 (要有增加節點才會打印)
                 if (this.EnhanceNodes.length > nodecount) {
                     this.Log(
-                        this.Lang.BT3,
+                        this.Lang.Transl("添加增強節點成功"),
                         {
                             "Booster Media : ": media_object,
                             "Elapsed Time : ": this.Runtime(search_time, {log: false})
@@ -149,8 +149,8 @@
                     if (!this.Init) {
                         this.Init = true;
                         this.Menu({
-                            [this.Lang.MK]: {func: ()=> alert(this.Lang.MKT)},
-                            [this.Lang.MM]: {func: ()=> this.BoosterMenu()}
+                            [this.Lang.Transl("📜 菜單熱鍵")]: {func: ()=> alert(this.Lang.Transl("熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)"))},
+                            [this.Lang.Transl("🛠️ 調整菜單")]: {func: ()=> this.BoosterMenu()}
                         }, "Menu", 2);
                         this.MenuHotkey();
                         this.StoreListen([this.Host], call=> { // 全局監聽保存值變化
@@ -175,7 +175,7 @@
                     }
                 };
             } catch (error) {
-                this.Log(this.Lang.BT4, error, { type: "error", collapsed: false });
+                this.Log(this.Lang.Transl("增強錯誤"), error, { type: "error", collapsed: false });
             }
         };
 
@@ -186,7 +186,7 @@
                 this.Booster = this.BoosterFactory(media_object, search_time); // 添加節點
 
                 this.AddStyle(`
-                    .Booster-Modal-Background {
+                    Booster_Modal_Background {
                         top: 0;
                         left: 0;
                         opacity: 1;
@@ -203,6 +203,7 @@
                     .Booster-Modal-Button {
                         margin: 0 2% 2% 0;
                         color: #d877ff;
+                        cursor: pointer;
                         font-size: 16px;
                         font-weight: bold;
                         padding: 0 0.3rem;
@@ -213,33 +214,42 @@
                     .Booster-Modal-Button:hover,
                     .Booster-Modal-Button:focus {
                         color: #fc0e85;
-                        cursor: pointer;
                         text-decoration: none;
                     }
                     .Booster-Modal-Content {
                         width: 400px;
                         padding: 5px;
                         overflow: auto;
-                        background-color: #cff4ff;
-                        border-radius: 10px;
                         text-align: center;
+                        border-radius: 10px;
+                        background-color: #cff4ff;
                         border: 2px ridge #82c4e2;
                         border-collapse: collapse;
                         margin: 2% auto 8px auto;
                     }
+                    .Booster-Slider {
+                        width: 350px;
+                        cursor: pointer;
+                        margin-bottom: 2rem;
+                    }
                     .Booster-Multiplier {
-                        font-size:25px;
+                        margin: 2rem;
+                        font-size: 25px;
+                        font-weight: bold;
                         color:rgb(253, 1, 85);
-                        margin: 15px;
-                        font-weight:bold;
+                    }
+                    .Booster-Multiplier img {
+                        width: 8%;
+                    }
+                    .Booster-Multiplier span {
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
                     }
                     .Booster-Modal-Background-Closur {
                         opacity: 0;
                         pointer-events: none;
                     }
-                    .Booster-Slider {width: 350px;}
-                    div input {cursor: pointer;}
-                    #sound-save {cursor: pointer;}
                 `, "Booster-Menu", false);
             } catch (error) {
                 this.Log("Trigger Error : ", error, { type: "error", collapsed: false });
@@ -248,23 +258,27 @@
 
         /* 調整菜單 */
         async BoosterMenu() {
-            if (!this.$$(".Booster-Modal-Background")) {
+            if (!this.$$("Booster_Modal_Background")) {
                 const modal = document.createElement("div");
                 modal.innerHTML = `
-                    <div class="Booster-Modal-Background">
+                    <Booster_Modal_Background id="Booster-Modal-Menu">
                         <div class="Booster-Modal-Content">
-                            <h2 style="color: #3754f8;">${this.Lang.ST}</h2>
-                            <div style="margin:1rem auto 1rem auto;">
+                            <div>
+                                <h2 style="color: #3754f8;">${this.Lang.Transl("音量增強")}</h2>
                                 <div class="Booster-Multiplier">
-                                    <span><img src="${GM_getResourceURL("Img")}" width="5%">${this.Lang.S1}</span><span id="Booster-CurrentValue">${this.Increase}</span><span>${this.Lang.S2}</span>
+                                    <span>
+                                        <img src="${GM_getResourceURL("Img")}">${this.Lang.Transl("增強倍數 ")}
+                                        <span id="Booster-CurrentValue">${this.Increase}</span>${this.Lang.Transl(" 倍")}
+                                    </span>
                                 </div>
                                 <input type="range" id="Adjustment-Sound-Enhancement" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
                             </div>
                             <div style="text-align: right;">
-                                <button class="Booster-Modal-Button" id="sound-save">${this.Lang.SS}</button>
+                                <button class="Booster-Modal-Button" id="Booster-Menu-Close">${this.Lang.Transl("關閉")}</button>
+                                <button class="Booster-Modal-Button" id="Booster-Sound-Save">${this.Lang.Transl("保存")}</button>
                             </div>
                         </div>
-                    </div>
+                    </Booster_Modal_Background>
                 `
                 document.body.appendChild(modal);
 
@@ -282,21 +296,23 @@
                 }, { passive: true, capture: true });
 
                 // 監聽保存關閉
-                const Modal = this.$$(".Booster-Modal-Background");
+                const Modal = this.$$("Booster_Modal_Background");
                 this.Listen(Modal, "click", click => {
                     click.stopPropagation();
                     const target = click.target;
-                    if (target.id === "sound-save") {
+                    if (target.id === "Booster-Sound-Save") {
                         const value = parseFloat(slider.value);
                         this.Increase = value;
                         this.Store("s", this.Host, value);
                         DeleteMenu();
-                    } else if (target.className === "Booster-Modal-Background") {DeleteMenu()}
+                    } else if (
+                        target.id === "Booster-Menu-Close" || target.id === "Booster-Modal-Menu"
+                    ) {DeleteMenu()}
                 }, { capture: true });
 
                 function DeleteMenu() {
                     Modal.classList.add("Booster-Modal-Background-Closur");
-                    setTimeout(()=> {Modal.remove()}, 1200);
+                    setTimeout(()=> {Modal.parentNode.remove()}, 800);
                 }
             }
         };
@@ -329,51 +345,54 @@
                     }, {mark: "Media-Booster", attributes: false, throttle: 500}, back=> {
                         this.MediaObserver = back.ob;
                         this.ObserverOption = back.op;
-                        Menu(this.Lang.MD);
+                        Menu(this.Lang.Transl("❌ 禁用增幅"));
                     });
-                } else Menu(this.Lang.MS);
+                } else Menu(this.Lang.Transl("✅ 啟用增幅"));
             });
         };
 
         /* 語言 */
         Language(lang) {
-            const Display = {
-                Traditional: {
-                    MS: "✅ 啟用增幅", MD: "❌ 禁用增幅",
-                    MK: "📜 菜單熱鍵", MM: "🛠️ 調整菜單",
-                    MKT: "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)",
-                    BT1: "不支援音頻增強節點", BT2: "添加增強節點失敗",
-                    BT3: "添加增強節點成功", BT4: "增強失敗",
-                    ST: "音量增強", S1: "增強倍數 ", S2: " 倍",
-                    SS: "保存設置",
-                },
+            const Word = {
+                Traditional: {},
                 Simplified: {
-                    MS: "✅ 启用增幅", MD: "❌ 禁用增幅",
-                    MK: "📜 菜单热键", MM: "🛠️ 调整菜单",
-                    MKT: "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)",
-                    BT1: "不支援音频增强节点", BT2: "添加增强节点失败",
-                    BT3: "添加增强节点成功", BT4: "增强失败",
-                    ST: "音量增强", S1: "增强倍数 ", S2: " 倍",
-                    SS: "保存设置",
+                    "✅ 啟用增幅": "✅ 启用增幅",
+                    "📜 菜單熱鍵": "📜 菜单热键",
+                    "🛠️ 調整菜單": "🛠️ 调整菜单",
+                    "關閉": "关闭",
+                    "音量增強": "音量增强",
+                    "增強倍數 ": "增强倍数 ",
+                    "增強錯誤" : "增强错误",
+                    "添加增強節點成功": "添加增强节点成功",
+                    "不支援音頻增強節點": "不支持音频增强节点",
+                    "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)" : "热键呼叫调整菜单!!\n\n快捷组合 : (Alt + B)"
                 },
                 English: {
-                    MS: "✅ Enable Boost", MD: "❌ Disable Boost",
-                    MK: "📜 Menu Hotkey", MM: "🛠️ Adjust Menu",
-                    MKT: "Hotkey to Call Menu Adjustments!!\n\nShortcut: (Alt + B)",
-                    BT1: "Audio enhancement node not supported", BT2: "Failed to add enhancement node",
-                    BT3: "Enhancement node added successfully", BT4: "Enhancement failed",
-                    ST: "Volume Boost", S1: "Boost Level ", S2: " X",
-                    SS: "Save Settings",
+                    "❌ 禁用增幅": "❌ Disable Boost",
+                    "✅ 啟用增幅": "✅ Enable Boost",
+                    "📜 菜單熱鍵": "📜 Menu Hotkey",
+                    "🛠️ 調整菜單": "🛠️ Adjust Menu",
+                    " 倍": "x",
+                    "關閉": "Close",
+                    "保存": "Save",
+                    "音量增強": "Volume Boost",
+                    "增強倍數 ": "Boost Multiplier ",
+                    "增強錯誤" : "Boost Error",
+                    "添加增強節點成功": "Successfully Added Boost Node",
+                    "不支援音頻增強節點": "Audio Boost Node Not Supported",
+                    "熱鍵呼叫調整菜單!!\n\n快捷組合 : (Alt + B)" : "Hotkey to Call Adjust Menu!!\n\nShortcut: (Alt + B)"
                 }
             }, Match = {
-                "zh-TW": Display.Traditional,
-                "zh-HK": Display.Traditional,
-                "zh-MO": Display.Traditional,
-                "zh-CN": Display.Simplified,
-                "zh-SG": Display.Simplified,
-                "en-US": Display.English,
+                "en-US": Word.English,
+                "zh-CN": Word.Simplified,
+                "zh-SG": Word.Simplified,
+                "zh-TW": Word.Traditional,
+                "zh-HK": Word.Traditional,
+                "zh-MO": Word.Traditional
+            }, ML = Match[lang] ?? Match["en-US"];
+            return {
+                Transl: (Str) => ML[Str] ?? Str,
             };
-            return Match[lang] ?? Match["en-US"];
         };
     }().Injec();
 })();
