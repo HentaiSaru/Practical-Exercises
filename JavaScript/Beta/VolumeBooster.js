@@ -230,7 +230,7 @@
                     .Booster-Slider {
                         width: 350px;
                         cursor: pointer;
-                        margin-bottom: 2rem;
+                        margin-bottom: 1rem;
                     }
                     .Booster-Multiplier {
                         margin: 2rem;
