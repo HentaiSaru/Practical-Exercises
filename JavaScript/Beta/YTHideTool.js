@@ -34,6 +34,7 @@
     const Config = {
         Dev: false,
         GlobalChange: true, // 全局同時修改
+        HomePageReload: true, // 點擊 Logo 回主頁時重新載入頁面
         HotKey: {
             Adapt: k => k.key.toLowerCase(), // <- 適配大小寫差異
             Title: k => k.altKey && Config.HotKey.Adapt(k) == "t", // 標題
@@ -55,6 +56,7 @@
             this.TFT = false; // 轉換觸發器
             this.HVM = "Hide-Video";
             this.HPM = "Hide-Playlist";
+            this.InjecRecord = {};
 
             this.HotKey = Config.HotKey;
             this.Lang = this.Language(this.Device.Lang);
@@ -63,8 +65,8 @@
 
             /* 判斷頁面 */
             this.Page = (url) => this.Video.test(url)
-            ? "Video" : this.Playlist.test(url)
-            ? "Playlist" : "NotSupport";
+                ? "Video" : this.Playlist.test(url)
+                ? "Playlist" : "NotSupport";
 
             /* 標題格式 (傳入標題元素) */
             this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "");
@@ -123,9 +125,10 @@
         /* 檢測觸發 */
         async Detec() {
             this.Injec(this.Device.Url); // 立即注入
+            Config.HomePageReload && this.HomeReload();
             this.AddListener(window, "urlchange", change=> {
                 this.Injec(change.url); // 監聽變化
-            })
+            });
         };
 
         /* 注入操作 */
@@ -134,6 +137,7 @@
 
             this.DevPrint(this.Lang.DP_01, Page);
             if (Page == "NotSupport") return;
+            if (this.InjecRecord[URL]) return;
 
             // 等待的元素是, 判定可開始查找的框架
             this.WaitElem("#columns, #contents", trigger=> {
@@ -276,6 +280,7 @@
                             this.GCM = true; // 標記註冊
                         };
 
+                        this.InjecRecord[URL] = true;
                     }, {throttle: 100, characterData: true, timeoutResult: true});
 
                 } else if (Page == "Playlist" && !trigger.hasAttribute(this.HPM)) {
@@ -299,10 +304,23 @@
                                 this.HideJudgment(playlist, "ListDesc");
                             }
                         });
+
+                        this.InjecRecord[URL] = true;
                     }, {throttle: 100, characterData: true, timeoutResult: true});
 
                 };
             }, {object: document, timeout: 15, timeoutResult: true});
+        };
+
+        /* 回首頁時重新載入 */
+        async HomeReload() {
+            this.WaitElem("a#logo", found => {
+                this.AddListener(found, "click", event=> {
+                    event.stopImmediatePropagation();
+                    event.preventDefault();
+                    location.assign(this.Device.Orig);
+                }, {capture: true})
+            }, {raf: true, timeout: 5});
         };
 
         Language(lang) {
