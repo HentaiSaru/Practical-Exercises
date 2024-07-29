@@ -649,7 +649,7 @@ const Syn = (()=> {
          * @param {function} Success   - 選擇是否回傳輸出狀態
          * 
          * @example
-         * OutputJson({key: value}, "Json", Success=> {
+         * OutputJson(JsonData, "MyJson", Success=> {
          *      console.log(Success);
          * })
          */
