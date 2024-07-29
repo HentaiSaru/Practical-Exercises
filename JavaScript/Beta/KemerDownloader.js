@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta1
+// @version      0.0.21-Beta2
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -120,9 +120,10 @@
         Settings: ["orlink", "dllink"],
     };
 
+    /* --------------------- */
+
     let lock = false;
     const Lang = Language(Syn.Device.Lang);
-
     class Download {
         constructor(CM, MD, BT) {
             this.Button = BT;
