@@ -38,7 +38,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1377525/SyntaxSimplified.js
+// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
@@ -63,17 +63,15 @@
 * 上傳導出的 Json 一鍵下載所有內容 (圖片/影片|雲端應該無法)
 */
 
-(function() {
-    const def = new Syntax(), Lang = language(navigator.language);
-
+(async () => {
     const Config = {
-        DeBug: false, // 顯示請求資訊, 與錯誤資訊
+        Dev: false, // 顯示請求資訊, 與錯誤資訊
         NotiFication: true, // 操作時 系統通知
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
-        ExperimentalDownload: true, // 實驗功能 [json 下載]
+        ExperimeDownload: true, // 實驗功能 [json 下載]
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
-        ExperimentalDownloadDelay: 300, // 實驗下載請求延遲 (ms)
+        ExperimeDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     };
 
     /** ---------------------
@@ -89,7 +87,7 @@
      * {Artist} 作者 | 繪師 ...
      * {Source} 來源 => (Pixiv Fanbox) 之類的標籤
      *
-     * {Fill} 填充 => ! 只適用於檔名, 位置隨意 但 必須存在該值, 不得刪除
+     * {Fill} 填充 => ! 只適用於檔名, 位置隨意 但 必須存在該值, 不然會出錯
      */
     const FileName = {
         FillValue: {
@@ -123,12 +121,14 @@
     };
 
     let lock = false;
+    const Lang = Language(Syn.Device.Lang);
+
     class Download {
         constructor(CM, MD, BT) {
-            this.ForceDownload = false;
-            this.CompressMode = CM;
-            this.ModeDisplay = MD;
             this.Button = BT;
+            this.ModeDisplay = MD;
+            this.CompressMode = CM;
+            this.ForceDownload = false;
 
             this.Named_Data = null;
 
@@ -141,7 +141,7 @@
             this.videoFormat = new Set(["MP4", "MOV", "AVI", "WMV", "FLV"]);
             this.isVideo = (str) => this.videoFormat.has(str.toUpperCase());
 
-            this.worker = def.WorkerCreation(`
+            this.worker = Syn.WorkerCreation(`
                 let queue = [], processing=false;
                 onmessage = function(e) {
                     queue.push(e.data);
@@ -151,7 +151,7 @@
                     if (queue.length > 0) {
                         const {index, url} = queue.shift();
                         XmlRequest(index, url);
-                        setTimeout(processQueue, ${Config.ExperimentalDownloadDelay});
+                        setTimeout(processQueue, ${Config.ExperimeDownloadDelay});
                     } else {processing = false}
                 }
 
@@ -192,9 +192,9 @@
         NameAnalysis(format) {
             if (typeof format == "string") {
                 return format.split(/{([^}]+)}/g).filter(Boolean).map(data => {
-                    const LowerData = data.toLowerCase();
+                    const LowerData = data.toLowerCase().trim();
                     const isWord = /^[a-zA-Z]+$/.test(LowerData);
-                    return isWord ? this.Named_Data[LowerData]?.() || "None" : data;
+                    return isWord ? this.Named_Data[LowerData]?.() ?? "None" : data;
                 }).join("");
 
             } else if (typeof format == "object") {
@@ -206,19 +206,19 @@
         }
 
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
-        async DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
-            def.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found=> {
+        DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
+            Syn.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found=> {
                 const [files, title, artist] = found;
                 this.Button.disabled = lock = true;
                 const DownloadData = new Map();
 
                 this.Named_Data = { // 建立數據
                     fill: ()=> "fill",
-                    title: ()=> def.$$("span", {root: title}).textContent.trim(),
+                    title: ()=> Syn.$$("span", {root: title}).textContent.trim(),
                     artist: ()=> artist.textContent.trim(),
                     source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
                     time: ()=> {
-                        let published = def.$$(".post__published").cloneNode(true);
+                        let published = Syn.$$(".post__published").cloneNode(true);
                         published.firstElementChild.remove();
                         return published.textContent.trim().split(" ")[0];
                     }
@@ -230,18 +230,20 @@
                     fill_name
                 ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
-                const
-                    data = [...files.children].map(child => // 這種寫法適應於還未完全載入原圖時
-                        def.$$("a", {root: child}) || def.$$("img", {root: child})
-                    ),
-                    video = def.$$(".post__attachment a", {all: true}),
+                const // 這種寫法適應於還未完全載入原圖時
+                    data = [...files.children].map(child => Syn.$$("a, img", {root: child})),
+                    video = Syn.$$(".post__attachment a", {all: true}),
                     final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
-                final_data.forEach((file, index) => {
+                // 使用 foreach, 他的異步特性可能造成一些意外, 因此使用 for
+                for (const [index, file] of final_data.entries()) {
                     DownloadData.set(index, (file.href || file.src));
-                });
+                }
 
-                Config.DeBug && def.Log("Get Data", [folder_name, DownloadData], {collapsed: false});
+                Syn.Log("Get Data", {
+                    FolderName: folder_name,
+                    DownloadData: DownloadData
+                }, {dev: Config.Dev, collapsed: false});
 
                 this.CompressMode
                     ? this.PackDownload(compress_name, folder_name, fill_name, DownloadData)
@@ -264,7 +266,7 @@
             const
                 FillValue = this.NameAnalysis(FileName.FillValue),
                 Filler = FillValue[1],
-                Amount = FillValue[0] == "auto" ? def.GetFill(Total) : FillValue[0];
+                Amount = FillValue[0] == "auto" ? Syn.GetFill(Total) : FillValue[0];
 
             // 強制下載
             async function ForceDownload() {
@@ -272,11 +274,12 @@
                 Self.Compression(CompressName, Zip, TitleCache);
             }
 
-            def.Menu({
-                [Lang.RM_04]: {func: ()=> ForceDownload(), hotkey: "d"}
+            Syn.Menu({
+                [Lang.Transl("📥 強制壓縮下載")]: {func: ()=> ForceDownload(), hotkey: "d"}
             }, "Enforce");
 
             // 更新請求狀態
+            FolderName = FolderName != "" ? `${FolderName}/` : ""; // 處理資料夾名稱格式
             function Request_update(index, url, blob, retry=false) {
                 if (Self.ForceDownload) {return}
                 requestAnimationFrame(()=> {
@@ -284,15 +287,15 @@
                     if (retry) {
                         Data.set(index, url);
                     } else {
-                        extension = def.ExtensionName(url);
+                        extension = Syn.ExtensionName(url); // 雖然 Mantissa 函數可直接傳遞 url 為第四個參數, 但因為需要 isVideo 的資訊, 所以分別操作
                         Self.isVideo(extension)
-                        ? Zip.file(`${FolderName}/${decodeURIComponent(url.split("?f=")[1])}`, blob)
-                        : Zip.file(`${FolderName}/${FillName.replace("fill", def.Mantissa(index, Amount, Filler))}.${extension}`, blob);
+                            ? Zip.file(`${FolderName}${decodeURIComponent(url.split("?f=")[1])}`, blob)
+                            : Zip.file(`${FolderName}${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler, url))}.${extension}`, blob);
                     }
 
                     show = `[${++progress}/${Total}]`;
                     document.title = show;
-                    Self.Button.textContent = `${Lang.DS_05} ${show}`;
+                    Self.Button.textContent = `${Lang.Transl("下載進度")} ${show}`;
 
                     if (progress == Total) {
                         Total = Data.size;
@@ -341,15 +344,15 @@
             // 傳遞訊息
             for (let index = 0; index < Total; index++) {
                 this.worker.postMessage({ index: index, url: Data.get(index) });
-                Self.Button.textContent = `${Lang.DS_09} [${index + 1}/${Total}]`;
+                Self.Button.textContent = `${Lang.Transl("請求進度")} [${index + 1}/${Total}]`;
             }
 
             // 接收訊息
             this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
-                ? (Request(index, url), (Config.DeBug && def.Log("Download Failed", url, {collapsed: false})))
-                : (Request_update(index, url, blob), (Config.DeBug && def.Log("Download Successful", url, {collapsed: false})));
+                ? (Request(index, url), Syn.Log("Download Failed", url, {dev: Config.Dev, collapsed: false}))
+                : (Request_update(index, url, blob), Syn.Log("Download Successful", url, {dev: Config.Dev, collapsed: false}));
             }
         }
 
@@ -363,17 +366,21 @@
                 compressionOptions: { level: 5 }
             }, (progress) => {
                 document.title = `${progress.percent.toFixed(1)} %`;
-                this.Button.textContent = `${Lang.DS_06}: ${progress.percent.toFixed(1)} %`;
+                this.Button.textContent = `${Lang.Transl("封裝進度")}: ${progress.percent.toFixed(1)} %`;
             }).then(zip => {
                 saveAs(zip, `${Name}.zip`);
                 document.title = `✓ ${Title}`;
-                this.Button.textContent = Lang.DS_08;
+                this.Button.textContent = Lang.Transl("下載完成");
                 setTimeout(() => {
                     this.ResetButton();
                 }, 3000);
             }).catch(result => {
                 document.title = Title;
-                this.Button.textContent = Lang.DS_07;
+
+                const ErrorShow = Lang.Transl("壓縮封裝失敗");
+                this.Button.textContent = ErrorShow;
+                Syn.Log(ErrorShow, result, {dev: Config.Dev, type: "error", collapsed: false});
+
                 setTimeout(() => {
                     this.Button.disabled = false;
                     this.Button.textContent = this.ModeDisplay;
@@ -401,7 +408,7 @@
             const
                 FillValue = this.NameAnalysis(FileName.FillValue),
                 Filler = FillValue[1],
-                Amount = FillValue[0] == "auto" ? def.GetFill(Total) : FillValue[0];
+                Amount = FillValue[0] == "auto" ? Syn.GetFill(Total) : FillValue[0];
 
             // 停止下載的線程
             async function Stop() {
@@ -409,29 +416,30 @@
                 Process.forEach(process => process.abort())
             }
 
-            def.Menu({
-                [Lang.RM_05]: {func: ()=> Stop(), hotkey: "s"}
+            Syn.Menu({
+                [Lang.Transl("⛔️ 終止下載")]: {func: ()=> Stop(), hotkey: "s"}
             }, "Abort");
 
             async function Request(index) {
                 if (stop) {return}
                 link = Data.get(index);
-                extension = def.ExtensionName(link);
+                extension = Syn.ExtensionName(link);
                 filename = Self.isVideo(extension)
-                ? decodeURIComponent(link.split("?f=")[1])
-                : `${FillName.replace("fill", def.Mantissa(index, Amount, Filler))}.${extension}`;
+                    ? decodeURIComponent(link.split("?f=")[1])
+                    : `${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler))}.${extension}`;
+
                 return new Promise((resolve, reject) => {
 
                     const completed = () => {
                         if (!ShowTracking[index]) { // 多一個判斷是因為, 他有可能同樣的重複呼叫多次
                             ShowTracking[index] = true;
 
-                            Config.DeBug && def.Log("Download Successful", link, {collapsed: false});
+                            Syn.Log("Download Successful", link, {dev: Config.Dev, collapsed: false});
 
                             show = `[${++progress}/${Total}]`;
                             document.title = show;
 
-                            Self.Button.textContent = `${Lang.DS_05} ${show}`;
+                            Self.Button.textContent = `${Lang.Transl("下載進度")} ${show}`;
                             resolve();
                         }
                     };
@@ -440,18 +448,18 @@
                         url: link,
                         name: filename,
                         conflictAction: "overwrite",
-                        onprogress: (progress) => {
-                            Config.DeBug && def.Log("Download Progress", {
+                        onprogress: (progress) => { // 新版本的油猴插件, 這個回條怪怪的
+                            Syn.Log("Download Progress", {
                                 Index: index,
                                 ImgUrl: link,
                                 Progress: `${progress.loaded}/${progress.total}`
-                            }, {collapsed: false});
+                            }, {dev: Config.Dev, collapsed: false});
 
                             DownloadTracking[index] = (progress.loaded == progress.total);
                             DownloadTracking[index] && completed();
                         },
                         onerror: () => {
-                            Config.DeBug && def.Log("Download Error", link, {collapsed: false});
+                            Syn.Log("Download Error", link, {dev: Config.Dev, collapsed: false});
                             setTimeout(()=> {
                                 reject();
                                 Request(index);
@@ -465,14 +473,14 @@
 
             for (let i = 0; i < Total; i++) {
                 Promises.push(Request(i));
-                await def.Sleep(Config.ExperimentalDownloadDelay);
+                await Syn.Sleep(Config.ExperimeDownloadDelay);
             }
 
             await Promise.allSettled(Promises);
             GM_unregisterMenuCommand("Abort-1");
 
             document.title = `✓ ${TitleCache}`;
-            this.Button.textContent = Lang.DS_08;
+            this.Button.textContent = Lang.Transl("下載完成");
             setTimeout(() => {
                 this.ResetButton();
             }, 3000);
@@ -482,12 +490,11 @@
         async ResetButton() {
             Config.CompleteClose && window.close();
             lock = false;
-            const Button = def.$$("#ExDB button");
+            const Button = Syn.$$("#ExDB button");
             Button.disabled = false;
             Button.textContent = `✓ ${this.ModeDisplay}`;
         }
     }
-
     class DataToJson {
         constructor() {
             this.JsonDict = {};
@@ -495,9 +502,9 @@
             this.SortMap = new Map();
             this.Source = document.URL;
             this.TitleCache = document.title;
-            this.Section = def.$$("section");
+            this.Section = Syn.$$("section");
             this.Pages = this.progress =  this.filtercache = null;
-            this.Author = def.$$("span[itemprop='name'], fix_name").textContent;
+            this.Author = Syn.$$("span[itemprop='name'], fix_name").textContent;
             this.JsonMode = {"orlink" : "set_1", "imgnb" : "set_2", "videonb" : "set_3", "dllink": "set_4"}
 
             /**
@@ -511,17 +518,17 @@
             this.GenerateBox = (ol, pn, vn, lb) => {
                 if (this.Genmode) {
                     return {
-                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.CD_01]: ol } : {}),
-                        ...(this.JsonMode.hasOwnProperty("imgnb") ? { [Lang.CD_02]: pn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("videonb") ? { [Lang.CD_03]: vn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("dllink") ? { [Lang.CD_04]: lb || {} } : {}),
+                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.Transl("原始連結")]: ol } : {}),
+                        ...(this.JsonMode.hasOwnProperty("imgnb") ? { [Lang.Transl("圖片數量")]: pn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("videonb") ? { [Lang.Transl("影片數量")]: vn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("dllink") ? { [Lang.Transl("下載連結")]: lb || {} } : {}),
                     }
                 } else {
                     return {
-                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.CD_01]: ol } : {}),
-                        ...(this.JsonMode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [Lang.CD_02]: pn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("videonb") && vn > 0 && pn <= 10 ? { [Lang.CD_03]: vn } : {}),
-                        ...(this.JsonMode.hasOwnProperty("dllink") && Object.keys(lb).length > 0 ? { [Lang.CD_04]: lb } : {}),
+                        ...(this.JsonMode.hasOwnProperty("orlink") ? { [Lang.Transl("原始連結")]: ol } : {}),
+                        ...(this.JsonMode.hasOwnProperty("imgnb") && pn > 0 && vn == 0 ? { [Lang.Transl("圖片數量")]: pn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("videonb") && vn > 0 && pn <= 10 ? { [Lang.Transl("影片數量")]: vn } : {}),
+                        ...(this.JsonMode.hasOwnProperty("dllink") && Object.keys(lb).length > 0 ? { [Lang.Transl("下載連結")]: lb } : {}),
                     }
                 }
             }
@@ -557,18 +564,6 @@
                 } catch (error) {console.error(error)}
             }
 
-            /* 獲取當前時間 (西元年-月-日 時:分:秒) */
-            this.GetTime = () => {
-                const date = new Date(),
-                year = date.getFullYear(),
-                month = String(date.getMonth() + 1).padStart(2, "0"),
-                day = String(date.getDate()).padStart(2, "0"),
-                hour = String(date.getHours()).padStart(2, "0"),
-                minute = String(date.getMinutes()).padStart(2, "0"),
-                second = String(date.getSeconds()).padStart(2, "0");
-                return `${year}-${month}-${day} ${hour}:${minute}:${second}`;
-            }
-
             /* Mega 連結解析 (測試中 有些Bug) */
             this.MegaAnalysis = (data) => {
                 let title_box = [], link_box = [], result = {}, pass;
@@ -592,32 +587,31 @@
 
             /* 輸出Json */
             this.ToJson = async () => {
-                const json = document.createElement("a"),
-                Json_data = Object.assign({
+                const Json_data = Object.assign({
                     ["Meta-Data"]: {
-                        [Lang.CD_05]: this.Author,
-                        [Lang.CD_06]: this.GetTime(),
-                        [Lang.CD_07]: this.Source
+                        [Lang.Transl("作者")]: this.Author,
+                        [Lang.Transl("時間")]: Syn.GetDate("{year}-{month}-{date} {hour}:{minute}:{second}"),
+                        [Lang.Transl("來源")]: this.Source
                     }
                 }, this.JsonDict);
-                json.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(Json_data, null, 4));
-                json.download = `${this.Author}.json`;
-                json.click();
-                json.remove();
-                if (Config.NotiFication) {
-                    GM_notification({
-                        title: Lang.NF_04,
-                        text: Lang.NF_05,
-                        image: GM_getResourceURL("json-processing"),
-                        timeout: 2000
-                    });
-                }
-                lock = false;
-                this.worker.terminate();
-                document.title = this.TitleCache;
+
+                Syn.OutputJson(Json_data, this.Author, ()=> {
+                    if (Config.NotiFication) {
+                        GM_notification({
+                            title: Lang.Transl("數據處理完成"),
+                            text: Lang.Transl("Json 數據下載"),
+                            image: GM_getResourceURL("json-processing"),
+                            timeout: 2000
+                        });
+                    }
+
+                    lock = false;
+                    this.worker.terminate();
+                    document.title = this.TitleCache;
+                });
             }
 
-            this.worker = def.WorkerCreation(`
+            this.worker = Syn.WorkerCreation(`
                 let queue = [], processing=false;
                 onmessage = function(e) {
                     queue.push(e.data);
@@ -627,7 +621,7 @@
                     if (queue.length > 0) {
                         const {index, title, url} = queue.shift();
                         XmlRequest(index, title, url);
-                        setTimeout(processQueue, ${Config.ExperimentalDownloadDelay});
+                        setTimeout(processQueue, ${Config.ExperimeDownloadDelay});
                     } else {processing = false}
                 }
                 async function XmlRequest(index, title, url) {
@@ -668,7 +662,7 @@
             if (this.Section) {
                 lock = true;
 
-                for (const page of def.$$(".pagination-button-disabled b", {all: true})) {
+                for (const page of Syn.$$(".pagination-button-disabled b", {all: true})) {
                     const number = Number(page.textContent);
                     if (number) {this.Pages = number; break;}
                     else {this.Pages = 1;}
@@ -677,7 +671,7 @@
                 this.GetPageData(this.Section);
                 this.DataAnalysis(); // 解析回傳數據
             } else {
-                alert(Lang.CD_08);
+                alert(Lang.Transl("未取得數據"));
             }
         }
 
@@ -688,8 +682,7 @@
                 url: NextPage,
                 nocache: false,
                 onload: response => {
-                    const DOM = def.DomParse(response.responseText);
-                    this.GetPageData(def.$$("section", {root: DOM}));
+                    this.GetPageData(Syn.$$("section", {root: response.responseXML}));
                 }
             })
         }
@@ -697,12 +690,12 @@
         /* 獲取主頁元素 */
         async GetPageData(section) {
             let title, link;
-            const item = def.$$(".card-list__items article", {all: true, root: section});
+            const item = Syn.$$(".card-list__items article", {all: true, root: section});
 
             if (Config.NotiFication) {
                 GM_notification({
-                    title: Lang.NF_02,
-                    text: `${Lang.NF_03} : ${this.Pages}`,
+                    title: Lang.Transl("數據處理中"),
+                    text: `${Lang.Transl("當前處理頁數")} : ${this.Pages}`,
                     image: GM_getResourceURL("json-processing"),
                     timeout: 800
                 });
@@ -711,21 +704,21 @@
             // 遍歷數據
             this.progress = 0;
             for (const [index, card] of item.entries()) {
-                link = def.$$("a", {root: card}).href;
-                title = def.$$(".post-card__header", {root: card}).textContent.trim() || `Untitled_${String(this.progress+1).padStart(2, "0")}`;
+                link = Syn.$$("a", {root: card}).href;
+                title = Syn.$$(".post-card__header", {root: card}).textContent.trim() || `Untitled_${String(this.progress+1).padStart(2, "0")}`;
 
-                if (Config.ExperimentalDownload) {
+                if (Config.ExperimeDownload) {
                     this.worker.postMessage({ index: index, title: title, url: link });
                 } else {
                     this.JsonDict[`${link}`] = title;
                 }
 
-                await def.Sleep(10);
+                await Syn.Sleep(10);
             }
 
 
-            const menu = def.$$("a.pagination-button-after-current", {root: section});
-            if (Config.ExperimentalDownload) { // 使用較蠢的方式處理
+            const menu = Syn.$$("a.pagination-button-after-current", {root: section});
+            if (Config.ExperimeDownload) { // 使用較蠢的方式處理
 
                 const ILength = item.length,
                 wait = setInterval(()=> {
@@ -746,7 +739,7 @@
             } else {
 
                 this.Pages++;
-                await def.Sleep(500);
+                await Syn.Sleep(500);
                 menu ? this.GetNextPage(menu.href) : this.ToJson();
             }
         }
@@ -756,14 +749,14 @@
             this.worker.onmessage = async (e) => {
                 const data_box = {}, { index, title, url, text, error } = e.data;
                 if (!error) {
-                    const DOM = def.DomParse(text);
+                    const DOM = Syn.DomParse(text);
 
                     const original_link = url,
-                        pictures_number = def.$$("div.post__thumbnail", {all: true, root: DOM}).length,
-                        video_number = def.$$('ul[style*="text-align: center;list-style-type: none;"] li', {all: true, root: DOM}).length,
-                        mega_link = def.$$("div.post__content strong", {all: true, root: DOM});
+                        pictures_number = Syn.$$("div.post__thumbnail", {all: true, root: DOM}).length,
+                        video_number = Syn.$$('ul[style*="text-align: center;list-style-type: none;"] li', {all: true, root: DOM}).length,
+                        mega_link = Syn.$$("div.post__content strong", {all: true, root: DOM});
 
-                    def.$$("a.post__attachment-link", {all: true, root: DOM}).forEach(link => {
+                    Syn.$$("a.post__attachment-link", {all: true, root: DOM}).forEach(link => {
                         const analyze = decodeURIComponent(link.href).split("?f="),
                             download_link = analyze[0],
                             download_name = analyze[1];
@@ -773,7 +766,7 @@
                     if (mega_link.length > 0) {
                         try {
                             const {pass, result} = this.MegaAnalysis(mega_link);
-                            pass != undefined ? data_box[pass] = result : null;
+                            pass != unSynined ? data_box[pass] = result : null;
                         } catch {}
                     }
 
@@ -782,20 +775,19 @@
                         this.SortMap.set(index, {title: title, box: box});
                     }
 
-                    Config.DeBug && def.Log("Request Successful", this.SortMap, {collapsed: false});
+                    Syn.Log("Request Successful", this.SortMap, {dev: Config.Dev, collapsed: false});
                     document.title = `（${this.Pages} - ${++this.progress}）`;
                 } else {
-                    Config.DeBug && def.Log("Request Failed", {title: title, url: url}, {collapsed: false});
-                    await def.Sleep(1000);
+                    Syn.Log("Request Failed", {title: title, url: url}, {dev: Config.Dev, collapsed: false});
+                    await Syn.Sleep(1500);
                     this.worker.postMessage({ index: index, title: title, url: url });
                 }
             }
         }
     }
-
     (new class Main {
         constructor() {
-            this.URL = document.URL;
+            this.URL = Syn.Device.Url;
             this.Page = {
                 Content: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/.test(this.URL),
                 Preview: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/.test(this.URL)
@@ -804,37 +796,35 @@
             }
 
             this.AddStyle = async () => {
-                if (!def.$$("#Download-button-style")) {
-                    def.AddStyle(`
-                        ${GM_getResourceText("font-awesome")}
-                        .File_Span {
-                            padding: 1rem;
-                            font-size: 20% !important;
-                        }
-                        .Setting_Button {
-                            cursor: pointer;
-                        }
-                        .Download_Button {
-                            color: hsl(0, 0%, 45%);
-                            padding: 6px;
-                            margin: 10px;
-                            border-radius: 8px;
-                            border: 2px solid rgba(59, 62, 68, 0.7);
-                            background-color: rgba(29, 31, 32, 0.8);
-                            font-family: Arial, sans-serif;
-                        }
-                        .Download_Button:hover {
-                            color: hsl(0, 0%, 95%);
-                            background-color: hsl(0, 0%, 45%);
-                            font-family: Arial, sans-serif;
-                        }
-                        .Download_Button:disabled {
-                            color: hsl(0, 0%, 95%);
-                            background-color: hsl(0, 0%, 45%);
-                            cursor: default;
-                        }
-                    `, "Download-button-style");
-                }
+                Syn.AddStyle(`
+                    ${GM_getResourceText("font-awesome")}
+                    .File_Span {
+                        padding: 1rem;
+                        font-size: 20% !important;
+                    }
+                    .Setting_Button {
+                        cursor: pointer;
+                    }
+                    .Download_Button {
+                        color: hsl(0, 0%, 45%);
+                        padding: 6px;
+                        margin: 10px;
+                        border-radius: 8px;
+                        border: 2px solid rgba(59, 62, 68, 0.7);
+                        background-color: rgba(29, 31, 32, 0.8);
+                        font-family: Arial, sans-serif;
+                    }
+                    .Download_Button:hover {
+                        color: hsl(0, 0%, 95%);
+                        background-color: hsl(0, 0%, 45%);
+                        font-family: Arial, sans-serif;
+                    }
+                    .Download_Button:disabled {
+                        color: hsl(0, 0%, 95%);
+                        background-color: hsl(0, 0%, 45%);
+                        cursor: Synault;
+                    }
+                `, "Download-button-style", false);
             }
 
             // 下載模式 native, disabled, browser
@@ -844,16 +834,15 @@
 
         /* 按鈕創建 */
         async ButtonCreation() {
-            def.$$("section").setAttribute("Download-Button-Created", true);
-            this.AddStyle();
+            Syn.$$("section").setAttribute("Download-Button-Created", true); this.AddStyle();
             let Button, Files;
             const IntervalFind = setInterval(()=> {
-                Files = def.$$("div.post__body h2", {all: true});
+                Files = Syn.$$("div.post__body h2", {all: true});
                 if (Files.length > 0) {
                     clearInterval(IntervalFind);
                     try {
-                        const CompressMode = def.Storage("Compression", {type: localStorage, error: true});
-                        const ModeDisplay = CompressMode ? Lang.DS_01 : Lang.DS_02;
+                        const CompressMode = Syn.Storage("Compression", {type: localStorage, error: true});
+                        const ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
 
                         // 創建 Span
                         Files = Array.from(Files).filter(file => file.textContent.trim() == "Files");
@@ -866,21 +855,21 @@
                         const setting = GM_addElement(spanElement, "svg", { class: "Setting_Button" });
                         setting.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" height="1.3rem" viewBox="0 0 512 512"><style>svg {fill: hsl(0, 0%, 45%);}</style>
                         <path d="M495.9 166.6c3.2 8.7 .5 18.4-6.4 24.6l-43.3 39.4c1.1 8.3 1.7 16.8 1.7 25.4s-.6 17.1-1.7 25.4l43.3 39.4c6.9 6.2 9.6 15.9 6.4 24.6c-4.4 11.9-9.7 23.3-15.8 34.3l-4.7 8.1c-6.6 11-14 21.4-22.1 31.2c-5.9 7.2-15.7 9.6-24.5 6.8l-55.7-17.7c-13.4 10.3-28.2 18.9-44 25.4l-12.5 57.1c-2 9.1-9 16.3-18.2 17.8c-13.8 2.3-28 3.5-42.5 3.5s-28.7-1.2-42.5-3.5c-9.2-1.5-16.2-8.7-18.2-17.8l-12.5-57.1c-15.8-6.5-30.6-15.1-44-25.4L83.1 425.9c-8.8 2.8-18.6 .3-24.5-6.8c-8.1-9.8-15.5-20.2-22.1-31.2l-4.7-8.1c-6.1-11-11.4-22.4-15.8-34.3c-3.2-8.7-.5-18.4 6.4-24.6l43.3-39.4C64.6 273.1 64 264.6 64 256s.6-17.1 1.7-25.4L22.4 191.2c-6.9-6.2-9.6-15.9-6.4-24.6c4.4-11.9 9.7-23.3 15.8-34.3l4.7-8.1c6.6-11 14-21.4 22.1-31.2c5.9-7.2 15.7-9.6 24.5-6.8l55.7 17.7c13.4-10.3 28.2-18.9 44-25.4l12.5-57.1c2-9.1 9-16.3 18.2-17.8C227.3 1.2 241.5 0 256 0s28.7 1.2 42.5 3.5c9.2 1.5 16.2 8.7 18.2 17.8l12.5 57.1c15.8 6.5 30.6 15.1 44 25.4l55.7-17.7c8.8-2.8 18.6-.3 24.5 6.8c8.1 9.8 15.5 20.2 22.1 31.2l4.7 8.1c6.1 11 11.4 22.4 15.8 34.3zM256 336a80 80 0 1 0 0-160 80 80 0 1 0 0 160z"/></svg>`
-                        def.Listen(setting, "click", ()=> {alert("Currently Invalid")}, {capture: true, passive: true});
+                        Syn.Listen(setting, "click", ()=> {alert("Currently Invalid")}, {capture: true, passive: true});
                         // 創建 Button
                         Button = GM_addElement(spanElement, "button", {
                             class: "Download_Button",
-                            textContent: lock ? Lang.DS_10 : ModeDisplay
+                            textContent: lock ? Lang.Transl("下載中鎖定") : ModeDisplay
                         });
                         Button.disabled = lock;
-                        def.Listen(Button, "click", ()=> {
+                        Syn.Listen(Button, "click", ()=> {
                             let Instantiate = null;
                             Instantiate = new Download(CompressMode, ModeDisplay, Button);
                             Instantiate.DownloadTrigger();
                         }, {capture: true, passive: true});
                     } catch {
                         Button.disabled = true;
-                        Button.textContent = Lang.DS_04;
+                        Button.textContent = Lang.Transl("無法下載");
                     }
                 }
             });
@@ -888,64 +877,64 @@
 
         /* 一鍵開啟當前所有帖子 */
         async OpenAllPages() {
-            const card = def.$$("article.post-card a", {all: true});
+            const card = Syn.$$("article.post-card a", {all: true});
             if (card.length == 0) {throw new Error("No links found")}
 
-            let scope = prompt(`(${Lang.OP_01}: ${card.length})${Lang.OP_02}`);
+            let scope = prompt(`(${Lang.Transl("當前帖子數")}: ${card.length})${Lang.Transl("開帖說明")}`);
 
             if (scope != null) {
                 scope = scope == "" ? "1-50" : scope;
-                for (const link of def.ScopeParsing(scope, card)) {
+                for (const link of Syn.ScopeParsing(scope, card)) {
                     GM_openInTab(link.href, {
                         insert: false,
                         setParent: false
                     });
-                    await def.Sleep(Config.BatchOpenDelay);
+                    await Syn.Sleep(Config.BatchOpenDelay);
                 }
             }
         }
 
         /* 下載模式切換 */
         async DownloadModeSwitch() {
-            if (def.Storage("Compression", {type: localStorage, error: true})){
-                def.Storage("Compression", {type: localStorage, value: false});
+            if (Syn.Storage("Compression", {type: localStorage, error: true})){
+                Syn.Storage("Compression", {type: localStorage, value: false});
                 if (Config.NotiFication) {
                     GM_notification({
-                        title: Lang.NF_01,
-                        text: Lang.DM_02,
+                        title: Lang.Transl("模式切換"),
+                        text: Lang.Transl("單圖下載模式"),
                         timeout: 1500
                     });
                 }
             } else {
-                def.Storage("Compression", {type: localStorage, value: true});
+                Syn.Storage("Compression", {type: localStorage, value: true});
                 if (Config.NotiFication) {
                     GM_notification({
-                        title: Lang.NF_01,
-                        text: Lang.DM_01,
+                        title: Lang.Transl("模式切換"),
+                        text: Lang.Transl("壓縮下載模式"),
                         timeout: 1500
                     });
                 }
             }
-            def.$$("#ExDB").remove();
+            Syn.$$("#ExDB").remove();
             this.ButtonCreation();
         }
 
         /* 注入檢測創建 [ 檢測頁面創建按鈕, 創建菜單 ] */
         async Injection() {
-            def.Observer(document, ()=> {
+            Syn.Observer(document, ()=> {
                 try {
-                    (this.Page.Content && !def.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
+                    (this.Page.Content && !Syn.$$("section").hasAttribute("Download-Button-Created")) && this.ButtonCreation();
                 } catch {}
             }, {throttle: 300});
 
             if (this.Page.Content) {
-                def.Menu({
-                    [Lang.RM_01]: {func: ()=> this.DownloadModeSwitch(), close: false, hotkey: "c"}
+                Syn.Menu({
+                    [Lang.Transl("🔁 切換下載模式")]: {func: ()=> this.DownloadModeSwitch(), close: false, hotkey: "c"}
                 });
 
             } else if (this.Page.Preview) {
-                def.Menu({
-                    [Lang.RM_02]: {func: ()=> {
+                Syn.Menu({
+                    [Lang.Transl("📑 獲取 Json 數據")]: {func: ()=> {
                         if (!lock) {
                             let Instantiate = null;
                             Instantiate = new DataToJson();
@@ -953,159 +942,131 @@
                             Instantiate.GetData();
                         }
                     }},
-                    [Lang.RM_03]: {func: ()=> this.OpenAllPages() }
+                    [Lang.Transl("📃 開啟當前頁面帖子")]: {func: ()=> this.OpenAllPages() }
                 });
             }
         }
     }).Injection();
 
-    function language(lang) {
-        const Display = {
+    function Language(lang) {
+        const Word = {
             Traditional: {
-                RM_01 : "🔁 切換下載模式",
-                RM_02 : "📑 獲取 Json 數據",
-                RM_03 : "📃 開啟當前頁面帖子",
-                RM_04 : "📥 強制壓縮下載",
-                RM_05 : "⛔️ 終止下載",
-                DM_01 : "壓縮下載模式",
-                DM_02 : "單圖下載模式",
-                DS_01 : "壓縮下載",
-                DS_02 : "單圖下載",
-                DS_03 : "開始下載",
-                DS_04 : "無法下載",
-                DS_05 : "下載進度",
-                DS_06 : "封裝進度",
-                DS_07 : "壓縮封裝失敗",
-                DS_08 : "下載完成",
-                DS_09 : "請求進度",
-                DS_10 : "下載中鎖定",
-                CD_01 : "原始連結",
-                CD_02 : "圖片數量",
-                CD_03 : "影片數量",
-                CD_04 : "下載連結",
-                CD_05 : "作者",
-                CD_06 : "時間",
-                CD_07 : "來源",
-                CD_08 : "未取得數據",
-                NF_01 : "模式切換",
-                NF_02 : "數據處理中",
-                NF_03 : "當前處理頁數",
-                NF_04 : "數據處理完成",
-                NF_05 : "Json 數據下載",
-                OP_01 : "當前帖子數",
-                OP_02 : "\n\n!! 不輸入直接確認, 將會開啟當前頁面所有帖子\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10",
+                "開帖說明" : "\n\n!! 不輸入直接確認, 將會開啟當前頁面所有帖子\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10"
             },
             Simplified: {
-                RM_01 : "🔁 切换下载模式",
-                RM_02 : "📑 获取 Json 数据",
-                RM_03 : "📃 打开当前页面帖子",
-                RM_04 : "📥 强制压缩下载",
-                RM_05 : "⛔️ 终止下载",
-                DM_01 : "压缩下载模式",
-                DM_02 : "单图下载模式",
-                DS_01 : "压缩下载",
-                DS_02 : "单图下载",
-                DS_03 : "开始下载",
-                DS_04 : "无法下载",
-                DS_05 : "下载进度",
-                DS_06 : "打包进度",
-                DS_07 : "压缩打包失败",
-                DS_08 : "下载完成",
-                DS_09 : "请求进度",
-                DS_10 : "下载中锁定",
-                CD_01 : "原始链接",
-                CD_02 : "图片数量",
-                CD_03 : "视频数量",
-                CD_04 : "下载链接",
-                CD_05 : "作者",
-                CD_06 : "时间",
-                CD_07 : "来源",
-                CD_08 : "未取得数据",
-                NF_01 : "模式切换",
-                NF_02 : "数据处理中",
-                NF_03 : "当前处理页数",
-                NF_04 : "数据处理完成",
-                NF_05 : "Json 数据下载",
-                OP_01 : "当前帖子数",
-                OP_02 : "\n\n!! 不输入直接确认, 将会打开当前页面所有帖子\n输入开启范围(说明) =>\n单个: 1, 2, 3\n范围: 1~5, 6-10\n排除: !5, -10",
+                "🔁 切換下載模式" : "🔁 切换下载模式",
+                "📑 獲取 Json 數據" : "📑 获取 Json 数据",
+                "📃 開啟當前頁面帖子" : "📃 打开当前页面帖子",
+                "📥 強制壓縮下載" : "📥 强制压缩下载",
+                "⛔️ 終止下載" : "⛔️ 终止下载",
+                "壓縮下載模式" : "压缩下载模式",
+                "單圖下載模式" : "单图下载模式",
+                "壓縮下載" : "压缩下载",
+                "單圖下載" : "单图下载",
+                "開始下載" : "开始下载",
+                "無法下載" : "无法下载",
+                "下載進度" : "下载进度",
+                "封裝進度" : "打包进度",
+                "壓縮封裝失敗" : "压缩打包失败",
+                "下載完成" : "下载完成",
+                "請求進度" : "请求进度",
+                "下載中鎖定" : "下载中锁定",
+                "原始連結" : "原始链接",
+                "圖片數量" : "图片数量",
+                "影片數量" : "视频数量",
+                "下載連結" : "下载链接",
+                "作者" : "作者",
+                "時間" : "时间",
+                "來源" : "来源",
+                "未取得數據" : "未取得数据",
+                "模式切換" : "模式切换",
+                "數據處理中" : "数据处理中",
+                "當前處理頁數" : "当前处理页数",
+                "數據處理完成" : "数据处理完成",
+                "Json 數據下載" : "Json 数据下载",
+                "當前帖子數" : "当前帖子数",
+                "開帖說明" : "\n\n!! 不输入直接确认, 将会打开当前页面所有帖子\n输入开启范围(说明) =>\n单个: 1, 2, 3\n范围: 1~5, 6-10\n排除: !5, -10",
             },
             Japan: {
-                RM_01 : "🔁 ダウンロードモードの切り替え",
-                RM_02 : "📑 Json データの取得",
-                RM_03 : "📃 現在のページの投稿を開く",
-                RM_04 : "📥 強制的に圧縮してダウンロード",
-                RM_05 : "⛔️ ダウンロードを中止",
-                DM_01 : "圧縮ダウンロードモード",
-                DM_02 : "単一画像ダウンロードモード",
-                DS_01 : "圧縮ダウンロード",
-                DS_02 : "単一画像ダウンロード",
-                DS_03 : "ダウンロードを開始",
-                DS_04 : "ダウンロードできません",
-                DS_05 : "ダウンロードの進行状況",
-                DS_06 : "パッケージングの進行状況",
-                DS_07 : "圧縮パッケージングに失敗しました",
-                DS_08 : "ダウンロードが完了しました",
-                DS_09 : "リクエストの進行状況",
-                DS_10 : "ダウンロード中にロック",
-                CD_01 : "元のリンク",
-                CD_02 : "画像の数",
-                CD_03 : "動画の数",
-                CD_04 : "ダウンロードリンク",
-                CD_05 : "著者",
-                CD_06 : "時間",
-                CD_07 : "ソース",
-                CD_08 : "データを取得できませんでした",
-                NF_01 : "モードの切り替え",
-                NF_02 : "データ処理中",
-                NF_03 : "現在処理中のページ数",
-                NF_04 : "データ処理が完了しました",
-                NF_05 : "Json データのダウンロード",
-                OP_01 : "現在の投稿数",
-                OP_02 : "\n\n!! 直接確認を入力しないと、現在のページのすべての投稿が開きます\n開始範囲を入力してください (説明) =>\n単一: 1, 2, 3\n範囲: 1~5, 6-10\n除外: !5, -10",
+                "🔁 切換下載模式" : "🔁 ダウンロードモードの切り替え",
+                "📑 獲取 Json 數據" : "📑 Json データの取得",
+                "📃 開啟當前頁面帖子" : "📃 現在のページの投稿を開く",
+                "📥 強制壓縮下載" : "📥 強制的に圧縮してダウンロード",
+                "⛔️ 終止下載" : "⛔️ ダウンロードを中止",
+                "壓縮下載模式" : "圧縮ダウンロードモード",
+                "單圖下載模式" : "単一画像ダウンロードモード",
+                "壓縮下載" : "圧縮ダウンロード",
+                "單圖下載" : "単一画像ダウンロード",
+                "開始下載" : "ダウンロードを開始",
+                "無法下載" : "ダウンロードできません",
+                "下載進度" : "ダウンロードの進行状況",
+                "封裝進度" : "パッケージングの進行状況",
+                "壓縮封裝失敗" : "圧縮パッケージングに失敗しました",
+                "下載完成" : "ダウンロードが完了しました",
+                "請求進度" : "リクエストの進行状況",
+                "下載中鎖定" : "ダウンロード中にロック",
+                "原始連結" : "元のリンク",
+                "圖片數量" : "画像の数",
+                "影片數量" : "動画の数",
+                "下載連結" : "ダウンロードリンク",
+                "作者" : "著者",
+                "時間" : "時間",
+                "來源" : "ソース",
+                "未取得數據" : "データを取得できませんでした",
+                "模式切換" : "モードの切り替え",
+                "數據處理中" : "データ処理中",
+                "當前處理頁數" : "現在処理中のページ数",
+                "數據處理完成" : "データ処理が完了しました",
+                "Json 數據下載" : "Json データのダウンロード",
+                "當前帖子數" : "現在の投稿数",
+                "開帖說明" : "\n\n!! 直接確認を入力しないと、現在のページのすべての投稿が開きます\n開始範囲を入力してください (説明) =>\n単一: 1, 2, 3\n範囲: 1~5, 6-10\n除外: !5, -10",
             },
             English: {
-                RM_01 : "🔁 Switch Download Mode",
-                RM_02 : "📑 Get Json Data",
-                RM_03 : "📃 Open Current Page Post",
-                RM_04 : "📥 Force Compress Download",
-                RM_05 : "⛔️ Terminate download",
-                DM_01 : "Compress Download Mode",
-                DM_02 : "Single Image Download Mode",
-                DS_01 : "Compress Download",
-                DS_02 : "Single Image Download",
-                DS_03 : "Start Download",
-                DS_04 : "Unable to Download",
-                DS_05 : "Download Progress",
-                DS_06 : "Packaging Progress",
-                DS_07 : "Compress Packaging Failed",
-                DS_08 : "Download Complete",
-                DS_09 : "Request Progress",
-                DS_10 : "Download Locked",
-                CD_01 : "Original Link",
-                CD_02 : "Image Count",
-                CD_03 : "Video Count",
-                CD_04 : "Download Link",
-                CD_05 : "Author",
-                CD_06 : "Time",
-                CD_07 : "Source",
-                CD_08 : "No Data",
-                NF_01 : "Mode Switch",
-                NF_02 : "Data Processing",
-                NF_03 : "Current Processing Page",
-                NF_04 : "Data Processing Complete",
-                NF_05 : "Json Data Download",
-                OP_01 : "Current Post Count",
-                OP_02 : "\n\n!! If you do not enter a direct confirmation, all posts on the current page will be opened\nEnter the start range (說明) =>\nSingle: 1, 2, 3\nRange: 1~5, 6-10\nExclude: !5, -10",
+                "🔁 切換下載模式" : "🔁 Switch Download Mode",
+                "📑 獲取 Json 數據" : "📑 Get Json Data",
+                "📃 開啟當前頁面帖子" : "📃 Open Current Page Post",
+                "📥 強制壓縮下載" : "📥 Force Compress Download",
+                "⛔️ 終止下載" : "⛔️ Terminate download",
+                "壓縮下載模式" : "Compress Download Mode",
+                "單圖下載模式" : "Single Image Download Mode",
+                "壓縮下載" : "Compress Download",
+                "單圖下載" : "Single Image Download",
+                "開始下載" : "Start Download",
+                "無法下載" : "Unable to Download",
+                "下載進度" : "Download Progress",
+                "封裝進度" : "Packaging Progress",
+                "壓縮封裝失敗" : "Compress Packaging Failed",
+                "下載完成" : "Download Complete",
+                "請求進度" : "Request Progress",
+                "下載中鎖定" : "Download Locked",
+                "原始連結" : "Original Link",
+                "圖片數量" : "Image Count",
+                "影片數量" : "Video Count",
+                "下載連結" : "Download Link",
+                "作者" : "Author",
+                "時間" : "Time",
+                "來源" : "Source",
+                "未取得數據" : "No Data",
+                "模式切換" : "Mode Switch",
+                "數據處理中" : "Data Processing",
+                "當前處理頁數" : "Current Processing Page",
+                "數據處理完成" : "Data Processing Complete",
+                "Json 數據下載" : "Json Data Download",
+                "當前帖子數" : "Current Post Count",
+                "開帖說明" : "\n\n!! If you do not enter a direct confirmation, all posts on the current page will be opened\nEnter the start range (說明) =>\nSingle: 1, 2, 3\nRange: 1~5, 6-10\nExclude: !5, -10",
             }
         }, Match = {
-            "zh-TW": Display.Traditional,
-            "zh-HK": Display.Traditional,
-            "zh-MO": Display.Traditional,
-            "zh-CN": Display.Simplified,
-            "zh-SG": Display.Simplified,
-            "en-US": Display.English,
-            "ja": Display.Japan,
+            "zh-TW": Word.Traditional,
+            "zh-HK": Word.Traditional,
+            "zh-MO": Word.Traditional,
+            "zh-CN": Word.Simplified,
+            "zh-SG": Word.Simplified,
+            "en-US": Word.English,
+            ja: Word.Japan
+        }, ML = Match[lang] ?? Match["en-US"];
+
+        return {
+            Transl: (Str) => ML[Str] ?? Str,
         };
-        return Match[lang] || Match["en-US"];
     }
 })();
