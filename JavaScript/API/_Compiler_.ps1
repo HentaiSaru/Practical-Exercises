@@ -1,105 +1,227 @@
-[Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+Add-Type -AssemblyName System.Windows.Forms
+Add-Type -AssemblyName PresentationFramework
 
-$Global:InitIndex = 0
-$Global:ScriptPath = $PSScriptRoot
+$ScriptPath = $PSScriptRoot
 
-function Index {
-    $Global:InitIndex++
-    return "[$InitIndex]"
+$jsFiles = Get-ChildItem -Path $ScriptPath -Filter *.js -File # 獲取當前路徑下的第一個 Js 文件名
+if ($jsFiles.Count -gt 0) {
+    $jsFiles = Join-Path -Path $ScriptPath -ChildPath $jsFiles[0].Name
+} else {
+    $jsFiles = $ScriptPath
 }
 
-function console {
-    param (
-        [string]$text,
-        [string]$type = 'p',
-        [string]$foregroundColor = 'White',
-        [string]$backgroundColor = 'Black'
+# 編譯模式名稱
+$CompilerMode = @(
+    "uglifyjs 美化",
+    "uglifyjs 壓縮/混淆",
+    "uglifyjs 壓縮/美化",
+    "google-closure-compiler",
+    "uglifyjs [壓縮/混淆] + google-closure-compiler",
+    "google-closure-compiler + uglifyjs [壓縮/混淆]",
+    "google-closure-compiler + uglifyjs [壓縮/美化]"
+)
+
+# 編譯輸出路徑
+$Compile_Output_UPath = "R:\U_Compiler.js"
+$Compile_Output_GPath = "R:\G_Compiler.js"
+
+<# =========================== #>
+
+# 定義 XAML
+$xaml = @"
+    <Window xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        Title="JavaScript Compiler"
+        Width="600"
+        Height="620"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
+        Topmost="True">
+    <Grid Background="#FF20194A" Cursor="Arrow">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="80"/>
+            <!-- 路徑輸入 -->
+            <RowDefinition Height="513"/>
+            <!-- 模式選擇 -->
+        </Grid.RowDefinitions>
+
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="600"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <!-- 路徑輸入 -->
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Left" VerticalAlignment="Center" Margin="28,0,0,0" Grid.ColumnSpan="2">
+            <TextBox Name="PathTextBox" Text="$jsFiles" Width="450" Height="50" Margin="15" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" VerticalContentAlignment="Center" FontSize="18" FontFamily="Arial Rounded MT Bold" SelectionTextBrush="#FF003EFF" Background="#FFB6FFFA" BorderBrush="#FF687EFF" Foreground="#FF003EFF" SelectionBrush="#FF43A9F9"/>
+            <Button Name="BrowseButton" Content="📂" Width="65" Height="30" FontWeight="Bold" Cursor="Hand" FontSize="18" Foreground="#FF1A33FF" Background="#FF9FBBFF" BorderBrush="#FF6D8CDE"/>
+        </StackPanel>
+
+        <!-- 模式選擇 (Margin 四值: 左,上,右,下) [使用 template 創建, 不知道怎麼同時給予 Name 和 Text, 只好土法煉鋼] -->
+        <StackPanel Name="ModesPanel" Grid.Row="1" Margin="46,5,0,0" HorizontalAlignment="Left" Width="401" Height="466" VerticalAlignment="Top">
+            <ToggleButton Name="Mode0" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[0])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode1" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[1])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode2" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[2])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode3" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[3])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode4" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[4])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode5" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[5])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+            <ToggleButton Name="Mode6" Width="380" Height="50" Margin="8" Cursor="Hand" FontSize="14" Background="#FF7C00FE" Foreground="#FFFFFCFC" BorderBrush="#FF6D8CDE">
+                <TextBlock Text="$($CompilerMode[6])" Margin="10" FontWeight="Bold" VerticalAlignment="Center"/>
+            </ToggleButton>
+        </StackPanel>
+
+        <!-- 編譯按鈕 -->
+        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Width="138" Margin="0,14,10,0"  HorizontalAlignment="Right">
+            <Button Name="LibraryUpdate" Content="依賴更新" Width="100" Height="30" Margin="10" FontSize="14" FontWeight="Bold" Cursor="Hand" VerticalAlignment="Center" BorderBrush="#FF6D8CDE" Foreground="#FF1B08FF" Background="#FF9FBBFF"/>
+            <Button Name="Compiler" Content="代碼編譯" Width="100" Height="30" Margin="23" FontSize="14" FontWeight="Bold" Cursor="Hand" VerticalAlignment="Center" BorderBrush="#FF6D8CDE" Foreground="#FF1B08FF" Background="#FF9FBBFF"/>
+        </StackPanel>
+    </Grid>
+    </Window>
+"@
+
+# 使用 StringReader 來讀取 XAML
+$reader = New-Object System.IO.StringReader($xaml)
+$xmlReader = [System.Xml.XmlReader]::Create($reader)
+$window = [Windows.Markup.XamlReader]::Load($xmlReader)
+
+function SelectFile {
+    $fileDialog = New-Object System.Windows.Forms.OpenFileDialog
+    try {
+        $fileDialog.InitialDirectory = $ScriptPath
+        $fileDialog.Title = "選擇文件"
+        $fileDialog.Filter = "JavaScript (*.js)|*.js"
+
+        if ($fileDialog.ShowDialog() -eq [System.Windows.Forms.DialogResult]::OK) {
+            return $fileDialog.FileName
+        }
+    } finally {
+        $fileDialog.Dispose()
+    }
+    return $null
+}
+# 路徑選擇按鈕
+$window.FindName("BrowseButton").Add_Click({
+    $Select = SelectFile
+    if ($Select) {
+        $window.FindName("PathTextBox").Text = $Select
+    }
+})
+
+# 選擇模式
+$Selected = @($null)
+$Mode = @{Choose=$null}
+
+$ModePanel_Children = $window.FindName("ModesPanel").Children
+$ModePanel_Children | ForEach-Object {
+    $_.Add_Checked({
+        param($sender, $e)
+
+        if ($Selected[0]) { # 取消先前選擇的項目
+            $Selected[0].IsEnabled = $true
+            $Selected[0].IsChecked = $false
+        }
+
+        $Selected[0] = $sender
+        $sender.IsEnabled = $false
+        $Mode.Choose = $sender.Name
+    })
+}
+
+function CMD($command) {
+    Start-Process cmd.exe -ArgumentList "/c $command" -NoNewWindow -Wait
+}
+
+# 依賴更新
+$window.FindName("LibraryUpdate").Add_Click({
+    CMD("npm install uglify-js -g")
+    CMD("npm i -g google-closure-compiler")
+
+    $Message = [System.Windows.Forms.MessageBox]::Show(
+        "依賴項目已更新", "更新完成",
+        [System.Windows.Forms.MessageBoxButtons]::OK,
+        [System.Windows.Forms.MessageBoxIcon]::Information
     )
-    $Host.UI.RawUI.ForegroundColor = [ConsoleColor]::$foregroundColor
-    $Host.UI.RawUI.BackgroundColor = [ConsoleColor]::$backgroundColor
+})
 
-    switch ($type) {
-        "i" {return Read-Host "[1m$text"}
-        Default {
-            Write-Host "[1m$text"
-        }
-    }
-}
-
-function Menu() {
-    $file = $null
-    $choice = $null
-    $Global:InitIndex = 0
-
-    Clear-Host
-    console "===================================`n" -foregroundColor 'Magenta'
-    console "       JavaScript Compiler`n" -foregroundColor 'Cyan'
-    console "安裝:" -foregroundColor 'Red'
-    console "mnpm install uglify-js -g" -foregroundColor 'Green'
-    console "npm i -g google-closure-compiler`n" -foregroundColor 'Green'
-    console "[預設路徑] 輸入為當前目錄, 輸出為 R, 輸入檔名(不含 .js 後墜)`n" -foregroundColor 'Yellow'
-    console "模式:" -foregroundColor 'Red'
-    console "$(Index) uglifyjs 美化" -foregroundColor 'Yellow'
-    console "$(Index) uglifyjs 壓縮/混淆" -foregroundColor 'Yellow'
-    console "$(Index) uglifyjs 壓縮/美化" -foregroundColor 'Yellow'
-    console "$(Index) google-closure-compiler 預設" -foregroundColor 'Yellow'
-    console "$(Index) uglifyjs(壓縮/混淆) + google-closure-compiler(預設)" -foregroundColor 'Yellow'
-    console "$(Index) google-closure-compiler(預設) + uglifyjs(壓縮/混淆)" -foregroundColor 'Yellow'
-    console "$(Index) google-closure-compiler(預設) + uglifyjs(壓縮/美化)" -foregroundColor 'Yellow'
-    console "===================================" -foregroundColor 'Magenta'
-
-    $file = console "輸入檔名(Enter)" 'i'
-    $choice = console "編譯模式(Mode)" 'i'
-
-    return $file, $choice
-}
-
-function Main {
-    $Value = Menu
-    $Path = "$Global:ScriptPath\$($Value[0]).js"
-    Clear-Host
-
-    if (-not(Test-Path $Path)) {
-        console "不存在的路徑" 'Red'
-        Start-Sleep -Seconds 1.3
-        Main
+# 編譯按鈕
+$window.FindName("Compiler").Add_Click({
+    if ($null -eq $Mode.Choose) {
+        $Message = [System.Windows.Forms.MessageBox]::Show(
+            "需要選擇編譯模式", "未選擇模式",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+        return
     }
 
-    $UPath = "R:\U_Compiler.js"
-    $GPath = "R:\G_Compiler.js" 
-    switch ($Value[1]) {
-        0 {exit}
-        1 { # uglifyjs 美化
-            uglifyjs $Path -b -o $UPath
+    $Path = $window.FindName("PathTextBox").Text
+    if ($null -eq $Path -or -not(Test-Path $Path)) {
+        $Message = [System.Windows.Forms.MessageBox]::Show(
+            "確認輸入的文件路徑是否正確", "錯誤編譯路徑",
+            [System.Windows.Forms.MessageBoxButtons]::OK,
+            [System.Windows.Forms.MessageBoxIcon]::Error
+        )
+        return
+    }
+
+    $OpenPath = $null
+
+    switch ($Mode.Choose) {
+        "Mode0" { # uglifyjs 美化
+            uglifyjs $Path -b -o $Compile_Output_UPath
+            $OpenPath = $Compile_Output_UPath
         }
-        2 { # uglifyjs 壓縮/混淆
-            uglifyjs $Path -c -m -o $UPath
+        "Mode1" { # uglifyjs 壓縮/混淆
+            uglifyjs $Path -c -m -o $Compile_Output_UPath
+            $OpenPath = $Compile_Output_UPath
         }
-        3 { # uglifyjs 壓縮/美化
-            uglifyjs $Path -c -b -o $UPath
+        "Mode2" { # uglifyjs 壓縮/美化
+            uglifyjs $Path -c -b -o $Compile_Output_UPath
+            $OpenPath = $Compile_Output_UPath
         }
-        4 { # google-closure-compiler 預設
-            google-closure-compiler $Path --js_output_file $GPath
+        "Mode3" { # google-closure-compiler 預設
+            google-closure-compiler $Path --js_output_file $Compile_Output_GPath
+            $OpenPath = $Compile_Output_GPath
         }
-        5 { # uglifyjs(壓縮/混淆) + google-closure-compiler(預設)
-            uglifyjs $Path -c -m -o $UPath
-            google-closure-compiler $UPath --js_output_file $GPath
+        "Mode4" { # uglifyjs(壓縮/混淆) + google-closure-compiler(預設)
+            uglifyjs $Path -c -m -o $Compile_Output_UPath
+            google-closure-compiler $Compile_Output_UPath --js_output_file $Compile_Output_GPath
+            $OpenPath = $Compile_Output_GPath
         }
-        6 { # google-closure-compiler(預設) + uglifyjs(壓縮/混淆)
-            google-closure-compiler $Path --js_output_file $GPath
-            uglifyjs $GPath -c -m -o $UPath
+        "Mode5" { # google-closure-compiler(預設) + uglifyjs(壓縮/混淆)
+            google-closure-compiler $Path --js_output_file $Compile_Output_GPath
+            uglifyjs $Compile_Output_GPath -c -m -o $Compile_Output_UPath
+            $OpenPath = $Compile_Output_UPath
         }
-        7 { # google-closure-compiler(預設) + uglifyjs(壓縮/美化)
-            google-closure-compiler $Path --js_output_file $GPath
-            uglifyjs $GPath -c -b -o $UPath
-        }
-        Default {
-            console "不存在的模式" 'Red'
-            Start-Sleep -Seconds 1.3
+        "Mode6" { # google-closure-compiler(預設) + uglifyjs(壓縮/美化)
+            google-closure-compiler $Path --js_output_file $Compile_Output_GPath
+            uglifyjs $Compile_Output_GPath -c -b -o $Compile_Output_UPath
+            $OpenPath = $Compile_Output_UPath
         }
     }
 
-    Main
-}
+    if (Test-Path $OpenPath) {
+        Start-Process $OpenPath
+    }
+})
 
-Main
+try {
+    $window.ShowDialog() # 顯示窗口
+} finally {
+    $window.Close() # 釋放窗口資源
+    [System.GC]::Collect() # 強製垃圾回收
+    [System.GC]::WaitForPendingFinalizers()
+}
