@@ -320,7 +320,7 @@
                     event.preventDefault();
                     location.assign(this.Device.Orig);
                 }, {capture: true})
-            }, {raf: true, timeout: 5});
+            }, {object: document});
         };
 
         Language(lang) {
