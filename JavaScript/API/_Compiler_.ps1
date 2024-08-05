@@ -222,6 +222,4 @@ try {
     $window.ShowDialog() # 顯示窗口
 } finally {
     $window.Close() # 釋放窗口資源
-    [System.GC]::Collect() # 強製垃圾回收
-    [System.GC]::WaitForPendingFinalizers()
 }
