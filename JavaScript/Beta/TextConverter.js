@@ -180,13 +180,13 @@
 
         if (Dev) {
             Translated = false;
-            GM_registerMenuCommand("💬 展示匹配文本", ()=> {
+            GM_registerMenuCommand("🎞️ 展示匹配文本", ()=> {
                 Transl.Dev(body);
             }, {
                 autoClose: false,
                 title: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
             });
-            GM_registerMenuCommand("🖨️ 打印匹配文本", ()=> {
+            GM_registerMenuCommand("📰 輸出匹配文檔", ()=> {
                 Transl.Dev(body, false);
             }, {
                 title: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
