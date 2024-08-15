@@ -8,6 +8,7 @@
 // @match        *://yande.re/*
 // @match        *://rule34.xxx/*
 // @match        *://nhentai.net/*
+// @match        *://imhentai.xxx/*
 // @match        *://konachan.com/*
 // @match        *://danbooru.donmai.us/*
 
