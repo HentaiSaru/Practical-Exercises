@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.30
+// @version      0.0.31-Beta
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -33,13 +33,12 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
 // ==/UserScript==
-
 (async () => {
-    const lang = language(Syn.Device.Lang);
+    const Lang = Language(Syn.Device.Lang);
     const domain = Syn.Device.Host;
     const CKOP = CookieFactory();
     new class AutoLogin {
@@ -82,12 +81,12 @@
                 }, 1300);
             };
             this.GlobalMenuToggle = async () => {
-                Syn.StoreListen(["Expand"], listen => {
+                Syn.StoreListen([ "Expand" ], listen => {
                     listen.far && this.MenuToggle();
                 });
             };
             this.MenuToggle = async () => {
-                const state = Syn.Store("g", "Expand", false), disp = state ? lang.RM_C1 : lang.RM_C0;
+                const state = Syn.Store("g", "Expand", false), disp = state ? Lang.Transl("📁 摺疊菜單") : Lang.Transl("📂 展開菜單");
                 Syn.Menu({
                     [disp]: {
                         func: () => {
@@ -102,19 +101,19 @@
             };
             this.Expand = async () => {
                 Syn.Menu({
-                    [lang.RM_01]: {
+                    [Lang.Transl("📜 自動獲取")]: {
                         func: () => this.GetCookieAutomatically()
                     },
-                    [lang.RM_02]: {
+                    [Lang.Transl("📝 手動輸入")]: {
                         func: () => this.ManualSetting()
                     },
-                    [lang.RM_03]: {
+                    [Lang.Transl("🔍 查看保存")]: {
                         func: () => this.ViewSaveCookie()
                     },
-                    [lang.RM_04]: {
+                    [Lang.Transl("🔃 手動注入")]: {
                         func: () => this.CookieInjection()
                     },
-                    [lang.RM_05]: {
+                    [Lang.Transl("🗑️ 清除登入")]: {
                         func: () => this.ClearLogin()
                     }
                 }, "Expand");
@@ -136,7 +135,7 @@
                 cookie && CKOP.Verify(cookie);
             }
             Syn.Menu({
-                [lang.RM_00]: {
+                [Lang.Transl("🍪 共享登入")]: {
                     func: () => this.SharedLogin()
                 }
             });
@@ -155,16 +154,16 @@
                             if (typeof data === "object" && Object.keys(data).length > 0) {
                                 resolve(data);
                             } else {
-                                console.error(lang.SS_05);
+                                console.error(Lang.Transl("請求為空數據"));
                                 resolve({});
                             }
                         } else {
-                            console.error(lang.SS_06);
+                            console.error(Lang.Transl("連線異常，更新地址可能是錯的"));
                             resolve({});
                         }
                     },
                     onerror: error => {
-                        console.error(lang.SS_07, error);
+                        console.error(Lang.Transl("請求錯誤: "), error);
                         resolve({});
                     }
                 });
@@ -175,7 +174,7 @@
             if (Object.keys(Shared).length > 0) {
                 this.Share = Shared;
                 Syn.Store("s", "Share", Shared);
-                this.Growl(lang.SS_03, "jGrowl", 1500);
+                this.Growl(Lang.Transl("共享數據獲取成功"), "jGrowl", 1500);
                 const modal = Syn.$$(".modal-background");
                 if (modal) {
                     setTimeout(() => {
@@ -184,7 +183,7 @@
                     }, 800);
                 }
             } else {
-                this.Growl(lang.SS_04, "jGrowl", 1500);
+                this.Growl(Lang.Transl("共享數據獲取失敗"), "jGrowl", 1500);
             }
         }
         async SharedLogin() {
@@ -197,16 +196,16 @@
                 }
                 Select.append($("<option>").attr({
                     value: i
-                }).text(`${lang.SM_16} ${i}`));
+                }).text(`${Lang.Transl("帳戶")} ${i}`));
             }
             this.modal = $(`
                 <div class="modal-background">
                     <div class="acc-modal">
-                        <h1>${lang.SM_15}</h1>
+                        <h1>${Lang.Transl("帳戶選擇")}</h1>
                         <div class="acc-select-flex">${Select.prop("outerHTML")}</div>
                         <div class="acc-button-flex">
-                            <button class="modal-button" id="update">${lang.SM_17}</button>
-                            <button class="modal-button" id="login">${lang.SM_18}</button>
+                            <button class="modal-button" id="update">${Lang.Transl("更新")}</button>
+                            <button class="modal-button" id="login">${Lang.Transl("登入")}</button>
                         </div>
                     </div>
                 </div>
@@ -214,7 +213,7 @@
             this.CreateMenu();
             Value && $("#account-select").val(Value);
             const self = this;
-            self.on(".modal-background", "click", function (click) {
+            self.on(".modal-background", "click", function(click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "login") {
@@ -228,36 +227,36 @@
         }
         async GetCookieAutomatically() {
             let cookie_box = [];
-            for (const [name, value] of Object.entries(CKOP.Get())) {
+            for (const [ name, value ] of Object.entries(CKOP.Get())) {
                 cookie_box.push({
                     name: name,
                     value: value
                 });
             }
-            cookie_box.length > 1 ? this.Cookie_Show(JSON.stringify(cookie_box, null, 4)) : alert(lang.SS_01);
+            cookie_box.length > 1 ? this.Cookie_Show(JSON.stringify(cookie_box, null, 4)) : alert(Lang.Transl("未獲取到 Cookies !!\n\n請先登入帳戶"));
         }
         async Cookie_Show(cookies) {
             this.CreateDetection();
             this.modal = `
                 <div class="modal-background">
                     <div class="show-modal">
-                    <h1 style="text-align: center;">${lang.SM_01}</h1>
+                    <h1 style="text-align: center;">${Lang.Transl("確認選擇的 Cookies")}</h1>
                         <pre><b>${cookies}</b></pre>
                         <div style="text-align: right;">
-                            <button class="modal-button" id="save">${lang.SM_02}</button>
-                            <button class="modal-button" id="close">${lang.SM_03}</button>
+                            <button class="modal-button" id="save">${Lang.Transl("確認保存")}</button>
+                            <button class="modal-button" id="close">${Lang.Transl("取消退出")}</button>
                         </div>
                     </div>
                 </div>
             `;
             this.CreateMenu();
             const self = this;
-            self.on(".modal-background", "click", function (click) {
+            self.on(".modal-background", "click", function(click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "save") {
                     Syn.Store("s", "E/Ex_Cookies", cookies);
-                    self.Growl(lang.SM_05, "jGrowl", 1500);
+                    self.Growl(Lang.Transl("保存成功!"), "jGrowl", 1500);
                     self.DeleteMenu();
                 } else if (target.className == "modal-background" || target.id == "close") {
                     self.DeleteMenu();
@@ -269,18 +268,18 @@
             this.modal = `
                 <div class="modal-background">
                     <div class="set-modal">
-                    <h1>${lang.SM_09}</h1>
+                    <h1>${Lang.Transl("設置 Cookies")}</h1>
                         <form id="set_cookies">
                             <div id="input_cookies" class="set-box">
-                                <label>[igneous]：</label><input class="set-list" type="text" name="igneous" placeholder="${lang.SM_10}"><br>
-                                <label>[ipb_member_id]：</label><input class="set-list" type="text" name="ipb_member_id" placeholder="${lang.SM_11}" required><br>
-                                <label>[ipb_pass_hash]：</label><input class="set-list" type="text" name="ipb_pass_hash" placeholder="${lang.SM_11}" required><hr>
-                                <h3>${lang.SM_12}</h3>
+                                <label>[igneous]：</label><input class="set-list" type="text" name="igneous" placeholder="${Lang.Transl("要登入 Ex 才需要填寫")}"><br>
+                                <label>[ipb_member_id]：</label><input class="set-list" type="text" name="ipb_member_id" placeholder="${Lang.Transl("必填項目")}" required><br>
+                                <label>[ipb_pass_hash]：</label><input class="set-list" type="text" name="ipb_pass_hash" placeholder="${Lang.Transl("必填項目")}" required><hr>
+                                <h3>${Lang.Transl("下方選填 也可不修改")}</h3>
                                 <label>[sl]：</label><input class="set-list" type="text" name="sl" value="dm_2"><br>
                                 <label>[sk]：</label><input class="set-list" type="text" name="sk"><br>
                             </div>
-                            <button type="submit" class="modal-button" id="save">${lang.SM_02}</button>
-                            <button class="modal-button" id="close">${lang.SM_04}</button>
+                            <button type="submit" class="modal-button" id="save">${Lang.Transl("確認保存")}</button>
+                            <button class="modal-button" id="close">${Lang.Transl("退出選單")}</button>
                         </form>
                     </div>
                 </div>
@@ -293,10 +292,10 @@
                 cols: 40,
                 readonly: true
             }), self = this;
-            self.on("#set_cookies", "submit", function (submit) {
+            self.on("#set_cookies", "submit", function(submit) {
                 submit.preventDefault();
                 submit.stopImmediatePropagation();
-                const cookie_list = Array.from($("#set_cookies .set-list")).map(function (input) {
+                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
                     const value = $(input).val();
                     return value.trim() !== "" ? {
                         name: $(input).attr("name"),
@@ -306,9 +305,9 @@
                 cookie = JSON.stringify(cookie_list, null, 4);
                 textarea.val(cookie);
                 $("#set_cookies div").append(textarea);
-                self.Growl(lang.SM_13, "jGrowl", 3e3);
+                self.Growl(Lang.Transl("[確認輸入正確]按下退出選單保存"), "jGrowl", 3e3);
             });
-            self.on(".modal-background", "click", function (click) {
+            self.on(".modal-background", "click", function(click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.className == "modal-background" || target.id == "close") {
@@ -323,10 +322,10 @@
             this.modal = `
                 <div class="modal-background">
                     <div class="set-modal">
-                    <h1>${lang.SM_14}</h1>
+                    <h1>${Lang.Transl("當前設置 Cookies")}</h1>
                         <div id="view_cookies" style="margin: 0.6rem"></div>
-                        <button class="modal-button" id="save">${lang.SM_06}</button>
-                        <button class="modal-button" id="close">${lang.SM_04}</button>
+                        <button class="modal-button" id="save">${Lang.Transl("更改保存")}</button>
+                        <button class="modal-button" id="close">${Lang.Transl("退出選單")}</button>
                     </div>
                 </div>
             `;
@@ -340,13 +339,13 @@
             }), self = this;
             textarea.val(JSON.stringify(cookie, null, 4));
             $("#view_cookies").append(textarea);
-            self.on(".modal-background", "click", function (click) {
+            self.on(".modal-background", "click", function(click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "save") {
                     GM_notification({
-                        title: lang.SM_07,
-                        text: lang.SM_08,
+                        title: Lang.Transl("變更通知"),
+                        text: Lang.Transl("已保存變更"),
                         image: "https://cdn-icons-png.flaticon.com/512/5234/5234222.png",
                         timeout: 3e3
                     });
@@ -361,7 +360,7 @@
             try {
                 CKOP.ReAdd(Syn.Store("gj", "E/Ex_Cookies"));
             } catch (error) {
-                alert(lang.SS_02);
+                alert(Lang.Transl("未檢測到可注入的 Cookies !!\n\n請從選單中進行設置"));
             }
         }
         async ClearLogin() {
@@ -413,7 +412,7 @@
                     opacity: 0;
                     width: 100%;
                     height: 100%;
-                    z-index: 9999;
+                    z-index: 8888;
                     overflow: auto;
                     position: fixed;
                     transition: 0.6s ease;
@@ -513,17 +512,17 @@
         Today.setFullYear(Today.getFullYear() + 1);
         const Expires = Today.toUTCString();
         const UnixUTC = new Date(0).toUTCString();
-        let RequiredCookie = ["ipb_member_id", "ipb_pass_hash"];
+        let RequiredCookie = [ "ipb_member_id", "ipb_pass_hash" ];
         if (domain == "exhentai.org") RequiredCookie.unshift("igneous");
         return {
             Get: () => {
                 return document.cookie.split("; ").reduce((acc, cookie) => {
-                    const [name, value] = cookie.split("=");
+                    const [ name, value ] = cookie.split("=");
                     acc[decodeURIComponent(name)] = decodeURIComponent(value);
                     return acc;
                 }, {});
             },
-            Add: function (CookieObject) {
+            Add: function(CookieObject) {
                 Syn.Storage("DetectionTime", {
                     type: localStorage,
                     value: new Date().getTime()
@@ -533,19 +532,20 @@
                 }
                 location.reload();
             },
-            Delete: function () {
+            Delete: function() {
                 Object.keys(this.Get()).forEach(Name => {
                     document.cookie = `${Name}=; expires=${UnixUTC}; path=/;`;
                     document.cookie = `${Name}=; expires=${UnixUTC}; path=/; domain=.${domain}`;
                 });
             },
-            ReAdd: function (Cookies) {
+            ReAdd: function(Cookies) {
                 this.Delete();
                 this.Add(Cookies);
             },
-            Verify: function (Cookies) {
-                const VCookie = new Set(Object.keys(this.Get()));
-                const Result = RequiredCookie.every(Name => VCookie.has(Name));
+            Verify: function(Cookies) {
+                const Cookie = this.Get();
+                const VCookie = new Set(Object.keys(Cookie));
+                const Result = RequiredCookie.every(key => VCookie.has(key) && Cookie[key] !== "mystery");
                 if (!Result) {
                     this.Delete();
                     this.Add(Cookies);
@@ -558,193 +558,161 @@
             }
         };
     }
-    function language(lang) {
-        const Display = {
-            Traditional: {
-                RM_00: "🍪 共享登入",
-                RM_C0: "📂 展開菜單",
-                RM_C1: "📁 摺疊菜單",
-                RM_01: "📜 自動獲取",
-                RM_02: "📝 手動輸入",
-                RM_03: "🔍 查看保存",
-                RM_04: "🔃 手動注入",
-                RM_05: "🗑️ 清除登入",
-                SM_01: "確認選擇的 Cookies",
-                SM_02: "確認保存",
-                SM_03: "取消退出",
-                SM_04: "退出選單",
-                SM_05: "保存成功!",
-                SM_06: "更改保存",
-                SM_07: "變更通知",
-                SM_08: "已保存變更",
-                SM_09: "設置 Cookies",
-                SM_10: "要登入 Ex 才需要填寫",
-                SM_11: "必填項目",
-                SM_12: "下方選填 也可不修改",
-                SM_13: "[確認輸入正確]按下退出選單保存",
-                SM_14: "當前設置 Cookies",
-                SM_15: "帳戶選擇",
-                SM_16: "帳戶",
-                SM_17: "更新",
-                SM_18: "登入",
-                SS_01: "未獲取到 Cookies !!\n\n請先登入帳戶",
-                SS_02: "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置",
-                SS_03: "共享數據獲取成功",
-                SS_04: "共享數據獲取失敗",
-                SS_05: "請求為空數據",
-                SS_06: "連線異常, 地址類型可能是錯的",
-                SS_07: "請求錯誤: "
-            },
+    function Language(lang) {
+        const Word = {
+            Traditional: {},
             Simplified: {
-                RM_00: "🍪 共享登录",
-                RM_C0: "📂 展开菜单",
-                RM_C1: "📁 折叠菜单",
-                RM_01: "📜 自动获取",
-                RM_02: "📝 手动输入",
-                RM_03: "🔍 查看保存",
-                RM_04: "🔃 手动注入",
-                RM_05: "🗑️ 清除登录",
-                SM_01: "确认选择的 Cookies",
-                SM_02: "确认保存",
-                SM_03: "取消退出",
-                SM_04: "退出菜单",
-                SM_05: "保存成功!",
-                SM_06: "更改保存",
-                SM_07: "变更通知",
-                SM_08: "已保存变更",
-                SM_09: "设置 Cookies",
-                SM_10: "要登录 Ex 才需要填写",
-                SM_11: "必填项目",
-                SM_12: "下方选填 也可不修改",
-                SM_13: "[确认输入正确]按下退出菜单保存",
-                SM_14: "当前设置 Cookies",
-                SM_15: "账户选择",
-                SM_16: "账户",
-                SM_17: "更新",
-                SM_18: "登录",
-                SS_01: "未获取到 Cookies !!\n\n请先登录账户",
-                SS_02: "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
-                SS_03: "共享数据获取成功",
-                SS_04: "共享数据获取失败",
-                SS_05: "请求为空数据",
-                SS_06: "连接异常, 地址类型可能是错的",
-                SS_07: "请求错误: "
+                "🍪 共享登入": "🍪 共享登录",
+                "📂 展開菜單": "📂 展开菜单",
+                "📁 摺疊菜單": "📁 折叠菜单",
+                "📜 自動獲取": "📜 自动获取",
+                "📝 手動輸入": "📝 手动输入",
+                "🔍 查看保存": "🔍 查看保存",
+                "🔃 手動注入": "🔃 手动注入",
+                "🗑️ 清除登入": "🗑️ 清除登录",
+                "帳戶": "账户",
+                "更新": "更新",
+                "登入": "登录",
+                "確認選擇的 Cookies": "确认选择的 Cookies",
+                "確認保存": "确认保存",
+                "取消退出": "取消退出",
+                "退出選單": "退出菜单",
+                "保存成功!": "保存成功!",
+                "更改保存": "更改保存",
+                "變更通知": "变更通知",
+                "已保存變更": "已保存变更",
+                "設置 Cookies": "设置 Cookies",
+                "要登入 Ex 才需要填寫": "要登录 Ex 才需要填写",
+                "必填項目": "必填项目",
+                "下方選填 也可不修改": "下方选填 也可不修改",
+                "[確認輸入正確]按下退出選單保存": "[确认输入正确]按下退出菜单保存",
+                "當前設置 Cookies": "当前设置 Cookies",
+                "帳戶選擇": "账户选择",
+                "未獲取到 Cookies !!\n\n請先登入帳戶": "未获取到 Cookies !!\n\n请先登录账户",
+                "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
+                "共享數據獲取成功": "共享数据获取成功",
+                "共享數據獲取失敗": "共享数据获取失败",
+                "請求為空數據": "请求为空数据",
+                "連線異常，更新地址可能是錯的": "连接异常，更新地址可能是错的",
+                "請求錯誤: ": "请求错误: "
             },
             English: {
-                RM_00: "🍪 Shared Login",
-                RM_C0: "📂 Expand Menu",
-                RM_C1: "📁 Collapse Menu",
-                RM_01: "📜 Auto Retrieve",
-                RM_02: "📝 Manual Input",
-                RM_03: "🔍 View Saved",
-                RM_04: "🔃 Manual Injection",
-                RM_05: "🗑️ Clear Login",
-                SM_01: "Confirm Selected Cookies",
-                SM_02: "Confirm Save",
-                SM_03: "Cancel Exit",
-                SM_04: "Exit Menu",
-                SM_05: "Save Successful!",
-                SM_06: "Change Saved",
-                SM_07: "Change Notification",
-                SM_08: "Changes Saved",
-                SM_09: "Set Cookies",
-                SM_10: "Required for Ex Login",
-                SM_11: "Mandatory Field",
-                SM_12: "Optional Below, No Changes Needed",
-                SM_13: "[Confirm Correct Input] Press Exit Menu to Save",
-                SM_14: "Current Set Cookies",
-                SM_15: "Account Selection",
-                SM_16: "Account",
-                SM_17: "Update",
-                SM_18: "Login",
-                SS_01: "No Cookies Retrieved !!\n\nPlease Login First",
-                SS_02: "No Injectable Cookies Detected !!\n\nPlease Set in Menu",
-                SS_03: "Shared Data Retrieval Successful",
-                SS_04: "Shared Data Retrieval Failed",
-                SS_05: "Request Contains No Data",
-                SS_06: "Connection Error, Address Type May Be Wrong",
-                SS_07: "Request Error: "
+                "🍪 共享登入": "🍪 Shared Login",
+                "📂 展開菜單": "📂 Expand Menu",
+                "📁 摺疊菜單": "📁 Collapse Menu",
+                "📜 自動獲取": "📜 Auto Retrieve",
+                "📝 手動輸入": "📝 Manual Input",
+                "🔍 查看保存": "🔍 View Saved",
+                "🔃 手動注入": "🔃 Manual Injection",
+                "🗑️ 清除登入": "🗑️ Clear Login",
+                "帳戶": "Account",
+                "更新": "Update",
+                "登入": "Login",
+                "確認選擇的 Cookies": "Confirm Selected Cookies",
+                "確認保存": "Confirm Save",
+                "取消退出": "Cancel Exit",
+                "退出選單": "Exit Menu",
+                "保存成功!": "Save Successful!",
+                "更改保存": "Change Saved",
+                "變更通知": "Change Notification",
+                "已保存變更": "Changes Saved",
+                "設置 Cookies": "Set Cookies",
+                "要登入 Ex 才需要填寫": "Required for Ex Login",
+                "必填項目": "Mandatory Field",
+                "下方選填 也可不修改": "Optional Below, No Changes Needed",
+                "[確認輸入正確]按下退出選單保存": "[Confirm Correct Input] Press Exit Menu to Save",
+                "當前設置 Cookies": "Current Set Cookies",
+                "帳戶選擇": "Account Selection",
+                "未獲取到 Cookies !!\n\n請先登入帳戶": "No Cookies Retrieved !!\n\nPlease Login First",
+                "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "No Injectable Cookies Detected !!\n\nPlease Set in Menu",
+                "共享數據獲取成功": "Shared Data Retrieval Successful",
+                "共享數據獲取失敗": "Shared Data Retrieval Failed",
+                "請求為空數據": "Request Contains No Data",
+                "連線異常，更新地址可能是錯的": "Connection error, the update address may be incorrect",
+                "請求錯誤: ": "Request Error: "
             },
             Korea: {
-                RM_00: "🍪 공유 로그인",
-                RM_C0: "📂 메뉴 확장",
-                RM_C1: "📁 메뉴 축소",
-                RM_01: "📜 자동 가져오기",
-                RM_02: "📝 수동 입력",
-                RM_03: "🔍 저장 보기",
-                RM_04: "🔃 수동 주입",
-                RM_05: "🗑️ 로그인 지우기",
-                SM_01: "선택한 쿠키 확인",
-                SM_02: "저장 확인",
-                SM_03: "취소 종료",
-                SM_04: "메뉴 종료",
-                SM_05: "저장 성공!",
-                SM_06: "변경 저장",
-                SM_07: "변경 알림",
-                SM_08: "변경 사항 저장됨",
-                SM_09: "쿠키 설정",
-                SM_10: "Ex 로그인에 필요",
-                SM_11: "필수 항목",
-                SM_12: "아래 선택 항목, 변경 필요 없음",
-                SM_13: "[입력 정확성 확인] 메뉴 종료를 눌러 저장",
-                SM_14: "현재 설정된 쿠키",
-                SM_15: "계정 선택",
-                SM_16: "계정",
-                SM_17: "업데이트",
-                SM_18: "로그인",
-                SS_01: "쿠키를 가져오지 못했습니다 !!\n\n먼저 로그인 해주세요",
-                SS_02: "주입 가능한 쿠키를 감지하지 못했습니다 !!\n\n메뉴에서 설정해 주세요",
-                SS_03: "공유 데이터 가져오기 성공",
-                SS_04: "공유 데이터 가져오기 실패",
-                SS_05: "요청 데이터가 비어 있습니다",
-                SS_06: "연결 오류, 주소 유형이 잘못되었을 수 있습니다",
-                SS_07: "요청 오류: "
+                "🍪 共享登入": "🍪 공유 로그인",
+                "📂 展開菜單": "📂 메뉴 확장",
+                "📁 摺疊菜單": "📁 메뉴 축소",
+                "📜 自動獲取": "📜 자동 가져오기",
+                "📝 手動輸入": "📝 수동 입력",
+                "🔍 查看保存": "🔍 저장 보기",
+                "🔃 手動注入": "🔃 수동 주입",
+                "🗑️ 清除登入": "🗑️ 로그인 지우기",
+                "確認選擇的 Cookies": "선택한 쿠키 확인",
+                "帳戶": "계정",
+                "更新": "업데이트",
+                "登入": "로그인",
+                "確認保存": "저장 확인",
+                "取消退出": "취소 종료",
+                "退出選單": "메뉴 종료",
+                "保存成功!": "저장 성공!",
+                "更改保存": "변경 저장",
+                "變更通知": "변경 알림",
+                "已保存變更": "변경 사항 저장됨",
+                "設置 Cookies": "쿠키 설정",
+                "要登入 Ex 才需要填寫": "Ex 로그인에 필요",
+                "必填項目": "필수 항목",
+                "下方選填 也可不修改": "아래 선택 항목, 변경 필요 없음",
+                "[確認輸入正確]按下退出選單保存": "[입력 정확성 확인] 메뉴 종료를 눌러 저장",
+                "當前設置 Cookies": "현재 설정된 쿠키",
+                "帳戶選擇": "계정 선택",
+                "未獲取到 Cookies !!\n\n請先登入帳戶": "쿠키를 가져오지 못했습니다 !!\n\n먼저 로그인 해주세요",
+                "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "주입 가능한 쿠키를 감지하지 못했습니다 !!\n\n메뉴에서 설정해 주세요",
+                "共享數據獲取成功": "공유 데이터 가져오기 성공",
+                "共享數據獲取失敗": "공유 데이터 가져오기 실패",
+                "請求為空數據": "요청 데이터가 비어 있습니다",
+                "連線異常，更新地址可能是錯的": "연결 이상, 업데이트 주소가 잘못되었을 수 있습니다",
+                "請求錯誤: ": "요청 오류: "
             },
             Japan: {
-                RM_00: "🍪 共有ログイン",
-                RM_C0: "📂 メニュー展開",
-                RM_C1: "📁 メニュー折りたたみ",
-                RM_01: "📜 自動取得",
-                RM_02: "📝 手動入力",
-                RM_03: "🔍 保存を表示",
-                RM_04: "🔃 手動注入",
-                RM_05: "🗑️ ログインクリア",
-                SM_01: "選択したクッキーを確認",
-                SM_02: "保存を確認",
-                SM_03: "キャンセルして終了",
-                SM_04: "メニューを終了",
-                SM_05: "保存成功!",
-                SM_06: "変更を保存",
-                SM_07: "変更通知",
-                SM_08: "変更が保存されました",
-                SM_09: "クッキーを設定",
-                SM_10: "Exログインに必要",
-                SM_11: "必須項目",
-                SM_12: "下の選択肢、変更の必要はありません",
-                SM_13: "[入力が正しいことを確認] メニュー終了を押して保存",
-                SM_14: "現在設定されているクッキー",
-                SM_15: "アカウント選択",
-                SM_16: "アカウント",
-                SM_17: "更新",
-                SM_18: "ログイン",
-                SS_01: "クッキーを取得できませんでした!!\n\n先にログインしてください",
-                SS_02: "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
-                SS_03: "共有データの取得に成功しました",
-                SS_04: "共有データの取得に失敗しました",
-                SS_05: "リクエストが空データです",
-                SS_06: "接続エラー、アドレスタイプが間違っている可能性があります",
-                SS_07: "リクエストエラー: "
+                "🍪 共享登入": "🍪 共有ログイン",
+                "📂 展開菜單": "📂 メニュー展開",
+                "📁 摺疊菜單": "📁 メニュー折りたたみ",
+                "📜 自動獲取": "📜 自動取得",
+                "📝 手動輸入": "📝 手動入力",
+                "🔍 查看保存": "🔍 保存を表示",
+                "🔃 手動注入": "🔃 手動注入",
+                "🗑️ 清除登入": "🗑️ ログインクリア",
+                "帳戶": "アカウント",
+                "更新": "更新",
+                "登入": "ログイン",
+                "確認選擇的 Cookies": "選択したクッキーを確認",
+                "確認保存": "保存を確認",
+                "取消退出": "キャンセルして終了",
+                "退出選單": "メニューを終了",
+                "保存成功!": "保存成功!",
+                "更改保存": "変更を保存",
+                "變更通知": "変更通知",
+                "已保存變更": "変更が保存されました",
+                "設置 Cookies": "クッキーを設定",
+                "要登入 Ex 才需要填寫": "Exログインに必要",
+                "必填項目": "必須項目",
+                "下方選填 也可不修改": "下の選択肢、変更の必要はありません",
+                "[確認輸入正確]按下退出選單保存": "[入力が正しいことを確認] メニュー終了を押して保存",
+                "當前設置 Cookies": "現在設定されているクッキー",
+                "帳戶選擇": "アカウント選択",
+                "未獲取到 Cookies !!\n\n請先登入帳戶": "クッキーを取得できませんでした!!\n\n先にログインしてください",
+                "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
+                "共享數據獲取成功": "共有データの取得に成功しました",
+                "共享數據獲取失敗": "共有データの取得に失敗しました",
+                "請求為空數據": "リクエストが空データです",
+                "連線異常，更新地址可能是錯的": "接続異常、更新されたアドレスが間違っている可能性があります",
+                "請求錯誤: ": "リクエストエラー: "
             }
         }, Match = {
-            ko: Display.Korea,
-            ja: Display.Japan,
-            "en-US": Display.English,
-            "zh-CN": Display.Simplified,
-            "zh-SG": Display.Simplified,
-            "zh-TW": Display.Traditional,
-            "zh-HK": Display.Traditional,
-            "zh-MO": Display.Traditional
+            ko: Word.Korea,
+            ja: Word.Japan,
+            "en-US": Word.English,
+            "zh-CN": Word.Simplified,
+            "zh-SG": Word.Simplified,
+            "zh-TW": Word.Traditional,
+            "zh-HK": Word.Traditional,
+            "zh-MO": Word.Traditional
+        }, ML = Match[lang] ?? Match["en-US"];
+        return {
+            Transl: Str => ML[Str] ?? Str
         };
-        return Match[lang] ?? Match["en-US"];
     }
 })();
