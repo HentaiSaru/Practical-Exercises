@@ -75,7 +75,7 @@
              * 1. 性能開銷較低處理的更快
              * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
              */
-            HotKey: true, // 啟用快捷反轉 (alt + b)
+            HotKey: true, // 啟用快捷反轉 (shift)
             FocusOnRecovery: true // 是否專注於反轉
         },
     };
@@ -232,7 +232,7 @@
 
         if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event=> {
-                if (event.altKey && event.key.toLowerCase() == "b") {
+                if (event.shiftKey) {
                     event.preventDefault();
                     ThePolesAreReversed();
                 }
