@@ -46,7 +46,7 @@
              *
              * 可導入字典
              *
-             * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
+             * ! 如果某些單字翻譯的很怪, 可以個別導入 但不導入 "Short"
              *
              * 全部: "All_Words"
              * 標籤: "Tags"
@@ -75,9 +75,9 @@
              * 1. 性能開銷較低處理的更快
              * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
              */
-            HotKey: true, // 啟用快捷反轉 (shift)
+            HotKey: true, // 啟用快捷反轉 (alt + v)
             FocusOnRecovery: true // 是否專注於反轉
-        },
+        }
     };
 
     /**
@@ -232,7 +232,7 @@
 
         if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event=> {
-                if (event.shiftKey) {
+                if (event.altKey && event.key.toLowerCase() === "v") {
                     event.preventDefault();
                     ThePolesAreReversed();
                 }

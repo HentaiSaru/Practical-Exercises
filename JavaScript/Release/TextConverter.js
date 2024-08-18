@@ -46,7 +46,7 @@
              *
              * 可導入字典
              *
-             * ! 如果許多單字翻譯的很怪, 可以不要導入 "Short"
+             * ! 如果某些單字翻譯的很怪, 可以個別導入 但不導入 "Short"
              *
              * 全部: "All_Words"
              * 標籤: "Tags"
@@ -75,13 +75,14 @@
              * 1. 性能開銷較低處理的更快
              * 2. 反轉時常常會有許多無法反轉的狀況 (通常是短句)
              */
-            HotKey: true, // 啟用快捷反轉 (shift)
+            HotKey: true, // 啟用快捷反轉 (alt + v)
             FocusOnRecovery: true // 是否專注於反轉
-        },
+        }
     };
 
     /**
      * 自定轉換字典  { "要轉換的字串": "轉換成的字串" }, 要轉換字串中, 如果包含英文, 全部都要小寫
+     *
      * 自定字典的優先級更高, 他會覆蓋掉導入的字典
      */
     const Customize = {
@@ -90,12 +91,12 @@
 
     /* ====================== 不瞭解不要修改下方參數 ===================== */
     const [ LoadDict, Translation ] = [ Config.LoadDictionary, Config.TranslationReversal ];
-    const Dev = false;
+    const Dev = false; // 開發者模式
     const Update = UpdateWordsDict();
     const Transl = TranslationFactory();
     const Time = new Date().getTime();
     const Timestamp = GM_getValue("UpdateTimestamp", null);
-    let Translated = true;
+    let Translated = true; // 判斷翻譯狀態 (不要修改)
     let TranslatedRecord = new Set();
     let Dict = GM_getValue("LocalWords", null) ?? await Update.Reques();
     const Dictionary = {
@@ -199,7 +200,7 @@
         });
         if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event => {
-                if (event.shiftKey) {
+                if (event.altKey && event.key.toLowerCase() === "v") {
                     event.preventDefault();
                     ThePolesAreReversed();
                 }
