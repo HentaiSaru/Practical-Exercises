@@ -128,6 +128,14 @@
                     this.NormalDict
                 );
         },
+        DisplayMemory: function() {
+            const [NormalSize, ReverseSize] = [objectSize(this.NormalDict), objectSize(this.ReverseDict)];
+            alert(`字典緩存大小
+                \r一般字典大小: ${NormalSize.KB} KB
+                \r反轉字典大小: ${ReverseSize.KB} KB
+                \r全部緩存大小: ${+(NormalSize.MB * 2) + +(ReverseSize.MB)} MB
+            `);
+        },
         ReleaseMemory: function() { // 釋放翻譯字典緩存 (不包含自定)
             Dict = this.NormalDict = this.ReverseDict = {};
         },
@@ -180,55 +188,62 @@
 
         if (Dev) {
             Translated = false;
-            GM_registerMenuCommand("🎞️ 展示匹配文本", ()=> {
-                Transl.Dev(body);
-            }, {
-                autoClose: false,
-                title: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
-            });
-            GM_registerMenuCommand("📰 輸出匹配文檔", ()=> {
-                Transl.Dev(body, false);
-            }, {
-                title: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
-            });
-            GM_registerMenuCommand("♻️ 釋放字典緩存", ()=> {
-                Dictionary.ReleaseMemory();
-            }, {
-                title: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
-            });
-            GM_registerMenuCommand("➖➖➖➖➖➖", ()=> {}, {
-                autoClose: false,
-                title: "開發者模式分隔線",
-            });
+            Menu({
+                "🎞️ 展示匹配文本": {
+                    desc: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
+                    func: ()=> Transl.Dev(body),
+                    close: false
+                },
+                "📰 輸出匹配文檔": {
+                    desc: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
+                    func: ()=> Transl.Dev(body, false)
+                },
+                "🎥 展示字典緩存": {
+                    desc: "顯示當前載入的字典大小",
+                    func: ()=> Dictionary.DisplayMemory()
+                },
+                "♻️ 釋放字典緩存": {
+                    desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
+                    func: ()=> Dictionary.ReleaseMemory()
+                },
+                "➖➖➖➖➖➖": {
+                    desc: "開發者模式分隔線",
+                    func: ()=> {},
+                    close: false
+                }
+            }, "Dev");
         };
 
-        GM_registerMenuCommand("🆕 更新字典", async ()=> {
-            Translated = true;
-            GM_setValue("Clear", false);
+        Menu({
+            "🆕 更新字典": {
+                desc: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
+                func: async ()=> {
+                    Translated = true;
+                    GM_setValue("Clear", false);
 
-            ThePolesAreReversed(false); // 反轉一次, 並且不恢復觀察 (在更新前直接恢復一次, 是因為更新後 Dict 會被覆蓋, 可能會轉不回來)
+                    ThePolesAreReversed(false); // 反轉一次, 並且不恢復觀察 (在更新前直接恢復一次, 是因為更新後 Dict 會被覆蓋, 可能會轉不回來)
 
-            Dict = await Update.Reques(); // 請求新的字典
-            Dictionary.Init(); // 更新後重新初始化 緩存
+                    Dict = await Update.Reques(); // 請求新的字典
+                    Dictionary.Init(); // 更新後重新初始化 緩存
 
-            ThePolesAreReversed(); // 再次觸發反轉, 並恢復觀察
-        }, {
-            title: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
-        });
-
-        GM_registerMenuCommand("🚮 清空字典", ()=> {
-            GM_setValue("LocalWords", {});
-            GM_setValue("Clear", true);
-            location.reload();
-        }, {
-            title: "清除本地緩存的字典",
-        });
-
-        GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
-            accessKey: "c",
-            autoClose: false,
-            title: "互相反轉變更後的文本",
-        });
+                    ThePolesAreReversed(); // 再次觸發反轉, 並恢復觀察
+                }
+            },
+            "🚮 清空字典" : {
+                desc: "清除本地緩存的字典",
+                func: ()=> {
+                    GM_setValue("LocalWords", {});
+                    GM_setValue("Clear", true);
+                    location.reload();
+                }
+            },
+            "⚛️ 兩極反轉": {
+                hotkey: "c",
+                close: false,
+                desc: "互相反轉變更後的文本",
+                func: ()=> ThePolesAreReversed
+            }
+        }, "Basic");
 
         if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event=> {
@@ -251,6 +266,7 @@
 
     /* =========================================== */
 
+    /* 翻譯處理工廠 */
     function TranslationFactory() {
         function getTextNodes(root) {
             const tree = document.createTreeWalker(
@@ -479,6 +495,65 @@
         }
     };
 
+    /* 獲取對象大小 */
+    function objectSize(object) {
+        const Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
+        function calculate(object, objectList=new WeakSet()) {
+            const type = Type(object);
+
+            if (!type || objectList.has(object)) return 0;
+
+            if (typeof object !== "object") {
+                if (type === "Boolean") return 4;
+                if (type === "Number") return 8;
+                if (type === "String") return object.length * 2;
+                return 0; // 未知類型
+            }
+
+            let bytes = 0;
+            if (type === "Array") {
+                bytes += 0;
+                for (const item of object) {
+                    bytes += calculate(item, objectList);
+                }
+            } else if (type === "Object") {
+                bytes += 0;
+                for (const key in object) {
+                    if (Object.prototype.hasOwnProperty.call(object, key)) {
+                        bytes += calculate(key, objectList);
+                        bytes += calculate(object[key], objectList);
+                    }
+                }
+            } else if (type === "Map") {
+                if (!objectList.has(object)) {
+                    objectList.add(object);
+                    bytes += 0;
+                    for (const [key, value] of object) {
+                        bytes += calculate(key, objectList);
+                        bytes += calculate(value, objectList);
+                    }
+                }
+            } else if (type === "Set") {
+                if (!objectList.has(object)) {
+                    objectList.add(object);
+                    bytes += 0;
+                    for (const value of object) {
+                        bytes += calculate(value, objectList);
+                    }
+                }
+            }
+
+            return bytes;
+        }
+
+        const bytes = calculate(object);
+        return {
+            Bytes: bytes,
+            KB: (bytes / 1024).toFixed(2),
+            MB: (bytes / 1024 / 1024).toFixed(2)
+        };
+    };
+
     function Debounce(func, delay=100) {
         let timer = null;
         return (...args) => {
@@ -488,6 +563,17 @@
             }, delay);
         }
     };
+
+    async function Menu(Item, ID="Menu", Index=1) {
+        for (const [Name, options] of Object.entries(Item)) {
+            GM_registerMenuCommand(Name, ()=> {options.func()}, {
+                title: options.desc,
+                id: `${ID}-${Index++}`,
+                autoClose: options.close,
+                accessKey: options.hotkey,
+            });
+        }
+    }
 
     async function WaitElem(selector, found) {
         const observer = new MutationObserver(Debounce(() => {
