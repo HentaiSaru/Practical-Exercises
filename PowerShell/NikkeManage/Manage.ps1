@@ -327,7 +327,7 @@ $restore.Add_Click({
 
             if ($backItems.Count -gt 0) {
                 foreach ($back in $backItems) {
-                    CopyFile (Join-Path $backupPath $back) $nikkePath
+                    CopyFile $back.FullName $nikkePath
                 }
 
                 $restoreState = $true
