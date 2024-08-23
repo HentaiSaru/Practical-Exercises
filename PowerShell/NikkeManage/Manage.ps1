@@ -19,7 +19,7 @@
 
 $currentRoot = $PSScriptRoot # 當前腳本路徑
 $currentScript = $MyInvocation.MyCommand.Name # 運行腳本名
-$nikkePath = Join-Path "$($env:LOCALAPPDATA)Low" "Unity\com_proximabeta_NIKKE" # 妮姬數據路徑
+$nikkePath = Join-Path "$($env:LOCALAPPDATA)Low" "Unity/com_proximabeta_NIKKE" # 妮姬數據路徑
 
 # 獲取腳本運行路徑下, 所有的文件, 但排除自身
 $files = Get-ChildItem $currentRoot | Where-Object { $_.Name -ne $currentScript }
@@ -30,7 +30,13 @@ $displayData = @() # 保存完整數據
 $completeData = @{} # 保存完整數據
 
 foreach ($file in $files) {
-    $path = Join-Path $currentRoot $file # 將取到的路徑合併出完整路徑
+    $path = ""
+
+    try {
+        $path = Resolve-Path $file -ErrorAction Stop # 完整路徑就直接賦予值
+    } catch {
+        $path = Join-Path $currentRoot $file # 相對路徑就用這樣組合
+    }
 
     $check1 = Join-Path $path "com_proximabeta_NIKKE" # 用於添加數據的文件
     $check2 = Join-Path $path "Original_com_proximabeta_NIKKE" # 用於還原數據的文件
