@@ -34,11 +34,9 @@ $xaml = @"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         Title="JavaScript Compiler"
-        Width="600"
-        Height="620"
         ResizeMode="NoResize"
-        WindowStartupLocation="CenterScreen"
-        Topmost="True">
+        SizeToContent="WidthAndHeight"
+        WindowStartupLocation="CenterScreen">
     <Grid Background="#FF20194A" Cursor="Arrow">
         <Grid.RowDefinitions>
             <RowDefinition Height="80"/>
@@ -127,16 +125,16 @@ $Mode = @{Choose=$null}
 $ModePanel_Children = $window.FindName("ModesPanel").Children
 $ModePanel_Children | ForEach-Object {
     $_.Add_Checked({
-        param($sender, $e)
+        param($eventSender, $e)
 
         if ($Selected[0]) { # 取消先前選擇的項目
             $Selected[0].IsEnabled = $true
             $Selected[0].IsChecked = $false
         }
 
-        $Selected[0] = $sender
-        $sender.IsEnabled = $false
-        $Mode.Choose = $sender.Name
+        $Selected[0] = $eventSender
+        $eventSender.IsEnabled = $false
+        $Mode.Choose = $eventSender.Name
     })
 }
 
@@ -149,7 +147,7 @@ $window.FindName("LibraryUpdate").Add_Click({
     CMD("npm install uglify-js -g")
     CMD("npm i -g google-closure-compiler")
 
-    $Message = [System.Windows.Forms.MessageBox]::Show(
+    [System.Windows.Forms.MessageBox]::Show(
         "依賴項目已更新", "更新完成",
         [System.Windows.Forms.MessageBoxButtons]::OK,
         [System.Windows.Forms.MessageBoxIcon]::Information
@@ -159,7 +157,7 @@ $window.FindName("LibraryUpdate").Add_Click({
 # 編譯按鈕
 $window.FindName("Compiler").Add_Click({
     if ($null -eq $Mode.Choose) {
-        $Message = [System.Windows.Forms.MessageBox]::Show(
+        [System.Windows.Forms.MessageBox]::Show(
             "需要選擇編譯模式", "未選擇模式",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
@@ -169,7 +167,7 @@ $window.FindName("Compiler").Add_Click({
 
     $Path = $window.FindName("PathTextBox").Text
     if ($null -eq $Path -or -not(Test-Path $Path)) {
-        $Message = [System.Windows.Forms.MessageBox]::Show(
+        [System.Windows.Forms.MessageBox]::Show(
             "確認輸入的文件路徑是否正確", "錯誤編譯路徑",
             [System.Windows.Forms.MessageBoxButtons]::OK,
             [System.Windows.Forms.MessageBoxIcon]::Error
@@ -189,7 +187,8 @@ $window.FindName("Compiler").Add_Click({
             $OpenPath = $Compile_Output_UPath
         }
         "Mode2" { # uglifyjs 壓縮/美化
-            uglifyjs $Path -c -b -o $Compile_Output_UPath
+            # uglifyjs $Path -c -o $Compile_Output_UPath # 壓縮
+            uglifyjs $Path -c -b -o $Compile_Output_UPath # 壓縮美化
             $OpenPath = $Compile_Output_UPath
         }
         "Mode3" { # google-closure-compiler 預設
