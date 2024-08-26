@@ -288,7 +288,7 @@ $add.Add_Click({
             continue
         }
 
-        CopyFile $modePath $nikkePath
+        CopyFile $modePath (Split-Path $nikkePath)
         $addState = $true
     }
 
