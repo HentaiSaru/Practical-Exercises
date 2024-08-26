@@ -274,7 +274,7 @@
         };
 
         /* 菜單工廠 */
-        async MenuFactory() {
+        MenuFactory() {
             let SwitchStatus = false;
 
             const self = this;
@@ -310,7 +310,10 @@
                 }, "Toggle");
             };
 
-            MenuToggle(); // 初始化調用
+            return {
+                Expand,
+                MenuToggle
+            }
         };
 
         /* 菜單創建 */
@@ -323,10 +326,16 @@
                 "📖 開啟書籤": {func: ()=> this.Read()}
             });
 
-            // 創建收合菜單
-            setTimeout(()=> {
-                this.MenuFactory();
-            }, 1e3);
+            const Factory = this.MenuFactory();
+
+            if (Syn.Device.Type() == "Desktop") {
+                setTimeout(()=> { // 創建收合菜單
+                    Factory.MenuToggle();
+                }, 1e3);
+            } else {
+                Factory.Expand();
+            }
+
         };
     }).Create();
 
