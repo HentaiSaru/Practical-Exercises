@@ -24,6 +24,7 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_deleteValue
 // @grant        GM_notification
 // @grant        GM_registerMenuCommand
 
@@ -138,63 +139,6 @@
             };
         }
 
-        async Test() {
-            let text = JSON.stringify({
-                "Account": "12345abcde",
-                "Password": "abcde12345",
-            }), pass = "password";
-
-            // 第一次加密
-            var encrypted_1 = CryptoJS.AES.encrypt(
-                this.UTF16LE.parse(text),
-                this.SHA3_KEY(pass),
-            {
-                iv: this.IV(pass),
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Iso97971
-            }).toString();
-
-            // 第二次加密
-            var encrypted_2 = CryptoJS.AES.encrypt(
-                this.UTF16LE.parse(encrypted_1),
-                this.SHA512_KEY(this.IV(pass)),
-            {
-                iv: this.IV(this.SHA3_KEY(pass)),
-                mode: CryptoJS.mode.CBC,
-                padding: CryptoJS.pad.Iso97971
-            }).toString();
-
-            Syn.Log("加密數據", encrypted_2, {collapsed: false});
-
-            // 第一次解密
-            var decrypted_1 = this.UTF16LE.stringify(
-                CryptoJS.AES.decrypt(
-                    encrypted_2,
-                    this.SHA512_KEY(this.IV(pass)),
-                    {
-                        iv: this.IV(this.SHA3_KEY(pass)),
-                        mode: CryptoJS.mode.CBC,
-                        padding: CryptoJS.pad.Iso97971
-                    }
-                )
-            );
-
-            // 第二次解密
-            var decrypted_2 = this.UTF16LE.stringify(
-                CryptoJS.AES.decrypt(
-                    decrypted_1,
-                    this.SHA3_KEY(pass),
-                    {
-                        iv: this.IV(pass),
-                        mode: CryptoJS.mode.CBC,
-                        padding: CryptoJS.pad.Iso97971
-                    }
-                )
-            );
-
-            Syn.Log("解密還原", JSON.parse(decrypted_2), {collapsed: false});
-        }
-
         async Save() {
             const save = prompt("輸入以下數據, 請確實按照順序輸入\n帳號, 密碼, 其餘操作");
 
@@ -231,6 +175,13 @@
         }
 
         async Main() {
+            Syn.Menu({
+                "📝 添加登入資訊": {func: ()=> this.Save()},
+                "🚮 刪除登入資訊": {func: ()=> {
+                    Syn.Store("d", this.Domain);
+                }}
+            });
+
             // 檢測登入資訊中, 是否含有當前網址
             const Info = this.LoginInfo;
 
@@ -243,20 +194,32 @@
                     Password = this.Algorithm.Decrypt(Password);
                 }
 
-                Syn.WaitElem("input[type='password']", password=> {
+                Syn.WaitElem("input[type='password']", PasswordEnter=> {
                     const click = new MouseEvent("click", { // 創建點擊事件, 避免有被阻止的情況
                         bubbles: true,
                         cancelable: true
                     });
 
-                    // 帳號輸入類型的可能有多個, 暴力解法 全部都輸入
-                    Syn.$$("input[type='text'], input[type='email']", {all: true}).forEach(account => {
-                        // 簡單判斷, 雖然也能用選擇器 [name*="acc"], 但他不能處理大小寫差異
-                        if (/acc|log|user/i.test(account.getAttribute("name"))) {
-                            this.OBL(account, Account); // 動態輸入帳號
-                        }
+                    const AccountEnter = Syn.$$("input[type='text'], input[type='email']", {all: true}); // [name*="acc"] 不能處理大小寫差異
+                    Syn.Log("自動登入資訊", { // 除錯資訊
+                        AccountObject: AccountEnter,
+                        PasswordObject: PasswordEnter
                     });
-                    this.OBL(password, Password); // 動態輸入密碼
+
+                    // 當只有一個立即輸入
+                    if (AccountEnter.length == 1) {
+                        this.OBL(AccountEnter, Account);
+                    } else { // 多個帳號輸入類型, 暴力解法 全部都輸入
+                        AccountEnter.forEach(account => {
+                            if (
+                                /acc|log|user/i.test(account.getAttribute("name")) // 多數類型
+                                || account.getAttribute("oninput") // B 站類型
+                            ) {
+                                this.OBL(account, Account); // 動態輸入帳號
+                            }
+                        });
+                    }
+                    this.OBL(PasswordEnter, Password); // 動態輸入密碼
 
                     if (Info.Autologin == "true") { // 自動登入 (目前保存方式的 true, 會是一個字串)
                         setTimeout(()=> {
@@ -266,11 +229,7 @@
                     }
 
                 }, {raf: true, timeout: 15, timeoutResult: true});
-            }
-
-            Syn.Menu({
-                "📝 輸入登入資訊": {func: ()=> this.Save()}
-            })
+            };
         }
     }
 
