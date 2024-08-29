@@ -78,7 +78,7 @@
                 IV: (str) => CryptoJS.RIPEMD160(str).toString(),
                 SHA3_KEY: (str) => CryptoJS.SHA3(str).toString(),
                 SHA512_KEY: (str) => CryptoJS.SHA512(str).toString(),
-                Encry: function (Content, Password="@Default_PassKey@!") {
+                Encry: function (Content, Password) {
                     const Text = JSON.stringify(Content);
 
                     const IV = this.IV(Password);
@@ -105,7 +105,7 @@
 
                     return Encrypted_2; // 傳回加密字串
                 },
-                Decrypt: function (Content, Password="@Default_PassKey@!") {
+                Decrypt: function (Content, Password) {
                     const IV = this.IV(Password);
                     const SHA3_Key = this.SHA3_KEY(Password);
 
@@ -152,7 +152,7 @@
                         let Info = Data[index] ?? "";
 
                         if (key === "Account" || key === "Password") { // 目前先用預設加密
-                            Info = this.Algorithm.Encry(Info);
+                            Info = this.Algorithm.Encry(Info, `${this.Domain}@Default_${key}@`);
                         }
 
                         SaveBox[key] = Info;
@@ -190,8 +190,8 @@
                 let Password = Info.Password;
 
                 if (Info.Encrypted == true) {
-                    Account = this.Algorithm.Decrypt(Account);
-                    Password = this.Algorithm.Decrypt(Password);
+                    Account = this.Algorithm.Decrypt(Account, `${this.Domain}@Default_Account@`);
+                    Password = this.Algorithm.Decrypt(Password, `${this.Domain}@Default_Password@`);
                 }
 
                 Syn.WaitElem("input[type='password']", PasswordEnter=> {
