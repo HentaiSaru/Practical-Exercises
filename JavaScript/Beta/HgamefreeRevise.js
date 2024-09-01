@@ -20,7 +20,9 @@
     // 查找: 標題, 解壓密碼, 聲明框架, 其餘為要刪除的對象
     Def.WaitMap([
         "h1.entry-title", "#custom_html-11", "#wppd-disclaimer-container", // 這排不要修改 (如果有一個找不到, 就不會運作)
-        "#custom_html-13", "#custom_html-14", "#text-4" // 這排為刪除元素, 可以自由增減
+        "#custom_html-13", "#custom_html-14", "#text-4", // 這排為刪除元素, 可以自由增減
+        ".bp-messages-wrap.bp-better-messages-list",
+        ".wp-dark-mode-switcher.wp-dark-mode-ignore.style-4.floating.right_bottom"
     ], found=> {
         const [title, password, container,...needless] = found;
 
