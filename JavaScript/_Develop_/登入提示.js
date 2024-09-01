@@ -208,7 +208,7 @@
 
                     // 當只有一個立即輸入
                     if (AccountEnter.length == 1) {
-                        this.OBL(AccountEnter, Account);
+                        this.OBL(AccountEnter[0], Account);
                     } else { // 多個帳號輸入類型, 暴力解法 全部都輸入
                         AccountEnter.forEach(account => {
                             if (
