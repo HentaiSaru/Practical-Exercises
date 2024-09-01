@@ -90,7 +90,7 @@
     };
 
     /* ====================== 不瞭解不要修改下方參數 ===================== */
-    const [ LoadDict, Translation ] = [ Config.LoadDictionary, Config.TranslationReversal ];
+    const [LoadDict, Translation] = [Config.LoadDictionary, Config.TranslationReversal];
     const Dev = GM_getValue("Dev", false);
     const Update = UpdateWordsDict();
     const Transl = TranslationFactory();
@@ -102,32 +102,32 @@
     const Dictionary = {
         NormalDict: undefined,
         ReverseDict: undefined,
-        RefreshNormal: function() {
+        RefreshNormal: function () {
             this.NormalDict = Dict;
         },
-        RefreshReverse: function() {
-            this.ReverseDict = Object.entries(this.NormalDict).reduce((acc, [ key, value ]) => {
+        RefreshReverse: function () {
+            this.ReverseDict = Object.entries(this.NormalDict).reduce((acc, [key, value]) => {
                 acc[value] = key;
                 return acc;
             }, {});
         },
-        RefreshDict: function() {
+        RefreshDict: function () {
             TranslatedRecord = new Set();
-            Dict = Translated ? (Translated = false, this.ReverseDict) : (Translated = true, 
-            this.NormalDict);
+            Dict = Translated ? (Translated = false, this.ReverseDict) : (Translated = true,
+                this.NormalDict);
         },
-        DisplayMemory: function() {
-            const [ NormalSize, ReverseSize ] = [ objectSize(this.NormalDict), objectSize(this.ReverseDict) ];
+        DisplayMemory: function () {
+            const [NormalSize, ReverseSize] = [objectSize(this.NormalDict), objectSize(this.ReverseDict)];
             alert(`字典緩存大小
                 \r一般字典大小: ${NormalSize.KB} KB
                 \r反轉字典大小: ${ReverseSize.KB} KB
-                \r全部緩存大小: ${+(NormalSize.MB * 2) + +ReverseSize.MB} MB
+                \r全部緩存大小: ${NormalSize.MB * 2 + ReverseSize.MB} MB
             `);
         },
-        ReleaseMemory: function() {
+        ReleaseMemory: function () {
             Dict = this.NormalDict = this.ReverseDict = {};
         },
-        Init: function() {
+        Init: function () {
             Object.assign(Dict, Customize);
             this.RefreshNormal();
             this.RefreshReverse();
@@ -199,7 +199,7 @@
         if (Dev) {
             Translated = false;
             Menu({
-                "🚫 停用開發者模式": {
+                "« 🚫 停用開發者模式 »": {
                     desc: "關閉開發者模式",
                     func: () => {
                         GM_setValue("Dev", false);
@@ -219,14 +219,14 @@
                     desc: "顯示當前載入的字典大小",
                     func: () => Dictionary.DisplayMemory()
                 },
-                "🚮 釋放字典緩存": {
+                "🧹 釋放字典緩存": {
                     desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
                     func: () => Dictionary.ReleaseMemory()
                 }
             }, "Dev");
         } else {
             Menu({
-                "✅ 啟用開發者模式": {
+                "« ✅ 啟用開發者模式 »": {
                     desc: "打開開發者模式",
                     func: () => {
                         GM_setValue("Dev", true);
@@ -248,9 +248,13 @@
         function getTextNodes(root) {
             const tree = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
                 acceptNode: node => {
+                    const tag = node.parentElement.tagName;
+                    if (tag === "STYLE" || tag === "SCRIPT") {
+                        return NodeFilter.FILTER_REJECT;
+                    }
                     const content = node.textContent.trim();
                     if (content == "") return NodeFilter.FILTER_REJECT;
-                    if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content)) {
+                    if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content) || /^\d+(\.\d+)?\s*[km]$/i.test(content)) {
                         return NodeFilter.FILTER_REJECT;
                     }
                     return NodeFilter.FILTER_ACCEPT;
@@ -266,27 +270,27 @@
             __ShortWordRegex: /[\d\p{L}]+/gu,
             __LongWordRegex: /[\d\p{L}]+(?:[^()\[\]{}{[(\t\n])+[\d\p{L}]\.*/gu,
             __Clean: text => text.trim().toLowerCase(),
-            Dev_MatchObj: function(text) {
+            Dev_MatchObj: function (text) {
                 const Sresult = text?.match(this.__ShortWordRegex)?.map(Short => {
                     const Clean = this.__Clean(Short);
-                    return [ Clean, Dict[Clean] ?? "" ];
+                    return [Clean, Dict[Clean] ?? ""];
                 }) ?? [];
                 const Lresult = text?.match(this.__LongWordRegex)?.map(Long => {
                     const Clean = this.__Clean(Long);
-                    return [ Clean, Dict[Clean] ?? "" ];
+                    return [Clean, Dict[Clean] ?? ""];
                 }) ?? [];
-                return [ Sresult, Lresult ].flat().filter(([ Key, Value ]) => Key && !/^\d+$/.test(Key)).reduce((acc, [ Key, Value ]) => {
+                return [Sresult, Lresult].flat().filter(([Key, Value]) => Key && !/^\d+$/.test(Key)).reduce((acc, [Key, Value]) => {
                     acc[Key] = Value;
                     return acc;
                 }, {});
             },
-            OnlyLong: function(text) {
+            OnlyLong: function (text) {
                 return text?.replace(this.__LongWordRegex, Long => Dict[this.__Clean(Long)] ?? Long);
             },
-            OnlyShort: function(text) {
+            OnlyShort: function (text) {
                 return text?.replace(this.__ShortWordRegex, Short => Dict[this.__Clean(Short)] ?? Short);
             },
-            LongShort: function(text) {
+            LongShort: function (text) {
                 return text?.replace(this.__LongWordRegex, Long => Dict[this.__Clean(Long)] ?? this.OnlyShort(Long));
             }
         };
@@ -312,9 +316,9 @@
         const ProcessingDataCore = {
             __FocusTextCore: Translation.FocusOnRecovery ? RefreshUICore.FocusTextRecovery : RefreshUICore.FocusTextTranslate,
             __FocusInputCore: Translation.FocusOnRecovery ? RefreshUICore.FocusInputRecovery : RefreshUICore.FocusInputTranslate,
-            Dev_Operation: function(root, print) {
+            Dev_Operation: function (root, print) {
                 const results = {};
-                [ ...getTextNodes(root).map(textNode => textNode.textContent), ...[ ...root.querySelectorAll("input[placeholder], input[value]") ].map(inputNode => [ inputNode.value, inputNode.getAttribute("placeholder") ]).flat().filter(value => value && value != "") ].map(text => Object.assign(results, TCore.Dev_MatchObj(text)));
+                [...getTextNodes(root).map(textNode => textNode.textContent), ...[...root.querySelectorAll("input[placeholder], input[value]")].map(inputNode => [inputNode.value, inputNode.getAttribute("placeholder")]).flat().filter(value => value && value != "")].map(text => Object.assign(results, TCore.Dev_MatchObj(text)));
                 if (print) console.table(results); else {
                     const Json = document.createElement("a");
                     Json.href = `data:application/json;charset=utf-8,${encodeURIComponent(JSON.stringify(results, null, 4))}`;
@@ -325,15 +329,15 @@
                     }, 500);
                 }
             },
-            OperationText: async function(root) {
+            OperationText: async function (root) {
                 return Promise.all(getTextNodes(root).map(textNode => {
                     if (TranslatedRecord.has(textNode)) return Promise.resolve();
                     TranslatedRecord.add(textNode);
                     return this.__FocusTextCore(textNode);
                 }));
             },
-            OperationInput: async function(root) {
-                return Promise.all([ ...root.querySelectorAll("input[placeholder]") ].map(inputNode => {
+            OperationInput: async function (root) {
+                return Promise.all([...root.querySelectorAll("input[placeholder]")].map(inputNode => {
                     if (TranslatedRecord.has(inputNode)) return Promise.resolve();
                     TranslatedRecord.add(inputNode);
                     return this.__FocusInputCore(inputNode);
@@ -345,7 +349,7 @@
                 ProcessingDataCore.Dev_Operation(root, print);
             },
             Trigger: async root => {
-                await Promise.all([ ProcessingDataCore.OperationText(root), ProcessingDataCore.OperationInput(root) ]);
+                await Promise.all([ProcessingDataCore.OperationText(root), ProcessingDataCore.OperationInput(root)]);
             }
         };
     }
@@ -480,26 +484,26 @@
             DataView: value => value.byteLength,
             TypedArray: value => value.byteLength,
             ArrayBuffer: value => value.byteLength,
-            Array: (value, cache) => calculateCollectionSize(value, cache, function*(arr) {
+            Array: (value, cache) => calculateCollectionSize(value, cache, function* (arr) {
                 for (const item of arr) {
-                    yield [ item ];
+                    yield [item];
                 }
             }),
-            Set: (value, cache) => calculateCollectionSize(value, cache, function*(set) {
+            Set: (value, cache) => calculateCollectionSize(value, cache, function* (set) {
                 for (const item of set) {
-                    yield [ item ];
+                    yield [item];
                 }
             }),
-            Object: (value, cache) => calculateCollectionSize(value, cache, function*(obj) {
+            Object: (value, cache) => calculateCollectionSize(value, cache, function* (obj) {
                 for (const key in obj) {
                     if (Object.prototype.hasOwnProperty.call(obj, key)) {
-                        yield [ key, obj[key] ];
+                        yield [key, obj[key]];
                     }
                 }
             }),
-            Map: (value, cache) => calculateCollectionSize(value, cache, function*(map) {
-                for (const [ key, val ] of map) {
-                    yield [ key, val ];
+            Map: (value, cache) => calculateCollectionSize(value, cache, function* (map) {
+                for (const [key, val] of map) {
+                    yield [key, val];
                 }
             })
         };
@@ -514,13 +518,13 @@
         let timer = null;
         return (...args) => {
             clearTimeout(timer);
-            timer = setTimeout(function() {
+            timer = setTimeout(function () {
                 func(...args);
             }, delay);
         };
     }
     async function Menu(Item, ID = "Menu", Index = 1) {
-        for (const [ Name, options ] of Object.entries(Item)) {
+        for (const [Name, options] of Object.entries(Item)) {
             GM_registerMenuCommand(Name, () => {
                 options.func();
             }, {
