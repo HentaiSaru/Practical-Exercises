@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         簡易文本轉換器
-// @version      0.0.1-Beta
+// @version      0.0.1-Beta1
 // @author       Canaan HS
 // @description  高效將 指定文本 轉換為 自定文本
 
@@ -91,12 +91,12 @@
 
     /* ====================== 不瞭解不要修改下方參數 ===================== */
     const [ LoadDict, Translation ] = [ Config.LoadDictionary, Config.TranslationReversal ];
-    const Dev = false; // 開發者模式
+    const Dev = GM_getValue("Dev", false);
     const Update = UpdateWordsDict();
     const Transl = TranslationFactory();
     const Time = new Date().getTime();
     const Timestamp = GM_getValue("UpdateTimestamp", null);
-    let Translated = true; // 判斷翻譯狀態 (不要修改)
+    let Translated = true;
     let TranslatedRecord = new Set();
     let Dict = GM_getValue("LocalWords", null) ?? await Update.Reques();
     const Dictionary = {
@@ -115,6 +115,14 @@
             TranslatedRecord = new Set();
             Dict = Translated ? (Translated = false, this.ReverseDict) : (Translated = true, 
             this.NormalDict);
+        },
+        DisplayMemory: function() {
+            const [ NormalSize, ReverseSize ] = [ objectSize(this.NormalDict), objectSize(this.ReverseDict) ];
+            alert(`字典緩存大小
+                \r一般字典大小: ${NormalSize.KB} KB
+                \r反轉字典大小: ${ReverseSize.KB} KB
+                \r全部緩存大小: ${+(NormalSize.MB * 2) + +ReverseSize.MB} MB
+            `);
         },
         ReleaseMemory: function() {
             Dict = this.NormalDict = this.ReverseDict = {};
@@ -153,51 +161,33 @@
             Dictionary.RefreshDict();
             RecoverOB ? StartOb() : RunFactory();
         }
-        if (Dev) {
-            Translated = false;
-            GM_registerMenuCommand("🎞️ 展示匹配文本", () => {
-                Transl.Dev(body);
-            }, {
-                autoClose: false,
-                title: "在控制台打印匹配的文本, 建議先開啟控制台在運行"
-            });
-            GM_registerMenuCommand("📰 輸出匹配文檔", () => {
-                Transl.Dev(body, false);
-            }, {
-                title: "以 Json 格式輸出, 頁面上被匹配到的所有文本"
-            });
-            GM_registerMenuCommand("♻️ 釋放字典緩存", () => {
-                Dictionary.ReleaseMemory();
-            }, {
-                title: "將緩存於 JavaScript 記憶體內的字典數據釋放掉"
-            });
-            GM_registerMenuCommand("➖➖➖➖➖➖", () => {}, {
-                autoClose: false,
-                title: "開發者模式分隔線"
-            });
-        }
-        GM_registerMenuCommand("🆕 更新字典", async () => {
-            Translated = true;
-            GM_setValue("Clear", false);
-            ThePolesAreReversed(false);
-            Dict = await Update.Reques();
-            Dictionary.Init();
-            ThePolesAreReversed();
-        }, {
-            title: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態"
-        });
-        GM_registerMenuCommand("🚮 清空字典", () => {
-            GM_setValue("LocalWords", {});
-            GM_setValue("Clear", true);
-            location.reload();
-        }, {
-            title: "清除本地緩存的字典"
-        });
-        GM_registerMenuCommand("⚛️ 兩極反轉", ThePolesAreReversed, {
-            accessKey: "c",
-            autoClose: false,
-            title: "互相反轉變更後的文本"
-        });
+        Menu({
+            "🆕 更新字典": {
+                desc: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
+                func: async () => {
+                    Translated = true;
+                    GM_setValue("Clear", false);
+                    ThePolesAreReversed(false);
+                    Dict = await Update.Reques();
+                    Dictionary.Init();
+                    ThePolesAreReversed();
+                }
+            },
+            "🚮 清空字典": {
+                desc: "清除本地緩存的字典",
+                func: () => {
+                    GM_setValue("LocalWords", {});
+                    GM_setValue("Clear", true);
+                    location.reload();
+                }
+            },
+            "⚛️ 兩極反轉": {
+                hotkey: "c",
+                close: false,
+                desc: "互相反轉變更後的文本",
+                func: () => ThePolesAreReversed()
+            }
+        }, "Basic");
         if (Dev || Translation.HotKey) {
             document.addEventListener("keydown", event => {
                 if (event.altKey && event.key.toLowerCase() === "v") {
@@ -205,6 +195,45 @@
                     ThePolesAreReversed();
                 }
             });
+        }
+        if (Dev) {
+            Translated = false;
+            Menu({
+                "🚫 停用開發者模式": {
+                    desc: "關閉開發者模式",
+                    func: () => {
+                        GM_setValue("Dev", false);
+                        location.reload();
+                    }
+                },
+                "🪧 展示匹配文本": {
+                    desc: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
+                    func: () => Transl.Dev(body),
+                    close: false
+                },
+                "🖨️ 輸出匹配文檔": {
+                    desc: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
+                    func: () => Transl.Dev(body, false)
+                },
+                "📼 展示字典緩存": {
+                    desc: "顯示當前載入的字典大小",
+                    func: () => Dictionary.DisplayMemory()
+                },
+                "🚮 釋放字典緩存": {
+                    desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
+                    func: () => Dictionary.ReleaseMemory()
+                }
+            }, "Dev");
+        } else {
+            Menu({
+                "✅ 啟用開發者模式": {
+                    desc: "打開開發者模式",
+                    func: () => {
+                        GM_setValue("Dev", true);
+                        location.reload();
+                    }
+                }
+            }, "Dev");
         }
         if (Time - Timestamp > 36e5 * 24) {
             Update.Reques().then(data => {
@@ -429,6 +458,58 @@
             }
         };
     }
+    function objectSize(object) {
+        const Type = obj => Object.prototype.toString.call(obj).slice(8, -1);
+        const calculateCollectionSize = (value, cache, iteratee) => {
+            if (!value || cache.has(value)) return 0;
+            cache.add(value);
+            let bytes = 0;
+            for (const item of iteratee(value)) {
+                bytes += Calculate[Type(item[0])]?.(item[0], cache) ?? 0;
+                bytes += Calculate[Type(item[1])]?.(item[1], cache) ?? 0;
+            }
+            return bytes;
+        };
+        const Calculate = {
+            Boolean: () => 4,
+            Date: () => 8,
+            Number: () => 8,
+            String: value => value.length * 2,
+            RegExp: value => value.toString().length * 2,
+            Symbol: value => (value.description || "").length * 2,
+            DataView: value => value.byteLength,
+            TypedArray: value => value.byteLength,
+            ArrayBuffer: value => value.byteLength,
+            Array: (value, cache) => calculateCollectionSize(value, cache, function*(arr) {
+                for (const item of arr) {
+                    yield [ item ];
+                }
+            }),
+            Set: (value, cache) => calculateCollectionSize(value, cache, function*(set) {
+                for (const item of set) {
+                    yield [ item ];
+                }
+            }),
+            Object: (value, cache) => calculateCollectionSize(value, cache, function*(obj) {
+                for (const key in obj) {
+                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                        yield [ key, obj[key] ];
+                    }
+                }
+            }),
+            Map: (value, cache) => calculateCollectionSize(value, cache, function*(map) {
+                for (const [ key, val ] of map) {
+                    yield [ key, val ];
+                }
+            })
+        };
+        const bytes = Calculate[Type(object)]?.(object, new WeakSet()) ?? 0;
+        return {
+            Bytes: bytes,
+            KB: (bytes / 1024).toFixed(2),
+            MB: (bytes / 1024 / 1024).toFixed(2)
+        };
+    }
     function Debounce(func, delay = 100) {
         let timer = null;
         return (...args) => {
@@ -437,6 +518,18 @@
                 func(...args);
             }, delay);
         };
+    }
+    async function Menu(Item, ID = "Menu", Index = 1) {
+        for (const [ Name, options ] of Object.entries(Item)) {
+            GM_registerMenuCommand(Name, () => {
+                options.func();
+            }, {
+                title: options.desc,
+                id: `${ID}-${Index++}`,
+                autoClose: options.close,
+                accessKey: options.hotkey
+            });
+        }
     }
     async function WaitElem(selector, found) {
         const observer = new MutationObserver(Debounce(() => {
