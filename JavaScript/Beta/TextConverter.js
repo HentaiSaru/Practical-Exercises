@@ -133,7 +133,7 @@
             alert(`字典緩存大小
                 \r一般字典大小: ${NormalSize.KB} KB
                 \r反轉字典大小: ${ReverseSize.KB} KB
-                \r全部緩存大小: ${+(NormalSize.MB * 2) + +(ReverseSize.MB)} MB
+                \r全部緩存大小: ${NormalSize.MB * 2 + ReverseSize.MB} MB
             `);
         },
         ReleaseMemory: function() { // 釋放翻譯字典緩存 (不包含自定)
@@ -229,7 +229,7 @@
         if (Dev) {
             Translated = false;
             Menu({
-                "🚫 停用開發者模式": {
+                "« 🚫 停用開發者模式 »": {
                     desc: "關閉開發者模式", func: ()=> {
                         GM_setValue("Dev", false);
                         location.reload();
@@ -248,14 +248,14 @@
                     desc: "顯示當前載入的字典大小",
                     func: ()=> Dictionary.DisplayMemory()
                 },
-                "🚮 釋放字典緩存": {
+                "🧹 釋放字典緩存": {
                     desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
                     func: ()=> Dictionary.ReleaseMemory()
                 }
             }, "Dev");
         } else {
             Menu({
-                "✅ 啟用開發者模式": {
+                "« ✅ 啟用開發者模式 »": {
                     desc: "打開開發者模式", func: ()=> {
                         GM_setValue("Dev", true);
                         location.reload();
@@ -284,16 +284,27 @@
                 NodeFilter.SHOW_TEXT,
                 {
                     acceptNode: (node) => {
-                        const content = node.textContent.trim();
-                        if (content == '') return NodeFilter.FILTER_REJECT;
-                        if (!/[\w\p{L}]/u.test(content) || /^\d+$/.test(content)) { // 過濾部份不需要數據
+                        const tag = node.parentElement.tagName;
+                        if (tag === "STYLE" || tag === "SCRIPT") { // 過濾標籤類型是 Style 或 Script
                             return NodeFilter.FILTER_REJECT;
                         }
+
+                        const content = node.textContent.trim();
+                        if (content == '') return NodeFilter.FILTER_REJECT;
+
+                        if (
+                            !/[\w\p{L}]/u.test(content) // 過濾非匹配字串
+                            || /^\d+$/.test(content) // 過濾全都是數字
+                            || /^\d+(\.\d+)?\s*[km]$/i.test(content) // 過濾統計數量類型
+                        ) {
+                            return NodeFilter.FILTER_REJECT;
+                        }
+
                         return NodeFilter.FILTER_ACCEPT;
                     }
                 }
             );
-
+        
             const nodes = [];
             while (tree.nextNode()) {
                 nodes.push(tree.currentNode);
