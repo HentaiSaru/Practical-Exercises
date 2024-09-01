@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         簡易文本轉換器
-// @version      0.0.1-Beta
+// @version      0.0.1-Beta1
 // @author       Canaan HS
 // @description  高效將 指定文本 轉換為 自定文本
 
@@ -95,7 +95,7 @@
     const [LoadDict, Translation] = [Config.LoadDictionary, Config.TranslationReversal];
 
     // Transl 會調用 Translation 的數據, 如果晚宣告會找不到
-    const Dev = false; // 開發者模式
+    const Dev = GM_getValue("Dev", false); // 開發者模式
     const Update = UpdateWordsDict(); // 更新函數
     const Transl = TranslationFactory(); // 翻譯函數
     const Time = new Date().getTime(); // 當前時間戳
@@ -186,34 +186,6 @@
 
         /* ----- 創建按鈕 ----- */
 
-        if (Dev) {
-            Translated = false;
-            Menu({
-                "🎞️ 展示匹配文本": {
-                    desc: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
-                    func: ()=> Transl.Dev(body),
-                    close: false
-                },
-                "📰 輸出匹配文檔": {
-                    desc: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
-                    func: ()=> Transl.Dev(body, false)
-                },
-                "🎥 展示字典緩存": {
-                    desc: "顯示當前載入的字典大小",
-                    func: ()=> Dictionary.DisplayMemory()
-                },
-                "♻️ 釋放字典緩存": {
-                    desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
-                    func: ()=> Dictionary.ReleaseMemory()
-                },
-                "➖➖➖➖➖➖": {
-                    desc: "開發者模式分隔線",
-                    func: ()=> {},
-                    close: false
-                }
-            }, "Dev");
-        };
-
         Menu({
             "🆕 更新字典": {
                 desc: "獲取伺服器字典, 更新本地數據庫, 並在控制台打印狀態",
@@ -241,7 +213,7 @@
                 hotkey: "c",
                 close: false,
                 desc: "互相反轉變更後的文本",
-                func: ()=> ThePolesAreReversed
+                func: ()=> ThePolesAreReversed()
             }
         }, "Basic");
 
@@ -254,14 +226,52 @@
             })
         };
 
+        if (Dev) {
+            Translated = false;
+            Menu({
+                "🚫 停用開發者模式": {
+                    desc: "關閉開發者模式", func: ()=> {
+                        GM_setValue("Dev", false);
+                        location.reload();
+                    }
+                },
+                "🪧 展示匹配文本": {
+                    desc: "在控制台打印匹配的文本, 建議先開啟控制台在運行",
+                    func: ()=> Transl.Dev(body),
+                    close: false
+                },
+                "🖨️ 輸出匹配文檔": {
+                    desc: "以 Json 格式輸出, 頁面上被匹配到的所有文本",
+                    func: ()=> Transl.Dev(body, false)
+                },
+                "📼 展示字典緩存": {
+                    desc: "顯示當前載入的字典大小",
+                    func: ()=> Dictionary.DisplayMemory()
+                },
+                "🚮 釋放字典緩存": {
+                    desc: "將緩存於 JavaScript 記憶體內的字典數據釋放掉",
+                    func: ()=> Dictionary.ReleaseMemory()
+                }
+            }, "Dev");
+        } else {
+            Menu({
+                "✅ 啟用開發者模式": {
+                    desc: "打開開發者模式", func: ()=> {
+                        GM_setValue("Dev", true);
+                        location.reload();
+                    }
+                }
+            }, "Dev");
+        };
+
         if ((Time - Timestamp) > (36e5 * 24)) { // 24 小時更新
             Update.Reques().then(data=> { // 不 await 的更新
                 Dict = data;
                 Dictionary.Init(); // 初始化
                 ThePolesAreReversed(false); // 反轉兩次
                 ThePolesAreReversed();
-            });
-        }
+            })
+        };
     });
 
     /* =========================================== */
@@ -497,56 +507,52 @@
 
     /* 獲取對象大小 */
     function objectSize(object) {
-        const Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
-        function calculate(object, objectList=new WeakSet()) {
-            const type = Type(object);
-
-            if (!type || objectList.has(object)) return 0;
-
-            if (typeof object !== "object") {
-                if (type === "Boolean") return 4;
-                if (type === "Number") return 8;
-                if (type === "String") return object.length * 2;
-                return 0; // 未知類型
-            }
-
+        const Type = (obj) => Object.prototype.toString.call(obj).slice(8, -1);
+        const calculateCollectionSize = (value, cache, iteratee) => {
+            if (!value || cache.has(value)) return 0;
+            cache.add(value);
             let bytes = 0;
-            if (type === "Array") {
-                bytes += 0;
-                for (const item of object) {
-                    bytes += calculate(item, objectList);
-                }
-            } else if (type === "Object") {
-                bytes += 0;
-                for (const key in object) {
-                    if (Object.prototype.hasOwnProperty.call(object, key)) {
-                        bytes += calculate(key, objectList);
-                        bytes += calculate(object[key], objectList);
-                    }
-                }
-            } else if (type === "Map") {
-                if (!objectList.has(object)) {
-                    objectList.add(object);
-                    bytes += 0;
-                    for (const [key, value] of object) {
-                        bytes += calculate(key, objectList);
-                        bytes += calculate(value, objectList);
-                    }
-                }
-            } else if (type === "Set") {
-                if (!objectList.has(object)) {
-                    objectList.add(object);
-                    bytes += 0;
-                    for (const value of object) {
-                        bytes += calculate(value, objectList);
-                    }
-                }
+            for (const item of iteratee(value)) {
+                bytes += Calculate[Type(item[0])] ?. (item[0], cache) ?? 0;
+                bytes += Calculate[Type(item[1])] ?. (item[1], cache) ?? 0;
             }
-
             return bytes;
-        }
-
-        const bytes = calculate(object);
+        };
+        const Calculate = {
+            Boolean: ()=> 4,
+            Date: ()=> 8,
+            Number: ()=> 8,
+            String: (value) => value.length * 2,
+            RegExp: (value) => value.toString().length * 2,
+            Symbol: (value) => (value.description || '').length * 2,
+            DataView: (value) => value.byteLength,
+            TypedArray: (value) => value.byteLength,
+            ArrayBuffer: (value) => value.byteLength,
+            Array: (value, cache) => calculateCollectionSize(value, cache, function* (arr) {
+                for (const item of arr) {
+                    yield [item];
+                }
+            }),
+            Set: (value, cache) => calculateCollectionSize(value, cache, function* (set) {
+                for (const item of set) {
+                    yield [item];
+                }
+            }),
+            Object: (value, cache) => calculateCollectionSize(value, cache, function* (obj) {
+                for (const key in obj) {
+                    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+                        yield [key, obj[key]];
+                    }
+                }
+            }),
+            Map: (value, cache) => calculateCollectionSize(value, cache, function* (map) {
+                for (const [key, val] of map) {
+                    yield [key, val];
+                }
+            })
+        };
+    
+        const bytes = Calculate[Type(object)]?.(object, new WeakSet()) ?? 0;
         return {
             Bytes: bytes,
             KB: (bytes / 1024).toFixed(2),
