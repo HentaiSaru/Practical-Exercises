@@ -585,8 +585,7 @@
                 const Result = RequiredCookie.every(key => VCookie.has(key) && Cookie[key] !== "mystery"); // 避免有意外參數
 
                 if (!Result) {
-                    this.Delete();
-                    this.Add(Cookies);
+                    this.ReAdd(Cookies);
                 } else {
                     // 檢測存在需要 Cookie, 更新時間戳
                     Syn.Storage("DetectionTime", {type: localStorage, value: new Date().getTime()});
