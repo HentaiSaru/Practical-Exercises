@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.10
+// @version      0.0.10-Beta
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -20,10 +20,10 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 
-// @require      https://update.greasyfork.org/scripts/487608/1382007/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
 // ==/UserScript==
 
-(function () {
+(async () => {
     /* 
         設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
         (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
@@ -31,7 +31,7 @@
     const Config = {
         BGColor: 1, // 背景換色 [目前還沒有自訂], 改代碼可搜索 #595959, 並修改該字串
         RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 4 // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 (實驗中的酷東西)
+        AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 (實驗中的酷東西)
     };
     new class Manga extends Syntax {
         constructor() {
@@ -46,10 +46,10 @@
             this.Up_scroll = this.Down_scroll = false;
             this.Observer_Next = null;
             this.IsMainPage = window.self === window.parent;
-            this.BlockListener = new Set(["pointerup", "pointerdown", "dState", "touchstart", "unhandledrejection"]);
+            this.BlockListener = new Set([ "pointerup", "pointerdown", "dState", "touchstart", "unhandledrejection" ]);
             this.Get_Data = async callback => {
-                this.WaitMap(["body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist"], element => {
-                    const [Body, Title, HeadPager, Readend, Manga] = element;
+                this.WaitMap([ "body", "div.mh_readtitle", "div.mh_headpager", "div.mh_readend", "#mangalist" ], element => {
+                    const [ Body, Title, HeadPager, Readend, Manga ] = element;
                     this.Body = Body;
                     const HomeLink = this.$$("a", {
                         all: true,
@@ -76,7 +76,7 @@
                     this.BottomStrip = this.$$("a", {
                         root: Readend
                     });
-                    if ([this.Body, this.ContentsPage, this.HomePage, this.PreviousPage, this.NextPage, this.MangaList, this.BottomStrip].every(Check => Check)) callback(true); else callback(false);
+                    if ([ this.Body, this.ContentsPage, this.HomePage, this.PreviousPage, this.NextPage, this.MangaList, this.BottomStrip ].every(Check => Check)) callback(true); else callback(false);
                 }, {
                     timeout: 10,
                     timeoutResult: true,
@@ -89,12 +89,12 @@
                 }) : this.Storage(key);
             };
             this.TopDetected = this.Throttle(() => {
-                this.Up_scroll = this.Device.sY() == 0 ? (this.storage("scroll", false),
-                    false) : true;
+                this.Up_scroll = this.Device.sY() == 0 ? (this.storage("scroll", false), 
+                false) : true;
             }, 1e3);
             this.BottomDetected = this.Throttle(() => {
-                this.Down_scroll = this.Device.sY() + this.Device.iH() >= document.documentElement.scrollHeight ? (this.storage("scroll", false),
-                    false) : true;
+                this.Down_scroll = this.Device.sY() + this.Device.iH() >= document.documentElement.scrollHeight ? (this.storage("scroll", false), 
+                false) : true;
             }, 1e3);
             this.scroll = move => {
                 requestAnimationFrame(() => {
@@ -114,11 +114,11 @@
             this.ObserveObject = object => object[Math.max(object.length - 2, 0)];
             this.DetectionValue = object => this.VisibleObjects(object).length >= Math.floor(object.length * .5);
             this.Get_Style = () => {
-                const Style = this.Store("g", "Style") || [{
+                const Style = this.Store("g", "Style") || [ {
                     BG_Color: "#595959",
                     Img_Bw: "auto",
                     Img_Mw: "100%"
-                }];
+                } ];
                 return Style[0];
             };
             this.ImgStyle = this.Get_Style();
@@ -126,7 +126,7 @@
         async BlockAds() {
             const OriginListener = EventTarget.prototype.addEventListener, Block = this.BlockListener;
             const EventListeners = new Map();
-            EventTarget.prototype.addEventListener = function (type, listener, options) {
+            EventTarget.prototype.addEventListener = function(type, listener, options) {
                 if (Block.has(type)) return;
                 if (!EventListeners.has(this)) EventListeners.set(this, []);
                 EventListeners.get(this).push({
@@ -158,7 +158,9 @@
             }, 500);
         }
         async BackgroundStyle() {
-            this.Body.style.backgroundColor = this.ImgStyle.BG_Color;
+            this.Body.style.cssText = `
+                background: ${this.ImgStyle.BG_Color} !important;
+            `;
         }
         async AutoReload() {
             let click = new MouseEvent("click", {
@@ -185,7 +187,10 @@
             if (this.Device.Type() == "Desktop") {
                 this.AddStyle(`
                     .mh_comicpic img {
-                        vertical-align: top;cursor: pointer;display: block;margin: auto;
+                        margin: auto;
+                        display: block;
+                        cursor: pointer;
+                        vertical-align: top;
                         width: ${this.ImgStyle.Img_Bw};
                         max-width: ${this.ImgStyle.Img_Mw};
                     }
@@ -279,23 +284,23 @@
                 threshold: hold
             });
             switch (mode) {
-                case 2:
-                    hold = .5;
-                    object = self.$$("li:nth-child(3) a.read_page_link");
-                    break;
+              case 2:
+                hold = .5;
+                object = self.$$("li:nth-child(3) a.read_page_link");
+                break;
 
-                case 3:
-                    hold = 1;
-                    object = self.$$("div.endtip2.clear");
-                    break;
+              case 3:
+                hold = 1;
+                object = self.$$("div.endtip2.clear");
+                break;
 
-                case 4:
-                    this.UnlimitedPageTurn();
-                    break;
+              case 4:
+                this.UnlimitedPageTurn();
+                break;
 
-                default:
-                    hold = .1;
-                    object = self.BottomStrip;
+              default:
+                hold = .1;
+                object = self.BottomStrip;
             }
             if (mode != 4) {
                 setTimeout(() => {
@@ -314,15 +319,35 @@
             iframe.src = self.NextPage;
             this.AddStyle(`
                 .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info, #imgvalidation2022 {display: none;}
-                #Iframe-Comics {height:0px; border: none; width: 100%;}
+                #Iframe-Comics {
+                    margin: 0;
+                    padding: 0;
+                    height: 50px;
+                    width: 100%;
+                    border: none;
+                }
             `, "scroll-hidden");
             if (this.IsMainPage) {
+                document.documentElement.style.cssText = `
+                    overflow: visible !important;
+                `;
                 this.Listen(window, "message", event => {
                     const data = event.data;
                     document.title = data[0];
                     history.pushState(null, null, data[1]);
                 });
             } else {
+                this.AddStyle(`
+                    html {
+                        overflow: hidden !important;
+                        overflow-x: hidden !important;
+                        scrollbar-width: none !important;
+                        -ms-overflow-style: none !important;
+                    }
+                    html::-webkit-scrollbar { 
+                        display: none !important;
+                    }
+                `, "child-scroll-hidden");
                 let MainWindow = window;
                 this.Listen(window, "message", event => {
                     while (MainWindow.parent !== MainWindow) {
@@ -391,7 +416,7 @@
                             observed.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     UrlUpdate.disconnect();
-                                    window.parent.postMessage([Content.title, URL], self.Origin);
+                                    window.parent.postMessage([ Content.title, URL ], self.Origin);
                                 }
                             });
                         }, {
@@ -407,6 +432,10 @@
                     };
                 }
             }
+        }
+        async SettingMenu() {}
+        async MenuStyle() {
+            this.AddStyle(``, "Inject_MenuStyle");
         }
         async Injection() {
             this.BlockAds();
