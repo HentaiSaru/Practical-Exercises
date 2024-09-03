@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.10
+// @version      0.0.10-Beta
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -20,10 +20,11 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 
-// @require      https://update.greasyfork.org/scripts/487608/1382007/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
 // ==/UserScript==
 
-/* 未來添加
+/* 
+Todo 未來添加
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jscolor/2.5.2/jscolor.min.js
@@ -211,7 +212,9 @@
 
         /* 背景樣式 */
         async BackgroundStyle() {
-            this.Body.style.backgroundColor=this.ImgStyle.BG_Color;
+            this.Body.style.cssText = `
+                background: ${this.ImgStyle.BG_Color} !important;
+            `;
         }
 
         /* 自動重新加載死圖 */
@@ -230,7 +233,10 @@
             if (this.Device.Type() == "Desktop") {
                 this.AddStyle(`
                     .mh_comicpic img {
-                        vertical-align: top;cursor: pointer;display: block;margin: auto;
+                        margin: auto;
+                        display: block;
+                        cursor: pointer;
+                        vertical-align: top;
                         width: ${this.ImgStyle.Img_Bw};
                         max-width: ${this.ImgStyle.Img_Mw};
                     }
@@ -357,20 +363,43 @@
             iframe.id = "Iframe-Comics";
             iframe.src = self.NextPage;
 
-            // 修改樣式
+            // 修改樣式 (隱藏某些元素 增加沉浸體驗)
             this.AddStyle(`
                 .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info, #imgvalidation2022 {display: none;}
-                #Iframe-Comics {height:0px; border: none; width: 100%;}
+                #Iframe-Comics {
+                    margin: 0;
+                    padding: 0;
+                    height: 50px;
+                    width: 100%;
+                    border: none;
+                }
             `, "scroll-hidden");
 
             // 監聽當前觀看到的頁面, (修改 網址 & 標題)
             if (this.IsMainPage) {
+                // 避免開啟檔廣告插件時的跑板
+                document.documentElement.style.cssText = `
+                    overflow: visible !important;
+                `;
+
                 this.Listen(window, "message", event => { // 監聽歷史紀錄
                     const data = event.data;
                     document.title = data[0];
                     history.pushState(null, null, data[1]);
                 })
             } else { // 第二頁開始, 不斷向上找到主頁
+                this.AddStyle(`
+                    html {
+                        overflow: hidden !important;
+                        overflow-x: hidden !important;
+                        scrollbar-width: none !important;
+                        -ms-overflow-style: none !important;
+                    }
+                    html::-webkit-scrollbar { 
+                        display: none !important;
+                    }
+                `, "child-scroll-hidden");
+
                 let MainWindow = window;
                 this.Listen(window, "message", event => {
                     while (MainWindow.parent !== MainWindow) {MainWindow = MainWindow.parent}
