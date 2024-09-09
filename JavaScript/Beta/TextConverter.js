@@ -1,13 +1,18 @@
 // ==UserScript==
 // @name         簡易文本轉換器
-// @version      0.0.1-Beta1
+// @version      0.0.1-Beta2
 // @author       Canaan HS
 // @description  高效將 指定文本 轉換為 自定文本
 
 // @connect      *
 // @match        *://yande.re/*
 // @match        *://rule34.xxx/*
+// @match        *://nhentai.to/*
+// @match        *://nhentai.io/*
 // @match        *://nhentai.net/*
+// @match        *://nhentai.xxx/*
+// @match        *://nhentaibr.com/*
+// @match        *://nhentai.website/*
 // @match        *://imhentai.xxx/*
 // @match        *://konachan.com/*
 // @match        *://danbooru.donmai.us/*
@@ -99,7 +104,7 @@
     const Update = UpdateWordsDict(); // 更新函數
     const Transl = TranslationFactory(); // 翻譯函數
     const Time = new Date().getTime(); // 當前時間戳
-    const Timestamp = GM_getValue("UpdateTimestamp", null); // 紀錄時間戳
+    const Timestamp = GM_getValue("UpdateTime", false); // 紀錄時間戳
 
     let Translated = true; // 判斷翻譯狀態 (不要修改)
     let TranslatedRecord = new Set(); // 紀錄翻譯紀錄, 避免疊加轉換問題
@@ -264,7 +269,7 @@
             }, "Dev");
         };
 
-        if ((Time - Timestamp) > (36e5 * 24)) { // 24 小時更新
+        if (!Timestamp || (Time - new Date(Timestamp).getTime()) > (36e5 * 24)) { // 24 小時更新
             Update.Reques().then(data=> { // 不 await 的更新
                 Dict = data;
                 Dictionary.Init(); // 初始化
@@ -304,7 +309,7 @@
                     }
                 }
             );
-        
+
             const nodes = [];
             while (tree.nextNode()) {
                 nodes.push(tree.currentNode);
@@ -487,8 +492,8 @@
                 if (Object.keys(CacheDict).length > 0) {
                     Object.assign(CacheDict, Customize); // 只保留新的字典
 
+                    GM_setValue("UpdateTime", GetDate());
                     GM_setValue("LocalWords", CacheDict);
-                    GM_setValue("UpdateTimestamp", new Date().getTime());
 
                     console.log("%c數據更新成功", `
                         padding: 5px;
@@ -562,7 +567,7 @@
                 }
             })
         };
-    
+
         const bytes = Calculate[Type(object)]?.(object, new WeakSet()) ?? 0;
         return {
             Bytes: bytes,
@@ -579,6 +584,23 @@
                 func(...args);
             }, delay);
         }
+    };
+
+    function GetDate(format=null) {
+        const date = new Date();
+        const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
+
+        const formatMap = {
+            year: date.getFullYear(),
+            month: (date.getMonth() + 1).toString().padStart(2, "0"),
+            date: date.getDate().toString().padStart(2, "0"),
+            hour: date.getHours().toString().padStart(2, "0"),
+            minute: date.getMinutes().toString().padStart(2, "0"),
+            second: date.getSeconds().toString().padStart(2, "0")
+        };
+
+        const generate = (temp) => temp.replace(/{([^}]+)}/g, (_, key) => formatMap[key] || "Error");
+        return generate(typeof format === "string" ? format : defaultFormat);
     };
 
     async function Menu(Item, ID="Menu", Index=1) {
