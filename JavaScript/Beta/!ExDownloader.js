@@ -133,8 +133,8 @@
 
             /* 取得總頁數 */
             this.GetTotal = (page) => Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20);
-
-            this.GetHomeData(); // 實例化後自動調用
+            /* 實例化後立即調用 */
+            this.GetHomeData();
         };
 
         /* 按鈕與狀態重置 */
@@ -278,17 +278,168 @@
                 `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, { dev: Config.Dev }
             );
 
-            //! 後續操作
             DConfig.CurrentDownloadMode
-                ? console.log("壓縮")
-                : console.log("單圖");
+                ? this.PackDownload(DataMap)
+                : this.SingleDownload(DataMap);
+        };
+
+        /* 打包壓縮 下載 */
+        async PackDownload(Data) {
+            const self = this;
+            const Zip = new JSZip();
+
+            let Total = Data.size;
+            const Fill = Syn.GetFill(Total); // 取得填充量
+
+            let ClearCache = false; // 判斷緩存是否被清除
+            let ReTry = Config.ReTry; // 重試次數
+            let Progress, Thread, Delay; // 宣告變數
+
+            Syn.Menu({
+                [Lang.Transl("📥 強制壓縮下載")]: {func: ()=> ForceDownload(), hotkey: "d"}
+            }, "Enforce");
+
+            // 初始化變數
+            function Init() {
+                Progress = 0; // 初始進度
+                Delay = DConfig.Download_ID; // 初始延遲
+                Thread = DConfig.Download_IT; // 初始線程數
+            };
+
+            // 強制下載
+            function ForceDownload() {
+                self.Compression(Zip);
+            };
+
+            // 更新請求狀態 (開始請求時間, 數據的索引, 圖片連結, 圖片數據, 錯誤狀態)
+            function StatusUpdate(time, index, url, blob, error=false) {
+                Data.delete(index); // 清除完成的任務
+                if (DConfig.Enforce) return;
+                [ Delay, Thread ] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
+
+                if (error && typeof url === "string") {
+                    Data.set(index, url); // 錯誤的重新添加 (正確的數據才添加)
+                } else {
+                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", url)}`, blob); // 保存正確的數據 (有資料夾)
+                }
+
+                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                document.title = DConfig.DisplayCache;
+                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
+
+                if (Progress === Total) {
+                    Total = Data.size; // 再次取得數據量
+
+                    if (Total > 0 && ReTry-- > 0) { // 重試次數足夠
+                        DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
+                        document.title = DConfig.DisplayCache;
+                        self.Button.textContent = DConfig.DisplayCache;
+
+                        setTimeout(()=> {
+                            if (DConfig.Enforce) return;
+                            Start(Data);
+                        }, 1500);
+                    } else { // 觸發壓縮
+                        self.Compression(Zip);
+                    }
+                }
+            };
+
+            // 請求數據
+            function Request(index, url) {
+                if (DConfig.Enforce) return;
+                const time = Date.now(); // 請求開始時間
+
+                if (typeof url !== "undefined") {
+                    GM_xmlhttpRequest({
+                        url: url,
+                        method: "GET",
+                        responseType: "blob",
+                        onload: response => {
+                            const blob = response.response;
+                            blob instanceof Blob && blob.size > 0
+                                ? StatusUpdate(time, index, url, blob)
+                                : StatusUpdate(time, index, url, null, true);
+                        }, onerror: () => {
+                            StatusUpdate(time, index, url, null, true);
+                        }
+                    });
+                } else {
+                    if (!ClearCache) {
+                        ClearCache = true;
+                        sessionStorage.clear(); // 清除所有內容
+                        Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
+                    }
+
+                    StatusUpdate(time, index, null, null, true);
+                }
+            };
+
+            // 發起請求任務
+            async function Start(DataMap) {
+                if (DConfig.Enforce) return;
+
+                let Task = 0;
+                Init(); // 進行初始化
+
+                for (const [ index, url ] of DataMap.entries()) {
+                    if (DConfig.Enforce) break;
+
+                    Request(index, url);
+                    if (++Task === Thread) { // 允許同時發出的請求數 (假線程)
+                        Task = 0;
+                        await Syn.Sleep(Delay);
+                    }
+                }
+            };
+
+            Start(Data);
+        };
+
+        /* 壓縮輸出 */
+        async Compression(Zip) {
+            DConfig.Enforce = true;
+            GM_unregisterMenuCommand("Enforce-1");
+
+            Zip.generateAsync({
+                type: "blob",
+                compression: "DEFLATE",
+                compressionOptions: { level: DConfig.Compr_Level }
+            }, (progress) => {
+                DConfig.DisplayCache = `${progress.percent.toFixed(1)} %`;
+                document.title = DConfig.DisplayCache;
+                this.Button.textContent = `${Lang.Transl("壓縮進度")}: ${DConfig.DisplayCache}`;
+            }).then(zip => {
+                saveAs(zip, `${this.ComicName}.zip`);
+                document.title = `✓ ${OriginalTitle}`;
+                this.Button.textContent = Lang.Transl("壓縮完成");
+                setTimeout(() => {
+                    DConfig.Enforce = false;
+                    this.Reset();
+                }, 3000);
+            }).catch(result => {
+                document.title = OriginalTitle;
+
+                const ErrorShow = Lang.Transl("壓縮失敗");
+                this.Button.textContent = ErrorShow;
+                Syn.Log(ErrorShow, result, {dev: Config.Dev, type: "error", collapsed: false});
+
+                setTimeout(() => {
+                    DConfig.Enforce = false;
+                    this.Button.disabled = false;
+                    this.Button.textContent = ModeDisplay;
+                }, 6000);
+            })
+        };
+
+        /* 單圖 下載 */
+        async SingleDownload(Data) {
         };
 
     };
 
     class ButtonCore {
         constructor() {
-            this.TaskInstance;
             this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
             this.Ex = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
             this.Allow = (Uri = Url) => this.E.test(Uri) || this.Ex.test(Uri);
@@ -404,7 +555,7 @@
                 "獲取頁面": "",
                 "獲取連結": "",
                 "下載進度": "",
-                "壓縮封裝": "",
+                "壓縮進度": "",
                 "壓縮完成": "",
                 "壓縮失敗": "",
                 "下載完成": "",
@@ -428,7 +579,7 @@
                 "獲取頁面": "",
                 "獲取連結": "",
                 "下載進度": "",
-                "壓縮封裝": "",
+                "壓縮進度": "",
                 "壓縮完成": "",
                 "壓縮失敗": "",
                 "下載完成": "",
@@ -452,7 +603,7 @@
                 "獲取頁面": "",
                 "獲取連結": "",
                 "下載進度": "",
-                "壓縮封裝": "",
+                "壓縮進度": "",
                 "壓縮完成": "",
                 "壓縮失敗": "",
                 "下載完成": "",
@@ -476,7 +627,7 @@
                 "獲取頁面": "",
                 "獲取連結": "",
                 "下載進度": "",
-                "壓縮封裝": "",
+                "壓縮進度": "",
                 "壓縮完成": "",
                 "壓縮失敗": "",
                 "下載完成": "",
