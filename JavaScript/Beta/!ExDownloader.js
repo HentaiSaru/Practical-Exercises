@@ -47,19 +47,20 @@
 切換壓縮下載模式
 
 重構添加
-~ 名稱: 日文, 英文
 ~ 下載頁數設置
 */
 
 (async () => {
+
     /* 使用者配置 */
     const Config = {
         Dev: true,
-        ReTry: 15 // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        Original: false, // 是否下載原圖
     };
 
-    /* 下載配置 */
-    const DownloadConfig = {
+    /* 下載配置 (不清楚不要修改) */
+    const DConfig = {
         MAX_CONCURRENCY: 15, // 最大併發數
         MIN_CONCURRENCY: 5,  // 最小併發數
         TIME_THRESHOLD: 350, // 響應時間閥值
@@ -76,23 +77,23 @@
         Compr_Level: 5, // 壓縮的等級
         Lock: false, // 鎖定模式
         Enforce: false, // 判斷強制下載狀態
-        Show: undefined, // 下載時的展示字串
-        DownloadMode: undefined, // 用於下載時 不被變更下載模式
+        DisplayCache: undefined, // 緩存展示時的字串
+        CurrentDownloadMode: undefined, // 紀錄當前模式
 
-        Dynamic: function(Time, Delay, Thread=null, MIN_Delay) {
+        Dynamic: function (Time, Delay, Thread = null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.floor(Math.min(Delay * 1.1, this.MAX_Delay));
                 if (Thread != null) {
                     thread = Math.floor(Math.max(Thread * (this.TIME_THRESHOLD / ResponseTime), this.MIN_CONCURRENCY));
                     return [delay, thread];
-                } else {return delay}
+                } else { return delay }
             } else {
                 delay = Math.ceil(Math.max(Delay * 0.9, MIN_Delay));
                 if (Thread != null) {
                     thread = Math.ceil(Math.min(Thread * 1.2, this.MAX_CONCURRENCY));
                     return [delay, thread];
-                } else {return delay}
+                } else { return delay }
             }
         }
     };
@@ -100,8 +101,194 @@
     const Url = Syn.Device.Url.split("?p=")[0];
     let Lang, OriginalTitle, CompressMode, ModeDisplay;
 
+    class DownloadCore {
+        constructor(Button) {
+            this.Button = Button;
+            this.ComicName = null;
+
+            /* 後台請求工作 */
+            this.Worker = Syn.WorkerCreation(`
+                let queue = [], processing = false;
+                onmessage = function(e) {
+                    queue.push(e.data);
+                    !processing ? (processing = true, processQueue()) : null;
+                }
+                async function processQueue() {
+                    if (queue.length > 0) {
+                        const {index, url, time, delay} = queue.shift();
+                        FetchRequest(index, url, time, delay);
+                        setTimeout(processQueue, delay);
+                    } else {processing = false}
+                }
+                async function FetchRequest(index, url, time, delay) {
+                    try {
+                        const response = await fetch(url);
+                        const html = await response.text();
+                        postMessage({index, url, html, time, delay, error: false});
+                    } catch {
+                        postMessage({index, url, html, time, delay, error: true});
+                    }
+                }
+            `);
+
+            /* 取得總頁數 */
+            this.GetTotal = (page) => Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20);
+
+            this.GetHomeData(); // 實例化後自動調用
+        };
+
+        /* 按鈕與狀態重置 */
+        async Reset() {
+            DConfig.Lock = false;
+            this.Button.disabled = false;
+            this.Button.textContent = `✓ ${ModeDisplay}`;
+        };
+
+        /* 獲取主頁連結數據 */
+        async GetHomeData() {
+            const Name = Syn.NameFilter((Syn.$$("#gj").textContent ?? Syn.$$("#gn").textContent).trim()); // 取得漫畫名稱
+            const CacheData = Syn.Storage(`[${Name} - DownloadCache]`); // 嘗試獲取緩存數據
+
+            DConfig.CurrentDownloadMode = CompressMode; // 將當前下載模式緩存
+            this.ComicName = Name; // 將漫畫名稱緩存
+
+            /* 當存在緩存時, 直接啟動下載任務 */
+            if (CacheData) {
+                this.StartTask(CacheData);
+                return;
+            };
+
+            /* ----- 數據請求 ----- */
+
+            const Pages = this.GetTotal(Syn.$$("#gdd td.gdt2", { all: true })); // 取得總共頁數
+            let Delay = DConfig.Home_ID; // 初始延遲
+
+            // 發起請求訊息
+            this.Worker.postMessage({ index: 0, url: Url, time: Date.now(), delay: Delay });
+            for (let index = 1; index < Pages; index++) {
+                this.Worker.postMessage({ index: index, url: `${Url}?p=${index}`, time: Date.now(), delay: Delay });
+            };
+
+            // 接收請求訊息
+            this.Worker.onmessage = (e) => {
+                const { index, url, html, time, delay, error } = e.data;
+                Delay = DConfig.Dynamic(time, delay, null, DConfig.Home_ND);
+                error
+                    ? this.Worker.postMessage({ index: index, url: url, time: time, delay: delay })
+                    : GetLink(index, Syn.DomParse(html));
+            };
+
+            /* ----- 解析請求數據並保存 ----- */
+
+            const self = this;
+            const HomeData = new Map(); // 保存主頁數據
+            let Task = 0; // 下載任務進度
+
+            // 獲取連結
+            function GetLink(index, page) {
+                try {
+                    const Cache = [];
+
+                    // 不使用 foreach, 是避免異步可能的錯誤
+                    for (const link of Syn.$$("#gdt a", { all: true, root: page })) {
+                        Cache.push(link.href);
+                    };
+
+                    HomeData.set(index, Cache); // 添加數據
+                    DConfig.DisplayCache = `[${++Task}/${Pages}]`;
+
+                    document.title = DConfig.DisplayCache;
+                    self.Button.textContent = `${Lang.Transl("獲取頁面")}: ${DConfig.DisplayCache}`;
+
+                    if (Task === Pages) {
+                        const Cache = [];
+
+                        for (let index = 0; index < HomeData.size; index++) {
+                            Cache.push(...HomeData.get(index));
+                        };
+
+                        const Processed = [...new Set(Cache)]; // 排除重複連結
+                        Syn.Log(
+                            Lang.Transl("內頁跳轉數據"),
+                            `${Name}\n${JSON.stringify(Processed, null, 4)}`, { dev: Config.Dev }
+                        );
+                        self.GetImageData(Processed); // 處理圖片數據
+                    };
+                } catch (error) {
+                    alert(Lang.Transl("請求錯誤重新加載頁面"));
+                    location.reload();
+                }
+            };
+        };
+
+        /* 獲取圖片連結數據 */
+        async GetImageData(JumpList) {
+            const Pages = JumpList.length; // 取得頁數
+            let Delay = DConfig.Image_ID; // 初始延遲
+            let Task = 0; // 下載任務進度
+
+            // 發起請求訊息
+            for (let index = 0; index < Pages; index++) {
+                this.Worker.postMessage({ index, url: JumpList[index], time: Date.now(), delay: Delay });
+            };
+
+            // 接收請求訊息
+            this.Worker.onmessage = (e) => {
+                const { index, url, html, time, delay, error } = e.data;
+                Delay = DConfig.Dynamic(time, delay, null, DConfig.Image_ND);
+                error
+                    ? this.Worker.postMessage({ index: index, url: url, time: time, delay: delay })
+                    : GetLink(index, Syn.DomParse(html));
+            };
+
+            const self = this;
+            const ImageData = []; // 保存圖片數據
+            function GetLink(index, page) {
+                try {
+                    const Resample = Syn.$$("#img", { root: page });
+                    const Original = Syn.$$("#i6 div:nth-of-type(3) a", { root: page });
+
+                    const Link = Config.Original
+                        ? (Original.href ?? Resample.src ?? Resample.href)
+                        : (Resample.src ?? Resample.href);
+   
+                    ImageData.push([index, Link]);
+                    DConfig.DisplayCache = `[${++Task}/${Pages}]`;
+                    document.title = DConfig.DisplayCache;
+                    self.Button.textContent = `${Lang.Transl("獲取連結")}: ${DConfig.DisplayCache}`;
+
+                    if (Task === Pages) {
+                        ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (主要是方便觀看, 非必要性操作)
+                        const Processed = new Map(ImageData);
+
+                        Syn.Storage(`[${self.ComicName} - DownloadCache]`, { value: Processed }); // 緩存數據
+                        self.StartTask(Processed);
+                    };
+                } catch (error) { // 錯誤的直接跳過
+                    Syn.Log(null, error, { dev: Config.Dev, type: "error" });
+                    Task++;
+                }
+            };
+        };
+
+        /* 任務啟動器 */
+        async StartTask(DataMap) {
+            Syn.Log(
+                Lang.Transl("圖片連結數據"),
+                `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, { dev: Config.Dev }
+            );
+
+            //! 後續操作
+            DConfig.CurrentDownloadMode
+                ? console.log("壓縮")
+                : console.log("單圖");
+        };
+
+    };
+
     class ButtonCore {
         constructor() {
+            this.TaskInstance;
             this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
             this.Ex = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
             this.Allow = (Uri = Url) => this.E.test(Uri) || this.Ex.test(Uri);
@@ -176,14 +363,14 @@
             const download_button = GM_addElement(Syn.$$("#gd2"), "button", {
                 id: "ExDB", class: "Download_Button"
             });
-            download_button.disabled = DownloadConfig.Lock ? true : false;
-            download_button.textContent = DownloadConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
+            download_button.disabled = DConfig.Lock ? true : false;
+            download_button.textContent = DConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
             Syn.AddListener(download_button, "click", () => {
-                DownloadConfig.Lock = true;
+                DConfig.Lock = true;
                 download_button.disabled = true;
                 download_button.textContent = Lang.Transl("開始下載");
-                //! 下載觸發
-            }, {capture: true, passive: true});
+                this.TaskInstance = new DownloadCore(download_button);
+            }, { capture: true, passive: true });
         };
 
         /* 初始化創建 */
@@ -196,7 +383,7 @@
                 Core.ButtonCreation();
                 Syn.Menu({
                     [Lang.Transl("🔁 切換下載模式")]: {
-                        func: ()=> Core.DownloadModeSwitch(),
+                        func: () => Core.DownloadModeSwitch(),
                         close: false,
                     }
                 });
