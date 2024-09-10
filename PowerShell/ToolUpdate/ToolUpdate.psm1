@@ -3,12 +3,12 @@ Add-Type -Path "C:\PowerShellPack\HtmlAgilityPack.dll"
 
 # 請求數據物件
 $Global:session = New-Object Microsoft.PowerShell.Commands.WebRequestSession
-$Global:session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/127.0.0.0 Safari/537.36"
+$Global:session.UserAgent = "Mozilla/5.0 (Windows NT 10.0; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"
 
 class CheckForUpdates {
     # 本地版本文件 (查找規則)
     [string]$LocalVersionPath = "Version*"
-    [bool]$Dev = $false # 開發除錯用, false 的話會清除不必要資訊
+    [bool]$Dev = $true # 開發除錯用, false 的話會清除不必要資訊
 
     # 保存來源路徑
     [string]$RootPath
@@ -22,7 +22,7 @@ class CheckForUpdates {
         $this.DownloadPath = "$Path\Update.rar"
 
         # 調用清除緩存
-        # $this.ClearCache($CachePath)
+        $this.ClearCache($CachePath)
         # 調用檢查
         $this.Check($CheckUrl)
     }
@@ -32,7 +32,7 @@ class CheckForUpdates {
         if ($CachePath.Length -le 0) { # 沒有數據的物件
             return
         }
-        
+
         foreach($Path in $CachePath) {
             if (Test-Path $Path) {
                 Remove-Item -Path $Path -Recurse -Force -ErrorAction SilentlyContinue
@@ -112,14 +112,14 @@ class CheckForUpdates {
                 & "C:\Program Files\7-Zip\7z.exe" x $this.DownloadPath "-o$($this.RootPath)" "Global\*"
                 Remove-Item $this.DownloadPath -Force # 刪除壓縮檔
 
-                $globalPath = Join-Path -Path $this.RootPath -ChildPath "Global" # 獲取 Global 資料夾 的完整路徑
+                $globalPath = Join-Path $this.RootPath "Global" # 獲取 Global 資料夾 的完整路徑
                 Get-ChildItem -Path $globalPath -File | ForEach-Object { # 將所有文件移動出來
-                    $destination = Join-Path -Path $this.RootPath -ChildPath $_.Name
-                    Move-Item -Path $_.FullName -Destination $destination -Force # 強制覆蓋同名文件
+                    $destination = Join-Path $this.RootPath $_.Name
+                    Move-Item $_.FullName $destination -Force # 強制覆蓋同名文件
                 }
 
-                Remove-Item -Path $globalPath -Recurse -Force # 移除 Global 資料夾
-                Rename-Item -Path $this.LocalVersionFile -NewName "Version $remoteVersion" # 更新本地版本文件
+                Remove-Item $globalPath -Recurse -Force # 移除 Global 資料夾
+                Rename-Item $this.LocalVersionFile "Version $remoteVersion" # 更新本地版本文件
 
                 if (-not $this.Dev) {Clear-Host}
                 Write-Host "下載完成"
@@ -148,8 +148,14 @@ class CheckForUpdates {
                 $files = Get-ChildItem -Path $this.RootPath -Filter $this.LocalVersionPath -File
                 # 本地版本號
                 $localVersion = $files -split " " | Select-Object -Last 1
-                # 版本文件
-                $this.LocalVersionFile = Join-Path -Path $this.RootPath -ChildPath $files
+
+                # 版本文件 路徑
+                if (Test-Path $files) {
+                    $this.LocalVersionFile = $files
+                } else {
+                    $this.LocalVersionFile = Join-Path $this.RootPath $files
+                }
+                
 
                 if ($null -ne $localVersion -and $null -ne $remoteVersion) { # 有版本文件
                     if (-not $this.Dev) {Clear-Host}
@@ -167,11 +173,11 @@ class CheckForUpdates {
 
                 } else { # 沒有版本文件 (直接下載)
 
-                    $VersionDoct = Join-Path -Path $this.RootPath -ChildPath "Version 0.0.0" # 組成版本文件路徑
-                    New-Item -Path $VersionDoct -ItemType File -Force # 創建版本文件
+                    $VersionDoct = Join-Path $this.RootPath "Version 0.0.0" # 組成版本文件路徑
+                    New-Item $VersionDoct File -Force # 創建版本文件
 
-                    $files = Get-ChildItem -Path $this.RootPath -Filter $this.LocalVersionPath -File
-                    $this.LocalVersionFile = Join-Path -Path $this.RootPath -ChildPath $files
+                    $files = Get-ChildItem $this.RootPath -Filter $this.LocalVersionPath -File
+                    $this.LocalVersionFile = Join-Path $this.RootPath $files
 
                     if (-not $this.Dev) {Clear-Host}
                     $this.Updata($href, $remoteVersion)
@@ -184,7 +190,6 @@ class CheckForUpdates {
         }
     }
 }
-
 function Check {
     param([string]$Path, [string]$CheckUrl, [string[]]$CachePath)
     $null = [CheckForUpdates]::new($Path, $CheckUrl, $CachePath)
