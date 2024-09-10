@@ -10,6 +10,15 @@ function DefaultSavePath { # 使用者預設的 LocalLow 目錄路徑
     return $Path # 不做路徑檢查
 }
 
+function UpperPath {
+    param (
+        [string]$CurrentPath
+    )
+
+    $Path = Split-Path $CurrentPath
+    return $Path
+}
+
 function CopyFile {
     param (
         [string]$Source,
