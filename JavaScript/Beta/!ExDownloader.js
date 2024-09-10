@@ -340,6 +340,10 @@
                             Start(Data);
                         }, 1500);
                     } else { // 觸發壓縮
+                        if (Total > 0) {
+                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), {type: "error"});
+                        }
+
                         self.Compression(Zip);
                     }
                 }
@@ -398,8 +402,8 @@
 
         /* 壓縮輸出 */
         async Compression(Zip) {
-            DConfig.Enforce = true;
-            GM_unregisterMenuCommand("Enforce-1");
+            DConfig.Enforce = true; // 壓縮時統一觸發鎖定 (避免重複壓縮)
+            GM_unregisterMenuCommand("Enforce-1"); // 刪除強制下載按鈕
 
             Zip.generateAsync({
                 type: "blob",
@@ -413,6 +417,7 @@
                 saveAs(zip, `${this.ComicName}.zip`);
                 document.title = `✓ ${OriginalTitle}`;
                 this.Button.textContent = Lang.Transl("壓縮完成");
+
                 setTimeout(() => {
                     DConfig.Enforce = false;
                     this.Reset();
@@ -420,9 +425,9 @@
             }).catch(result => {
                 document.title = OriginalTitle;
 
-                const ErrorShow = Lang.Transl("壓縮失敗");
-                this.Button.textContent = ErrorShow;
-                Syn.Log(ErrorShow, result, {dev: Config.Dev, type: "error", collapsed: false});
+                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
+                this.Button.textContent = DConfig.DisplayCache;
+                Syn.Log(DConfig.DisplayCache, result, {dev: Config.Dev, type: "error", collapsed: false});
 
                 setTimeout(() => {
                     DConfig.Enforce = false;
@@ -434,8 +439,8 @@
 
         /* 單圖 下載 */
         async SingleDownload(Data) {
+            //! 等待後續完成
         };
-
     };
 
     class ButtonCore {
