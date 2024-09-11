@@ -15,13 +15,15 @@
 // @description:en     自動登入器
 
 // @match        *://*/*login*
+// @match        *://*/*Login*
 // @match        *://*/*signin*
+// @match        *://*/*Signin*
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 // @icon         https://cdn-icons-png.flaticon.com/512/7960/7960597.png
 
-// @run-at       document-start
+// @run-at       document-body
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_deleteValue
@@ -228,7 +230,7 @@
                         }, 500);
                     }
 
-                }, {raf: true, timeout: 15, timeoutResult: true});
+                }, {raf: true});
             };
         }
     }
