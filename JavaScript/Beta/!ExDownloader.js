@@ -146,7 +146,7 @@
 
         /* 獲取主頁連結數據 */
         async GetHomeData() {
-            const Name = Syn.NameFilter((Syn.$$("#gj").textContent ?? Syn.$$("#gn").textContent).trim()); // 取得漫畫名稱
+            const Name = Syn.NameFilter((Syn.$$("#gj").textContent || Syn.$$("#gn").textContent).trim()); // 取得漫畫名稱
             const CacheData = Syn.Storage(`[${Name} - DownloadCache]`); // 嘗試獲取緩存數據
 
             DConfig.CurrentDownloadMode = CompressMode; // 將當前下載模式緩存
@@ -238,15 +238,20 @@
                 Delay = DConfig.Dynamic(time, delay, null, DConfig.Image_ND);
                 error
                     ? this.Worker.postMessage({ index: index, url: url, time: time, delay: delay })
-                    : GetLink(index, Syn.DomParse(html));
+                    : GetLink(index, url, Syn.DomParse(html));
             };
 
             const self = this;
             const ImageData = []; // 保存圖片數據
-            function GetLink(index, page) {
+            function GetLink(index, url, page) {
                 try {
                     const Resample = Syn.$$("#img", { root: page });
                     const Original = Syn.$$("#i6 div:nth-of-type(3) a", { root: page });
+
+                    if (!Resample) { // 處理找不到圖片的錯誤
+                        this.Worker.postMessage({ index: index, url: url, time: Date.now(), delay: Delay });
+                        return;
+                    };
 
                     const Link = Config.Original
                         ? (Original.href ?? Resample.src ?? Resample.href)
@@ -439,7 +444,17 @@
 
         /* 單圖 下載 */
         async SingleDownload(Data) {
-            //! 等待後續完成
+            const self = this;
+
+            let Total = Data.size;
+            const Fill = Syn.GetFill(Total);
+
+            let Progress = 0;
+            let ClearCache = false;
+            let ReTry = Config.ReTry;
+            let Delay = DConfig.Download_ID;
+            let Thread = DConfig.Download_IT;
+
         };
     };
 
