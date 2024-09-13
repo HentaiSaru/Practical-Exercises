@@ -24,7 +24,12 @@ function CopyFile {
         [string]$Source,
         [string]$Target
     )
-    Copy-Item $Source $Target -Recurse -Force
+
+    if (-not(Test-Path $Target)) {
+        New-Item $Target -ItemType Directory -Force
+    }
+
+    Copy-Item $Source $Target -Recurse -Container -Force
 }
 
 function Main { # 主要運行邏輯
@@ -108,12 +113,16 @@ $xaml = @"
     })
     $window.FindName("BackupSave").Add_Click({
         if (Test-Path $SavePath) {
-            CopyFile $SavePath $BackUpParent # 複製 存檔路徑 ~ 備份路徑
-            [System.Windows.Forms.MessageBox]::Show(
-                "備份成功", "操作提示",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Information
-            )
+            CopyFile $SavePath $BackUpParent # 複製 存檔路徑 => 備份路徑
+            if (Test-Path $BackUpParent) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "備份成功", "操作提示",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+            } else {
+                BackUpErrorShow
+            }
         } else {
             BackUpErrorShow
         }
@@ -138,12 +147,16 @@ $xaml = @"
     })
     $window.FindName("RestoreSave").Add_Click({
         if (Test-Path $BackUpPath) {
-            CopyFile $BackUpPath $SaveParent # 複製 備份路徑 ~ 存檔路徑
-            [System.Windows.Forms.MessageBox]::Show(
-                "恢復成功", "操作提示",
-                [System.Windows.Forms.MessageBoxButtons]::OK,
-                [System.Windows.Forms.MessageBoxIcon]::Information
-            )
+            CopyFile $BackUpPath $SaveParent # 複製 備份路徑 => 存檔路徑
+            if (Test-Path $SaveParent) {
+                [System.Windows.Forms.MessageBox]::Show(
+                    "恢復成功", "操作提示",
+                    [System.Windows.Forms.MessageBoxButtons]::OK,
+                    [System.Windows.Forms.MessageBoxIcon]::Information
+                )
+            } else {
+                SaveErrorShow
+            }
         } else {
             SaveErrorShow
         }
