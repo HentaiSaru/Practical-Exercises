@@ -1,25 +1,25 @@
 $Roaming = $env:APPDATA
 
-<# LoadList (用於開機自啟的載入列表)
+<#
+?   LoadList (用於開機自啟的載入列表)
 
-腳本存放位置:
-1. Win + R 搜尋 Shell:StartUp
-2. 將腳本放到該開啟的資料夾內
+^   腳本存放位置:
+Todo    1. Win + R 搜尋 Shell:StartUp
+Todo    2. 將腳本放到該開啟的資料夾內
 
-配置說明:
-Name = 程式的名稱 / 進程名稱
-Service = 程式所需的服務名稱 (目前只能設置一個)
-AutoClose = 如果該程式關閉後會最小化到托盤, 可以設置該功能 (如果啟動後不會開啟窗口, 或 (不需要 or 無法) 最小化到托盤的程式, 就不要設置為 $true) [10 秒超時自動跳過]
-CloseWait = 啟用自動關閉, 觸發關閉前的等待時間 (檢測窗口可操作不完善的臨時解決方式)
+^   配置說明:
+Todo    Name = 程式的名稱 / 進程名稱
+Todo    Service = 程式所需的服務名稱 (目前只能設置一個)
+Todo    AutoClose = 如果該程式關閉後會最小化到托盤, 可以設置該功能 (如果啟動後不會開啟窗口, 或 (不需要 or 無法) 最小化到托盤的程式, 就不要設置為 $true) [10 秒超時自動跳過]
+Todo    ExtraClose = 額外關閉的進程名稱 (目前只能設置一個)
+Todo    CloseWait = 啟用自動關閉時, 觸發關閉前的等待時間 (檢測窗口可操作不完善的臨時解決方式)
+
 #>
 
 $LoadList = @(
     @{
         Name="軟體1"
         Path="$Roaming\軟體1\軟體.exe"
-        Service=$null
-        AutoClose=$null
-        CloseWait=$null
     }
     @{
         Name="軟體2"
@@ -82,6 +82,11 @@ public class User32 {
 }
 "@
 
+function AvailString {
+    param ($Object)
+    return ($Object -is [string] -and $Object.Trim() -ne "")
+}
+
 # 載入不會進行報錯 (靜默跳過錯誤)
 function Load {
     param (
@@ -99,11 +104,15 @@ function Load {
         $Name = $item.Name
         $Path = $item.Path
         $Service = $item.Service
+        $autoClose = $item.AutoClose
+        $extraClose = $item.ExtraClose # 額外關閉對象
+        $closeWait = if ( # 等待的預設值
+            $null -ne $item.CloseWait -and $item.CloseWait -is [int]
+        ) { $item.CloseWait } else { 0 }
 
-        if ($null -ne $Service) {
+        if (AvailString $Service) {
             $exist = Get-Service -Name $Service -ErrorAction SilentlyContinue
             if ($exist) {
-                $Success = $true
                 Start-Service -Name $Service
             }
         }
@@ -116,7 +125,7 @@ function Load {
         if ($Success) {
             Write-Host "啟動成功: $Name"
 
-            if ($item.AutoClose) {
+            if ($autoClose) {
                 $startTime = Get-Date
 
                 while ($true) {
@@ -130,10 +139,16 @@ function Load {
                             if ([User32]::GetWindowPlacement($hWnd, [ref] $windowPlacement)) {
                                 # 檢查窗口是否正常顯示
                                 if ($windowPlacement.showCmd -eq [User32]::SW_SHOWMAXIMIZED -or $windowPlacement.showCmd -eq [User32]::SW_SHOWNORMAL) {
-                                    try {Start-Sleep -Seconds ($item.CloseWait)} catch {} # 嘗試等待幾秒後觸發關閉
+                                    try {Start-Sleep -Seconds ($closeWait)} catch {} # 嘗試等待幾秒後觸發關閉
 
                                     # 發送關閉消息
                                     [User32]::SendMessage($hWnd, [User32]::WM_CLOSE, [IntPtr]::Zero, [IntPtr]::Zero)
+
+                                    # 額外關閉進程
+                                    if (AvailString $extraClose) {
+                                        Stop-Process -Name $extraClose -Force -ErrorAction SilentlyContinue
+                                    }
+
                                     break
                                 }
                             }
@@ -146,7 +161,7 @@ function Load {
                     if ($elapsedTime.TotalSeconds -ge 10) {
                         break
                     }
-                    
+
                 }
             }
         } else {
