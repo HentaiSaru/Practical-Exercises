@@ -5,8 +5,8 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.15
-// @author       HentaiSaru
+// @version      0.0.16-Beta
+// @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-CN   漫画页面创建下载按钮, 可切换 (压缩下载 | 单图下载), 无须复杂设置一键点击下载, 自动获取(非原图)进行下载
@@ -22,7 +22,8 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
-// @run-at       document-end
+// @run-at       document-body
+// @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
@@ -32,164 +33,64 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/487608/1330066/GrammarSimplified.js
+// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
-(function() {
-    var Language, OriginalTitle, CompressMode, ModeDisplay,
-    lock = false, api = new API(), url = document.URL.split("?p=")[0];
+(async () => {
+    /* 使用者配置 */
     const Config = {
-        ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
-        DeBug: false,
-    }
-    class Main {
-        constructor() {
-            this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
-            this.Ex = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
-            this.Ran = (u) => {return this.E.test(u) || this.Ex.test(u)}
-            this.Css = (a, e, ex) => {
-                let css = location.hostname != "exhentai.org" ? e : ex;
-                api.AddStyle(`${a}${css}`, "button-style");
-            }
-        }
-        static async Match() {
-            const self = new Main();
-            if (self.Ran(url)) {
-                Language = display_language(navigator.language);
-                OriginalTitle = document.title;
-                self.ButtonCreation();
-                api.Menu({[Language.MN_01]: ()=> self.DownloadModeSwitch()})
-            }
-        }
-        async ButtonCreation() {
-            CompressMode = api.store("get", "CompressedMode", []);
-            ModeDisplay = CompressMode ? Language.DM_01 : Language.DM_02;
-            this.Css(`
-                .Download_Button {
-                    float: right;
-                    width: 9rem;
-                    cursor: pointer;
-                    font-weight: bold;
-                    line-height: 20px;
-                    border-radius: 5px;
-                    position: relative;
-                    padding: 1px 5px 2px;
-                    font-family: arial,helvetica,sans-serif;
-                }
-                `,`
-                .Download_Button {
-                    color: #5C0D12;
-                    border: 2px solid #9a7c7e;
-                    background-color: #EDEADA;
-                }
-                .Download_Button:hover {
-                    color: #8f4701;
-                    border: 2px dashed #B5A4A4;
-                }
-                .Download_Button:disabled {
-                    color: #B5A4A4;
-                    border: 2px dashed #B5A4A4;
-                    cursor: default;
-                }
-                `,`
-                .Download_Button {
-                    color: #b3b3b3;
-                    border: 2px solid #34353b;
-                    background-color: #2c2b2b;
-                }
-                .Download_Button:hover {
-                    color: #f1f1f1;
-                    border: 2px dashed #4f535b;
-                }
-                .Download_Button:disabled {
-                    color: #4f535b;
-                    border: 2px dashed #4f535b;
-                    cursor: default;
-                }
-            `);
-            try {
-                let download_button = GM_addElement(api.$$("#gd2"), "button", {
-                    id: "ExDB", class: "Download_Button"
-                });
-                download_button.textContent = lock ? Language.DM_03 : ModeDisplay;
-                download_button.disabled = lock ? true : false;
-                api.AddListener(download_button, "click", () => {
-                    lock = true;
-                    download_button.disabled = true;
-                    download_button.textContent = Language.DS_01;
-                    download.HomeData(download_button);
-                }, {capture: true, passive: true});
-            } catch {}
-        }
-        async DownloadModeSwitch() {
-            CompressMode?
-            api.store("set", "CompressedMode", false):
-            api.store("set", "CompressedMode", true);
-            api.$$("#ExDB").remove();
-            this.ButtonCreation();
-        }
-    }
-    class Settings {
-        constructor() {
-            this.MAX_CONCURRENCY = 12;
-            this.MIN_CONCURRENCY = 3;
-            this.TIME_THRESHOLD = 350;
-            this.MAX_Delay = 3500;
-            this.Home_ID = 100;
-            this.Home_ND = 80;
-            this.Image_ID = 30;
-            this.Image_ND = 24;
-            this.Download_IT = 5;
-            this.Download_ID = 300;
-            this.Download_ND = 240;
-            this.Compr_Level = 5;
-            this.Enforce = false;
-            this.DownloadMode;
-            this.Show = "";
-        }
-        Dynamic(Time, Delay, Thread=null, MIN_Delay) {
+        Dev: false,           // 開發模式 (會顯示除錯訊息)
+        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        Original: false,      // 是否下載原圖
+        CompleteClose: false, // 下載完成自動關閉
+    };
+
+    /* 下載配置 (不清楚不要修改) */
+    const DConfig = {
+        MAX_CONCURRENCY: 15, // 最大併發數
+        MIN_CONCURRENCY: 5,  // 最小併發數
+        TIME_THRESHOLD: 350, // 響應時間閥值
+
+        MAX_Delay: 3500,     // 最大延遲
+        Home_ID: 100,        // 主頁初始延遲
+        Home_ND: 80,         // 主頁最小延遲
+        Image_ID: 30,        // 圖頁初始延遲
+        Image_ND: 24,        // 圖頁最小延遲
+        Download_IT: 5,      // 下載初始線程
+        Download_ID: 300,    // 下載初始延遲
+        Download_ND: 240,    // 下載最小延遲
+
+        Compr_Level: 5, // 壓縮的等級
+        Lock: false, // 鎖定模式
+        Scope: undefined, // 下載範圍
+        DisplayCache: undefined, // 緩存展示時的字串
+        CurrentDownloadMode: undefined, // 紀錄當前模式
+
+        Dynamic: function (Time, Delay, Thread = null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.floor(Math.min(Delay * 1.1, this.MAX_Delay));
                 if (Thread != null) {
                     thread = Math.floor(Math.max(Thread * (this.TIME_THRESHOLD / ResponseTime), this.MIN_CONCURRENCY));
                     return [delay, thread];
-                } else {return delay}
+                } else { return delay }
             } else {
                 delay = Math.ceil(Math.max(Delay * 0.9, MIN_Delay));
                 if (Thread != null) {
                     thread = Math.ceil(Math.min(Thread * 1.2, this.MAX_CONCURRENCY));
                     return [delay, thread];
-                } else {return delay}
+                } else { return delay }
             }
         }
-    }
-    class Download extends Settings {
-        constructor() {
-            super();
-            this.Total = (page) => {return Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20)}
-            this.FillValue = (page) => {
-                return Math.max(2, `${page}`.length);
-            }
-            this.Mantissa = (str, fill) => {
-                return `${++str}`.padStart(fill, "0");
-            }
-            this.Storage = (key, value=null) => {
-                let data, result;
-                if (value) {
-                    sessionStorage.setItem(key, JSON.stringify(Array.from(value.entries())));
-                    result = true;
-                } else {
-                    data = sessionStorage.getItem(key);
-                    result = data ? new Map(JSON.parse(data)) : false;
-                }
-                return result;
-            }
-            this.sleep = (delay) => {
-                return new Promise(resolve => setTimeout(resolve, delay));
-            }
-            this.worker = api.WorkerCreation(`
+    };
+    const Url = Syn.Device.Url.split("?p=")[0];
+    let Lang, OriginalTitle, CompressMode, ModeDisplay;
+    class DownloadCore {
+        constructor(Button) {
+            this.Button = Button;
+            this.ComicName = null;
+            this.Worker = Syn.WorkerCreation(`
                 let queue = [], processing = false;
                 onmessage = function(e) {
                     queue.push(e.data);
@@ -211,314 +112,612 @@
                         postMessage({index, url, html, time, delay, error: true});
                     }
                 }
-            `)
+            `);
+            this.GetTotal = page => Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, "") / 20);
+            this.KEY = null;
+            this.GetCacheKey = () => {
+                if (!this.KEY) this.KEY = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
+                return this.KEY;
+            };
+            this.GetHomeData();
         }
-        async HomeData(button) {
-            const self = this, homepage = new Map();
-            let task = 0, DC = 0, HomeD = self.Home_ID, pages = self.Total(api.$$("#gdd td.gdt2", true)),
-            title = api.IllegalCharacters(api.$$("#gj").textContent.trim() || api.$$("#gn").textContent.trim());
-            self.DownloadMode = CompressMode;
-            const olddata = self.Storage(`[${title} - Download Cache]`);
-            if (olddata) {
-                self.DownloadTrigger(button, title, olddata);
+        async Reset() {
+            Config.CompleteClose && window.close();
+            DConfig.Lock = false;
+            DConfig.Scope = false;
+            const Button = Syn.$$("#ExDB");
+            Button.disabled = false;
+            Button.textContent = `✓ ${ModeDisplay}`;
+        }
+        async GetHomeData() {
+            const Name = Syn.NameFilter((Syn.$$("#gj").textContent || Syn.$$("#gn").textContent).trim());
+            const CacheData = Syn.Storage(this.GetCacheKey());
+            DConfig.CurrentDownloadMode = CompressMode;
+            this.ComicName = Name;
+            if (CacheData) {
+                this.StartTask(CacheData);
                 return;
             }
-            async function GetLink(index, data) {
-                const homebox = [];
+            const Pages = this.GetTotal(Syn.$$("#gdd td.gdt2", {
+                all: true
+            }));
+            let Delay = DConfig.Home_ID;
+            this.Worker.postMessage({
+                index: 0,
+                url: Url,
+                time: Date.now(),
+                delay: Delay
+            });
+            for (let index = 1; index < Pages; index++) {
+                this.Worker.postMessage({
+                    index: index,
+                    url: `${Url}?p=${index}`,
+                    time: Date.now(),
+                    delay: Delay
+                });
+            }
+            this.Worker.onmessage = e => {
+                const {
+                    index,
+                    url,
+                    html,
+                    time,
+                    delay,
+                    error
+                } = e.data;
+                Delay = DConfig.Dynamic(time, delay, null, DConfig.Home_ND);
+                error ? this.Worker.postMessage({
+                    index: index,
+                    url: url,
+                    time: time,
+                    delay: delay
+                }) : GetLink(index, Syn.DomParse(html));
+            };
+            const self = this;
+            const HomeData = new Map();
+            let Task = 0;
+            function GetLink(index, page) {
                 try {
-                    api.$$("#gdt a", true, data).forEach(link => {homebox.push(link.href)});
-                    homepage.set(index, homebox);
-                    self.Show = `[${++DC}/${pages}]`;
-                    document.title = self.Show;
-                    button.textContent = `${Language.DS_02}: ${self.Show}`;
-                    task++;
+                    const Cache = [];
+                    for (const link of Syn.$$("#gdt a", {
+                        all: true,
+                        root: page
+                    })) {
+                        Cache.push(link.href);
+                    }
+                    HomeData.set(index, Cache);
+                    DConfig.DisplayCache = `[${++Task}/${Pages}]`;
+                    document.title = DConfig.DisplayCache;
+                    self.Button.textContent = `${Lang.Transl("獲取頁面")}: ${DConfig.DisplayCache}`;
+                    if (Task === Pages) {
+                        const Cache = [];
+                        for (let index = 0; index < HomeData.size; index++) {
+                            Cache.push(...HomeData.get(index));
+                        }
+                        const Processed = [...new Set(Cache)];
+                        Syn.Log(Lang.Transl("內頁跳轉數據"), `${Name}\n${JSON.stringify(Processed, null, 4)}`, {
+                            dev: Config.Dev
+                        });
+                        self.GetImageData(Processed);
+                    }
                 } catch (error) {
-                    alert(Language.DE_01);
+                    alert(Lang.Transl("請求錯誤重新加載頁面"));
                     location.reload();
                 }
             }
-            self.worker.postMessage({index: 0, url: url, time: Date.now(), delay: HomeD});
-            for (let index = 1; index < pages; index++) {
-                self.worker.postMessage({index, url: `${url}?p=${index}`, time: Date.now(), delay: HomeD});
-            }
-            self.worker.onmessage = (e) => {
-                const {index, url, html, time, delay, error} = e.data;
-                HomeD = self.Dynamic(time, delay, null, self.Home_ND);
-                error ? self.worker.postMessage({index: index, url: url, time: time, delay: delay}) : GetLink(index, api.DomParse(html));
-            }
-            const interval = setInterval(() => {
-                if (task === pages) {
-                    clearInterval(interval);
-                    const homebox = [];
-                    for (let i = 0; i < homepage.size; i++) {homebox.push(...homepage.get(i))}
-                    Config.DeBug ? api.log(Language.Dev_01, `[Title] : ${title}\n${homebox}`) : null;
-                    self.ImageData(button, title, homebox);
-                }
-            }, 500);
         }
-        async ImageData(button, title, link) {
-            const self = this, imgbox = new Map();
-            let pages = link.length, ImageD = self.Image_ID, DC = 0, task = 0;
-            async function GetLink(index, img) {
+        async GetImageData(JumpList) {
+            const Pages = JumpList.length;
+            let Delay = DConfig.Image_ID;
+            let Task = 0;
+            for (let index = 0; index < Pages; index++) {
+                this.Worker.postMessage({
+                    index: index,
+                    url: JumpList[index],
+                    time: Date.now(),
+                    delay: Delay
+                });
+            }
+            this.Worker.onmessage = e => {
+                const {
+                    index,
+                    url,
+                    html,
+                    time,
+                    delay,
+                    error
+                } = e.data;
+                Delay = DConfig.Dynamic(time, delay, null, DConfig.Image_ND);
+                error ? this.Worker.postMessage({
+                    index: index,
+                    url: url,
+                    time: time,
+                    delay: delay
+                }) : GetLink(index, url, Syn.DomParse(html));
+            };
+            const self = this;
+            const ImageData = [];
+            function GetLink(index, url, page) {
                 try {
-                    if (img) {
-                        imgbox.set(index, img.src || img.href);
-                        self.Show = `[${++DC}/${pages}]`;
-                        document.title = self.Show;
-                        button.textContent = `${Language.DS_03}: ${self.Show}`;
-                        task++;
-                    } else {
-                        imgbox.set(index, undefined);
-                        throw Language.DE_02;
+                    const Resample = Syn.$$("#img", {
+                        root: page
+                    });
+                    const Original = Syn.$$("#i6 div:nth-of-type(3) a", {
+                        root: page
+                    });
+                    if (!Resample) {
+                        this.Worker.postMessage({
+                            index: index,
+                            url: url,
+                            time: Date.now(),
+                            delay: Delay
+                        });
+                        return;
+                    }
+                    const Link = Config.Original ? Original.href ?? Resample.src ?? Resample.href : Resample.src ?? Resample.href;
+                    ImageData.push([index, Link]);
+                    DConfig.DisplayCache = `[${++Task}/${Pages}]`;
+                    document.title = DConfig.DisplayCache;
+                    self.Button.textContent = `${Lang.Transl("獲取連結")}: ${DConfig.DisplayCache}`;
+                    if (Task === Pages) {
+                        ImageData.sort((a, b) => a[0] - b[0]);
+                        const Processed = new Map(ImageData);
+                        Syn.Storage(self.GetCacheKey(), {
+                            value: Processed
+                        });
+                        self.StartTask(Processed);
                     }
                 } catch (error) {
-                    api.log(null, error, "error");
-                    task++;
+                    Syn.Log(null, error, {
+                        dev: Config.Dev,
+                        type: "error"
+                    });
+                    Task++;
                 }
             }
-            for (let index = 0; index < pages; index++) {
-                self.worker.postMessage({index, url: link[index], time: Date.now(), delay: ImageD});
+        }
+        async StartTask(DataMap) {
+            Syn.Log(Lang.Transl("圖片連結數據"), `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, {
+                dev: Config.Dev
+            });
+            if (DConfig.Scope) {
+                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]));
             }
-            self.worker.onmessage = (e) => {
-                const {index, url, html, time, delay, error} = e.data;
-                ImageD = self.Dynamic(time, delay, null, self.Image_ND);
-                error ? self.worker.postMessage({index: index, url: url, time: time, delay: delay}) : GetLink(index, api.$$("#img", false, api.DomParse(html)));
+            DConfig.CurrentDownloadMode ? this.PackDownload(DataMap) : this.SingleDownload(DataMap);
+        }
+        async PackDownload(Data) {
+            const self = this;
+            const Zip = new JSZip();
+            let Total = Data.size;
+            const Fill = Syn.GetFill(Total);
+            let Enforce = false;
+            let ClearCache = false;
+            let ReTry = Config.ReTry;
+            let Progress, Thread, Delay;
+            function Init() {
+                Progress = 0;
+                Delay = DConfig.Download_ID;
+                Thread = DConfig.Download_IT;
             }
-            let interval = setInterval(() => {
-                if (task === pages) {
-                    clearInterval(interval);
-                    Config.DeBug ? api.log(Language.Dev_02, imgbox) : null;
-                    self.DownloadTrigger(button, title, imgbox);
-                    self.Storage(`[${title} - Download Cache]`, imgbox);
+            Syn.Menu({
+                [Lang.Transl("📥 強制壓縮下載")]: {
+                    func: () => {
+                        Enforce = true;
+                        self.Compression(Zip);
+                    },
+                    hotkey: "d"
                 }
-            }, 500);
-        }
-        async DownloadTrigger(button, title, link) {
-            this.DownloadMode?
-            this.ZipDownload(button, title, link):
-            this.ImageDownload(button, title, link);
-        }
-        async ZipDownload(Button, Folder, ImgData) {
-            const self=this, Data=new JSZip(), force = GM_registerMenuCommand(Language.MN_02, ()=> ForceDownload());
-            let time, blob, count=0, progress=0, clean=false,
-            ReTry=Config.ReTry, Total=ImgData.size, delay=self.Download_ID,
-            thread=self.Download_IT, Fill=self.FillValue(Total);
-            async function ForceDownload() {
-                self.Compression(Data, Folder, Button, force);
-            }
-            async function Retry_on_error() {
-                if (self.Enforce) {return}
-                else if (ReTry-- > 0) {
-                    progress = 0;
-                    self.Show = Language.DS_09;
-                    document.title = self.Show;
-                    Button.textContent = self.Show;
-                    api.log(Language.DE_03, ReTry);
-                    await self.sleep(2500);
-                    setTimeout(() => {StartDownload(true)}, 2000);
+            }, "Enforce");
+            function StatusUpdate(time, index, url, blob, error = false) {
+                Data.delete(index);
+                if (Enforce) return;
+                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+                if (error && typeof url === "string") {
+                    Data.set(index, url);
                 } else {
-                    self.Compression(Data, Folder, Button, force);
-                    api.log(Language.DE_04, ImgData);
+                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", url)}`, blob);
+                }
+                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                document.title = DConfig.DisplayCache;
+                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
+                if (Progress === Total) {
+                    Total = Data.size;
+                    if (Total > 0 && ReTry-- > 0) {
+                        DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
+                        document.title = DConfig.DisplayCache;
+                        self.Button.textContent = DConfig.DisplayCache;
+                        setTimeout(() => {
+                            if (Enforce) return;
+                            Start(Data);
+                        }, 1500);
+                    } else {
+                        if (Total > 0) {
+                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), {
+                                type: "error"
+                            });
+                        }
+                        self.Compression(Zip);
+                    }
                 }
             }
-            async function Request_Analysis(index, link, blob, retry=false) {
-                if (self.Enforce) {return}
-                ImgData.delete(index);
-                self.Show = `[${++progress}/${Total}]`;
-                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                retry ? ImgData.set(index, link) : Data.file(`${Folder}/${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`, blob);
-                document.title = self.Show;
-                Button.textContent = `${Language.DS_04}: ${self.Show}`;
-                if (progress == Total) {
-                    Total = ImgData.size;
-                    if (Total == 0) {self.Compression(Data, Folder, Button, force)}
-                    else {Retry_on_error()}
-                }
-            }
-            async function Request(index, link, analysis) {
-                time = Date.now();
-                if (self.Enforce) {return}
-                else if (typeof link !== "undefined") {
+            function Request(index, url) {
+                if (Enforce) return;
+                const time = Date.now();
+                if (typeof url !== "undefined") {
                     GM_xmlhttpRequest({
-                        url: link,
+                        url: url,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
-                            blob = response.response;
-                            if (blob instanceof Blob && blob.size > 0) {analysis(index, link, blob)}
-                            else {
-                                Config.DeBug ? api.log(`[Delay:${delay}|Thread:${thread}]`, link, "error") : null;
-                                analysis(index, link, null, true);
-                            }
+                            const blob = response.response;
+                            blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, index, url, blob) : StatusUpdate(time, index, url, null, true);
                         },
-                        onerror: error => {
-                            Config.DeBug ? api.log(`[Delay:${delay}|Thread:${thread}]`, link, "error") : null;
-                            analysis(index, link, null, true);
+                        onerror: () => {
+                            StatusUpdate(time, index, url, null, true);
                         }
-                    })
+                    });
                 } else {
-                    if (!clean) {
-                        clean = true;
-                        sessionStorage.clear();
-                        api.log(Language.DW_01, Language.DW_02, "warn");
+                    if (!ClearCache) {
+                        ClearCache = true;
+                        sessionStorage.removeItem(self.GetCacheKey());
+                        Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), {
+                            type: "warn"
+                        });
                     }
-                    progress++;
+                    StatusUpdate(time, index, null, null, true);
                 }
             }
-            StartDownload();
-            async function StartDownload(restart=false) {
-                for (const [index, link] of ImgData.entries()) {
-                    if (self.Enforce) {break}
-                    else if (restart) {
-                        await Request(index, link, Request_Analysis);
-                        await self.sleep(500);
-                    }
-                    else {
-                        Request(index, link, Request_Analysis);
-                        if (++count === thread) {
-                            count = 0;
-                            await self.sleep(delay);
-                        }
+            async function Start(DataMap) {
+                if (Enforce) return;
+                let Task = 0;
+                Init();
+                for (const [Index, Url] of DataMap.entries()) {
+                    if (Enforce) break;
+                    Request(Index, Url);
+                    if (++Task === Thread) {
+                        Task = 0;
+                        await Syn.Sleep(Delay);
                     }
                 }
             }
+            Start(Data);
         }
-        async ImageDownload(Button, Folder, ImgData) {
-            const Total=ImgData.size, self=this;
-            let time, link, progress=1, clean=false,
-            thread=self.Download_IT, delay=self.Download_ID, Fill=self.FillValue(Total);
-            async function Request(index, retry) {
-                time = Date.now();
-                link = ImgData.get(index);
+        async Compression(Zip) {
+            GM_unregisterMenuCommand("Enforce-1");
+            Zip.generateAsync({
+                type: "blob",
+                compression: "DEFLATE",
+                compressionOptions: {
+                    level: DConfig.Compr_Level
+                }
+            }, progress => {
+                DConfig.DisplayCache = `${progress.percent.toFixed(1)} %`;
+                document.title = DConfig.DisplayCache;
+                this.Button.textContent = `${Lang.Transl("壓縮進度")}: ${DConfig.DisplayCache}`;
+            }).then(zip => {
+                saveAs(zip, `${this.ComicName}.zip`);
+                document.title = `✓ ${OriginalTitle}`;
+                this.Button.textContent = Lang.Transl("壓縮完成");
+                setTimeout(() => {
+                    this.Reset();
+                }, 3e3);
+            }).catch(result => {
+                document.title = OriginalTitle;
+                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
+                this.Button.textContent = DConfig.DisplayCache;
+                Syn.Log(DConfig.DisplayCache, result, {
+                    dev: Config.Dev,
+                    type: "error",
+                    collapsed: false
+                });
+                setTimeout(() => {
+                    this.Button.disabled = false;
+                    this.Button.textContent = ModeDisplay;
+                }, 6e3);
+            });
+        }
+        async SingleDownload(Data) {
+            const self = this;
+            let Total = Data.size;
+            const Fill = Syn.GetFill(Total);
+            const TaskPromises = [];
+            let Progress = 0;
+            let ClearCache = false;
+            let ReTry = Config.ReTry;
+            let Delay = DConfig.Download_ID;
+            let Thread = DConfig.Download_IT;
+            async function Request(index, url, retry) {
+                const time = Date.now();
                 return new Promise((resolve, reject) => {
-                    if (typeof link !== "undefined") {
+                    if (typeof url !== "undefined") {
                         GM_download({
-                            url: link,
-                            name: `${Folder}-${self.Mantissa(index, Fill)}.${api.ExtensionName(link)}`,
+                            url: url,
+                            name: `${self.ComicName}-${Syn.Mantissa(index, Fill, "0", url)}`,
                             onload: () => {
-                                [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                self.Show = `[${progress}/${Total}]`
-                                document.title = self.Show;
-                                Button.textContent = `${Language.DS_04}: ${self.Show}`;
-                                progress++;
+                                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+                                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                                document.title = DConfig.DisplayCache;
+                                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
                                 resolve();
                             },
                             onerror: () => {
                                 if (retry > 0) {
-                                    [ delay, thread ] = self.Dynamic(time, delay, thread, self.Download_ND);
-                                    Config.DeBug ? api.log(null, `[Delay:${delay}|Thread:${thread}|Retry:${retry}] : [${link}]`, "error") : null;
+                                    [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+                                    Syn.Log(null, `[Delay:${Delay}|Thread:${Thread}|Retry:${retry}] : [${url}]`, {
+                                        dev: Config.Dev,
+                                        type: "error"
+                                    });
                                     setTimeout(() => {
-                                        Request(index, retry-1);
-                                        resolve();
-                                    }, delay * 2);
+                                        reject();
+                                        Request(index, url, retry - 1);
+                                    }, Delay * 2);
                                 } else {
                                     reject(new Error("Request error"));
                                 }
                             }
-                        })
+                        });
                     } else {
-                        if (!clean) {
-                            clean = true;
-                            sessionStorage.clear();
-                            api.log(Language.DW_01, Language.DW_02, "warn");
+                        if (!ClearCache) {
+                            ClearCache = true;
+                            sessionStorage.removeItem(self.GetCacheKey());
+                            Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), {
+                                type: "warn"
+                            });
                         }
-                        reject(new Error("undefined url"))
+                        reject();
                     }
                 });
             }
-            let count = 0, promises = [];
-            for (let i = 0; i < Total; i++) {
-                promises.push(Request(i, Config.ReTry));
-                if (++count === thread) {
-                    count = 0;
-                    await self.sleep(delay);
+            let Task = 0;
+            for (const [Index, Url] of Data.entries()) {
+                TaskPromises.push(Request(Index, Url, ReTry));
+                if (++Task === Thread) {
+                    Task = 0;
+                    await Syn.Sleep(Delay);
                 }
             }
-            await Promise.allSettled(promises);
-            Button.textContent = Language.DS_08;
+            await Promise.allSettled(TaskPromises);
+            this.Button.textContent = Lang.Transl("下載完成");
             setTimeout(() => {
                 document.title = `✓ ${OriginalTitle}`;
-                ResetButton();
-            }, 3000);
-        }
-        async Compression(Data, Folder, Button, Menu) {
-            this.Enforce = true;
-            GM_unregisterMenuCommand(Menu);
-            Data.generateAsync({
-                type: "blob",
-                compression: "DEFLATE",
-                compressionOptions: { level: this.Compr_Level }
-            }, (progress) => {
-                document.title = `${progress.percent.toFixed(1)} %`;
-                Button.textContent = `${Language.DS_05}: ${progress.percent.toFixed(1)} %`;
-            }).then(zip => {
-                saveAs(zip, `${Folder}.zip`);
-                this.Enforce = false;
-                Button.textContent = Language.DS_06;
-                document.title = `✓ ${OriginalTitle}`;
-                setTimeout(() => {
-                    ResetButton();
-                }, 3000);
-            }).catch(result => {
-                Button.textContent = Language.DS_07;
-                document.title = OriginalTitle;
-                setTimeout(() => {
-                    ResetButton();
-                }, 6000);
-            })
+                this.Reset();
+            }, 3e3);
         }
     }
-    const download = new Download();
-    Main.Match();
-    async function ResetButton() {
-        lock = false;
-        let Button = api.$$("#ExDB");
-        Button.disabled = false;
-        Button.textContent = `✓ ${ModeDisplay}`;
+    class ButtonCore {
+        constructor() {
+            this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
+            this.Ex = /https:\/\/exhentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
+            this.Allow = (Uri = Url) => this.E.test(Uri) || this.Ex.test(Uri);
+            this.InitStyle = () => {
+                const Position = `
+                    .Download_Button {
+                        float: right;
+                        width: 9rem;
+                        cursor: pointer;
+                        font-weight: bold;
+                        line-height: 20px;
+                        border-radius: 5px;
+                        position: relative;
+                        padding: 1px 5px 2px;
+                        font-family: arial,helvetica,sans-serif;
+                    }
+                `;
+                const E_Style = `
+                    .Download_Button {
+                    color: #5C0D12;
+                    border: 2px solid #9a7c7e;
+                    background-color: #EDEADA;
+                    }
+                    .Download_Button:hover {
+                        color: #8f4701;
+                        border: 2px dashed #B5A4A4;
+                    }
+                    .Download_Button:disabled {
+                        color: #B5A4A4;
+                        border: 2px dashed #B5A4A4;
+                        cursor: default;
+                    }
+                `;
+                const Ex_Style = `
+                    .Download_Button {
+                        color: #b3b3b3;
+                        border: 2px solid #34353b;
+                        background-color: #2c2b2b;
+                    }
+                    .Download_Button:hover {
+                        color: #f1f1f1;
+                        border: 2px dashed #4f535b;
+                    }
+                    .Download_Button:disabled {
+                        color: #4f535b;
+                        border: 2px dashed #4f535b;
+                        cursor: default;
+                    }
+                `;
+                const Style = Syn.Device.Host === "e-hentai.org" ? E_Style : Ex_Style;
+                Syn.AddStyle(`${Position}${Style}`, "Button-style", false);
+            };
+        }
+        async DownloadModeSwitch() {
+            CompressMode ? Syn.Store("s", "CompressedMode", false) : Syn.Store("s", "CompressedMode", true);
+            Syn.$$("#ExDB").remove();
+            this.ButtonCreation();
+        }
+        async DownloadRangeSetting() {
+            let scope = prompt(Lang.Transl("範圍設置")) || false;
+            if (scope) {
+                const yes = confirm(`${Lang.Transl("確認設置範圍")}:\n${scope}`);
+                if (yes) DConfig.Scope = scope;
+            }
+        }
+        async ButtonCreation() {
+            CompressMode = Syn.Store("g", "CompressedMode", []);
+            ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
+            const download_button = GM_addElement(Syn.$$("#gd2"), "button", {
+                id: "ExDB",
+                class: "Download_Button"
+            });
+            download_button.disabled = DConfig.Lock ? true : false;
+            download_button.textContent = DConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
+            Syn.AddListener(download_button, "click", () => {
+                DConfig.Lock = true;
+                download_button.disabled = true;
+                download_button.textContent = Lang.Transl("開始下載");
+                this.TaskInstance = new DownloadCore(download_button);
+            }, {
+                capture: true,
+                passive: true
+            });
+        }
+        static async Init() {
+            const Core = new ButtonCore();
+            if (Core.Allow()) {
+                Core.InitStyle();
+                OriginalTitle = document.title;
+                Lang = Language(Syn.Device.Lang);
+                Core.ButtonCreation();
+                Syn.Menu({
+                    [Lang.Transl("🔁 切換下載模式")]: {
+                        func: () => Core.DownloadModeSwitch()
+                    },
+                    [Lang.Transl("⚙️ 下載範圍設置")]: {
+                        func: () => Core.DownloadRangeSetting()
+                    }
+                });
+            }
+        }
     }
-    function display_language(language) {
-        let display = {
-            "zh-TW": [{
-                "MN_01" : "🔁 切換下載模式", "MN_02" : "📥 強制壓縮下載",
-                "DM_01" : "壓縮下載", "DM_02" : "單圖下載", "DM_03" : "下載中鎖定",
-                "DS_01" : "開始下載", "DS_02" : "獲取頁面", "DS_03" : "獲取連結", "DS_04" : "下載進度",
-                "DS_05" : "壓縮封裝", "DS_06" : "壓縮完成", "DS_07" : "壓縮失敗", "DS_08" : "下載完成",
-                "DS_09" : "等待失敗重試...", "DE_01" : "請求錯誤重新加載頁面", "DE_02" : "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試",
-                "DE_03" : "剩餘重載次數", "DE_04" : "下載失敗數據", "Dev_01" : "內頁跳轉數據", "Dev_02" : "圖片連結數據", "DW_01" : "清理警告", "DW_02" : "下載數據不完整將清除緩存, 建議刷新頁面後重載"
-            }],
-            "zh-CN": [{
-                "MN_01" : "🔁 切换下载模式", "MN_02" : "📥 强制压缩下载",
-                "DM_01" : "压缩下载", "DM_02" : "单图下载", "DM_03" : "下载中锁定",
-                "DS_01" : "开始下载", "DS_02" : "获取页面", "DS_03" : "获取链接", "DS_04" : "下载进度",
-                "DS_05" : "压缩封装", "DS_06" : "压缩完成", "DS_07" : "压缩失败", "DS_08" : "下载完成",
-                "DS_09" : "等待失败重试...", "DE_01" : "请求错误重新加载页面", "DE_02" : "找不到图片元素，你的 IP 可能被禁止了，请刷新页面重试",
-                "DE_03" : "剩余重载次数", "DE_04" : "下载失败数据", "Dev_01" : "内页跳转数据", "Dev_02" : "图片链接数据", "DW_01" : "清理警告", "DW_02" : "下载数据不完整将清除缓存，建议刷新页面后重载"
-            }],
-            "ja": [{
-                "MN_01" : "🔁 ダウンロードモードの切り替え", "MN_02" : "📥 强制圧缩ダウンロード",
-                "DM_01" : "圧缩ダウンロード", "DM_02" : "単一画像のダウンロード", "DM_03" : "ダウンロード中ロック",
-                "DS_01" : "ダウンロードを开始", "DS_02" : "ページを取得中", "DS_03" : "リンクを取得中", "DS_04" : "ダウンロードの进捗",
-                "DS_05" : "圧缩パッケージング", "DS_06" : "圧缩完了", "DS_07" : "圧缩失败", "DS_08" : "ダウンロード完了",
-                "DS_09" : "再试行を待机中...", "DE_01" : "要求エラー、ページを再読み込みしてください", "DE_02" : "画像要素が见つかりません、お使いの IP がブロックされている可能性があります。ページを更新して再试行してください",
-                "DE_03" : "残りの再読み込み回数", "DE_04" : "ダウンロード失败データ", "Dev_01" : "内部ページリダイレクトデータ", "Dev_02" : "画像リンクデータ", "DW_01" : "警告をクリア", "DW_02" : "ダウンロードデータが不完全な场合はキャッシュがクリアされます。ページをリフレッシュしてから再読み込みしてください"
-            }],
-            "en-US": [{
-                "MN_01" : "🔁 Switch Download Mode", "MN_02" : "📥 Force Compression Download",
-                "DM_01" : "Compression Download", "DM_02" : "Single Image Download", "DM_03" : "Downloading Lock",
-                "DS_01" : "Start Downloading", "DS_02" : "Getting Page", "DS_03" : "Getting Links", "DS_04" : "Download Progress",
-                "DS_05" : "Compression Packaging", "DS_06" : "Compression Completed", "DS_07" : "Compression Failed", "DS_08" : "Download Completed",
-                "DS_09" : "Waiting for Retry...", "DE_01" : "Request Error, Reload Page", "DE_02" : "Cannot find image elements, your IP may be blocked, please refresh the page and try again",
-                "DE_03" : "Remaining Reload Times", "DE_04" : "Download Failed Data", "Dev_01" : "Inner Page Redirect Data", "Dev_02" : "Image Link Data", "DW_01" : "Clearing Warning", "DW_02" : "Incomplete download data will clear cache, suggest refresh page and reload"
-            }],
-            "ko": [{
-                "MN_01" : "🔁 다운로드 모드 전환", "MN_02" : "📥 강제 압축 다운로드",
-                "DM_01" : "압축 다운로드", "DM_02" : "단일 이미지 다운로드", "DM_03" : "다운로드 중 잠금",
-                "DS_01" : "다운로드 시작", "DS_02" : "페이지 가져 오기", "DS_03" : "링크 가져 오기", "DS_04" : "다운로드 진행률",
-                "DS_05" : "압축 포장", "DS_06" : "압축 완료", "DS_07" : "압축 실패", "DS_08" : "다운로드 완료",
-                "DS_09" : "재시도 대기 중...", "DE_01" : "요청 오류, 페이지 다시로드", "DE_02" : "이미지 요소를 찾을 수 없습니다. IP가 차단 될 수 있습니다. 페이지를 새로 고쳐 다시 시도하십시오",
-                "DE_03" : "남은 다시로드 횟수", "DE_04" : "다운로드 실패 데이터", "Dev_01" : "내부 페이지 리디렉션 데이터", "Dev_02" : "이미지 링크 데이터", "DW_01" : "경고 지우기", "DW_02" : "다운로드 데이터가 완전하지 않으면 캐시가 지워집니다. 페이지 새로 고침 및 다시로드 권장"
-            }]
+    function Language(lang) {
+        const Word = {
+            Traditional: {
+                "範圍設置": "下載完成後自動重置\n\n單項設置: 1. 2, 3\n範圍設置: 1~5, 6-10\n排除設置: !5, -10\n"
+            },
+            Simplified: {
+                "🔁 切換下載模式": "🔁 切换下载模式",
+                "⚙️ 下載範圍設置": "⚙️ 下载范围设置",
+                "📥 強制壓縮下載": "📥 强制压缩下载",
+                "⛔️ 終止下載": "⛔️ 终止下载",
+                "壓縮下載": "压缩下载",
+                "單圖下載": "单图下载",
+                "下載中鎖定": "下载中锁定",
+                "開始下載": "开始下载",
+                "獲取頁面": "获取页面",
+                "獲取連結": "获取链接",
+                "下載進度": "下载进度",
+                "壓縮進度": "压缩进度",
+                "壓縮完成": "压缩完成",
+                "壓縮失敗": "压缩失败",
+                "下載完成": "下载完成",
+                "清理警告": "清理警告",
+                "確認設置範圍": "确认设置范围",
+                "剩餘重載次數": "剩余重载次数",
+                "下載失敗數據": "下载失败数据",
+                "內頁跳轉數據": "内页跳转数据",
+                "圖片連結數據": "图片链接数据",
+                "等待失敗重試...": "等待失败重试...",
+                "請求錯誤重新加載頁面": "请求错误重新加载页面",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "下载数据不完整将清除缓存, 建议刷新页面后重载",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "找不到图片元素, 你的 IP 可能被禁止了, 请刷新页面重试",
+                "範圍設置": "下载完成后自动重置\n\n单项设置: 1. 2, 3\n范围设置: 1~5, 6-10\n排除设置: !5, -10\n"
+            },
+            English: {
+                "🔁 切換下載模式": "🔁 Switch download mode",
+                "⚙️ 下載範圍設置": "⚙️ Download range settings",
+                "📥 強制壓縮下載": "📥 Force compressed download",
+                "⛔️ 終止下載": "⛔️ Terminate download",
+                "壓縮下載": "Compressed download",
+                "單圖下載": "Single image download",
+                "下載中鎖定": "Locked during download",
+                "開始下載": "Start download",
+                "獲取頁面": "Fetch page",
+                "獲取連結": "Fetch link",
+                "下載進度": "Download progress",
+                "壓縮進度": "Compression progress",
+                "壓縮完成": "Compression complete",
+                "壓縮失敗": "Compression failed",
+                "下載完成": "Download complete",
+                "清理警告": "Clean up warning",
+                "確認設置範圍": "Confirm range settings",
+                "剩餘重載次數": "Remaining reload attempts",
+                "下載失敗數據": "Failed download data",
+                "內頁跳轉數據": "Inner page redirection data",
+                "圖片連結數據": "Image link data",
+                "等待失敗重試...": "Waiting for failed retry...",
+                "請求錯誤重新加載頁面": "Request error, reload the page",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "Download data is incomplete, cache will be cleared, it's recommended to refresh the page and reload",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "Image element not found, your IP might be blocked, please refresh the page and try again",
+                "範圍設置": "Automatically reset after download completion\n\nSingle item settings: 1. 2, 3\nRange settings: 1~5, 6-10\nExclusion settings: !5, -10\n"
+            },
+            Korea: {
+                "🔁 切換下載模式": "🔁 다운로드 모드 전환",
+                "⚙️ 下載範圍設置": "⚙️ 다운로드 범위 설정",
+                "📥 強制壓縮下載": "📥 강제 압축 다운로드",
+                "⛔️ 終止下載": "⛔️ 다운로드 중단",
+                "壓縮下載": "압축 다운로드",
+                "單圖下載": "단일 이미지 다운로드",
+                "下載中鎖定": "다운로드 중 잠금",
+                "開始下載": "다운로드 시작",
+                "獲取頁面": "페이지 가져오기",
+                "獲取連結": "링크 가져오기",
+                "下載進度": "다운로드 진행",
+                "壓縮進度": "압축 진행",
+                "壓縮完成": "압축 완료",
+                "壓縮失敗": "압축 실패",
+                "下載完成": "다운로드 완료",
+                "清理警告": "경고 정리",
+                "確認設置範圍": "설정 범위 확인",
+                "剩餘重載次數": "남은 재시도 횟수",
+                "下載失敗數據": "다운로드 실패 데이터",
+                "內頁跳轉數據": "내부 페이지 리디렉션 데이터",
+                "圖片連結數據": "이미지 링크 데이터",
+                "等待失敗重試...": "실패 재시도를 기다리는 중...",
+                "請求錯誤重新加載頁面": "요청 오류, 페이지를 다시 로드하십시오",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "다운로드 데이터가 불완전합니다. 캐시가 지워집니다. 페이지를 새로고침하고 다시 로드하는 것이 좋습니다",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "이미지 요소를 찾을 수 없습니다. 귀하의 IP가 차단되었을 수 있습니다. 페이지를 새로고침하고 다시 시도하십시오",
+                "範圍設置": "다운로드 완료 후 자동 재설정\n\n단항 설정: 1. 2, 3\n범위 설정: 1~5, 6-10\n제외 설정: !5, -10\n"
+            },
+            Japan: {
+                "🔁 切換下載模式": "🔁 ダウンロードモードの切り替え",
+                "⚙️ 下載範圍設置": "⚙️ ダウンロード範囲設定",
+                "📥 強制壓縮下載": "📥 強制圧縮ダウンロード",
+                "⛔️ 終止下載": "⛔️ ダウンロードを中止",
+                "壓縮下載": "圧縮ダウンロード",
+                "單圖下載": "単一画像のダウンロード",
+                "下載中鎖定": "ダウンロード中にロック",
+                "開始下載": "ダウンロードを開始",
+                "獲取頁面": "ページを取得",
+                "獲取連結": "リンクを取得",
+                "下載進度": "ダウンロード進行",
+                "壓縮進度": "圧縮進行",
+                "壓縮完成": "圧縮完了",
+                "壓縮失敗": "圧縮失敗",
+                "下載完成": "ダウンロード完了",
+                "清理警告": "警告のクリーニング",
+                "確認設置範圍": "設定範囲の確認",
+                "剩餘重載次數": "残りのリロード回数",
+                "下載失敗數據": "ダウンロード失敗データ",
+                "內頁跳轉數據": "内部ページリダイレクトデータ",
+                "圖片連結數據": "画像リンクデータ",
+                "等待失敗重試...": "失敗したリトライを待機中...",
+                "請求錯誤重新加載頁面": "リクエストエラー、ページを再読み込みしてください",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "ダウンロードデータが不完全です。キャッシュがクリアされます。ページをリフレッシュしてリロードすることをお勧めします",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "画像要素が見つかりません。あなたのIPがブロックされた可能性があります。ページをリフレッシュして再試行してください",
+                "範圍設置": "ダウンロード完了後に自動リセット\n\n単項設定: 1. 2, 3\n範囲設定: 1~5, 6-10\n除外設定: !5, -10\n"
+            }
+        }, Match = {
+            ko: Word.Korea,
+            ja: Word.Japan,
+            "en-US": Word.English,
+            "zh-CN": Word.Simplified,
+            "zh-SG": Word.Simplified,
+            "zh-TW": Word.Traditional,
+            "zh-HK": Word.Traditional,
+            "zh-MO": Word.Traditional
+        }, ML = Match[lang] ?? Match["en-US"];
+        return {
+            Transl: Str => ML[Str] ?? Str
         };
-        return display.hasOwnProperty(language) ? display[language][0] : display["en-US"][0];
     }
+    ButtonCore.Init();
 })();
