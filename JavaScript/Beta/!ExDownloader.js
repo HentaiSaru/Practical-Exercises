@@ -23,6 +23,7 @@
 // @namespace    https://greasyfork.org/users/989635
 
 // @run-at       document-body
+// @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_download
@@ -45,19 +46,16 @@
 設置壓縮級別
 設置圖片名格式
 切換壓縮下載模式
-
-重構添加
-~ 下載完成 自動關閉
-~ 下載頁數設置
 */
 
 (async () => {
 
     /* 使用者配置 */
     const Config = {
-        Dev: true,
-        ReTry: 15, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        Dev: false, // 開發模式 (會顯示除錯訊息)
+        ReTry: 10, // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false, // 是否下載原圖
+        CompleteClose: false, // 下載完成自動關閉
     };
 
     /* 下載配置 (不清楚不要修改) */
@@ -77,7 +75,7 @@
 
         Compr_Level: 5, // 壓縮的等級
         Lock: false, // 鎖定模式
-        Enforce: false, // 判斷強制下載狀態
+        Scope: undefined, // 下載範圍
         DisplayCache: undefined, // 緩存展示時的字串
         CurrentDownloadMode: undefined, // 紀錄當前模式
 
@@ -134,21 +132,32 @@
 
             /* 取得總頁數 */
             this.GetTotal = (page) => Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20);
+            /* 取得緩存 Key */
+            this.KEY = null;
+            this.GetCacheKey = () => {
+                if (!this.KEY) this.KEY = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
+                return this.KEY;
+            };
             /* 實例化後立即調用 */
             this.GetHomeData();
         };
 
         /* 按鈕與狀態重置 */
         async Reset() {
+            Config.CompleteClose && window.close();
             DConfig.Lock = false;
-            this.Button.disabled = false;
-            this.Button.textContent = `✓ ${ModeDisplay}`;
+            DConfig.Scope = false;
+
+            // 切換下載狀態時, 原先的按鈕會被刪除, 所以需要重新找到按鈕
+            const Button = Syn.$$("#ExDB");
+            Button.disabled = false;
+            Button.textContent = `✓ ${ModeDisplay}`;
         };
 
         /* 獲取主頁連結數據 */
         async GetHomeData() {
             const Name = Syn.NameFilter((Syn.$$("#gj").textContent || Syn.$$("#gn").textContent).trim()); // 取得漫畫名稱
-            const CacheData = Syn.Storage(`[${Name} - DownloadCache]`); // 嘗試獲取緩存數據
+            const CacheData = Syn.Storage(this.GetCacheKey()); // 嘗試獲取緩存數據
 
             DConfig.CurrentDownloadMode = CompressMode; // 將當前下載模式緩存
             this.ComicName = Name; // 將漫畫名稱緩存
@@ -257,7 +266,7 @@
                     const Link = Config.Original
                         ? (Original.href ?? Resample.src ?? Resample.href)
                         : (Resample.src ?? Resample.href);
-   
+
                     ImageData.push([index, Link]);
                     DConfig.DisplayCache = `[${++Task}/${Pages}]`;
                     document.title = DConfig.DisplayCache;
@@ -267,7 +276,7 @@
                         ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (主要是方便觀看, 非必要性操作)
                         const Processed = new Map(ImageData);
 
-                        Syn.Storage(`[${self.ComicName} - DownloadCache]`, { value: Processed }); // 緩存數據
+                        Syn.Storage(self.GetCacheKey(), { value: Processed }); // 緩存數據
                         self.StartTask(Processed);
                     };
                 } catch (error) { // 錯誤的直接跳過
@@ -284,6 +293,11 @@
                 `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, { dev: Config.Dev }
             );
 
+            // 範圍設置
+            if (DConfig.Scope) {
+                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap])); // 該函數主要是處理物件類型, 所以需要轉換
+            };
+
             DConfig.CurrentDownloadMode
                 ? this.PackDownload(DataMap)
                 : this.SingleDownload(DataMap);
@@ -297,13 +311,10 @@
             let Total = Data.size;
             const Fill = Syn.GetFill(Total); // 取得填充量
 
+            let Enforce = false; // 判斷強制下載狀態
             let ClearCache = false; // 判斷緩存是否被清除
             let ReTry = Config.ReTry; // 重試次數
             let Progress, Thread, Delay; // 宣告變數
-
-            Syn.Menu({
-                [Lang.Transl("📥 強制壓縮下載")]: {func: ()=> ForceDownload(), hotkey: "d"}
-            }, "Enforce");
 
             // 初始化變數
             function Init() {
@@ -312,16 +323,20 @@
                 Thread = DConfig.Download_IT; // 初始線程數
             };
 
-            // 強制下載
-            function ForceDownload() {
-                self.Compression(Zip);
-            };
+            Syn.Menu({
+                [Lang.Transl("📥 強制壓縮下載")]: {
+                    func: () => {
+                        Enforce = true; // 強制下載 (實驗性)
+                        self.Compression(Zip);
+                    }, hotkey: "d"
+                }
+            }, "Enforce");
 
             // 更新請求狀態 (開始請求時間, 數據的索引, 圖片連結, 圖片數據, 錯誤狀態)
-            function StatusUpdate(time, index, url, blob, error=false) {
+            function StatusUpdate(time, index, url, blob, error = false) {
                 Data.delete(index); // 清除完成的任務
-                if (DConfig.Enforce) return;
-                [ Delay, Thread ] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
+                if (Enforce) return;
+                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
 
                 if (error && typeof url === "string") {
                     Data.set(index, url); // 錯誤的重新添加 (正確的數據才添加)
@@ -341,13 +356,13 @@
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
 
-                        setTimeout(()=> {
-                            if (DConfig.Enforce) return;
+                        setTimeout(() => {
+                            if (Enforce) return;
                             Start(Data);
                         }, 1500);
                     } else { // 觸發壓縮
                         if (Total > 0) {
-                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), {type: "error"});
+                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), { type: "error" });
                         }
 
                         self.Compression(Zip);
@@ -357,7 +372,7 @@
 
             // 請求數據
             function Request(index, url) {
-                if (DConfig.Enforce) return;
+                if (Enforce) return;
                 const time = Date.now(); // 請求開始時間
 
                 if (typeof url !== "undefined") {
@@ -377,7 +392,7 @@
                 } else {
                     if (!ClearCache) {
                         ClearCache = true;
-                        sessionStorage.clear(); // 清除所有內容
+                        sessionStorage.removeItem(self.GetCacheKey()); // 清除緩存
                         Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
                     }
 
@@ -387,15 +402,15 @@
 
             // 發起請求任務
             async function Start(DataMap) {
-                if (DConfig.Enforce) return;
+                if (Enforce) return;
 
                 let Task = 0;
                 Init(); // 進行初始化
 
-                for (const [ index, url ] of DataMap.entries()) {
-                    if (DConfig.Enforce) break;
+                for (const [Index, Url] of DataMap.entries()) {
+                    if (Enforce) break;
 
-                    Request(index, url);
+                    Request(Index, Url);
                     if (++Task === Thread) { // 允許同時發出的請求數 (假線程)
                         Task = 0;
                         await Syn.Sleep(Delay);
@@ -408,7 +423,6 @@
 
         /* 壓縮輸出 */
         async Compression(Zip) {
-            DConfig.Enforce = true; // 壓縮時統一觸發鎖定 (避免重複壓縮)
             GM_unregisterMenuCommand("Enforce-1"); // 刪除強制下載按鈕
 
             Zip.generateAsync({
@@ -425,7 +439,6 @@
                 this.Button.textContent = Lang.Transl("壓縮完成");
 
                 setTimeout(() => {
-                    DConfig.Enforce = false;
                     this.Reset();
                 }, 3000);
             }).catch(result => {
@@ -433,10 +446,9 @@
 
                 DConfig.DisplayCache = Lang.Transl("壓縮失敗");
                 this.Button.textContent = DConfig.DisplayCache;
-                Syn.Log(DConfig.DisplayCache, result, {dev: Config.Dev, type: "error", collapsed: false});
+                Syn.Log(DConfig.DisplayCache, result, { dev: Config.Dev, type: "error", collapsed: false });
 
                 setTimeout(() => {
-                    DConfig.Enforce = false;
                     this.Button.disabled = false;
                     this.Button.textContent = ModeDisplay;
                 }, 6000);
@@ -449,6 +461,7 @@
 
             let Total = Data.size;
             const Fill = Syn.GetFill(Total);
+            const TaskPromises = []; // 紀錄任務完成
 
             let Progress = 0;
             let ClearCache = false;
@@ -456,6 +469,64 @@
             let Delay = DConfig.Download_ID;
             let Thread = DConfig.Download_IT;
 
+            async function Request(index, url, retry) {
+                const time = Date.now();
+                return new Promise((resolve, reject) => {
+                    if (typeof url !== "undefined") {
+                        GM_download({
+                            url: url,
+                            name: `${self.ComicName}-${Syn.Mantissa(index, Fill, "0", url)}`,
+                            onload: () => {
+                                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+
+                                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                                document.title = DConfig.DisplayCache;
+                                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
+                                resolve();
+                            },
+                            onerror: () => {
+                                if (retry > 0) {
+                                    [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+
+                                    Syn.Log(null, `[Delay:${Delay}|Thread:${Thread}|Retry:${retry}] : [${url}]`, { dev: Config.Dev, type: "error" });
+
+                                    setTimeout(() => {
+                                        reject();
+                                        Request(index, url, retry-1);
+                                    }, Delay * 2);
+                                } else {
+                                    reject(new Error("Request error"));
+                                }
+                            }
+                        });
+                    } else {
+                        if (!ClearCache) {
+                            ClearCache = true;
+                            sessionStorage.removeItem(self.GetCacheKey()); // 清除緩存
+                            Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
+                        }
+
+                        reject();
+                    }
+                });
+            };
+
+            /* 發起請求任務 */
+            let Task = 0;
+            for (const [Index, Url] of Data.entries()) {
+                TaskPromises.push(Request(Index, Url, ReTry));
+                if (++Task === Thread) {
+                    Task = 0;
+                    await Syn.Sleep(Delay);
+                }
+            };
+            await Promise.allSettled(TaskPromises); // 等待任務完成
+
+            this.Button.textContent = Lang.Transl("下載完成");
+            setTimeout(() => {
+                document.title = `✓ ${OriginalTitle}`;
+                this.Reset();
+            }, 3000);
         };
     };
 
@@ -528,6 +599,15 @@
             this.ButtonCreation();
         };
 
+        /* 下載範圍設置 */
+        async DownloadRangeSetting() {
+            let scope = prompt(Lang.Transl("範圍設置")) || false;
+            if (scope) {
+                const yes = confirm(`${Lang.Transl("確認設置範圍")}:\n${scope}`);
+                if (yes) DConfig.Scope = scope;
+            }
+        };
+
         /* 按鈕創建 */
         async ButtonCreation() {
             CompressMode = Syn.Store("g", "CompressedMode", []);
@@ -555,8 +635,10 @@
                 Core.ButtonCreation();
                 Syn.Menu({
                     [Lang.Transl("🔁 切換下載模式")]: {
-                        func: () => Core.DownloadModeSwitch(),
-                        close: false,
+                        func: () => Core.DownloadModeSwitch()
+                    },
+                    [Lang.Transl("⚙️ 下載範圍設置")]: {
+                        func: () => Core.DownloadRangeSetting()
                     }
                 });
             }
@@ -565,102 +647,120 @@
 
     function Language(lang) {
         const Word = {
-            Traditional: {},
+            Traditional: {
+                "範圍設置": "下載完成後自動重置\n\n單項設置: 1. 2, 3\n範圍設置: 1~5, 6-10\n排除設置: !5, -10\n",
+            },
             Simplified: {
-                "🔁 切換下載模式": "",
-                "📥 強制壓縮下載": "",
-                "壓縮下載": "",
-                "單圖下載": "",
-                "下載中鎖定": "",
-                "開始下載": "",
-                "獲取頁面": "",
-                "獲取連結": "",
-                "下載進度": "",
-                "壓縮進度": "",
-                "壓縮完成": "",
-                "壓縮失敗": "",
-                "下載完成": "",
-                "清理警告": "",
-                "剩餘重載次數": "",
-                "下載失敗數據": "",
-                "內頁跳轉數據": "",
-                "圖片連結數據": "",
-                "等待失敗重試...": "",
-                "請求錯誤重新加載頁面": "",
-                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "",
-                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "",
+                "🔁 切換下載模式": "🔁 切换下载模式",
+                "⚙️ 下載範圍設置": "⚙️ 下载范围设置",
+                "📥 強制壓縮下載": "📥 强制压缩下载",
+                "⛔️ 終止下載": "⛔️ 终止下载",
+                "壓縮下載": "压缩下载",
+                "單圖下載": "单图下载",
+                "下載中鎖定": "下载中锁定",
+                "開始下載": "开始下载",
+                "獲取頁面": "获取页面",
+                "獲取連結": "获取链接",
+                "下載進度": "下载进度",
+                "壓縮進度": "压缩进度",
+                "壓縮完成": "压缩完成",
+                "壓縮失敗": "压缩失败",
+                "下載完成": "下载完成",
+                "清理警告": "清理警告",
+                "確認設置範圍": "确认设置范围",
+                "剩餘重載次數": "剩余重载次数",
+                "下載失敗數據": "下载失败数据",
+                "內頁跳轉數據": "内页跳转数据",
+                "圖片連結數據": "图片链接数据",
+                "等待失敗重試...": "等待失败重试...",
+                "請求錯誤重新加載頁面": "请求错误重新加载页面",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "下载数据不完整将清除缓存, 建议刷新页面后重载",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "找不到图片元素, 你的 IP 可能被禁止了, 请刷新页面重试",
+                "範圍設置": "下载完成后自动重置\n\n单项设置: 1. 2, 3\n范围设置: 1~5, 6-10\n排除设置: !5, -10\n",
             },
             English: {
-                "🔁 切換下載模式": "",
-                "📥 強制壓縮下載": "",
-                "壓縮下載": "",
-                "單圖下載": "",
-                "下載中鎖定": "",
-                "開始下載": "",
-                "獲取頁面": "",
-                "獲取連結": "",
-                "下載進度": "",
-                "壓縮進度": "",
-                "壓縮完成": "",
-                "壓縮失敗": "",
-                "下載完成": "",
-                "清理警告": "",
-                "剩餘重載次數": "",
-                "下載失敗數據": "",
-                "內頁跳轉數據": "",
-                "圖片連結數據": "",
-                "等待失敗重試...": "",
-                "請求錯誤重新加載頁面": "",
-                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "",
-                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "",
+                "🔁 切換下載模式": "🔁 Switch download mode",
+                "⚙️ 下載範圍設置": "⚙️ Download range settings",
+                "📥 強制壓縮下載": "📥 Force compressed download",
+                "⛔️ 終止下載": "⛔️ Terminate download",
+                "壓縮下載": "Compressed download",
+                "單圖下載": "Single image download",
+                "下載中鎖定": "Locked during download",
+                "開始下載": "Start download",
+                "獲取頁面": "Fetch page",
+                "獲取連結": "Fetch link",
+                "下載進度": "Download progress",
+                "壓縮進度": "Compression progress",
+                "壓縮完成": "Compression complete",
+                "壓縮失敗": "Compression failed",
+                "下載完成": "Download complete",
+                "清理警告": "Clean up warning",
+                "確認設置範圍": "Confirm range settings",
+                "剩餘重載次數": "Remaining reload attempts",
+                "下載失敗數據": "Failed download data",
+                "內頁跳轉數據": "Inner page redirection data",
+                "圖片連結數據": "Image link data",
+                "等待失敗重試...": "Waiting for failed retry...",
+                "請求錯誤重新加載頁面": "Request error, reload the page",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "Download data is incomplete, cache will be cleared, it's recommended to refresh the page and reload",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "Image element not found, your IP might be blocked, please refresh the page and try again",
+                "範圍設置": "Automatically reset after download completion\n\nSingle item settings: 1. 2, 3\nRange settings: 1~5, 6-10\nExclusion settings: !5, -10\n",
             },
             Korea: {
-                "🔁 切換下載模式": "",
-                "📥 強制壓縮下載": "",
-                "壓縮下載": "",
-                "單圖下載": "",
-                "下載中鎖定": "",
-                "開始下載": "",
-                "獲取頁面": "",
-                "獲取連結": "",
-                "下載進度": "",
-                "壓縮進度": "",
-                "壓縮完成": "",
-                "壓縮失敗": "",
-                "下載完成": "",
-                "清理警告": "",
-                "剩餘重載次數": "",
-                "下載失敗數據": "",
-                "內頁跳轉數據": "",
-                "圖片連結數據": "",
-                "等待失敗重試...": "",
-                "請求錯誤重新加載頁面": "",
-                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "",
-                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "",
+                "🔁 切換下載模式": "🔁 다운로드 모드 전환",
+                "⚙️ 下載範圍設置": "⚙️ 다운로드 범위 설정",
+                "📥 強制壓縮下載": "📥 강제 압축 다운로드",
+                "⛔️ 終止下載": "⛔️ 다운로드 중단",
+                "壓縮下載": "압축 다운로드",
+                "單圖下載": "단일 이미지 다운로드",
+                "下載中鎖定": "다운로드 중 잠금",
+                "開始下載": "다운로드 시작",
+                "獲取頁面": "페이지 가져오기",
+                "獲取連結": "링크 가져오기",
+                "下載進度": "다운로드 진행",
+                "壓縮進度": "압축 진행",
+                "壓縮完成": "압축 완료",
+                "壓縮失敗": "압축 실패",
+                "下載完成": "다운로드 완료",
+                "清理警告": "경고 정리",
+                "確認設置範圍": "설정 범위 확인",
+                "剩餘重載次數": "남은 재시도 횟수",
+                "下載失敗數據": "다운로드 실패 데이터",
+                "內頁跳轉數據": "내부 페이지 리디렉션 데이터",
+                "圖片連結數據": "이미지 링크 데이터",
+                "等待失敗重試...": "실패 재시도를 기다리는 중...",
+                "請求錯誤重新加載頁面": "요청 오류, 페이지를 다시 로드하십시오",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "다운로드 데이터가 불완전합니다. 캐시가 지워집니다. 페이지를 새로고침하고 다시 로드하는 것이 좋습니다",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "이미지 요소를 찾을 수 없습니다. 귀하의 IP가 차단되었을 수 있습니다. 페이지를 새로고침하고 다시 시도하십시오",
+                "範圍設置": "다운로드 완료 후 자동 재설정\n\n단항 설정: 1. 2, 3\n범위 설정: 1~5, 6-10\n제외 설정: !5, -10\n",
             },
             Japan: {
-                "🔁 切換下載模式": "",
-                "📥 強制壓縮下載": "",
-                "壓縮下載": "",
-                "單圖下載": "",
-                "下載中鎖定": "",
-                "開始下載": "",
-                "獲取頁面": "",
-                "獲取連結": "",
-                "下載進度": "",
-                "壓縮進度": "",
-                "壓縮完成": "",
-                "壓縮失敗": "",
-                "下載完成": "",
-                "清理警告": "",
-                "剩餘重載次數": "",
-                "下載失敗數據": "",
-                "內頁跳轉數據": "",
-                "圖片連結數據": "",
-                "等待失敗重試...": "",
-                "請求錯誤重新加載頁面": "",
-                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "",
-                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "",
+                "🔁 切換下載模式": "🔁 ダウンロードモードの切り替え",
+                "⚙️ 下載範圍設置": "⚙️ ダウンロード範囲設定",
+                "📥 強制壓縮下載": "📥 強制圧縮ダウンロード",
+                "⛔️ 終止下載": "⛔️ ダウンロードを中止",
+                "壓縮下載": "圧縮ダウンロード",
+                "單圖下載": "単一画像のダウンロード",
+                "下載中鎖定": "ダウンロード中にロック",
+                "開始下載": "ダウンロードを開始",
+                "獲取頁面": "ページを取得",
+                "獲取連結": "リンクを取得",
+                "下載進度": "ダウンロード進行",
+                "壓縮進度": "圧縮進行",
+                "壓縮完成": "圧縮完了",
+                "壓縮失敗": "圧縮失敗",
+                "下載完成": "ダウンロード完了",
+                "清理警告": "警告のクリーニング",
+                "確認設置範圍": "設定範囲の確認",
+                "剩餘重載次數": "残りのリロード回数",
+                "下載失敗數據": "ダウンロード失敗データ",
+                "內頁跳轉數據": "内部ページリダイレクトデータ",
+                "圖片連結數據": "画像リンクデータ",
+                "等待失敗重試...": "失敗したリトライを待機中...",
+                "請求錯誤重新加載頁面": "リクエストエラー、ページを再読み込みしてください",
+                "下載數據不完整將清除緩存, 建議刷新頁面後重載": "ダウンロードデータが不完全です。キャッシュがクリアされます。ページをリフレッシュしてリロードすることをお勧めします",
+                "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "画像要素が見つかりません。あなたのIPがブロックされた可能性があります。ページをリフレッシュして再試行してください",
+                "範圍設置": "ダウンロード完了後に自動リセット\n\n単項設定: 1. 2, 3\n範囲設定: 1~5, 6-10\n除外設定: !5, -10\n",
             }
         }, Match = {
             ko: Word.Korea,
