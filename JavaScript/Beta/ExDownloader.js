@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta
+// @version      0.0.16-Beta1
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -53,15 +53,16 @@
     /* 使用者配置 */
     const Config = {
         Dev: false,           // 開發模式 (會顯示除錯訊息)
-        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
+        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過 
         Original: false,      // 是否下載原圖
         CompleteClose: false, // 下載完成自動關閉
     };
 
     /* 下載配置 (不清楚不要修改) */
     const DConfig = {
-        MAX_CONCURRENCY: 15, // 最大併發數
+        Compr_Level: 5,      // 壓縮的等級
         MIN_CONCURRENCY: 5,  // 最小併發數
+        MAX_CONCURRENCY: 15, // 最大併發數
         TIME_THRESHOLD: 350, // 響應時間閥值
 
         MAX_Delay: 3500,     // 最大延遲
@@ -73,12 +74,18 @@
         Download_ID: 300,    // 下載初始延遲
         Download_ND: 240,    // 下載最小延遲
 
-        Compr_Level: 5, // 壓縮的等級
-        Lock: false, // 鎖定模式
+        Lock: false, // 鎖定狀態
+        SortReverse: false, // 排序反轉
+
         Scope: undefined, // 下載範圍
         DisplayCache: undefined, // 緩存展示時的字串
         CurrentDownloadMode: undefined, // 紀錄當前模式
 
+        KeyCache: undefined, // 緩存鍵
+        GetKey: function () {
+            if (!this.KeyCache) this.KeyCache = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
+            return this.KeyCache;
+        },
         Dynamic: function (Time, Delay, Thread = null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
             if (ResponseTime > this.TIME_THRESHOLD) {
@@ -132,12 +139,6 @@
 
             /* 取得總頁數 */
             this.GetTotal = (page) => Math.ceil(+page[page.length - 2].textContent.replace(/\D/g, '') / 20);
-            /* 取得緩存 Key */
-            this.KEY = null;
-            this.GetCacheKey = () => {
-                if (!this.KEY) this.KEY = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
-                return this.KEY;
-            };
             /* 實例化後立即調用 */
             this.GetHomeData();
         };
@@ -157,7 +158,8 @@
         /* 獲取主頁連結數據 */
         async GetHomeData() {
             const Name = Syn.NameFilter((Syn.$$("#gj").textContent || Syn.$$("#gn").textContent).trim()); // 取得漫畫名稱
-            const CacheData = Syn.Storage(this.GetCacheKey()); // 嘗試獲取緩存數據
+            const CacheData = Syn.Storage(DConfig.GetKey()); // 嘗試獲取緩存數據
+            const ImgSet = Syn.$$("#gdc .ct6"); // 嘗試 取得圖片集 標籤
 
             DConfig.CurrentDownloadMode = CompressMode; // 將當前下載模式緩存
             this.ComicName = Name; // 將漫畫名稱緩存
@@ -166,6 +168,12 @@
             if (CacheData) {
                 this.StartTask(CacheData);
                 return;
+            };
+
+            /* 判斷是否為圖片集 */
+            if (ImgSet) {
+                const yes = confirm(Lang.Transl("檢測到圖片集 !!\n\n是否反轉排序後下載 ?"));
+                if (yes) DConfig.SortReverse = true;
             };
 
             /* ----- 數據請求 ----- */
@@ -234,6 +242,7 @@
         /* 獲取圖片連結數據 */
         async GetImageData(JumpList) {
             const Pages = JumpList.length; // 取得頁數
+            const ActualPages = Pages - 1; // 實際圖片頁數 (用於反轉計算)
             let Delay = DConfig.Image_ID; // 初始延遲
             let Task = 0; // 下載任務進度
 
@@ -256,27 +265,32 @@
             function GetLink(index, url, page) {
                 try {
                     const Resample = Syn.$$("#img", { root: page });
-                    const Original = Syn.$$("#i6 div:nth-of-type(3) a", { root: page });
+                    const Original = Syn.$$("#i6 div:last-of-type a", { root: page });
 
                     if (!Resample) { // 處理找不到圖片的錯誤
                         this.Worker.postMessage({ index: index, url: url, time: Date.now(), delay: Delay });
                         return;
                     };
 
+                    // 順序反轉
+                    const Index = DConfig.SortReverse ? ActualPages - index : index;
+
+                    // 處理圖片連結
                     const Link = Config.Original
                         ? (Original.href ?? Resample.src ?? Resample.href)
                         : (Resample.src ?? Resample.href);
 
-                    ImageData.push([index, Link]);
+                    ImageData.push([Index, Link]);
+
                     DConfig.DisplayCache = `[${++Task}/${Pages}]`;
                     document.title = DConfig.DisplayCache;
                     self.Button.textContent = `${Lang.Transl("獲取連結")}: ${DConfig.DisplayCache}`;
 
                     if (Task === Pages) {
-                        ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (主要是方便觀看, 非必要性操作)
+                        Config.Dev && ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (主要是方便觀看, 非必要性操作)
                         const Processed = new Map(ImageData);
 
-                        Syn.Storage(self.GetCacheKey(), { value: Processed }); // 緩存數據
+                        Syn.Storage(DConfig.GetKey(), { value: Processed }); // 緩存數據
                         self.StartTask(Processed);
                     };
                 } catch (error) { // 錯誤的直接跳過
@@ -392,7 +406,7 @@
                 } else {
                     if (!ClearCache) {
                         ClearCache = true;
-                        sessionStorage.removeItem(self.GetCacheKey()); // 清除緩存
+                        sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
                         Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
                     }
 
@@ -502,7 +516,7 @@
                     } else {
                         if (!ClearCache) {
                             ClearCache = true;
-                            sessionStorage.removeItem(self.GetCacheKey()); // 清除緩存
+                            sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
                             Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
                         }
 
@@ -633,6 +647,14 @@
                 OriginalTitle = document.title;
                 Lang = Language(Syn.Device.Lang);
                 Core.ButtonCreation();
+
+                if (Syn.Storage(DConfig.GetKey())) {
+                    const menu = GM_registerMenuCommand(Lang.Transl("🚮 清除數據緩存"), ()=> {
+                        sessionStorage.removeItem(DConfig.GetKey());
+                        GM_unregisterMenuCommand(menu);
+                    });
+                };
+
                 Syn.Menu({
                     [Lang.Transl("🔁 切換下載模式")]: {
                         func: () => Core.DownloadModeSwitch()
@@ -641,7 +663,7 @@
                         func: () => Core.DownloadRangeSetting()
                     }
                 });
-            }
+            };
         };
     };
 
@@ -651,6 +673,7 @@
                 "範圍設置": "下載完成後自動重置\n\n單項設置: 1. 2, 3\n範圍設置: 1~5, 6-10\n排除設置: !5, -10\n",
             },
             Simplified: {
+                "🚮 清除數據緩存": "🚮 清除数据缓存",
                 "🔁 切換下載模式": "🔁 切换下载模式",
                 "⚙️ 下載範圍設置": "⚙️ 下载范围设置",
                 "📥 強制壓縮下載": "📥 强制压缩下载",
@@ -674,11 +697,13 @@
                 "圖片連結數據": "图片链接数据",
                 "等待失敗重試...": "等待失败重试...",
                 "請求錯誤重新加載頁面": "请求错误重新加载页面",
+                "檢測到圖片集 !!\n\n是否反轉排序後下載 ?": "检测到图片集 !!\n\n是否反转排序后下载？",
                 "下載數據不完整將清除緩存, 建議刷新頁面後重載": "下载数据不完整将清除缓存, 建议刷新页面后重载",
                 "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "找不到图片元素, 你的 IP 可能被禁止了, 请刷新页面重试",
                 "範圍設置": "下载完成后自动重置\n\n单项设置: 1. 2, 3\n范围设置: 1~5, 6-10\n排除设置: !5, -10\n",
             },
             English: {
+                "🚮 清除數據緩存": "🚮 Clear data cache",
                 "🔁 切換下載模式": "🔁 Switch download mode",
                 "⚙️ 下載範圍設置": "⚙️ Download range settings",
                 "📥 強制壓縮下載": "📥 Force compressed download",
@@ -702,11 +727,13 @@
                 "圖片連結數據": "Image link data",
                 "等待失敗重試...": "Waiting for failed retry...",
                 "請求錯誤重新加載頁面": "Request error, reload the page",
+                "檢測到圖片集 !!\n\n是否反轉排序後下載 ?": "Image collection detected !!\n\nWould you like to reverse the order and download?",
                 "下載數據不完整將清除緩存, 建議刷新頁面後重載": "Download data is incomplete, cache will be cleared, it's recommended to refresh the page and reload",
                 "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "Image element not found, your IP might be blocked, please refresh the page and try again",
                 "範圍設置": "Automatically reset after download completion\n\nSingle item settings: 1. 2, 3\nRange settings: 1~5, 6-10\nExclusion settings: !5, -10\n",
             },
             Korea: {
+                "🚮 清除數據緩存": "🚮 데이터 캐시 삭제",
                 "🔁 切換下載模式": "🔁 다운로드 모드 전환",
                 "⚙️ 下載範圍設置": "⚙️ 다운로드 범위 설정",
                 "📥 強制壓縮下載": "📥 강제 압축 다운로드",
@@ -730,11 +757,13 @@
                 "圖片連結數據": "이미지 링크 데이터",
                 "等待失敗重試...": "실패 재시도를 기다리는 중...",
                 "請求錯誤重新加載頁面": "요청 오류, 페이지를 다시 로드하십시오",
+                "檢測到圖片集 !!\n\n是否反轉排序後下載 ?": "이미지 모음이 감지되었습니다 !!\n\n역순으로 정렬하여 다운로드하시겠습니까?",
                 "下載數據不完整將清除緩存, 建議刷新頁面後重載": "다운로드 데이터가 불완전합니다. 캐시가 지워집니다. 페이지를 새로고침하고 다시 로드하는 것이 좋습니다",
                 "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "이미지 요소를 찾을 수 없습니다. 귀하의 IP가 차단되었을 수 있습니다. 페이지를 새로고침하고 다시 시도하십시오",
                 "範圍設置": "다운로드 완료 후 자동 재설정\n\n단항 설정: 1. 2, 3\n범위 설정: 1~5, 6-10\n제외 설정: !5, -10\n",
             },
             Japan: {
+                "🚮 清除數據緩存": "🚮 データキャッシュを削除",
                 "🔁 切換下載模式": "🔁 ダウンロードモードの切り替え",
                 "⚙️ 下載範圍設置": "⚙️ ダウンロード範囲設定",
                 "📥 強制壓縮下載": "📥 強制圧縮ダウンロード",
@@ -758,6 +787,7 @@
                 "圖片連結數據": "画像リンクデータ",
                 "等待失敗重試...": "失敗したリトライを待機中...",
                 "請求錯誤重新加載頁面": "リクエストエラー、ページを再読み込みしてください",
+                "檢測到圖片集 !!\n\n是否反轉排序後下載 ?": "画像集が検出されました !!\n\n逆順に並べ替えてダウンロードしますか？",
                 "下載數據不完整將清除緩存, 建議刷新頁面後重載": "ダウンロードデータが不完全です。キャッシュがクリアされます。ページをリフレッシュしてリロードすることをお勧めします",
                 "找不到圖片元素, 你的 IP 可能被禁止了, 請刷新頁面重試": "画像要素が見つかりません。あなたのIPがブロックされた可能性があります。ページをリフレッシュして再試行してください",
                 "範圍設置": "ダウンロード完了後に自動リセット\n\n単項設定: 1. 2, 3\n範囲設定: 1~5, 6-10\n除外設定: !5, -10\n",
