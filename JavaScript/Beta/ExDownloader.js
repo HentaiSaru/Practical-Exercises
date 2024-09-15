@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta1
+// @version      0.0.16-Beta2
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -55,6 +55,7 @@
         Dev: false,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
+        ResetScope: true,     // 下載完成後 重置範圍設置
         CompleteClose: false, // 下載完成自動關閉
     };
 
@@ -146,11 +147,11 @@
         /* 按鈕與狀態重置 */
         async Reset() {
             Config.CompleteClose && window.close();
-            DConfig.Lock = false;
-            DConfig.Scope = false;
+            Config.ResetScope && (DConfig.Scope = false);
 
             // 切換下載狀態時, 原先的按鈕會被刪除, 所以需要重新找到按鈕
             const Button = Syn.$$("#ExDB");
+            DConfig.Lock = false;
             Button.disabled = false;
             Button.textContent = `✓ ${ModeDisplay}`;
         };
@@ -164,16 +165,16 @@
             DConfig.CurrentDownloadMode = CompressMode; // 將當前下載模式緩存
             this.ComicName = Name; // 將漫畫名稱緩存
 
+            /* 判斷是否為圖片集 (每次下載都可重新設置) */
+            if (ImgSet) {
+                const yes = confirm(Lang.Transl("檢測到圖片集 !!\n\n是否反轉排序後下載 ?"));
+                yes ? (DConfig.SortReverse = true) : (DConfig.SortReverse = false);
+            };
+
             /* 當存在緩存時, 直接啟動下載任務 */
             if (CacheData) {
                 this.StartTask(CacheData);
                 return;
-            };
-
-            /* 判斷是否為圖片集 */
-            if (ImgSet) {
-                const yes = confirm(Lang.Transl("檢測到圖片集 !!\n\n是否反轉排序後下載 ?"));
-                if (yes) DConfig.SortReverse = true;
             };
 
             /* ----- 數據請求 ----- */
@@ -242,7 +243,6 @@
         /* 獲取圖片連結數據 */
         async GetImageData(JumpList) {
             const Pages = JumpList.length; // 取得頁數
-            const ActualPages = Pages - 1; // 實際圖片頁數 (用於反轉計算)
             let Delay = DConfig.Image_ID; // 初始延遲
             let Task = 0; // 下載任務進度
 
@@ -272,22 +272,19 @@
                         return;
                     };
 
-                    // 順序反轉
-                    const Index = DConfig.SortReverse ? ActualPages - index : index;
-
                     // 處理圖片連結
                     const Link = Config.Original
                         ? (Original.href ?? Resample.src ?? Resample.href)
                         : (Resample.src ?? Resample.href);
 
-                    ImageData.push([Index, Link]);
+                    ImageData.push([index, Link]);
 
                     DConfig.DisplayCache = `[${++Task}/${Pages}]`;
                     document.title = DConfig.DisplayCache;
                     self.Button.textContent = `${Lang.Transl("獲取連結")}: ${DConfig.DisplayCache}`;
 
                     if (Task === Pages) {
-                        Config.Dev && ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (主要是方便觀看, 非必要性操作)
+                        ImageData.sort((a, b) => a[0] - b[0]); // 進行排序 (方便範圍設置)
                         const Processed = new Map(ImageData);
 
                         Syn.Storage(DConfig.GetKey(), { value: Processed }); // 緩存數據
@@ -300,8 +297,8 @@
             };
         };
 
-        /* 任務啟動器 */
-        async StartTask(DataMap) {
+        /* 任務啟動器 (配置處理) */
+        StartTask(DataMap) {
             Syn.Log(
                 Lang.Transl("圖片連結數據"),
                 `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, { dev: Config.Dev }
@@ -309,7 +306,17 @@
 
             // 範圍設置
             if (DConfig.Scope) {
-                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap])); // 該函數主要是處理物件類型, 所以需要轉換
+                DataMap = new Map( // 該函數主要是處理物件類型, 所以需要轉換
+                    Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]) // 有範圍設置的重新設置 Index
+                );
+            };
+
+            // 反向排序 (需要再範圍設置後, 才運行反向)
+            if (DConfig.SortReverse) {
+                const Size = DataMap.size - 1; // 取得真實長度
+                DataMap = new Map(
+                    [...DataMap.entries()].map(([index, url]) => [Size - index, url]) // 用原始長度 - 索引值 進行反向替換
+                );
             };
 
             DConfig.CurrentDownloadMode
@@ -379,8 +386,11 @@
                             Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), { type: "error" });
                         }
 
+                        Enforce = true;
                         self.Compression(Zip);
                     }
+                } else if (Progress > Total) {
+                    Init();
                 }
             };
 
@@ -418,8 +428,8 @@
             async function Start(DataMap) {
                 if (Enforce) return;
 
-                let Task = 0;
                 Init(); // 進行初始化
+                let Task = 0;
 
                 for (const [Index, Url] of DataMap.entries()) {
                     if (Enforce) break;
@@ -437,7 +447,26 @@
 
         /* 壓縮輸出 */
         async Compression(Zip) {
+            const self = this;
             GM_unregisterMenuCommand("Enforce-1"); // 刪除強制下載按鈕
+
+            function ErrorProcess(result) {
+                document.title = OriginalTitle;
+
+                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
+                self.Button.textContent = DConfig.DisplayCache;
+                Syn.Log(DConfig.DisplayCache, result, { dev: Config.Dev, type: "error", collapsed: false });
+
+                setTimeout(() => {
+                    self.Button.disabled = false;
+                    self.Button.textContent = ModeDisplay;
+                }, 4500);
+            };
+
+            if (Object.keys(Zip.files).length == 0) {
+                ErrorProcess("無數據可壓縮");
+                return;
+            };
 
             Zip.generateAsync({
                 type: "blob",
@@ -456,16 +485,7 @@
                     this.Reset();
                 }, 3000);
             }).catch(result => {
-                document.title = OriginalTitle;
-
-                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
-                this.Button.textContent = DConfig.DisplayCache;
-                Syn.Log(DConfig.DisplayCache, result, { dev: Config.Dev, type: "error", collapsed: false });
-
-                setTimeout(() => {
-                    this.Button.disabled = false;
-                    this.Button.textContent = ModeDisplay;
-                }, 6000);
+                ErrorProcess(result);
             })
         };
 
