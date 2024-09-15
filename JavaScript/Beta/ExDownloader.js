@@ -383,7 +383,9 @@
                         }, 1500);
                     } else { // 觸發壓縮
                         if (Total > 0) {
-                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify([...Data], null, 4), { type: "error" });
+                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(
+                                [...Data].sort((a, b) => a[0] - b[0]), null, 4
+                            ), { type: "error" });
                         }
 
                         Enforce = true;
