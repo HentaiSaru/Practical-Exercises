@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta1
+// @version      0.0.16-Beta2
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -43,6 +43,7 @@
         Dev: false,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
+        ResetScope: true,     // 下載完成後 重置範圍設置
         CompleteClose: false, // 下載完成自動關閉
     };
 
@@ -62,12 +63,14 @@
         Download_ID: 300,    // 下載初始延遲
         Download_ND: 240,    // 下載最小延遲
 
-        Lock: false,
-        SortReverse: false,
-        Scope: undefined,
-        KeyCache: undefined,
-        DisplayCache: undefined,
-        CurrentDownloadMode: undefined,
+        Lock: false, // 鎖定狀態
+        SortReverse: false, // 排序反轉
+
+        Scope: undefined, // 下載範圍
+        DisplayCache: undefined, // 緩存展示時的字串
+        CurrentDownloadMode: undefined, // 紀錄當前模式
+
+        KeyCache: undefined, // 緩存鍵
         GetKey: function () {
             if (!this.KeyCache) this.KeyCache = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
             return this.KeyCache;
@@ -123,9 +126,9 @@
         }
         async Reset() {
             Config.CompleteClose && window.close();
-            DConfig.Lock = false;
-            DConfig.Scope = false;
+            Config.ResetScope && (DConfig.Scope = false);
             const Button = Syn.$$("#ExDB");
+            DConfig.Lock = false;
             Button.disabled = false;
             Button.textContent = `✓ ${ModeDisplay}`;
         }
@@ -135,13 +138,13 @@
             const ImgSet = Syn.$$("#gdc .ct6");
             DConfig.CurrentDownloadMode = CompressMode;
             this.ComicName = Name;
+            if (ImgSet) {
+                const yes = confirm(Lang.Transl("檢測到圖片集 !!\n\n是否反轉排序後下載 ?"));
+                yes ? DConfig.SortReverse = true : DConfig.SortReverse = false;
+            }
             if (CacheData) {
                 this.StartTask(CacheData);
                 return;
-            }
-            if (ImgSet) {
-                const yes = confirm(Lang.Transl("檢測到圖片集 !!\n\n是否反轉排序後下載 ?"));
-                if (yes) DConfig.SortReverse = true;
             }
             const Pages = this.GetTotal(Syn.$$("#gdd td.gdt2", {
                 all: true
@@ -213,7 +216,6 @@
         }
         async GetImageData(JumpList) {
             const Pages = JumpList.length;
-            const ActualPages = Pages - 1;
             let Delay = DConfig.Image_ID;
             let Task = 0;
             for (let index = 0; index < Pages; index++) {
@@ -260,14 +262,13 @@
                         });
                         return;
                     }
-                    const Index = DConfig.SortReverse ? ActualPages - index : index;
                     const Link = Config.Original ? Original.href ?? Resample.src ?? Resample.href : Resample.src ?? Resample.href;
-                    ImageData.push([Index, Link]);
+                    ImageData.push([index, Link]);
                     DConfig.DisplayCache = `[${++Task}/${Pages}]`;
                     document.title = DConfig.DisplayCache;
                     self.Button.textContent = `${Lang.Transl("獲取連結")}: ${DConfig.DisplayCache}`;
                     if (Task === Pages) {
-                        Config.Dev && ImageData.sort((a, b) => a[0] - b[0]);
+                        ImageData.sort((a, b) => a[0] - b[0]);
                         const Processed = new Map(ImageData);
                         Syn.Storage(DConfig.GetKey(), {
                             value: Processed
@@ -283,12 +284,16 @@
                 }
             }
         }
-        async StartTask(DataMap) {
+        StartTask(DataMap) {
             Syn.Log(Lang.Transl("圖片連結數據"), `${this.ComicName}\n${JSON.stringify([...DataMap], null, 4)}`, {
                 dev: Config.Dev
             });
             if (DConfig.Scope) {
-                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]));
+                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]));
+            }
+            if (DConfig.SortReverse) {
+                const Size = DataMap.size - 1;
+                DataMap = new Map([...DataMap.entries()].map(([index, url]) => [Size - index, url]));
             }
             DConfig.CurrentDownloadMode ? this.PackDownload(DataMap) : this.SingleDownload(DataMap);
         }
@@ -343,8 +348,11 @@
                                 type: "error"
                             });
                         }
+                        Enforce = true;
                         self.Compression(Zip);
                     }
+                } else if (Progress > Total) {
+                    Init();
                 }
             }
             function Request(index, url) {
@@ -376,8 +384,8 @@
             }
             async function Start(DataMap) {
                 if (Enforce) return;
-                let Task = 0;
                 Init();
+                let Task = 0;
                 for (const [Index, Url] of DataMap.entries()) {
                     if (Enforce) break;
                     Request(Index, Url);
@@ -390,7 +398,26 @@
             Start(Data);
         }
         async Compression(Zip) {
+            const self = this;
             GM_unregisterMenuCommand("Enforce-1");
+            function ErrorProcess(result) {
+                document.title = OriginalTitle;
+                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
+                self.Button.textContent = DConfig.DisplayCache;
+                Syn.Log(DConfig.DisplayCache, result, {
+                    dev: Config.Dev,
+                    type: "error",
+                    collapsed: false
+                });
+                setTimeout(() => {
+                    self.Button.disabled = false;
+                    self.Button.textContent = ModeDisplay;
+                }, 4500);
+            }
+            if (Object.keys(Zip.files).length == 0) {
+                ErrorProcess("無數據可壓縮");
+                return;
+            }
             Zip.generateAsync({
                 type: "blob",
                 compression: "DEFLATE",
@@ -409,18 +436,7 @@
                     this.Reset();
                 }, 3e3);
             }).catch(result => {
-                document.title = OriginalTitle;
-                DConfig.DisplayCache = Lang.Transl("壓縮失敗");
-                this.Button.textContent = DConfig.DisplayCache;
-                Syn.Log(DConfig.DisplayCache, result, {
-                    dev: Config.Dev,
-                    type: "error",
-                    collapsed: false
-                });
-                setTimeout(() => {
-                    this.Button.disabled = false;
-                    this.Button.textContent = ModeDisplay;
-                }, 6e3);
+                ErrorProcess(result);
             });
         }
         async SingleDownload(Data) {
