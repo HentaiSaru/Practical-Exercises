@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.31-Beta
+// @version      0.0.31
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -33,6 +33,7 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
 // @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
@@ -63,7 +64,7 @@
                 requestAnimationFrame(() => {
                     $(".modal-background").css({
                         opacity: "1",
-                        "background-color": "rgba(0,0,0,0.5)",
+                        "background-color": "rgba(0,0,0,0.7)",
                         transform: "translate(-50%, -50%) scale(1)"
                     });
                 });
@@ -81,7 +82,7 @@
                 }, 1300);
             };
             this.GlobalMenuToggle = async () => {
-                Syn.StoreListen([ "Expand" ], listen => {
+                Syn.StoreListen(["Expand"], listen => {
                     listen.far && this.MenuToggle();
                 });
             };
@@ -172,17 +173,24 @@
         async UpdateShared() {
             const Shared = await this.GetSharedDict();
             if (Object.keys(Shared).length > 0) {
-                this.Share = Shared;
-                Syn.Store("s", "Share", Shared);
-                this.Growl(Lang.Transl("共享數據獲取成功"), "jGrowl", 1500);
-                const modal = Syn.$$(".modal-background");
-                if (modal) {
-                    setTimeout(() => {
-                        modal.remove();
-                        this.SharedLogin();
-                    }, 800);
+                const localHash = md5(JSON.stringify(Syn.Store("g", "Share", {})));
+                const remoteHash = md5(JSON.stringify(Shared));
+                if (localHash !== remoteHash) {
+                    this.Share = Shared;
+                    Syn.Store("s", "Share", Shared);
+                    this.Growl(Lang.Transl("共享數據更新完成"), "jGrowl", 1500);
+                    const modal = Syn.$$(".modal-background");
+                    if (modal) {
+                        setTimeout(() => {
+                            modal.remove();
+                            this.SharedLogin();
+                        }, 600);
+                    }
+                } else {
+                    this.Growl(Lang.Transl("共享數據無需更新"), "jGrowl", 1500);
                 }
             } else {
+                Syn.Store("s", "Share", {});
                 this.Growl(Lang.Transl("共享數據獲取失敗"), "jGrowl", 1500);
             }
         }
@@ -213,7 +221,7 @@
             this.CreateMenu();
             Value && $("#account-select").val(Value);
             const self = this;
-            self.on(".modal-background", "click", function(click) {
+            self.on(".modal-background", "click", function (click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "login") {
@@ -227,7 +235,7 @@
         }
         async GetCookieAutomatically() {
             let cookie_box = [];
-            for (const [ name, value ] of Object.entries(CKOP.Get())) {
+            for (const [name, value] of Object.entries(CKOP.Get())) {
                 cookie_box.push({
                     name: name,
                     value: value
@@ -251,7 +259,7 @@
             `;
             this.CreateMenu();
             const self = this;
-            self.on(".modal-background", "click", function(click) {
+            self.on(".modal-background", "click", function (click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "save") {
@@ -292,10 +300,10 @@
                 cols: 40,
                 readonly: true
             }), self = this;
-            self.on("#set_cookies", "submit", function(submit) {
+            self.on("#set_cookies", "submit", function (submit) {
                 submit.preventDefault();
                 submit.stopImmediatePropagation();
-                const cookie_list = Array.from($("#set_cookies .set-list")).map(function(input) {
+                const cookie_list = Array.from($("#set_cookies .set-list")).map(function (input) {
                     const value = $(input).val();
                     return value.trim() !== "" ? {
                         name: $(input).attr("name"),
@@ -307,7 +315,7 @@
                 $("#set_cookies div").append(textarea);
                 self.Growl(Lang.Transl("[確認輸入正確]按下退出選單保存"), "jGrowl", 3e3);
             });
-            self.on(".modal-background", "click", function(click) {
+            self.on(".modal-background", "click", function (click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.className == "modal-background" || target.id == "close") {
@@ -339,7 +347,7 @@
             }), self = this;
             textarea.val(JSON.stringify(cookie, null, 4));
             $("#view_cookies").append(textarea);
-            self.on(".modal-background", "click", function(click) {
+            self.on(".modal-background", "click", function (click) {
                 click.stopImmediatePropagation();
                 const target = click.target;
                 if (target.id == "save") {
@@ -396,7 +404,7 @@
                 ${GM_getResourceText("jgrowl-css")}
                 .jGrowl {
                     ${jGrowl_style}
-                    top: 0;
+                    top: 2rem;
                     left: 50%;
                     width: auto;
                     z-index: 9999;
@@ -421,9 +429,9 @@
                 }
                 .acc-modal {
                     ${show_style}
-                    width: 16%;
+                    width: 18%;
                     overflow: auto;
-                    margin: 10rem auto;
+                    margin: 11rem auto;
                     border-radius: 10px;
                 }
                 .acc-select-flex {
@@ -434,6 +442,7 @@
                 }
                 .acc-button-flex {
                     display: flex;
+                    padding: 0 0 15px 0;
                     justify-content: center;
                 }
                 .acc-select {
@@ -512,17 +521,17 @@
         Today.setFullYear(Today.getFullYear() + 1);
         const Expires = Today.toUTCString();
         const UnixUTC = new Date(0).toUTCString();
-        let RequiredCookie = [ "ipb_member_id", "ipb_pass_hash" ];
+        let RequiredCookie = ["ipb_member_id", "ipb_pass_hash"];
         if (domain == "exhentai.org") RequiredCookie.unshift("igneous");
         return {
             Get: () => {
                 return document.cookie.split("; ").reduce((acc, cookie) => {
-                    const [ name, value ] = cookie.split("=");
+                    const [name, value] = cookie.split("=");
                     acc[decodeURIComponent(name)] = decodeURIComponent(value);
                     return acc;
                 }, {});
             },
-            Add: function(CookieObject) {
+            Add: function (CookieObject) {
                 Syn.Storage("DetectionTime", {
                     type: localStorage,
                     value: new Date().getTime()
@@ -532,23 +541,22 @@
                 }
                 location.reload();
             },
-            Delete: function() {
+            Delete: function () {
                 Object.keys(this.Get()).forEach(Name => {
                     document.cookie = `${Name}=; expires=${UnixUTC}; path=/;`;
                     document.cookie = `${Name}=; expires=${UnixUTC}; path=/; domain=.${domain}`;
                 });
             },
-            ReAdd: function(Cookies) {
+            ReAdd: function (Cookies) {
                 this.Delete();
                 this.Add(Cookies);
             },
-            Verify: function(Cookies) {
+            Verify: function (Cookies) {
                 const Cookie = this.Get();
                 const VCookie = new Set(Object.keys(Cookie));
                 const Result = RequiredCookie.every(key => VCookie.has(key) && Cookie[key] !== "mystery");
                 if (!Result) {
-                    this.Delete();
-                    this.Add(Cookies);
+                    this.ReAdd(Cookies);
                 } else {
                     Syn.Storage("DetectionTime", {
                         type: localStorage,
@@ -590,7 +598,8 @@
                 "帳戶選擇": "账户选择",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "未获取到 Cookies !!\n\n请先登录账户",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
-                "共享數據獲取成功": "共享数据获取成功",
+                "共享數據更新完成": "共享数据更新完成",
+                "共享數據無需更新": "共享数据无需更新",
                 "共享數據獲取失敗": "共享数据获取失败",
                 "請求為空數據": "请求为空数据",
                 "連線異常，更新地址可能是錯的": "连接异常，更新地址可能是错的",
@@ -625,7 +634,8 @@
                 "帳戶選擇": "Account Selection",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "No Cookies Retrieved !!\n\nPlease Login First",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "No Injectable Cookies Detected !!\n\nPlease Set in Menu",
-                "共享數據獲取成功": "Shared Data Retrieval Successful",
+                "共享數據更新完成": "Shared data update completed",
+                "共享數據無需更新": "No need to update shared data",
                 "共享數據獲取失敗": "Shared Data Retrieval Failed",
                 "請求為空數據": "Request Contains No Data",
                 "連線異常，更新地址可能是錯的": "Connection error, the update address may be incorrect",
@@ -660,7 +670,8 @@
                 "帳戶選擇": "계정 선택",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "쿠키를 가져오지 못했습니다 !!\n\n먼저 로그인 해주세요",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "주입 가능한 쿠키를 감지하지 못했습니다 !!\n\n메뉴에서 설정해 주세요",
-                "共享數據獲取成功": "공유 데이터 가져오기 성공",
+                "共享數據更新完成": "공유 데이터 업데이트 완료",
+                "共享數據無需更新": "공유 데이터 업데이트 필요 없음",
                 "共享數據獲取失敗": "공유 데이터 가져오기 실패",
                 "請求為空數據": "요청 데이터가 비어 있습니다",
                 "連線異常，更新地址可能是錯的": "연결 이상, 업데이트 주소가 잘못되었을 수 있습니다",
@@ -695,7 +706,8 @@
                 "帳戶選擇": "アカウント選択",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "クッキーを取得できませんでした!!\n\n先にログインしてください",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
-                "共享數據獲取成功": "共有データの取得に成功しました",
+                "共享數據更新完成": "共有データの更新が完了しました",
+                "共享數據無需更新": "共有データを更新する必要がありません",
                 "共享數據獲取失敗": "共有データの取得に失敗しました",
                 "請求為空數據": "リクエストが空データです",
                 "連線異常，更新地址可能是錯的": "接続異常、更新されたアドレスが間違っている可能性があります",
