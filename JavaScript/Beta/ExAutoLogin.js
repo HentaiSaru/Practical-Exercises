@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] 自動ログイン
 // @name:ko      [E/Ex-Hentai] 자동 로그인
 // @name:en      [E/Ex-Hentai] AutoLogin
-// @version      0.0.31-Beta
+// @version      0.0.31
 // @author       Canaan HS
 // @description         E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
 // @description:zh-TW   E/Ex - 共享帳號登入、自動獲取 Cookies、手動輸入 Cookies、本地備份以及查看備份，自動檢測登入
@@ -33,6 +33,7 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
 // @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.js
 // @resource     jgrowl-css https://cdnjs.cloudflare.com/ajax/libs/jquery-jgrowl/1.4.9/jquery.jgrowl.min.css
@@ -53,20 +54,20 @@
             /* 添加監聽器 */
             this.on = async(element, type, listener) => {
                 $(element).on(type, listener);
-            }
+            };
 
             /* 通知展示 */
             this.Growl = async(message, theme, life) => {
                 $.jGrowl(`&emsp;&emsp;${message}&emsp;&emsp;`, {
                     theme: theme, life: life
                 });
-            }
+            };
 
             /* 創建選單前檢測 (刪除重創) */
             this.CreateDetection = () => {
                 const detection = $(".modal-background");
                 detection[0] && detection.remove();
-            }
+            };
 
             /* 創建菜單 */
             this.CreateMenu = async() => {
@@ -74,11 +75,11 @@
                 requestAnimationFrame(()=> {
                     $(".modal-background").css({
                         "opacity": "1",
-                        "background-color": "rgba(0,0,0,0.5)",
+                        "background-color": "rgba(0,0,0,0.7)",
                         "transform": "translate(-50%, -50%) scale(1)"
                     });
                 });
-            }
+            };
 
             /* 刪除菜單 */
             this.DeleteMenu = async() => {
@@ -90,14 +91,14 @@
                     "transform": "translate(-50%, -50%) scale(0)"
                 });
                 setTimeout(()=> {modal.remove()}, 1300);
-            }
+            };
 
             /* 監聽選單切換, 全局套用 */
             this.GlobalMenuToggle = async() => {
                 Syn.StoreListen(["Expand"], listen=> {
                     listen.far && this.MenuToggle();
                 });
-            }
+            };
 
             /* 切換開合選單 */
             this.MenuToggle = async() => {
@@ -113,7 +114,7 @@
                 }, "Switch");
                 // 開合需要比切換菜單晚創建, 不然會跑版
                 state ? this.Expand() : this.Collapse();
-            }
+            };
 
             /* 創建延伸選單 */
             this.Expand = async() => {
@@ -124,13 +125,13 @@
                     [Lang.Transl("🔃 手動注入")]: {func: ()=> this.CookieInjection() },
                     [Lang.Transl("🗑️ 清除登入")]: {func: ()=> this.ClearLogin() },
                 }, "Expand");
-            }
+            };
 
             /* 刪除延伸選單 */
             this.Collapse = async() => {
                 for (let i=1; i <= 5; i++) {GM_unregisterMenuCommand("Expand-" + i)}
-            }
-        }
+            };
+        };
 
         /* 主要調用 */
         async Main() {
@@ -147,7 +148,7 @@
             Syn.Menu({[Lang.Transl("🍪 共享登入")]: {func: ()=> this.SharedLogin()}});
             this.MenuToggle();
             this.GlobalMenuToggle();
-        }
+        };
 
         /* 請求共享數據 */
         async GetSharedDict() {
@@ -176,27 +177,36 @@
                     }
                 })
             })
-        }
+        };
 
         /* 更新共享數據 */
         async UpdateShared() {
             const Shared = await this.GetSharedDict();
-            if (Object.keys(Shared).length > 0) {
-                this.Share = Shared;
-                Syn.Store("s", "Share", Shared);
-                this.Growl(Lang.Transl("共享數據獲取成功"), "jGrowl", 1500);
 
-                const modal = Syn.$$(".modal-background");
-                if (modal) {
-                    setTimeout(()=> {
-                        modal.remove();
-                        this.SharedLogin();
-                    }, 800);
+            if (Object.keys(Shared).length > 0) {
+                const localHash = md5(JSON.stringify(Syn.Store("g", "Share", {})));
+                const remoteHash = md5(JSON.stringify(Shared));
+
+                if (localHash !== remoteHash) {
+                    this.Share = Shared;
+                    Syn.Store("s", "Share", Shared);
+                    this.Growl(Lang.Transl("共享數據更新完成"), "jGrowl", 1500);
+
+                    const modal = Syn.$$(".modal-background");
+                    if (modal) {
+                        setTimeout(()=> {
+                            modal.remove();
+                            this.SharedLogin();
+                        }, 600);
+                    };
+                } else {
+                    this.Growl(Lang.Transl("共享數據無需更新"), "jGrowl", 1500);
                 }
             } else {
+                Syn.Store("s", "Share", {}); // 避免多次請求
                 this.Growl(Lang.Transl("共享數據獲取失敗"), "jGrowl", 1500);
             }
-        }
+        };
 
         /* 共享號登入 */
         async SharedLogin() {
@@ -244,7 +254,7 @@
                     self.DeleteMenu();
                 }
             });
-        }
+        };
 
         /* 自動獲取 Cookies */
         async GetCookieAutomatically() {
@@ -255,7 +265,7 @@
             cookie_box.length > 1
             ? this.Cookie_Show(JSON.stringify(cookie_box, null, 4))
             : alert(Lang.Transl("未獲取到 Cookies !!\n\n請先登入帳戶"));
-        }
+        };
         /* 展示自動獲取 Cookies */
         async Cookie_Show(cookies){
             this.CreateDetection();
@@ -284,7 +294,7 @@
                     self.DeleteMenu();
                 }
             });
-        }
+        };
 
         /* 手動設置 Cookies */
         async ManualSetting() {
@@ -342,7 +352,7 @@
                     self.DeleteMenu();
                 }
             });
-        }
+        };
 
         /* 查看保存的 Cookies */
         async ViewSaveCookie() {
@@ -385,7 +395,7 @@
                     self.DeleteMenu();
                 }
             });
-        }
+        };
 
         /* 手動注入 Cookies 登入 */
         async CookieInjection() {
@@ -394,13 +404,13 @@
             } catch (error) {
                 alert(Lang.Transl("未檢測到可注入的 Cookies !!\n\n請從選單中進行設置"));
             }
-        }
+        };
 
         /* 清除登入狀態 */
         async ClearLogin() {
             CKOP.Delete();
             location.reload();
-        }
+        };
     }).Main();
     (new class Style {
         /* 導入 Style */
@@ -431,7 +441,7 @@
                 ${GM_getResourceText("jgrowl-css")}
                 .jGrowl {
                     ${jGrowl_style}
-                    top: 0;
+                    top: 2rem;
                     left: 50%;
                     width: auto;
                     z-index: 9999;
@@ -456,9 +466,9 @@
                 }
                 .acc-modal {
                     ${show_style}
-                    width: 16%;
+                    width: 18%;
                     overflow: auto;
-                    margin: 10rem auto;
+                    margin: 11rem auto;
                     border-radius: 10px;
                 }
                 .acc-select-flex {
@@ -469,6 +479,7 @@
                 }
                 .acc-button-flex {
                     display: flex;
+                    padding: 0 0 15px 0;
                     justify-content: center;
                 }
                 .acc-select {
@@ -626,7 +637,8 @@
                 "帳戶選擇": "账户选择",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "未获取到 Cookies !!\n\n请先登录账户",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "未检测到可注入的 Cookies !!\n\n请从菜单中进行设置",
-                "共享數據獲取成功": "共享数据获取成功",
+                "共享數據更新完成": "共享数据更新完成",
+                "共享數據無需更新": "共享数据无需更新",
                 "共享數據獲取失敗": "共享数据获取失败",
                 "請求為空數據": "请求为空数据",
                 "連線異常，更新地址可能是錯的": "连接异常，更新地址可能是错的",
@@ -661,7 +673,8 @@
                 "帳戶選擇": "Account Selection",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "No Cookies Retrieved !!\n\nPlease Login First",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "No Injectable Cookies Detected !!\n\nPlease Set in Menu",
-                "共享數據獲取成功": "Shared Data Retrieval Successful",
+                "共享數據更新完成": "Shared data update completed",
+                "共享數據無需更新": "No need to update shared data",
                 "共享數據獲取失敗": "Shared Data Retrieval Failed",
                 "請求為空數據": "Request Contains No Data",
                 "連線異常，更新地址可能是錯的": "Connection error, the update address may be incorrect",
@@ -696,7 +709,8 @@
                 "帳戶選擇": "계정 선택",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "쿠키를 가져오지 못했습니다 !!\n\n먼저 로그인 해주세요",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "주입 가능한 쿠키를 감지하지 못했습니다 !!\n\n메뉴에서 설정해 주세요",
-                "共享數據獲取成功": "공유 데이터 가져오기 성공",
+                "共享數據更新完成": "공유 데이터 업데이트 완료",
+                "共享數據無需更新": "공유 데이터 업데이트 필요 없음",
                 "共享數據獲取失敗": "공유 데이터 가져오기 실패",
                 "請求為空數據": "요청 데이터가 비어 있습니다",
                 "連線異常，更新地址可能是錯的": "연결 이상, 업데이트 주소가 잘못되었을 수 있습니다",
@@ -731,7 +745,8 @@
                 "帳戶選擇": "アカウント選択",
                 "未獲取到 Cookies !!\n\n請先登入帳戶": "クッキーを取得できませんでした!!\n\n先にログインしてください",
                 "未檢測到可注入的 Cookies !!\n\n請從選單中進行設置": "注入可能なクッキーが検出されませんでした!!\n\nメニューから設定してください",
-                "共享數據獲取成功": "共有データの取得に成功しました",
+                "共享數據更新完成": "共有データの更新が完了しました",
+                "共享數據無需更新": "共有データを更新する必要がありません",
                 "共享數據獲取失敗": "共有データの取得に失敗しました",
                 "請求為空數據": "リクエストが空データです",
                 "連線異常，更新地址可能是錯的": "接続異常、更新されたアドレスが間違っている可能性があります",
