@@ -41,7 +41,7 @@
     /* 使用者配置 */
     const Config = {
         Dev: false,           // 開發模式 (會顯示除錯訊息)
-        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過 
+        ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
         CompleteClose: false, // 下載完成自動關閉
     };
