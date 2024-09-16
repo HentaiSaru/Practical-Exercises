@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.14
+// @version             0.0.15-Beta
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -25,7 +25,8 @@
 // @grant        GM_notification
 // ==/UserScript==
 
-(function() {
+(async () => {
+
     const Config = {
         RestartLive: true, // 使用重啟直播
         EndAutoClose: true, // 全部進度完成後自動關閉
@@ -39,15 +40,16 @@
         UpdateInterval: 90, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        DropsButton: "button.caieTg", // 掉寶領取按鈕
+        DropsButton: "button.ejeLlX", // 掉寶領取按鈕
         FindTag: ["drops", "启用掉宝", "啟用掉寶", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
-    }
+    };
 
     /* 檢測邏輯 */
     class Detection {
         constructor() {
+
             /* 保存數據 */
-            this.storage = (key, value=null) => {
+            this.Storage = (key, value=null) => {
                 let data,
                 Formula = {
                     Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
@@ -57,27 +59,52 @@
                 return null != value
                     ? Formula[Formula.Type(value)]()
                     : !!(data = sessionStorage.getItem(key)) && Formula[Formula.Type(JSON.parse(data))](data);
-            }
+            };
+
+            /* 語言 時間格式 適配器 */
+            this.Adapter = {
+                __ConvertPM: (time) => time.replace(/(\d{1,2}):(\d{2})/, (match, hours, minutes) => `${+hours + 12}:${minutes}`), // 轉換 24 小時制 (PM)
+                "en-US": (timeStamp, currentYear) => new Date(`${timeStamp} ${currentYear}`),
+                "ja-JP": (timeStamp, currentYear) => {
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{2}) (GMT[+-]\d{1,2})/);
+                    return new Date(`${currentYear}-${match[1]}-${match[2]} ${match[3]}:00 ${match[4]}`);
+                },
+                "ko-KR": (timeStamp, currentYear) => { //? 這個怪怪的, 就算用一般函數, 直接 this 也指向錯誤
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{2}) (GMT[+-]\d{1,2})/);
+                    const time = timeStamp.includes("오후") ? this.Adapter.__ConvertPM(match[3]) : match[3];
+                    return new Date(`${currentYear}-${match[1]}-${match[2]} ${time}:00 ${match[4]}`);
+                },
+                "zh-TW": (timeStamp, currentYear) => {
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(\d{1,2}:\d{2}) \[(GMT[+-]\d{1,2})\]/);
+                    const time = timeStamp.includes("下午") ? this.Adapter.__ConvertPM(match[3]) : match[3];
+                    return new Date(`${currentYear}-${match[1]}-${match[2]} ${time}:00 ${match[4]}`);
+                },
+                "zh-CN": (timeStamp, currentYear) => {
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(GMT[+-]\d{1,2}) (\d{1,2}:\d{2})/);
+                    return new Date(`${currentYear}-${match[1]}-${match[2]} ${match[4]}:00 ${match[3]}`);
+                }
+            };
 
             /* 查找過期的項目將其刪除 */
-            this.TimeComparison = async (Object, Timestamp, Callback) => {
-                const match = Timestamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(\d{1,2}:\d{2}) \[GMT([+-]\d{1,2})\]/);
-                if (match) {
-                    const month = parseInt(match[1], 10);
-                    const day = parseInt(match[2], 10);
-                    const timeString = match[3];
-                    const offset = parseInt(match[4], 10);
+            this.TimeComparison = (Object, Timestamp, Callback) => {
+                const currentTime = new Date();
+                const documentLang = document.documentElement.lang;
 
-                    const currentTime = new Date();
-                    const targetTime = new Date(currentTime.getFullYear(), month-1, day);
+                const Supported = this.Adapter[documentLang];
+                const targetTime = Supported ? Supported(Timestamp, currentTime.getFullYear()) : currentTime;
+                currentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
+            };
 
-                    targetTime.setHours(parseInt(timeString.split(":")[0], 10) + 12);
-                    targetTime.setMinutes(parseInt(timeString.split(":")[1], 10));
-                    targetTime.setHours(targetTime.getHours() - offset);
-
-                    currentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
-                }
-            }
+            /* 獲取當前時間 */
+            this.GetTime = (time) => {
+                const year = time.getFullYear();
+                const month = `${time.getMonth() + 1}`.padStart(2, "0");
+                const date = `${time.getDate()}`.padStart(2, "0");
+                const hour = `${time.getHours()}`.padStart(2, "0");
+                const minute = `${time.getMinutes()}`.padStart(2, "0");
+                const second = `${time.getSeconds()}`.padStart(2, "0");
+                return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
+            };
 
             /* 解析進度(找到 < 100 的最大值) */
             this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 1e2);
@@ -89,7 +116,7 @@
                     document.title != display && (document.title = display);
                 })).observe(document.querySelector("title"), {childList: !0, subtree: !1});
                 document.title = display; // 觸發一次轉換
-            }
+            };
 
             /* 設置數據 */
             this.config = Object.assign(Config, {
@@ -102,10 +129,10 @@
 
         /* 主要運行 */
         static async Ran() {
-            // dynamic = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            // detec = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
 
             let All_Data, Progress_Belong = {}, PI=0, PV=0; // PI 進度索引, PV 進度值
-            let state, title, deal=!0, dynamic=new Detection(), self=dynamic.config,
+            let state, title, deal=!0, detec=new Detection(), self=detec.config,
             observer = new MutationObserver(Throttle(()=> {
                 if (deal) { // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
                     All_Data = document.querySelectorAll(self.AllProgress);
@@ -114,7 +141,7 @@
                         deal = !1;
 
                         All_Data.forEach((data, index)=> {
-                            dynamic.TimeComparison(data, data.querySelector(self.ActivityTime).textContent,
+                            detec.TimeComparison(data, data.querySelector(self.ActivityTime).textContent,
                                 NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
                                     // 分別取得各自的進度
                                     Progress_Belong[index] = [...NotExpired.querySelectorAll(self.ProgressBar)].map(progress=> +progress.textContent);
@@ -122,29 +149,32 @@
                             )
                         });
 
-                        // 獲取最大進度值, 與他對應的 Index
+
+                        // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
                         for (const [key, value] of Object.entries(Progress_Belong)) {
-                            const cache = dynamic.ProgressParse(value);
+                            const cache = detec.ProgressParse(value);
                             cache > PV && (PV = cache, PI = key);
-                        }
+                        };
 
                         // 取得標題和顯示進度
                         title = PV > 0 ? PV : !1;
-                        state = title ? (self.ProgressDisplay && dynamic.ShowTitle(`${title}%`), !0) : !1;
+                        state = title ? (self.ProgressDisplay && detec.ShowTitle(`${title}%`), !0) : !1;
                     }
                 }
 
                 if (self.RestartLive && state) {
                     self.RestartLive = !1;
 
-                    const time=new Date(), // 格式為 = 進度值, 時間戳
-                    [Progress, Timestamp] = dynamic.storage("Record") || [title, time.getTime()], conversion = (time - Timestamp) / (1e3 * 60);
+                    const time = new Date(), // 格式為 = 進度值, 時間戳
+                    [Progress, Timestamp] = detec.Storage("Record") || [title, detec.GetTime(time)], conversion = ~~ ((time - new Date(Timestamp)) / (1e3 * 60)); // 捨棄小數後取整, ~~ 限制 32 位整數
 
+                    console.log(conversion);
                     if (conversion >= self.JudgmentInterval && title == Progress) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
                         Restart.Ran(PI); // 傳遞當前最高進度, 進行直播重啟
-                        dynamic.storage("Record", [title, time.getTime()]);
-                    } else if (conversion == 0 || title != Progress) { // 時間是 0 或 標題 不是 進度, 代表有變化
-                        dynamic.storage("Record", [title, time.getTime()]);
+
+                        detec.Storage("Record", [title, detec.GetTime(time)]);
+                    } else if (conversion == 0 || title != Progress) { // 時間是 0 | 標題 != 進度 = 有變化 (更新紀錄)
+                        detec.Storage("Record", [title, detec.GetTime(time)]);
                     }
                 }
 
@@ -154,17 +184,17 @@
                 if (document.querySelector(self.EndLine)) {
                     observer.disconnect(); // 斷開觀察
  
-                    const count = dynamic.storage("NoProgressCount") || 0;
+                    const count = detec.Storage("NoProgressCount") || 0;
                     if (title) {
-                        dynamic.storage("NoProgressCount", 0);
+                        detec.Storage("NoProgressCount", 0);
                     } else if (count > 2) {
-                        dynamic.storage("NoProgressCount", 0);
+                        detec.Storage("NoProgressCount", 0);
                         if (self.EndAutoClose) {
                             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
                             window.close();
                         }
                     } else {
-                        dynamic.storage("NoProgressCount", count+1);
+                        detec.Storage("NoProgressCount", count+1);
                     }
                 }
             }, 300));
@@ -173,7 +203,7 @@
             observer.observe(document, {subtree: !0, childList: !0, characterData: !0});
             self.TryStayActive && StayActive(document);
         }
-    }
+    };
 
     /* 重啟邏輯 */
     class RestartLive {
@@ -327,7 +357,7 @@
                 }
             }
         }
-    }
+    };
 
     /* 對 DOM 查找進行節流 */
     function Throttle(func, delay) {
@@ -339,7 +369,7 @@
                 func(...args);
             }
         }
-    }
+    };
 
     /* 使窗口保持活躍 */
     async function StayActive(Target) {
@@ -368,7 +398,7 @@
             };
         `
         Target.head.append(script);
-    }
+    };
 
     // 等待重載
     setTimeout(()=> {location.reload()}, 1e3 * Config.UpdateInterval);
