@@ -149,7 +149,6 @@
                             )
                         });
 
-
                         // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
                         for (const [key, value] of Object.entries(Progress_Belong)) {
                             const cache = detec.ProgressParse(value);
