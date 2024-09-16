@@ -723,14 +723,14 @@ const Syn = (()=> {
 
             const formatMap = {
                 year: date.getFullYear(),
-                month: (date.getMonth() + 1).toString().padStart(2, "0"),
-                date: date.getDate().toString().padStart(2, "0"),
-                hour: date.getHours().toString().padStart(2, "0"),
-                minute: date.getMinutes().toString().padStart(2, "0"),
-                second: date.getSeconds().toString().padStart(2, "0")
+                month: `${date.getMonth() + 1}`.padStart(2, "0"),
+                date: `${date.getDate()}`.padStart(2, "0"),
+                hour: `${date.getHours()}`.padStart(2, "0"),
+                minute: `${date.getMinutes()}`.padStart(2, "0"),
+                second: `${date.getSeconds()}`.padStart(2, "0")
             };
 
-            const generate = (temp) => temp.replace(/{([^}]+)}/g, (_, key) => formatMap[key] || "Error");
+            const generate = (temp) => temp.replace(/{([^}]+)}/g, (_, key) => formatMap[key] ?? "Error");
             return generate(typeof format === "string" ? format : defaultFormat);
         },
 
