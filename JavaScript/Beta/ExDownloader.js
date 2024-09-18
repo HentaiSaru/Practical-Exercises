@@ -383,9 +383,9 @@
                         }, 1500);
                     } else { // 觸發壓縮
                         if (Total > 0) {
-                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(
-                                [...Data].sort((a, b) => a[0] - b[0]), null, 4
-                            ), { type: "error" });
+                            const SortData = [...Data].sort((a, b) => a[0] - b[0]); // 排序
+                            SortData.splice(0, 0, {ErrorPage: SortData.map(item => item[0]).join(",")}); // 將錯誤的頁面添加到, 索引 0 (字串形式)
+                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), { type: "error" });
                         }
 
                         Enforce = true;
