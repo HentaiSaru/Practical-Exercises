@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta
+// @version      0.0.11-Beta1
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -322,7 +322,7 @@
                 #Iframe-Comics {
                     margin: 0;
                     padding: 0;
-                    height: 50px;
+                    height: 110vh;
                     width: 100%;
                     border: none;
                 }
@@ -375,11 +375,10 @@
                         all: true,
                         root: self.MangaList
                     });
-                    if (Img.length <= 3) {
+                    if (Img.length <= 5) {
                         TurnPage();
                         return;
                     }
-                    self.Observer_Next.observe(self.ObserveObject(self.VisibleObjects(Img)));
                     self.Observer(self.MangaList, () => {
                         const Visible = self.VisibleObjects(Img), VL = Visible.length;
                         if (VL > Quantity) {
@@ -388,7 +387,7 @@
                             self.Observer_Next.observe(self.ObserveObject(Visible));
                         }
                     }, {
-                        throttle: 100
+                        throttle: 150
                     }, observer => {
                         Observer = observer.ob;
                     });
@@ -401,12 +400,12 @@
                     return;
                 }
                 document.body.appendChild(iframe);
-                self.Log("無盡翻頁", self.NextPage);
                 Waitload();
                 function Waitload() {
                     iframe.onload = () => {
                         URL = iframe.contentWindow.location.href;
                         URL != self.NextPage && (iframe.src = self.NextPage, Waitload());
+                        self.Log("無盡翻頁", self.NextPage);
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
                         setInterval(() => {
