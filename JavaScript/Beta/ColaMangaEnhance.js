@@ -427,7 +427,7 @@ Todo 未來添加
 
                     Img = self.$$("img", {all: true, root: self.MangaList});
 
-                    if (Img.length <= 3) { // 總長度 <= 3 直接觸發換頁
+                    if (Img.length <= 5) { // 總長度 <= 5 直接觸發換頁
                         TurnPage();
                         return;
                     };
