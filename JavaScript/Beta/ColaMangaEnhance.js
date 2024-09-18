@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta
+// @version      0.0.11-Beta1
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -43,7 +43,7 @@ Todo 未來添加
      *
      * 隱藏廣告
      * 快捷翻頁
-     * 自動翻頁 => mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 
+     * 自動翻頁 => mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡
      * 自動滾動 => 速度設置 / 換頁繼續滾動
      *
      * 請求 document.querySelector(".all_data_list") 主頁數據
@@ -156,11 +156,11 @@ Todo 未來添加
             /* 檢測是否是最後一頁 */
             this.FinalPage = (link) => link.startsWith("javascript");
             /* 篩選出可見的圖片 */
-            this.VisibleObjects = (object) => object.filter(img=> img.height > 0 || img.src);
+            this.VisibleObjects = (object) => object.filter(img => img.height > 0 || img.src);
             /* 取得物件的最後一項 */
             this.ObserveObject = (object) => object[Math.max(object.length - 2, 0)];
             /* 總圖片數的 50 % */
-            this.DetectionValue = (object) => this.VisibleObjects(object).length >= Math.floor(object.length*.5);
+            this.DetectionValue = (object) => this.VisibleObjects(object).length >= Math.floor(object.length * .5);
 
             /* 獲取樣式 */
             this.Get_Style = () => {
@@ -369,7 +369,7 @@ Todo 未來添加
                 #Iframe-Comics {
                     margin: 0;
                     padding: 0;
-                    height: 50px;
+                    height: 110vh;
                     width: 100%;
                     border: none;
                 }
@@ -407,8 +407,8 @@ Todo 未來添加
                 })
             }
 
-            TriggerNextPage();
             /* 檢測翻頁 */
+            TriggerNextPage();
             async function TriggerNextPage() {
 
                 let Img, Observer, Quantity=0;
@@ -426,23 +426,24 @@ Todo 未來添加
                 setTimeout(()=> {
 
                     Img = self.$$("img", {all: true, root: self.MangaList});
+
                     if (Img.length <= 3) { // 總長度 <= 3 直接觸發換頁
                         TurnPage();
                         return;
-                    }
-
-                    // 避免出現例外, 直接進行觀察
-                    self.Observer_Next.observe(self.ObserveObject(self.VisibleObjects(Img)));
+                    };
 
                     // 後續變化觀察
                     self.Observer(self.MangaList, () => {
                         const Visible = self.VisibleObjects(Img), VL = Visible.length;
+
                         if (VL > Quantity) { // 判斷值測試
                             Quantity = VL;
                             self.Observer_Next.disconnect();
-                            self.Observer_Next.observe(self.ObserveObject(Visible));
+                            self.Observer_Next.observe(
+                                self.ObserveObject(Visible) // 修改新的觀察對象
+                            );
                         }
-                    }, {throttle: 100}, observer=> {
+                    }, {throttle: 150}, observer=> {
                         Observer = observer.ob;
                     });
 
@@ -454,14 +455,13 @@ Todo 未來添加
             async function TurnPage() {
                 let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
 
-                if (self.FinalPage(self.NextPage)) { // 檢測是否是最後一頁
+                if (self.FinalPage(self.NextPage)) { // 檢測是否是最後一頁 (恢復隱藏的元素)
                     StylelRules[0].style.display = "block";
                     return;
-                }
+                };
 
                 // iframe 載入
                 document.body.appendChild(iframe);
-                self.Log("無盡翻頁", self.NextPage);
                 Waitload();
 
                 // 等待 iframe 載入完成
@@ -469,6 +469,8 @@ Todo 未來添加
                     iframe.onload = () => {
                         URL = iframe.contentWindow.location.href;
                         URL != self.NextPage && (iframe.src = self.NextPage, Waitload()); // 避免載入錯誤頁面
+
+                        self.Log("無盡翻頁", self.NextPage);
 
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
