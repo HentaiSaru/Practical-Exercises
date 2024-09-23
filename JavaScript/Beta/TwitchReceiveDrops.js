@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta
+// @version             0.0.15-Beta1
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -34,6 +34,7 @@
         RestartLiveMute: true, // 重啟的直播靜音
         RestartLowQuality: false, // 重啟直播最低畫質
 
+        UpdateDisplay: true, // 於標題顯示更新倒數
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
@@ -47,7 +48,6 @@
     /* 檢測邏輯 */
     class Detection {
         constructor() {
-
             /* 保存數據 */
             this.Storage = (key, value=null) => {
                 let data,
@@ -109,13 +109,24 @@
             /* 解析進度(找到 < 100 的最大值) */
             this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 1e2);
 
-            /* 展示進度於標題 */
-            this.ShowTitle = async display => {
-                this.config.ProgressDisplay = !1;
+            /* 展示進度於 */
+            this.ShowProgress = () => {
                 (new MutationObserver(()=> {
-                    document.title != display && (document.title = display);
+                    document.title != this.ProgressValue && (document.title = this.ProgressValue);
                 })).observe(document.querySelector("title"), {childList: !0, subtree: !1});
-                document.title = display; // 觸發一次轉換
+                document.title = this.ProgressValue; // 觸發一次轉換
+            };
+
+            /* 頁面刷新 */
+            this.PageRefresh = async (display, interval) => {
+                if (display) { // 展示倒數
+                    setInterval(() => {
+                        document.title = `【 ${interval--}s 】 ${this.ProgressValue}`
+                        if (interval <= 0) location.reload();
+                    }, 1e3);
+                } else { // 不展示
+                    setTimeout(()=> {location.reload()}, interval);
+                }
             };
 
             /* 設置數據 */
@@ -125,82 +136,96 @@
                 ProgressBar: "p.mLvNZ span", // 掉寶進度數據
                 ActivityTime: "span.jSkguG", // 掉寶活動的日期
             });
+
+            this.ProgressValue = "";
         }
 
         /* 主要運行 */
         static async Ran() {
-            // detec = 靜態函數需要將自身類實例化, self = 這樣只是讓語法短一點, 沒有必要性
+            let state, progress, Deal = !0, PI = 0, PV = 0; // PI 進度索引, PV 進度值
+            const Progress_Info = {}; // 保存進度的資訊
 
-            let All_Data, Progress_Belong = {}, PI=0, PV=0; // PI 進度索引, PV 進度值
-            let state, title, deal=!0, detec=new Detection(), self=detec.config,
-            observer = new MutationObserver(Throttle(()=> {
-                if (deal) { // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
-                    All_Data = document.querySelectorAll(self.AllProgress);
+            const Detec = new Detection(); // Detec = 靜態函數需要將自身類實例化
+            const Self = Detec.config; // Self = 這樣只是讓語法短一點, 沒有必要性
+
+            const Display = Self.UpdateDisplay;
+            const Interval = Self.UpdateInterval;
+
+            const observer = new MutationObserver(Throttle(()=> {
+                if (Deal) { // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
+                    const All_Data = document.querySelectorAll(Self.AllProgress);
 
                     if (All_Data && All_Data.length > 0) {
-                        deal = !1;
+                        Deal = !1;
 
                         All_Data.forEach((data, index)=> {
-                            detec.TimeComparison(data, data.querySelector(self.ActivityTime).textContent,
+                            Detec.TimeComparison(data, data.querySelector(Self.ActivityTime).textContent,
                                 NotExpired=> { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
                                     // 分別取得各自的進度
-                                    Progress_Belong[index] = [...NotExpired.querySelectorAll(self.ProgressBar)].map(progress=> +progress.textContent);
+                                    Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress=> +progress.textContent);
                                 }
                             )
                         });
 
                         // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
-                        for (const [key, value] of Object.entries(Progress_Belong)) {
-                            const cache = detec.ProgressParse(value);
+                        for (const [key, value] of Object.entries(Progress_Info)) {
+                            const cache = Detec.ProgressParse(value);
                             cache > PV && (PV = cache, PI = key);
                         };
 
                         // 取得標題和顯示進度
-                        title = PV > 0 ? PV : !1;
-                        state = title ? (self.ProgressDisplay && detec.ShowTitle(`${title}%`), !0) : !1;
+                        progress = PV > 0 ? PV : !1;
+                        state = progress ? (
+                            Self.ProgressDisplay && ( // 判斷需要顯示進度
+                                Self.ProgressDisplay = !1, // 修改狀態, 避免重複觸發
+                                Detec.ProgressValue = `${progress}%`, // 賦予進度值
+                                !Display && Detec.ShowProgress() // 有顯示更新狀態, 就由他動態展示, 沒有在呼叫 ShowProgress 動態處理展示
+                            ),
+                            !0 // 賦予狀態
+                        ) : !1;
                     }
-                }
+                };
 
-                if (self.RestartLive && state) {
-                    self.RestartLive = !1;
+                if (Self.RestartLive && state) {
+                    Self.RestartLive = !1;
 
                     const time = new Date(), // 格式為 = 進度值, 時間戳
-                    [Progress, Timestamp] = detec.Storage("Record") || [title, detec.GetTime(time)], conversion = ~~ ((time - new Date(Timestamp)) / (1e3 * 60)); // 捨棄小數後取整, ~~ 限制 32 位整數
+                    [ProgressRecord, Timestamp] = Detec.Storage("Record") || [progress, Detec.GetTime(time)], conversion = ~~ ((time - new Date(Timestamp)) / (1e3 * 60)); // 捨棄小數後取整, ~~ 最多限制 32 位整數
 
-                    console.log(conversion);
-                    if (conversion >= self.JudgmentInterval && title == Progress) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
+                    if (conversion >= Self.JudgmentInterval && progress == ProgressRecord) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
                         Restart.Ran(PI); // 傳遞當前最高進度, 進行直播重啟
 
-                        detec.Storage("Record", [title, detec.GetTime(time)]);
-                    } else if (conversion == 0 || title != Progress) { // 時間是 0 | 標題 != 進度 = 有變化 (更新紀錄)
-                        detec.Storage("Record", [title, detec.GetTime(time)]);
+                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
+                    } else if (conversion == 0 || progress != ProgressRecord) { // 時間是 0 | 標題 != 進度 = 有變化 (更新紀錄)
+                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
                     }
-                }
+                };
 
                 // 領取按鈕
-                document.querySelectorAll(self.DropsButton).forEach(draw => {draw.click()});
+                document.querySelectorAll(Self.DropsButton).forEach(draw => {draw.click()});
 
-                if (document.querySelector(self.EndLine)) {
+                if (document.querySelector(Self.EndLine)) {
                     observer.disconnect(); // 斷開觀察
  
-                    const count = detec.Storage("NoProgressCount") || 0;
-                    if (title) {
-                        detec.Storage("NoProgressCount", 0);
+                    const count = Detec.Storage("NoProgressCount") || 0;
+                    if (progress) {
+                        Detec.Storage("NoProgressCount", 0);
                     } else if (count > 2) {
-                        detec.Storage("NoProgressCount", 0);
-                        if (self.EndAutoClose) {
+                        Detec.Storage("NoProgressCount", 0);
+                        if (Self.EndAutoClose) {
                             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
                             window.close();
                         }
                     } else {
-                        detec.Storage("NoProgressCount", count+1);
+                        Detec.Storage("NoProgressCount", count+1);
                     }
-                }
+                };
             }, 300));
 
             // 因為是後台運行, 使用 requestAnimationFrame 查找會不太穩定, 只能使用 MutationObserver
             observer.observe(document, {subtree: !0, childList: !0, characterData: !0});
-            self.TryStayActive && StayActive(document);
+            Self.TryStayActive && StayActive(document);
+            Detec.PageRefresh(Display, Display ? Interval : Interval * 1e3); // 呼叫頁面刷新
         }
     };
 
@@ -252,14 +277,18 @@
 
         async Ran(CI) { // 傳入對應的頻道索引
             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close(); // 將查找標籤合併成正則
-            let NewWindow, OpenLink, Channel, article, self=this.config, FindTag = new RegExp(self.FindTag.join("|")), dir=this;
-            Channel = document.querySelectorAll(self.ActivityLink2)[CI];
+            const Dir = this;
+            const Self = Dir.config;
+            const FindTag = new RegExp(Self.FindTag.join("|"));
+
+            let NewWindow, OpenLink, article;
+            let Channel = document.querySelectorAll(Self.ActivityLink2)[CI];
 
             if (Channel) {
                 NewWindow = window.open(Channel.href, "LiveWindow");
                 DirectorySearch(NewWindow);
             } else {
-                Channel = document.querySelectorAll(self.ActivityLink1)[CI];
+                Channel = document.querySelectorAll(Self.ActivityLink1)[CI];
                 OpenLink = [...Channel.querySelectorAll("a")].reverse();
 
                 FindLive(0);
@@ -276,8 +305,8 @@
                     } else {
                         let Offline, Nowlive;
                         const observer = new MutationObserver(Throttle(()=> {
-                            Offline = NewWindow.document.querySelector(self.OfflineTag);
-                            Nowlive = NewWindow.document.querySelector(self.ViewersTag);
+                            Offline = NewWindow.document.querySelector(Self.OfflineTag);
+                            Nowlive = NewWindow.document.querySelector(Self.ViewersTag);
 
                             if (Offline) {
                                 observer.disconnect();
@@ -285,9 +314,9 @@
 
                             } else if (Nowlive) {
                                 observer.disconnect();
-                                self.RestartLiveMute && dir.LiveMute(NewWindow);
-                                self.TryStayActive && StayActive(NewWindow.document);
-                                self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
+                                Self.RestartLiveMute && Dir.LiveMute(NewWindow);
+                                Self.TryStayActive && StayActive(NewWindow.document);
+                                Self.RestartLowQuality && Dir.LiveLowQuality(NewWindow);
 
                             }
                         }, 300));
@@ -302,21 +331,21 @@
             // 目錄頁面的查找邏輯
             async function DirectorySearch(NewWindow) {
                 const observer = new MutationObserver(Throttle(()=> {
-                    article = NewWindow.document.getElementsByTagName(self.Article);
+                    article = NewWindow.document.getElementsByTagName(Self.Article);
                     if (article.length > 10) { // 找到大於 10 個頻道
                         observer.disconnect();
 
                         // 解析 Tag
                         const index = [...article].findIndex(element => {
-                            const Tag_box = element.querySelectorAll(self.TagType);
+                            const Tag_box = element.querySelectorAll(Self.TagType);
                             return Tag_box.length > 0 && [...Tag_box].some(match => FindTag.test(match.textContent.toLowerCase()));
                         });
 
                         if (index != -1) {
-                            article[index].querySelector(self.WatchLiveLink).click();
-                            self.RestartLiveMute && dir.LiveMute(NewWindow);
-                            self.TryStayActive && StayActive(NewWindow.document);
-                            self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
+                            article[index].querySelector(Self.WatchLiveLink).click();
+                            Self.RestartLiveMute && Dir.LiveMute(NewWindow);
+                            Self.TryStayActive && StayActive(NewWindow.document);
+                            Self.RestartLowQuality && Dir.LiveLowQuality(NewWindow);
                         } else {
                             function Language(lang) {
                                 const Word = {
@@ -398,9 +427,6 @@
         `
         Target.head.append(script);
     };
-
-    // 等待重載
-    setTimeout(()=> {location.reload()}, 1e3 * Config.UpdateInterval);
 
     // 主運行調用
     const Restart = new RestartLive();
