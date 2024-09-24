@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta
+// @version             0.0.15-Beta1
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -33,6 +33,7 @@
         RestartLiveMute: true, // 重啟的直播靜音
         RestartLowQuality: false, // 重啟直播最低畫質
 
+        UpdateDisplay: true, // 於標題展示更新倒數
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
@@ -93,16 +94,28 @@
                 return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
             };
             this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 100);
-            this.ShowTitle = async display => {
-                this.config.ProgressDisplay = !1;
+            this.ShowProgress = () => {
                 new MutationObserver(() => {
-                    document.title != display && (document.title = display);
+                    document.title != this.ProgressValue && (document.title = this.ProgressValue);
                 }).observe(document.querySelector("title"), {
                     childList: !0,
                     subtree: !1
                 });
-                document.title = display;
+                document.title = this.ProgressValue;
             };
+            this.PageRefresh = async (display, interval) => {
+                if (display) {
+                    setInterval(() => {
+                        document.title = `【 ${interval--}s 】 ${this.ProgressValue}`;
+                        if (interval <= 0) location.reload();
+                    }, 1e3);
+                } else {
+                    setTimeout(() => {
+                        location.reload();
+                    }, interval);
+                }
+            };
+            this.ProgressValue = "";
             this.config = Object.assign(Config, {
                 EndLine: "div.gtpIYu",
                 AllProgress: "div.ilRKfU",
@@ -111,53 +124,58 @@
             });
         }
         static async Ran() {
-            let All_Data, Progress_Belong = {}, PI = 0, PV = 0;
-            let state, title, deal = !0, detec = new Detection(), self = detec.config, observer = new MutationObserver(Throttle(() => {
-                if (deal) {
-                    All_Data = document.querySelectorAll(self.AllProgress);
+            let state, progress, Deal = !0, PI = 0, PV = 0;
+            const Progress_Info = {};
+            const Detec = new Detection();
+            const Self = Detec.config;
+            const Display = Self.UpdateDisplay;
+            const Interval = Self.UpdateInterval;
+            const observer = new MutationObserver(Throttle(() => {
+                if (Deal) {
+                    const All_Data = document.querySelectorAll(Self.AllProgress);
                     if (All_Data && All_Data.length > 0) {
-                        deal = !1;
+                        Deal = !1;
                         All_Data.forEach((data, index) => {
-                            detec.TimeComparison(data, data.querySelector(self.ActivityTime).textContent, NotExpired => {
-                                Progress_Belong[index] = [ ...NotExpired.querySelectorAll(self.ProgressBar) ].map(progress => +progress.textContent);
+                            Detec.TimeComparison(data, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
+                                Progress_Info[index] = [ ...NotExpired.querySelectorAll(Self.ProgressBar) ].map(progress => +progress.textContent);
                             });
                         });
-                        for (const [ key, value ] of Object.entries(Progress_Belong)) {
-                            const cache = detec.ProgressParse(value);
+                        for (const [ key, value ] of Object.entries(Progress_Info)) {
+                            const cache = Detec.ProgressParse(value);
                             cache > PV && (PV = cache, PI = key);
                         }
-                        title = PV > 0 ? PV : !1;
-                        state = title ? (self.ProgressDisplay && detec.ShowTitle(`${title}%`), 
+                        progress = PV > 0 ? PV : !1;
+                        state = progress ? (Self.ProgressDisplay && (Self.ProgressDisplay = !1, 
+                        Detec.ProgressValue = `${progress}%`, !Display && Detec.ShowProgress()), 
                         !0) : !1;
                     }
                 }
-                if (self.RestartLive && state) {
-                    self.RestartLive = !1;
-                    const time = new Date(), [ Progress, Timestamp ] = detec.Storage("Record") || [ title, detec.GetTime(time) ], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60));
-                    console.log(conversion);
-                    if (conversion >= self.JudgmentInterval && title == Progress) {
+                if (Self.RestartLive && state) {
+                    Self.RestartLive = !1;
+                    const time = new Date(), [ ProgressRecord, Timestamp ] = Detec.Storage("Record") ?? [ progress, Detec.GetTime(time) ], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60));
+                    if (conversion >= Self.JudgmentInterval && progress == ProgressRecord) {
                         Restart.Ran(PI);
-                        detec.Storage("Record", [ title, detec.GetTime(time) ]);
-                    } else if (conversion == 0 || title != Progress) {
-                        detec.Storage("Record", [ title, detec.GetTime(time) ]);
+                        Detec.Storage("Record", [ progress, Detec.GetTime(time) ]);
+                    } else if (conversion == 0 || progress != ProgressRecord) {
+                        Detec.Storage("Record", [ progress, Detec.GetTime(time) ]);
                     }
                 }
-                document.querySelectorAll(self.DropsButton).forEach(draw => {
+                document.querySelectorAll(Self.DropsButton).forEach(draw => {
                     draw.click();
                 });
-                if (document.querySelector(self.EndLine)) {
+                if (document.querySelector(Self.EndLine)) {
                     observer.disconnect();
-                    const count = detec.Storage("NoProgressCount") || 0;
-                    if (title) {
-                        detec.Storage("NoProgressCount", 0);
+                    const count = Detec.Storage("NoProgressCount") ?? 0;
+                    if (progress) {
+                        Detec.Storage("NoProgressCount", 0);
                     } else if (count > 2) {
-                        detec.Storage("NoProgressCount", 0);
-                        if (self.EndAutoClose) {
+                        Detec.Storage("NoProgressCount", 0);
+                        if (Self.EndAutoClose) {
                             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
                             window.close();
                         }
                     } else {
-                        detec.Storage("NoProgressCount", count + 1);
+                        Detec.Storage("NoProgressCount", count + 1);
                     }
                 }
             }, 300));
@@ -166,7 +184,8 @@
                 childList: !0,
                 characterData: !0
             });
-            self.TryStayActive && StayActive(document);
+            Self.TryStayActive && StayActive(document);
+            Detec.PageRefresh(Display, Display ? Interval : Interval * 1e3);
         }
     }
     class RestartLive {
@@ -219,13 +238,16 @@
         }
         async Ran(CI) {
             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-            let NewWindow, OpenLink, Channel, article, self = this.config, FindTag = new RegExp(self.FindTag.join("|")), dir = this;
-            Channel = document.querySelectorAll(self.ActivityLink2)[CI];
+            const Dir = this;
+            const Self = Dir.config;
+            const FindTag = new RegExp(Self.FindTag.join("|"));
+            let NewWindow, OpenLink, article;
+            let Channel = document.querySelectorAll(Self.ActivityLink2)[CI];
             if (Channel) {
                 NewWindow = window.open(Channel.href, "LiveWindow");
                 DirectorySearch(NewWindow);
             } else {
-                Channel = document.querySelectorAll(self.ActivityLink1)[CI];
+                Channel = document.querySelectorAll(Self.ActivityLink1)[CI];
                 OpenLink = [ ...Channel.querySelectorAll("a") ].reverse();
                 FindLive(0);
                 async function FindLive(index) {
@@ -240,16 +262,16 @@
                     } else {
                         let Offline, Nowlive;
                         const observer = new MutationObserver(Throttle(() => {
-                            Offline = NewWindow.document.querySelector(self.OfflineTag);
-                            Nowlive = NewWindow.document.querySelector(self.ViewersTag);
+                            Offline = NewWindow.document.querySelector(Self.OfflineTag);
+                            Nowlive = NewWindow.document.querySelector(Self.ViewersTag);
                             if (Offline) {
                                 observer.disconnect();
                                 FindLive(index + 1);
                             } else if (Nowlive) {
                                 observer.disconnect();
-                                self.RestartLiveMute && dir.LiveMute(NewWindow);
-                                self.TryStayActive && StayActive(NewWindow.document);
-                                self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
+                                Self.RestartLiveMute && Dir.LiveMute(NewWindow);
+                                Self.TryStayActive && StayActive(NewWindow.document);
+                                Self.RestartLowQuality && Dir.LiveLowQuality(NewWindow);
                             }
                         }, 300));
                         NewWindow.onload = () => {
@@ -264,18 +286,18 @@
             }
             async function DirectorySearch(NewWindow) {
                 const observer = new MutationObserver(Throttle(() => {
-                    article = NewWindow.document.getElementsByTagName(self.Article);
+                    article = NewWindow.document.getElementsByTagName(Self.Article);
                     if (article.length > 10) {
                         observer.disconnect();
                         const index = [ ...article ].findIndex(element => {
-                            const Tag_box = element.querySelectorAll(self.TagType);
+                            const Tag_box = element.querySelectorAll(Self.TagType);
                             return Tag_box.length > 0 && [ ...Tag_box ].some(match => FindTag.test(match.textContent.toLowerCase()));
                         });
                         if (index != -1) {
-                            article[index].querySelector(self.WatchLiveLink).click();
-                            self.RestartLiveMute && dir.LiveMute(NewWindow);
-                            self.TryStayActive && StayActive(NewWindow.document);
-                            self.RestartLowQuality && dir.LiveLowQuality(NewWindow);
+                            article[index].querySelector(Self.WatchLiveLink).click();
+                            Self.RestartLiveMute && Dir.LiveMute(NewWindow);
+                            Self.TryStayActive && StayActive(NewWindow.document);
+                            Self.RestartLowQuality && Dir.LiveLowQuality(NewWindow);
                         } else {
                             function Language(lang) {
                                 const Word = {
@@ -365,9 +387,6 @@
         `;
         Target.head.append(script);
     }
-    setTimeout(() => {
-        location.reload();
-    }, 1e3 * Config.UpdateInterval);
     const Restart = new RestartLive();
     Detection.Ran();
 })();
