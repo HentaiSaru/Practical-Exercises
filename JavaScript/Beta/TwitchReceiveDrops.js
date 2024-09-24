@@ -34,7 +34,7 @@
         RestartLiveMute: true, // 重啟的直播靜音
         RestartLowQuality: false, // 重啟直播最低畫質
 
-        UpdateDisplay: true, // 於標題顯示更新倒數
+        UpdateDisplay: true, // 於標題展示更新倒數
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
