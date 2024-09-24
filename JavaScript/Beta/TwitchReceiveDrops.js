@@ -25,6 +25,27 @@
 // @grant        GM_notification
 // ==/UserScript==
 
+/*
+Todo - 預計添加適配語言
+
+查詢方式: document.documentElement.lang
+
+"English - UK"
+
+"Español - España" => 西班牙語
+"Español - Latinoamérica"
+
+"Русский" => 俄語
+"Français" => 法語
+"Deutsch" => 德語
+
+Português => 葡萄牙語
+Português - Brasil
+
+"Italiano" => 意大利語
+"Türkçe" => 土耳其語
+*/
+
 (async () => {
 
     const Config = {
