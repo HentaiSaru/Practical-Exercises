@@ -535,7 +535,8 @@ Todo 未來添加
                             self.$$("title").id = self.Id.Title; // 賦予一個 ID 用於白名單排除
 
                             // 動態計算臨界值
-                            const hold = Math.min(1, (self.Device.iH() * (self.Device.Type() == "Desktop" ? .6 : .8)) / TopImg.clientHeight);
+                            const adapt = self.Device.Type() == "Desktop" ? .5 : .7;
+                            const hold = Math.min(adapt, (self.Device.iH() * adapt) / TopImg.clientHeight);
 
                             // 監聽釋放點
                             const ReleaseMemory = new IntersectionObserver(observed => {

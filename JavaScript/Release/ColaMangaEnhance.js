@@ -462,7 +462,8 @@
                         UrlUpdate.observe(TopImg);
                         if (Optimized) {
                             self.$$("title").id = self.Id.Title;
-                            const hold = Math.min(1, (self.Device.iH() * (self.Device.Type() == "Desktop" ? .6 : .8)) / TopImg.clientHeight);
+                            const adapt = self.Device.Type() == "Desktop" ? .5 : .7;
+                            const hold = Math.min(adapt, (self.Device.iH() * adapt) / TopImg.clientHeight);
                             const ReleaseMemory = new IntersectionObserver(observed => {
                                 observed.forEach(entry => {
                                     if (entry.isIntersecting) {
