@@ -535,6 +535,7 @@ Todo 未來添加
                             self.$$("title").id = self.Id.Title; // 賦予一個 ID 用於白名單排除
 
                             // 監聽釋放點
+                            const hold = self.Device.Type() == "Desktop" ? .5 : .8;
                             const ReleaseMemory = new IntersectionObserver(observed => {
                                 observed.forEach(entry => {
                                     if (entry.isIntersecting) {
@@ -545,7 +546,7 @@ Todo 未來添加
                                         TopImg.scrollIntoView();
                                     }
                                 });
-                            }, { threshold: .5 });
+                            }, { threshold: hold });
                             ReleaseMemory.observe(TopImg);
                         };
                     };
