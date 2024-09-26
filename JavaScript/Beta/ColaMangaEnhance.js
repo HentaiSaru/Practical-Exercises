@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta1
+// @version      0.0.11-Beta2
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -23,7 +23,7 @@
 // @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
 // ==/UserScript==
 
-/* 
+/*
 Todo 未來添加
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
@@ -54,14 +54,14 @@ Todo 未來添加
      * 模態需要設置特別的標籤 , 要避免被廣告阻擋函數的樣式擋住
      */
 
-    /* 
+    /*
         設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
         (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
     */
     const Config = {
         BGColor: 1, // 背景換色 [目前還沒有自訂], 改代碼可搜索 #595959, 並修改該字串
-        RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁, 2 = 翻頁+滾動, 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 4, // 自動換頁 mode: 1 = 快速, 2 = 普通, 3 = 緩慢, 4 = 無盡 (實驗中的酷東西)
+        RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁 | 2 = 翻頁+滾動 | 3 翻頁+滾動+換頁繼續滾動
+        AutoTurnPage: 5, // 自動換頁 mode: 1 = 快速 | 2 = 普通 | 3 = 緩慢 | 4 = 一般無盡 | 5 = 優化無盡
     };
     (new class Manga extends Syntax {
         constructor() {
@@ -80,6 +80,10 @@ Todo 未來添加
             this.BlockListener = new Set([
                 "pointerup", "pointerdown", "dState", "touchstart", "unhandledrejection"
             ]);
+            this.Id = { // Id 名稱表
+                Title: "CME_Title", Iframe: "CME_Iframe", Block: "CME_Block-Ads", Menu: "CME_Menu-Style",
+                Image: "CME_Image-Style", Scroll: "CME_Scroll-Hidden", ChildS: "CME_Child-Scroll-Hidden"
+            };
 
             /* 取得數據 */
             this.Get_Data = async (callback) => {
@@ -117,12 +121,42 @@ Todo 未來添加
                 }, {timeout: 10, timeoutResult: true, object: document});
             };
 
+            /* 取得釋放節點 */
+            this.Get_Nodes = (Root) => {
+                const nodes = [];
+                const IdWhiteList = new Set(Object.values(this.Id));
+
+                function Task(root) {
+                    const tree = document.createTreeWalker(
+                        root,
+                        NodeFilter.SHOW_ELEMENT,
+                        {
+                            acceptNode: (node) => {
+                                if (IdWhiteList.has(node.id)) {
+                                    return NodeFilter.FILTER_REJECT;
+                                }
+                                return NodeFilter.FILTER_ACCEPT;
+                            }
+                        }
+                    );
+
+                    while (tree.nextNode()) {
+                        nodes.push(tree.currentNode);
+                    }
+                };
+
+                Task(Root.head);
+                Task(Root.body);
+
+                return nodes;
+            };
+
             /* 存取會話數據 */
             this.storage = (key, value=null) => {
                 return value != null
-                ? this.Storage(key, {value: value}) 
+                ? this.Storage(key, {value: value})
                 : this.Storage(key);
-            }
+            };
 
             /* ===== 自動滾動的函數 ===== */
 
@@ -200,12 +234,12 @@ Todo 未來添加
 
             this.AddStyle(`
                 html {pointer-events: none !important;}
-                .mh_wrap, span.mh_btn:not(.contact), #Iframe-Comics {pointer-events: auto;}
-            `, "Inject-Blocking-Ads");
+                .mh_wrap, span.mh_btn:not(.contact), ${this.Id.Iframe} {pointer-events: auto;}
+            `, this.Id.Block);
 
             // 雖然性能開銷比較高, 但比較不會跳一堆錯誤訊息
             this.AdCleanup = setInterval(() => {
-                this.$$("iframe:not(#Iframe-Comics)")?.remove();
+                this.$$(`iframe:not(#${this.Id.Iframe})`)?.remove();
                 removeBlockedListeners();
             }, 500);
         }
@@ -240,7 +274,7 @@ Todo 未來添加
                         width: ${this.ImgStyle.Img_Bw};
                         max-width: ${this.ImgStyle.Img_Mw};
                     }
-                `, "Inject-Image-Style");
+                `, this.Id.Image);
             }
             setTimeout(()=>{this.AutoReload()}, this.WaitPicture);
         }
@@ -321,7 +355,7 @@ Todo 未來添加
 
         /* 自動切換下一頁 */
         async AutoPageTurn(mode) {
-            let self = this, hold, object, img;
+            let self = this, hold, point, img;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
                     if (entry.isIntersecting && self.DetectionValue(img)) {
@@ -334,46 +368,51 @@ Todo 未來添加
             switch (mode) {
                 case 2:
                     hold = .5;
-                    object = self.$$("li:nth-child(3) a.read_page_link");
+                    point = self.$$("li:nth-child(3) a.read_page_link");
                     break;
                 case 3:
                     hold = 1;
-                    object = self.$$("div.endtip2.clear");
+                    point = self.$$("div.endtip2.clear");
                     break;
-                case 4:
-                    this.UnlimitedPageTurn();
+                case 4: case 5:
+                    this.UnlimitedPageTurn(mode == 5);
                     break;
                 default:
                     hold = .1;
-                    object = self.BottomStrip;
-            }
+                    point = self.BottomStrip;
+            };
 
-            if (mode != 4) {
+            if (point) {
                 setTimeout(()=> {
                     img = self.$$("img", {all: true, root: self.MangaList});
-                    self.Observer_Next.observe(object);
+                    self.Observer_Next.observe(point);
                 }, self.WaitPicture);
-            }
+            };
         }
 
         /* 無盡 翻頁模式 */
-        async UnlimitedPageTurn() {
+        async UnlimitedPageTurn(Optimized) {
             const self = this;
             const iframe = document.createElement("iframe");
-            iframe.id = "Iframe-Comics";
+            iframe.id = this.Id.Iframe;
             iframe.src = self.NextPage;
 
             // 修改樣式 (隱藏某些元素 增加沉浸體驗)
             this.AddStyle(`
-                .mh_wrap, .mh_readend, .mh_footpager, .fed-foot-info, #imgvalidation2022 {display: none;}
-                #Iframe-Comics {
+                .mh_wrap, .mh_readend, .mh_footpager,
+                .fed-foot-info, #imgvalidation2022 {display: none;}
+                body {
+                    margin: 0;
+                    padding: 0;
+                }
+                #${this.Id.Iframe} {
                     margin: 0;
                     padding: 0;
                     height: 110vh;
                     width: 100%;
                     border: none;
                 }
-            `, "scroll-hidden");
+            `, this.Id.Scroll);
 
             // 監聽當前觀看到的頁面, (修改 網址 & 標題)
             if (this.IsMainPage) {
@@ -395,10 +434,10 @@ Todo 未來添加
                         scrollbar-width: none !important;
                         -ms-overflow-style: none !important;
                     }
-                    html::-webkit-scrollbar { 
+                    html::-webkit-scrollbar {
                         display: none !important;
                     }
-                `, "child-scroll-hidden");
+                `, this.Id.ChildS);
 
                 let MainWindow = window;
                 this.Listen(window, "message", event => {
@@ -448,12 +487,11 @@ Todo 未來添加
                     });
 
                 }, self.WaitPicture);
-
-            }
+            };
 
             /* 翻頁邏輯 */
             async function TurnPage() {
-                let URL, Content, StylelRules=self.$$("#scroll-hidden").sheet.cssRules;
+                let URL, Content, StylelRules=self.$$(`#${self.Id.Scroll}`).sheet.cssRules;
 
                 if (self.FinalPage(self.NextPage)) { // 檢測是否是最後一頁 (恢復隱藏的元素)
                     StylelRules[0].style.display = "block";
@@ -470,13 +508,15 @@ Todo 未來添加
                         URL = iframe.contentWindow.location.href;
                         URL != self.NextPage && (iframe.src = self.NextPage, Waitload()); // 避免載入錯誤頁面
 
-                        self.Log("無盡翻頁", self.NextPage);
-
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
 
+                        // 首張圖片
+                        const TopImg = self.$$("#mangalist img", {root: Content});
+
+                        // 持續設置高度
                         setInterval(()=> {
-                            StylelRules[1].style.height = `${Content.body.scrollHeight}px`;
+                            StylelRules[2].style.height = `${Content.body.scrollHeight}px`;
                         }, 1500);
 
                         // 監聽換頁點
@@ -484,11 +524,30 @@ Todo 未來添加
                             observed.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     UrlUpdate.disconnect();
+                                    self.Log("無盡翻頁", self.NextPage);
                                     window.parent.postMessage([Content.title, URL], self.Origin);
                                 }
                             });
                         }, { threshold: .1 });
-                        UrlUpdate.observe(self.$$("#mangalist img", {root: Content}));
+                        UrlUpdate.observe(TopImg);
+
+                        if (Optimized) {
+                            self.$$("title").id = self.Id.Title; // 賦予一個 ID 用於白名單排除
+
+                            // 監聽釋放點
+                            const ReleaseMemory = new IntersectionObserver(observed => {
+                                observed.forEach(entry => {
+                                    if (entry.isIntersecting) {
+                                        ReleaseMemory.disconnect();
+                                        self.Get_Nodes(document).forEach(node => {
+                                            node.remove(); // 刪除元素, 等待瀏覽器自己釋放
+                                        })
+                                        TopImg.scrollIntoView();
+                                    }
+                                });
+                            }, { threshold: .5 });
+                            ReleaseMemory.observe(TopImg);
+                        };
                     };
                     iframe.onerror = () => {
                         iframe.src = self.NextPage;
@@ -504,7 +563,7 @@ Todo 未來添加
 
         /* 菜單樣式 */
         async MenuStyle() {
-            this.AddStyle(``, "Inject_MenuStyle");
+            this.AddStyle(``, this.Id.Menu);
         }
 
         /* 功能注入 */
