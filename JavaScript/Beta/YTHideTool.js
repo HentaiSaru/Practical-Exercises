@@ -53,8 +53,6 @@
             this.GCM = null; // 全局變更標記
             this.RST = null; // 運行開始時間
             this.TFT = false; // 轉換觸發器
-            this.HVM = "Hide-Video";
-            this.HPM = "Hide-Playlist";
             this.InjecRecord = {};
 
             this.HotKey = Config.HotKey;
@@ -69,9 +67,6 @@
 
             /* 標題格式 (傳入標題元素) */
             this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "");
-
-            /* 設置標籤 */
-            this.SetAttri = async (object, label) => object.setAttribute(label, true);
 
             /* 持續隱藏 */
             this.TitleOb = new MutationObserver(()=> {
@@ -132,19 +127,18 @@
         /* 注入操作 */
         async Injec(URL) {
             const Page = this.Page(URL);
-
             this.DevPrint(this.Lang.Transl("頁面類型"), Page);
-            if (Page == "NotSupport") return;
-            if (this.InjecRecord[URL]) return;
+
+            if (Page == "NotSupport" || this.InjecRecord[URL]) return;
 
             // 等待的元素是, 判定可開始查找的框架
             this.WaitElem("#columns, #contents", trigger=> {
                 if (!trigger) {
-                    this.Log(this.Lang.Transl("查找框架失敗"), trigger, {type: "error"});
+                    this.Log(null, this.Lang.Transl("查找框架失敗"), {type: "error"});
                     return;
                 }
 
-                if (Page == "Video" && !trigger.hasAttribute(this.HVM)) {
+                if (Page == "Video") {
                     Config.Dev && (this.RST = this.Runtime());
 
                     // 隱藏結尾推薦樣式
@@ -174,7 +168,6 @@
                         ] = found;
 
                         this.DevPrint(this.Lang.Transl("隱藏元素"), found);
-                        this.SetAttri(trigger, this.HVM);
                         if (!this.MRM) this.MRM = GM_registerMenuCommand(this.Lang.Transl("📜 預設熱鍵"), ()=> {alert(this.Lang.Transl("快捷提示"))});
 
                         // 極簡化
@@ -253,7 +246,6 @@
                         };
 
                         // 註冊快捷鍵
-                        this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
                             if (this.HotKey.MinimaList(event)) {
                                 event.preventDefault();
@@ -284,13 +276,12 @@
                         this.InjecRecord[URL] = true;
                     }, {throttle: 100, characterData: true, timeoutResult: true});
 
-                } else if (Page == "Playlist" && !trigger.hasAttribute(this.HPM)) {
+                } else if (Page == "Playlist") {
                     Config.Dev && (this.RST = this.Runtime());
 
                     this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist=> {
 
                         this.DevPrint(this.Lang.Transl("隱藏元素"), playlist);
-                        this.SetAttri(trigger, this.HPM);
                         if (!this.MRM) this.MRM = GM_registerMenuCommand(this.Lang.Transl("📜 預設熱鍵"), ()=> {alert(this.Lang.Transl("快捷提示"))});
 
                         // 播放清單資訊
@@ -298,7 +289,6 @@
                             this.StyleTransform([playlist], "display", "none").then(state => this.DevTimePrint(this.Lang.Transl("隱藏播放清單資訊"), state));
                         };
 
-                        this.RemovListener(document, "keydown");
                         this.AddListener(document, "keydown", event => {
                             if (this.HotKey.ListDesc(event)) {
                                 event.preventDefault();
@@ -310,7 +300,7 @@
                     }, {throttle: 100, characterData: true, timeoutResult: true});
 
                 };
-            }, {object: document, timeout: 15, timeoutResult: true});
+            }, {object: document, timeout: 60, characterData: true, timeoutResult: true});
         };
 
         Language(lang) {
