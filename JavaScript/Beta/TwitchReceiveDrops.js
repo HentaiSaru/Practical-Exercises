@@ -42,7 +42,7 @@
         JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         DropsButton: "button.ejeLlX", // 掉寶領取按鈕
-        FindTag: ["drops", "启用掉宝", "啟用掉寶", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
+        FindTag: ["drops", "啟用掉寶", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     };
 
     /* 檢測邏輯 */
@@ -286,8 +286,8 @@
                     Detec.Storage("Record", [Progress, Detec.GetTime()]);
 
                 /* 差異時間是 0 或 標題與進度值不同 = 有變化 */
-                } else if (Diff == 0 || Progress != Record) {
-                    Detec.Storage("Record", [Progress, Detec.GetTime()]);
+                } else if (Diff == 0 || Progress != Record) { // 進度為 0 時不被紀錄 (紀錄了會導致 自動關閉無法運作)
+                    if (Progress != 0) Detec.Storage("Record", [Progress, Detec.GetTime()]);
 
                 };
             };
