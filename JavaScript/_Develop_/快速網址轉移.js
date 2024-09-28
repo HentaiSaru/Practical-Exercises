@@ -12,6 +12,7 @@
 // @icon64       https://cdn-icons-png.flaticon.com/512/13984/13984370.png
 
 // @run-at       document-start
+// @grant        unsafeWindow
 // @grant        window.close
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -29,7 +30,7 @@
 // @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
 // ==/UserScript==
 
-(function() {
+(async () => {
     (new class Bookmark {
         constructor() {
             this.AddClose = true; // 添加網址後關閉窗口
@@ -117,13 +118,13 @@
             this.Import = (data) => {
                 try {
                     for (const [key, value] of Object.entries(JSON.parse(data))) {
-                        Syn.Store("s", key, value);
-                    }
+                        Syn.Store("s", key, this.DataToPako(JSON.stringify(value)));
+                    };
                     GM_notification({
                         title: "導入完畢",
                         text: "已導入數據",
                         timeout: 1500
-                    })
+                    });
                 } catch {
                     alert("導入錯誤");
                 }
@@ -133,10 +134,9 @@
             this.Export = () => {
                 const bookmarks = this.GetBookmarks(), export_data = {};
                 if (bookmarks) {
-                    // Object.assign({}, ...bookmarks) 可以直接轉換, 但為何刪除導出數據, 用以下寫法
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
-                        export_data[key] = this.DataToPako(JSON.stringify(value));
+                        export_data[key] = value;
                         this.ExportClear && Syn.Store("d", key); // 導出刪除
                     });
                     return JSON.stringify(export_data, null, 4);
@@ -157,9 +157,7 @@
 
                 // 組成數據
                 const data = JSON.stringify({
-                    url: url,
-                    title: title,
-                    icon: icon_link
+                    Icon: icon_link, Url: url, Title: title,
                 })
                 , save = this.DataToPako(data)
                 , hash = md5(data, md5(save));
@@ -213,31 +211,18 @@
 
         /* 導入 Json */
         Import_Json() {
-            const input = document.createElement("input");
-            input.type = "file";
-
             GM_notification({
                 title: "點擊頁面",
                 text: "點擊頁面任意一處, 開啟導入文件窗口",
                 timeout: 2500
-            })
+            });
 
-            Syn.Listen(document, "click", (event)=> {
-                event.preventDefault();
-                input.click();
-                input.remove();
+            Syn.Listen(document, "click", async () => {
+                const [fileHandle] = await unsafeWindow.showOpenFilePicker();
+                const file = await fileHandle.getFile();
+                const data = await file.text();
+                data && this.Import(data);
             }, {once: true});
-
-            Syn.Listen(input, "change", (event)=> {
-                const file = event.target.files[0];
-                if (file) {
-                    const reader = new FileReader();
-                    reader.readAsText(file, "UTF-8");
-                    reader.onload = (event) => {
-                        this.Import(event.target.result);
-                    }
-                }
-            }, {once: true, passive: true});
         };
 
         /* 導入 剪貼簿 */
