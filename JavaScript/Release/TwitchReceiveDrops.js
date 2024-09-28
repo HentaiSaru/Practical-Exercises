@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta1
+// @version             0.0.15-Beta2
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -48,32 +48,79 @@
             this.Storage = (key, value = null) => {
                 let data, Formula = {
                     Type: parse => Object.prototype.toString.call(parse).slice(8, -1),
-                    Number: parse => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), 
-                    !0),
-                    Array: parse => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), 
-                    !0)
+                    Number: parse => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0),
+                    Array: parse => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0)
                 };
-                return null != value ? Formula[Formula.Type(value)]() : !!(data = sessionStorage.getItem(key)) && Formula[Formula.Type(JSON.parse(data))](data);
+                return value != null ? Formula[Formula.Type(value)]() : (data = sessionStorage.getItem(key),
+                    data != undefined ? Formula[Formula.Type(JSON.parse(data))](data) : data);
             };
             this.Adapter = {
-                __ConvertPM: time => time.replace(/(\d{1,2}):(\d{2})/, (match, hours, minutes) => `${+hours + 12}:${minutes}`),
+                __ConvertPM: time => time.replace(/(\d{1,2}):(\d{2})/, (_, hours, minutes) => `${+hours + 12}:${minutes}`),
                 "en-US": (timeStamp, currentYear) => new Date(`${timeStamp} ${currentYear}`),
+                "en-GB": (timeStamp, currentYear) => new Date(`${timeStamp} ${currentYear}`),
+                "es-ES": (timeStamp, currentYear) => new Date(`${timeStamp} ${currentYear}`),
+                "fr-FR": (timeStamp, currentYear) => new Date(`${timeStamp} ${currentYear}`),
+                "pt-PT": (timeStamp, currentYear) => {
+                    const convert = timeStamp.replace(/(\d{1,2})\/(\d{1,2})/, (_, day, month) => `${month}/${day}`);
+                    return new Date(`${convert} ${currentYear}`);
+                },
+                "pt-BR": (timeStamp, currentYear) => {
+                    const ISO = {
+                        jan: "Jan", fev: "Feb", mar: "Mar", abr: "Apr", mai: "May", jun: "Jun", jul: "Jul", ago: "Aug", set: "Sep", out: "Oct", nov: "Nov", dez: "Dec", dom: "Sun", seg: "Mon", ter: "Tue", qua: "Wed", qui: "Thu", sex: "Fri", "sáb": "Sat"
+                    };
+                    const convert = timeStamp.replace(/de/g, "").replace(/(jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|dom|seg|ter|qua|qui|sex|sáb)/gi, match => ISO[match.toLowerCase()]);
+                    return new Date(`${convert} ${currentYear}`);
+                },
+                "ru-RU": (timeStamp, currentYear) => {
+                    const ISO = {
+                        "янв": "Jan", "фев": "Feb", "мар": "Mar", "апр": "Apr", "май": "May", "июн": "Jun", "июл": "Jul", "авг": "Aug", "сен": "Sep", "окт": "Oct", "ноя": "Nov", "дек": "Dec", "пн": "Mon", "вт": "Tue", "ср": "Wed", "чт": "Thu", "пт": "Fri", "сб": "Sat", "вс": "Sun"
+                    };
+                    const convert = timeStamp.replace(/(янв|фев|мар|апр|май|июн|июл|авг|сен|окт|ноя|дек|пн|вт|ср|чт|пт|сб|вс)/gi, match => ISO[match.toLowerCase()]);
+                    return new Date(`${convert} ${currentYear}`);
+                },
+                "de-DE": (timeStamp, currentYear) => {
+                    const ISO = {
+                        jan: "Jan", feb: "Feb", "mär": "Mar", apr: "Apr", mai: "May", jun: "Jun", jul: "Jul", aug: "Aug", sep: "Sep", okt: "Oct", nov: "Nov", dez: "Dec", mo: "Mon", di: "Tue", mi: "Wed", do: "Thu", fr: "Fri", sa: "Sat", so: "Sun"
+                    };
+                    const convert = timeStamp.replace(/(jan|feb|mär|apr|mai|jun|jul|aug|sep|okt|nov|dez|mo|di|mi|do|fr|sa|so)/gi, match => ISO[match.toLowerCase()]);
+                    return new Date(`${convert} ${currentYear}`);
+                },
+                "it-IT": (timeStamp, currentYear) => {
+                    const ISO = {
+                        gen: "Jan", feb: "Feb", mar: "Mar", apr: "Apr", mag: "May", giu: "Jun", lug: "Jul", ago: "Aug", set: "Sep", ott: "Oct", nov: "Nov", dic: "Dec", dom: "Sun", lun: "Mon", mar: "Tue", mer: "Wed", gio: "Thu", ven: "Fri", sab: "Sat"
+                    };
+                    const convert = timeStamp.replace(/(gen|feb|mar|apr|mag|giu|lug|ago|set|ott|nov|dic|dom|lun|mar|mer|gio|ven|sab)/gi, match => ISO[match.toLowerCase()]);
+                    return new Date(`${convert} ${currentYear}`);
+                },
+                "tr-TR": (timeStamp, currentYear) => {
+                    const ISO = {
+                        oca: "Jan", "şub": "Feb", mar: "Mar", nis: "Apr", may: "May", haz: "Jun", tem: "Jul", "ağu": "Aug", eyl: "Sep", eki: "Oct", kas: "Nov", ara: "Dec", paz: "Sun", pts: "Mon", sal: "Tue", "çar": "Wed", per: "Thu", cum: "Fri", cmt: "Sat"
+                    };
+                    const convert = timeStamp.replace(/(oca|şub|mar|nis|may|haz|tem|ağu|eyl|eki|kas|ara|paz|pts|sal|çar|per|cum|cmt)/gi, match => ISO[match.toLowerCase()]);
+                    const match = convert.match(/(\d{1,2}) ([a-z]+) ([a-z]+) (\d{1,2}:\d{1,2}) (GMT[+-]\d{1,2})/i);
+                    return new Date(`${match[3]} ${match[1]} ${match[2]} ${match[4]} ${match[5]} ${currentYear}`);
+                },
+                "es-MX": (timeStamp, currentYear) => {
+                    const match = timeStamp.match(/^([a-zñáéíóúü]+) (\d{1,2}) de ([a-zñáéíóúü]+), (\d{1,2}:\d{1,2}) (?:[ap]\.m\.) (GMT[+-]\d{1,2})/i);
+                    const time = timeStamp.includes("p.m") ? this.Adapter.__ConvertPM(match[4]) : match[4];
+                    return new Date(`${match[1]}, ${match[2]} ${match[3]}, ${time} ${match[5]} ${currentYear}`);
+                },
                 "ja-JP": (timeStamp, currentYear) => {
-                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{2}) (GMT[+-]\d{1,2})/);
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{1,2}) (GMT[+-]\d{1,2})/);
                     return new Date(`${currentYear}-${match[1]}-${match[2]} ${match[3]}:00 ${match[4]}`);
                 },
                 "ko-KR": (timeStamp, currentYear) => {
-                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{2}) (GMT[+-]\d{1,2})/);
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+(\d{1,2}:\d{1,2}) (GMT[+-]\d{1,2})/);
                     const time = timeStamp.includes("오후") ? this.Adapter.__ConvertPM(match[3]) : match[3];
                     return new Date(`${currentYear}-${match[1]}-${match[2]} ${time}:00 ${match[4]}`);
                 },
                 "zh-TW": (timeStamp, currentYear) => {
-                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(\d{1,2}:\d{2}) \[(GMT[+-]\d{1,2})\]/);
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(\d{1,2}:\d{1,2}) \[(GMT[+-]\d{1,2})\]/);
                     const time = timeStamp.includes("下午") ? this.Adapter.__ConvertPM(match[3]) : match[3];
                     return new Date(`${currentYear}-${match[1]}-${match[2]} ${time}:00 ${match[4]}`);
                 },
                 "zh-CN": (timeStamp, currentYear) => {
-                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(GMT[+-]\d{1,2}) (\d{1,2}:\d{2})/);
+                    const match = timeStamp.match(/(\d{1,2})\D+(\d{1,2})\D+\D+(GMT[+-]\d{1,2}) (\d{1,2}:\d{1,2})/);
                     return new Date(`${currentYear}-${match[1]}-${match[2]} ${match[4]}:00 ${match[3]}`);
                 }
             };
@@ -137,27 +184,27 @@
                         Deal = !1;
                         All_Data.forEach((data, index) => {
                             Detec.TimeComparison(data, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
-                                Progress_Info[index] = [ ...NotExpired.querySelectorAll(Self.ProgressBar) ].map(progress => +progress.textContent);
+                                Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
                             });
                         });
-                        for (const [ key, value ] of Object.entries(Progress_Info)) {
+                        for (const [key, value] of Object.entries(Progress_Info)) {
                             const cache = Detec.ProgressParse(value);
                             cache > PV && (PV = cache, PI = key);
                         }
                         progress = PV > 0 ? PV : !1;
-                        state = progress ? (Self.ProgressDisplay && (Self.ProgressDisplay = !1, 
-                        Detec.ProgressValue = `${progress}%`, !Display && Detec.ShowProgress()), 
-                        !0) : !1;
+                        state = progress ? (Self.ProgressDisplay && (Self.ProgressDisplay = !1,
+                            Detec.ProgressValue = `${progress}%`, !Display && Detec.ShowProgress()),
+                            !0) : !1;
                     }
                 }
                 if (Self.RestartLive && state) {
                     Self.RestartLive = !1;
-                    const time = new Date(), [ ProgressRecord, Timestamp ] = Detec.Storage("Record") ?? [ progress, Detec.GetTime(time) ], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60));
+                    const time = new Date(), [ProgressRecord, Timestamp] = Detec.Storage("Record") ?? [0, Detec.GetTime(time)], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60));
                     if (conversion >= Self.JudgmentInterval && progress == ProgressRecord) {
                         Restart.Ran(PI);
-                        Detec.Storage("Record", [ progress, Detec.GetTime(time) ]);
+                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
                     } else if (conversion == 0 || progress != ProgressRecord) {
-                        Detec.Storage("Record", [ progress, Detec.GetTime(time) ]);
+                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
                     }
                 }
                 document.querySelectorAll(Self.DropsButton).forEach(draw => {
@@ -248,15 +295,15 @@
                 DirectorySearch(NewWindow);
             } else {
                 Channel = document.querySelectorAll(Self.ActivityLink1)[CI];
-                OpenLink = [ ...Channel.querySelectorAll("a") ].reverse();
+                OpenLink = [...Channel.querySelectorAll("a")].reverse();
                 FindLive(0);
                 async function FindLive(index) {
                     if (OpenLink.length - 1 < index) {
                         return !1;
                     }
                     const href = OpenLink[index].href;
-                    NewWindow = !NewWindow ? window.open(href, "LiveWindow") : (NewWindow.location.assign(href), 
-                    NewWindow);
+                    NewWindow = !NewWindow ? window.open(href, "LiveWindow") : (NewWindow.location.assign(href),
+                        NewWindow);
                     if (href.includes("directory")) {
                         DirectorySearch(NewWindow);
                     } else {
@@ -289,9 +336,9 @@
                     article = NewWindow.document.getElementsByTagName(Self.Article);
                     if (article.length > 10) {
                         observer.disconnect();
-                        const index = [ ...article ].findIndex(element => {
+                        const index = [...article].findIndex(element => {
                             const Tag_box = element.querySelectorAll(Self.TagType);
-                            return Tag_box.length > 0 && [ ...Tag_box ].some(match => FindTag.test(match.textContent.toLowerCase()));
+                            return Tag_box.length > 0 && [...Tag_box].some(match => FindTag.test(match.textContent.toLowerCase()));
                         });
                         if (index != -1) {
                             article[index].querySelector(Self.WatchLiveLink).click();
