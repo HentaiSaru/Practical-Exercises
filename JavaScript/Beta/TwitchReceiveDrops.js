@@ -205,7 +205,7 @@
             };
 
             /* 查找過期的項目將其刪除 */
-            this.TimeComparison = (Object, Adapter, Timestamp, Callback) => {
+            this.ExpiredCleanup = (Object, Adapter, Timestamp, Callback) => {
                 const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
                 this.CurrentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
             };
@@ -246,7 +246,7 @@
                     const Adapter = Detec.Adapter[document.documentElement.lang]; // 根據網站語言, 獲取適配器 (寫在這裡是避免反覆調用)
 
                     All_Data.forEach((data, index) => { // 顯示進度, 重啟直播, 刪除過期, 都需要這邊的處理
-                        Detec.TimeComparison(
+                        Detec.ExpiredCleanup(
                             data, // 物件整體
                             Adapter, // 適配器
                             data.querySelector(Self.ActivityTime).textContent, // 時間戳
