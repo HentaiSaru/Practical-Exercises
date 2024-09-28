@@ -171,17 +171,14 @@
             };
 
             /* 查找過期的項目將其刪除 */
-            this.TimeComparison = (Object, Timestamp, Callback) => {
-                const currentTime = new Date();
-                const documentLang = document.documentElement.lang;
-
-                const Supported = this.Adapter[documentLang];
-                const targetTime = Supported ? Supported(Timestamp, currentTime.getFullYear()) : currentTime;
-                currentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
+            this.TimeComparison = (Object, Adapter, Timestamp, Callback) => {
+                const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
+                this.CurrentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
             };
 
             /* 獲取當前時間 */
-            this.GetTime = (time) => {
+            this.GetTime = () => {
+                const time = this.CurrentTime;
                 const year = time.getFullYear();
                 const month = `${time.getMonth() + 1}`.padStart(2, "0");
                 const date = `${time.getDate()}`.padStart(2, "0");
@@ -205,18 +202,17 @@
             /* 頁面刷新 */
             this.PageRefresh = async (display, interval) => {
                 if (display) { // 展示倒數
-                    setInterval(() => {
+                    setInterval(() => { // 背景有時候會被限制, 而卡住倒數 (所以實際刷新由下方定時器觸發)
                         document.title = `【 ${interval--}s 】 ${this.ProgressValue}`
-                        if (interval <= 0) location.reload();
                     }, 1e3);
-                } else { // 不展示
-                    setTimeout(() => { location.reload() }, interval);
                 }
+
+                setTimeout(() => { location.reload() }, (interval + 1) * 1e3); // 定時刷新
             };
 
-            this.ProgressValue = "";
-
-            /* 設置數據 */
+            /* 初始化數據 */
+            this.ProgressValue = ""; // 保存進度值字串
+            this.CurrentTime = new Date(); // 保存當前時間
             this.config = Object.assign(Config, {
                 EndLine: "div.gtpIYu", // 斷開觀察者的終止線
                 AllProgress: "div.ilRKfU", // 所有的掉寶進度
@@ -227,90 +223,89 @@
 
         /* 主要運行 */
         static async Ran() {
-            let state, progress, Deal = !0, PI = 0, PV = 0; // PI 進度索引, PV 進度值
+            let Progress = 0, MaxElement = 0; // 掉寶進度, 最大進度元素
             const Progress_Info = {}; // 保存進度的資訊
 
             const Detec = new Detection(); // Detec = 靜態函數需要將自身類實例化
             const Self = Detec.config; // Self = 這樣只是讓語法短一點, 沒有必要性
 
             const Display = Self.UpdateDisplay;
-            const Interval = Self.UpdateInterval;
 
-            const observer = new MutationObserver(Throttle(() => {
-                if (Deal) { // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
-                    const All_Data = document.querySelectorAll(Self.AllProgress);
+            /* 主要處理函數 */
+            const Process = (Token) => {
+                document.querySelectorAll(Self.DropsButton).forEach(draw => { draw.click() }); // 領取按鈕
 
-                    if (All_Data && All_Data.length > 0) {
-                        Deal = !1;
+                if ( // 上述附加功能都沒使用, 就直接跳過
+                    !Self.RestartLive && !Self.EndAutoClose &&
+                    !Self.ClearExpiration && !Self.ProgressDisplay
+                ) return;
 
-                        All_Data.forEach((data, index) => {
-                            Detec.TimeComparison(data, data.querySelector(Self.ActivityTime).textContent,
-                                NotExpired => { // 標題顯示進度, 和重啟是分開的, 所以無論如何都會獲取當前進度
-                                    // 分別取得各自的進度
-                                    Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
-                                }
-                            )
-                        });
+                // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
+                const All_Data = document.querySelectorAll(Self.AllProgress);
+                if (All_Data && All_Data.length > 0) {
+                    const Adapter = Detec.Adapter[document.documentElement.lang]; // 根據網站語言, 獲取適配器 (寫在這裡是避免反覆調用)
 
-                        // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
-                        for (const [key, value] of Object.entries(Progress_Info)) {
-                            const cache = Detec.ProgressParse(value);
-                            cache > PV && (PV = cache, PI = key);
-                        };
+                    All_Data.forEach((data, index) => { // 顯示進度, 重啟直播, 刪除過期, 都需要這邊的處理
+                        Detec.TimeComparison(
+                            data, // 物件整體
+                            Adapter, // 適配器
+                            data.querySelector(Self.ActivityTime).textContent, // 時間戳
+                            NotExpired => { // 分別取得各自的進度
+                                Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
+                            }
+                        )
+                    });
 
-                        // 取得標題和顯示進度
-                        progress = PV > 0 ? PV : !1;
-                        state = progress ? (
-                            Self.ProgressDisplay && ( // 判斷需要顯示進度
-                                Self.ProgressDisplay = !1, // 修改狀態, 避免重複觸發
-                                Detec.ProgressValue = `${progress}%`, // 賦予進度值
-                                !Display && Detec.ShowProgress() // 有顯示更新狀態, 就由他動態展示, 沒有在呼叫 ShowProgress 動態處理展示
-                            ),
-                            !0 // 賦予狀態
-                        ) : !1;
-                    }
+                    // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
+                    for (const [key, value] of Object.entries(Progress_Info)) {
+                        const cache = Detec.ProgressParse(value);
+                        cache > Progress  && (Progress = cache, MaxElement = key);
+                    };
                 };
 
-                if (Self.RestartLive && state) {
-                    Self.RestartLive = !1;
-
-                    const time = new Date(), // 格式為 = 進度值, 時間戳
-                        [ProgressRecord, Timestamp] = Detec.Storage("Record") ?? [0, Detec.GetTime(time)], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60)); // 捨棄小數後取整, ~~ 最多限制 32 位整數
-
-                    if (conversion >= Self.JudgmentInterval && progress == ProgressRecord) { // 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟
-                        Restart.Ran(PI); // 傳遞當前最高進度, 進行直播重啟
-
-                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
-                    } else if (conversion == 0 || progress != ProgressRecord) { // 時間是 0 | 標題 != 進度 = 有變化 (更新紀錄)
-                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
-                    }
+                // 處理進度 (寫在這裡是, AllProgress 找不到時, 也要正確試錯)
+                if (Progress > 0) {
+                    Detec.ProgressValue = `${Progress}%`; // 賦予進度值
+                    !Display && Detec.ShowProgress() // 有顯示更新狀態, 就由他動態展示, 沒有再呼叫 ShowProgress 動態處理展示
+                } else if (Token > 0) {
+                    setTimeout(() => {Process(Token - 1)}, 2e3); // 試錯 (避免意外)
                 };
 
-                // 領取按鈕
-                document.querySelectorAll(Self.DropsButton).forEach(draw => { draw.click() });
+                // 重啟直播與自動關閉, 都需要紀錄判斷, 所以無論如何都會存取紀錄
+                const [Record, Timestamp] = Detec.Storage("Record") ?? [0, Detec.GetTime()]; // 進度值, 時間戳
+                const Diff = ~~((Detec.CurrentTime - new Date(Timestamp)) / (1e3 * 60)); // 捨棄小數後取整, ~~ 最多限制 32 位整數
 
-                if (document.querySelector(Self.EndLine)) {
-                    observer.disconnect(); // 斷開觀察
+                /* 當無取得進度, 且啟用自動關閉, 且紀錄又不為 0, 判斷掉寶領取完成, 最後避免意外 Token 為 0 才觸發 */
+                if (!Progress && Self.EndAutoClose && Record != 0 && Token == 0) {
+                    window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
+                    window.close();
 
-                    const count = Detec.Storage("NoProgressCount") ?? 0;
-                    if (progress) {
-                        Detec.Storage("NoProgressCount", 0);
-                    } else if (count > 2) {
-                        Detec.Storage("NoProgressCount", 0);
-                        if (Self.EndAutoClose) {
-                            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-                            window.close();
-                        }
-                    } else {
-                        Detec.Storage("NoProgressCount", count + 1);
-                    }
+                /* 時間大於檢測間隔, 且標題與進度值相同, 代表需要重啟 */
+                } else if (Diff >= Self.JudgmentInterval && Progress == Record) {
+                    Self.RestartLive && Restart.Ran(MaxElement); // 已最大進度對象, 進行直播重啟
+                    Detec.Storage("Record", [Progress, Detec.GetTime()]);
+
+                /* 差異時間是 0 或 標題與進度值不同 = 有變化 */
+                } else if (Diff == 0 || Progress != Record) {
+                    Detec.Storage("Record", [Progress, Detec.GetTime()]);
+
                 };
+            };
+
+            const observer = new MutationObserver(Debounce(() => {
+                Process(4); // 預設能試錯 5 次
+                observer.disconnect(); // 斷開觀察
+                Self.TryStayActive && StayActive(document);
             }, 300));
 
-            // 因為是後台運行, 使用 requestAnimationFrame 查找會不太穩定, 只能使用 MutationObserver
-            observer.observe(document, { subtree: !0, childList: !0, characterData: !0 });
-            Self.TryStayActive && StayActive(document);
-            Detec.PageRefresh(Display, Display ? Interval : Interval * 1e3); // 呼叫頁面刷新
+            // 後台運行, 使用 requestAnimationFrame 查找會不太穩定, 只能使用 MutationObserver
+            observer.observe(document, { 
+                subtree: !0,
+                childList: !0,
+                characterData: !0
+            });
+
+            Detec.PageRefresh(Display, Self.UpdateInterval); // 呼叫頁面刷新
         }
     };
 
@@ -472,18 +467,6 @@
         }
     };
 
-    /* 對 DOM 查找進行節流 */
-    function Throttle(func, delay) {
-        let lastTime = 0;
-        return (...args) => {
-            const now = Date.now();
-            if ((now - lastTime) >= delay) {
-                lastTime = now;
-                func(...args);
-            }
-        }
-    };
-
     /* 使窗口保持活躍 */
     async function StayActive(Target) {
         const script = document.createElement("script");
@@ -496,21 +479,41 @@
             const Active = WorkerCreation(\`
                 onmessage = function(e) {
                     setTimeout(()=> {
-                        const {url, visible} = e.data;
-                        visible == "hidden" && fetch(url);
+                        const {url} = e.data;
+                        fetch(url);
                         postMessage({url});
-                    }, 6e4);
+                    }, 1e4);
                 }
             \`);
-            Active.postMessage({ url: location.href, visible: document.visibilityState});
+            Active.postMessage({ url: location.href});
             Active.onmessage = (e) => {
                 const { url } = e.data;
-                const video = document.querySelector("video");
-                video && video.play();
-                Active.postMessage({ url: url, visible: document.visibilityState });
+                document.querySelector("video")?.play();
+                Active.postMessage({ url: url});
             };
-        `
+        `;
         Target.head.append(script);
+    };
+
+    function Throttle(func, delay) {
+        let lastTime = 0;
+        return (...args) => {
+            const now = Date.now();
+            if ((now - lastTime) >= delay) {
+                lastTime = now;
+                func(...args);
+            }
+        }
+    };
+
+    function Debounce(func, delay) {
+        let timer = null;
+        return (...args) => {
+            clearTimeout(timer);
+            timer = setTimeout(function() {
+                func(...args);
+            }, delay);
+        }
     };
 
     // 主運行調用
