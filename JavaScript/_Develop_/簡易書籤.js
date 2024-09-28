@@ -217,12 +217,36 @@
                 timeout: 2500
             });
 
-            Syn.Listen(document, "click", async () => {
-                const [fileHandle] = await unsafeWindow.showOpenFilePicker();
-                const file = await fileHandle.getFile();
-                const data = await file.text();
-                data && this.Import(data);
-            }, {once: true});
+            if (Syn.Device.Type() == "Desktop") { // 實驗性方式
+                Syn.Listen(document, "click", async (event) => {
+                    event.preventDefault();
+                    const [fileHandle] = await unsafeWindow.showOpenFilePicker();
+                    const file = await fileHandle.getFile();
+                    const data = await file.text();
+                    data && this.Import(data);
+                }, {once: true});
+
+            } else if (Syn.Device.Type() == "Mobile") { // 該方法支援不同平台
+                const input = document.createElement("input");
+                input.type = "file";
+
+                Syn.Listen(document, "click", (event)=> {
+                    event.preventDefault();
+                    input.click();
+                    input.remove();
+                }, {once: true});
+
+                Syn.Listen(input, "change", (event)=> {
+                    const file = event.target.files[0];
+                    if (file) {
+                        const reader = new FileReader();
+                        reader.readAsText(file, "UTF-8");
+                        reader.onload = (event) => {
+                            this.Import(event.target.result);
+                        }
+                    }
+                }, {once: true, passive: true});
+            }
         };
 
         /* 導入 剪貼簿 */
