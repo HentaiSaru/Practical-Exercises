@@ -48,6 +48,21 @@
     /* 檢測邏輯 */
     class Detection {
         constructor() {
+            /* 解析進度(找到 < 100 的最大值) */
+            this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 1e2);
+
+            /* 獲取當前時間 */
+            this.GetTime = () => {
+                const time = this.CurrentTime;
+                const year = time.getFullYear();
+                const month = `${time.getMonth() + 1}`.padStart(2, "0");
+                const date = `${time.getDate()}`.padStart(2, "0");
+                const hour = `${time.getHours()}`.padStart(2, "0");
+                const minute = `${time.getMinutes()}`.padStart(2, "0");
+                const second = `${time.getSeconds()}`.padStart(2, "0");
+                return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
+            };
+
             /* 保存數據 */
             this.Storage = (key, value = null) => {
                 let data,
@@ -170,36 +185,7 @@
                 }
             };
 
-            /* 查找過期的項目將其刪除 */
-            this.TimeComparison = (Object, Adapter, Timestamp, Callback) => {
-                const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
-                this.CurrentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
-            };
-
-            /* 獲取當前時間 */
-            this.GetTime = () => {
-                const time = this.CurrentTime;
-                const year = time.getFullYear();
-                const month = `${time.getMonth() + 1}`.padStart(2, "0");
-                const date = `${time.getDate()}`.padStart(2, "0");
-                const hour = `${time.getHours()}`.padStart(2, "0");
-                const minute = `${time.getMinutes()}`.padStart(2, "0");
-                const second = `${time.getSeconds()}`.padStart(2, "0");
-                return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
-            };
-
-            /* 解析進度(找到 < 100 的最大值) */
-            this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 1e2);
-
-            /* 展示進度於 */
-            this.ShowProgress = () => {
-                (new MutationObserver(() => {
-                    document.title != this.ProgressValue && (document.title = this.ProgressValue);
-                })).observe(document.querySelector("title"), { childList: !0, subtree: !1 });
-                document.title = this.ProgressValue; // 觸發一次轉換
-            };
-
-            /* 頁面刷新 */
+            /* 頁面刷新, 展示倒數 */
             this.PageRefresh = async (display, interval) => {
                 if (display) { // 展示倒數
                     setInterval(() => { // 背景有時候會被限制, 而卡住倒數 (所以實際刷新由下方定時器觸發)
@@ -208,6 +194,20 @@
                 }
 
                 setTimeout(() => { location.reload() }, (interval + 1) * 1e3); // 定時刷新
+            };
+
+            /* 展示進度於標籤 */
+            this.ShowProgress = () => {
+                (new MutationObserver(() => {
+                    document.title != this.ProgressValue && (document.title = this.ProgressValue);
+                })).observe(document.querySelector("title"), { childList: !0, subtree: !1 });
+                document.title = this.ProgressValue; // 觸發一次轉換
+            };
+
+            /* 查找過期的項目將其刪除 */
+            this.TimeComparison = (Object, Adapter, Timestamp, Callback) => {
+                const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
+                this.CurrentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
             };
 
             /* 初始化數據 */
