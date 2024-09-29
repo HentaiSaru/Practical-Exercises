@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta2
+// @version             0.0.15-Beta3
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -41,15 +41,30 @@
         JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         DropsButton: "button.ejeLlX", // 掉寶領取按鈕
-        FindTag: ["drops", "启用掉宝", "啟用掉寶", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
+        FindTag: ["drops", "啟用掉寶", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     };
     class Detection {
         constructor() {
+            this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 100);
+            this.GetTime = () => {
+                const time = this.CurrentTime;
+                const year = time.getFullYear();
+                const month = `${time.getMonth() + 1}`.padStart(2, "0");
+                const date = `${time.getDate()}`.padStart(2, "0");
+                const hour = `${time.getHours()}`.padStart(2, "0");
+                const minute = `${time.getMinutes()}`.padStart(2, "0");
+                const second = `${time.getSeconds()}`.padStart(2, "0");
+                return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
+            };
             this.Storage = (key, value = null) => {
                 let data, Formula = {
                     Type: parse => Object.prototype.toString.call(parse).slice(8, -1),
-                    Number: parse => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0),
-                    Array: parse => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0)
+                    Number: parse => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)),
+                        !0),
+                    Array: parse => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)),
+                        !0),
+                    Object: parse => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)),
+                        !0)
                 };
                 return value != null ? Formula[Formula.Type(value)]() : (data = sessionStorage.getItem(key),
                     data != undefined ? Formula[Formula.Type(JSON.parse(data))](data) : data);
@@ -124,23 +139,16 @@
                     return new Date(`${currentYear}-${match[1]}-${match[2]} ${match[4]}:00 ${match[3]}`);
                 }
             };
-            this.TimeComparison = (Object, Timestamp, Callback) => {
-                const currentTime = new Date();
-                const documentLang = document.documentElement.lang;
-                const Supported = this.Adapter[documentLang];
-                const targetTime = Supported ? Supported(Timestamp, currentTime.getFullYear()) : currentTime;
-                currentTime > targetTime ? this.config.ClearExpiration && Object.remove() : Callback(Object);
+            this.PageRefresh = async (display, interval) => {
+                if (display) {
+                    setInterval(() => {
+                        document.title = `【 ${interval--}s 】 ${this.ProgressValue}`;
+                    }, 1e3);
+                }
+                setTimeout(() => {
+                    location.reload();
+                }, (interval + 1) * 1e3);
             };
-            this.GetTime = time => {
-                const year = time.getFullYear();
-                const month = `${time.getMonth() + 1}`.padStart(2, "0");
-                const date = `${time.getDate()}`.padStart(2, "0");
-                const hour = `${time.getHours()}`.padStart(2, "0");
-                const minute = `${time.getMinutes()}`.padStart(2, "0");
-                const second = `${time.getSeconds()}`.padStart(2, "0");
-                return `${year}-${month}-${date} ${hour}:${minute}:${second}`;
-            };
-            this.ProgressParse = progress => progress.sort((a, b) => b - a).find(number => number < 100);
             this.ShowProgress = () => {
                 new MutationObserver(() => {
                     document.title != this.ProgressValue && (document.title = this.ProgressValue);
@@ -150,20 +158,13 @@
                 });
                 document.title = this.ProgressValue;
             };
-            this.PageRefresh = async (display, interval) => {
-                if (display) {
-                    setInterval(() => {
-                        document.title = `【 ${interval--}s 】 ${this.ProgressValue}`;
-                        if (interval <= 0) location.reload();
-                    }, 1e3);
-                } else {
-                    setTimeout(() => {
-                        location.reload();
-                    }, interval);
-                }
+            this.ExpiredCleanup = (Object, Adapter, Timestamp, Callback) => {
+                const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
+                this.CurrentTime > targetTime ? this.config.ClearExpiration && Object.remove() : Callback(Object);
             };
             this.ProgressValue = "";
-            this.config = Object.assign(Config, {
+            this.CurrentTime = new Date();
+            this.Config = Object.assign(Config, {
                 EndLine: "div.gtpIYu",
                 AllProgress: "div.ilRKfU",
                 ProgressBar: "p.mLvNZ span",
@@ -171,86 +172,72 @@
             });
         }
         static async Ran() {
-            let state, progress, Deal = !0, PI = 0, PV = 0;
+            let Progress = 0, MaxElement = 0;
             const Progress_Info = {};
             const Detec = new Detection();
-            const Self = Detec.config;
+            const Self = Detec.Config;
             const Display = Self.UpdateDisplay;
-            const Interval = Self.UpdateInterval;
-            const observer = new MutationObserver(Throttle(() => {
-                if (Deal) {
-                    const All_Data = document.querySelectorAll(Self.AllProgress);
-                    if (All_Data && All_Data.length > 0) {
-                        Deal = !1;
-                        All_Data.forEach((data, index) => {
-                            Detec.TimeComparison(data, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
-                                Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
-                            });
-                        });
-                        for (const [key, value] of Object.entries(Progress_Info)) {
-                            const cache = Detec.ProgressParse(value);
-                            cache > PV && (PV = cache, PI = key);
-                        }
-                        progress = PV > 0 ? PV : !1;
-                        state = progress ? (Self.ProgressDisplay && (Self.ProgressDisplay = !1,
-                            Detec.ProgressValue = `${progress}%`, !Display && Detec.ShowProgress()),
-                            !0) : !1;
-                    }
-                }
-                if (Self.RestartLive && state) {
-                    Self.RestartLive = !1;
-                    const time = new Date(), [ProgressRecord, Timestamp] = Detec.Storage("Record") ?? [0, Detec.GetTime(time)], conversion = ~~((time - new Date(Timestamp)) / (1e3 * 60));
-                    if (conversion >= Self.JudgmentInterval && progress == ProgressRecord) {
-                        Restart.Ran(PI);
-                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
-                    } else if (conversion == 0 || progress != ProgressRecord) {
-                        Detec.Storage("Record", [progress, Detec.GetTime(time)]);
-                    }
-                }
+            const Process = Token => {
                 document.querySelectorAll(Self.DropsButton).forEach(draw => {
                     draw.click();
                 });
-                if (document.querySelector(Self.EndLine)) {
-                    observer.disconnect();
-                    const count = Detec.Storage("NoProgressCount") ?? 0;
-                    if (progress) {
-                        Detec.Storage("NoProgressCount", 0);
-                    } else if (count > 2) {
-                        Detec.Storage("NoProgressCount", 0);
-                        if (Self.EndAutoClose) {
-                            window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
-                            window.close();
+                if (!Self.RestartLive && !Self.EndAutoClose && !Self.ClearExpiration && !Self.ProgressDisplay) return;
+                const All_Data = document.querySelectorAll(Self.AllProgress);
+                if (All_Data && All_Data.length > 0) {
+                    const Adapter = Detec.Adapter[document.documentElement.lang];
+                    All_Data.forEach((data, index) => {
+                        Detec.ExpiredCleanup(data, Adapter, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
+                            Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
+                        });
+                    });
+                    const OldTask = Detec.Storage("Task") ?? {};
+                    const NewTask = Object.fromEntries(Object.entries(Progress_Info).map(([key, value]) => [key, Detec.ProgressParse(value)]));
+                    for (const [key, value] of Object.entries(NewTask)) {
+                        const OldValue = OldTask[key] ?? value;
+                        if (value != OldValue) {
+                            MaxElement = key;
+                            Progress = value;
+                            break;
+                        } else if (value > Progress) {
+                            MaxElement = key;
+                            Progress = value;
                         }
-                    } else {
-                        Detec.Storage("NoProgressCount", count + 1);
                     }
+                    Detec.Storage("Task", NewTask);
                 }
-            }, 300));
-            observer.observe(document, {
-                subtree: !0,
-                childList: !0,
-                characterData: !0
+                if (Progress > 0) {
+                    Detec.ProgressValue = `${Progress}%`;
+                    !Display && Detec.ShowProgress();
+                } else if (Token > 0) {
+                    setTimeout(() => {
+                        Process(Token - 1);
+                    }, 2e3);
+                }
+                const [Record, Timestamp] = Detec.Storage("Record") ?? [0, Detec.GetTime()];
+                const Diff = ~~((Detec.CurrentTime - new Date(Timestamp)) / (1e3 * 60));
+                if (!Progress && Self.EndAutoClose && Record != 0 && Token == 0) {
+                    window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
+                    window.close();
+                } else if (Diff >= Self.JudgmentInterval && Progress == Record) {
+                    Self.RestartLive && Restart.Ran(MaxElement);
+                    Detec.Storage("Record", [Progress, Detec.GetTime()]);
+                } else if (Diff == 0 || Progress != Record) {
+                    if (Progress != 0) Detec.Storage("Record", [Progress, Detec.GetTime()]);
+                }
+            };
+            WaitElem(document, Self.EndLine, () => {
+                Process(4);
+                Self.TryStayActive && StayActive(document);
+            }, {
+                timeoutResult: true
             });
-            Self.TryStayActive && StayActive(document);
-            Detec.PageRefresh(Display, Display ? Interval : Interval * 1e3);
+            Detec.PageRefresh(Display, Self.UpdateInterval);
         }
     }
     class RestartLive {
         constructor() {
-            this.WaitElem = async (Newindow, selector, found) => {
-                let element;
-                const observer = new MutationObserver(Throttle(() => {
-                    element = Newindow.document.querySelector(selector);
-                    element && (observer.disconnect(), found(element));
-                }, 200));
-                observer.observe(Newindow.document, {
-                    subtree: !0,
-                    childList: !0,
-                    characterData: !0
-                });
-            };
             this.LiveMute = async Newindow => {
-                this.WaitElem(Newindow, "video", video => {
+                WaitElem(Newindow.document, "video", video => {
                     const SilentInterval = setInterval(() => {
                         video.muted = !0;
                     }, 500);
@@ -260,11 +247,12 @@
                 });
             };
             this.LiveLowQuality = async Newindow => {
-                this.WaitElem(Newindow, "[data-a-target='player-settings-button']", Menu => {
+                const Dom = Newindow.document;
+                WaitElem(Dom, "[data-a-target='player-settings-button']", Menu => {
                     Menu.click();
-                    this.WaitElem(Newindow, "[data-a-target='player-settings-menu-item-quality']", Quality => {
+                    WaitElem(Dom, "[data-a-target='player-settings-menu-item-quality']", Quality => {
                         Quality.click();
-                        this.WaitElem(Newindow, "[data-a-target='player-settings-menu']", Settings => {
+                        WaitElem(Dom, "[data-a-target='player-settings-menu']", Settings => {
                             Settings.lastElementChild.click();
                             setTimeout(() => {
                                 Menu.click();
@@ -273,7 +261,7 @@
                     });
                 });
             };
-            this.config = Object.assign(Config, {
+            this.Config = Object.assign(Config, {
                 TagType: "span",
                 Article: "article",
                 OfflineTag: "p.fQYeyD",
@@ -283,18 +271,18 @@
                 ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']"
             });
         }
-        async Ran(CI) {
+        async Ran(Index) {
             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close();
             const Dir = this;
-            const Self = Dir.config;
+            const Self = Dir.Config;
             const FindTag = new RegExp(Self.FindTag.join("|"));
             let NewWindow, OpenLink, article;
-            let Channel = document.querySelectorAll(Self.ActivityLink2)[CI];
+            let Channel = document.querySelectorAll(Self.ActivityLink2)[Index];
             if (Channel) {
                 NewWindow = window.open(Channel.href, "LiveWindow");
                 DirectorySearch(NewWindow);
             } else {
-                Channel = document.querySelectorAll(Self.ActivityLink1)[CI];
+                Channel = document.querySelectorAll(Self.ActivityLink1)[Index];
                 OpenLink = [...Channel.querySelectorAll("a")].reverse();
                 FindLive(0);
                 async function FindLive(index) {
@@ -407,6 +395,30 @@
             }
         };
     }
+    async function WaitElem(document, selector, found, {
+        timeout = 1e4,
+        throttle = 200,
+        timeoutResult = false
+    } = {}) {
+        let timer, element;
+        const observer = new MutationObserver(Throttle(() => {
+            element = document.querySelector(selector);
+            if (element) {
+                observer.disconnect();
+                clearTimeout(timer);
+                found(element);
+            }
+        }, throttle));
+        observer.observe(document, {
+            subtree: !0,
+            childList: !0,
+            characterData: !0
+        });
+        timer = setTimeout(() => {
+            observer.disconnect();
+            timeoutResult && found(element);
+        }, timeout);
+    }
     async function StayActive(Target) {
         const script = document.createElement("script");
         script.id = "Stay-Active";
@@ -418,18 +430,17 @@
             const Active = WorkerCreation(\`
                 onmessage = function(e) {
                     setTimeout(()=> {
-                        const {url, visible} = e.data;
-                        visible == "hidden" && fetch(url);
+                        const {url} = e.data;
+                        fetch(url);
                         postMessage({url});
-                    }, 6e4);
+                    }, 1e4);
                 }
             \`);
-            Active.postMessage({ url: location.href, visible: document.visibilityState});
+            Active.postMessage({ url: location.href});
             Active.onmessage = (e) => {
                 const { url } = e.data;
-                const video = document.querySelector("video");
-                video && video.play();
-                Active.postMessage({ url: url, visible: document.visibilityState });
+                document.querySelector("video")?.play();
+                Active.postMessage({ url: url});
             };
         `;
         Target.head.append(script);
