@@ -70,6 +70,7 @@
                         Type: (parse) => Object.prototype.toString.call(parse).slice(8, -1),
                         Number: (parse) => parse ? Number(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0),
                         Array: (parse) => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0),
+                        Object: (parse) => parse ? JSON.parse(parse) : (sessionStorage.setItem(key, JSON.stringify(value)), !0),
                     };
                 return value != null
                     ? Formula[Formula.Type(value)]()
@@ -256,11 +257,26 @@
                         )
                     });
 
-                    // 獲取最大進度值, 與他對應的 Index (目前是取所有對象中最大的)
-                    for (const [key, value] of Object.entries(Progress_Info)) {
-                        const cache = Detec.ProgressParse(value);
-                        cache > Progress  && (Progress = cache, MaxElement = key);
+                    const OldTask = Detec.Storage("Task") ?? {}; // 嘗試獲取舊任務紀錄
+                    const NewTask = Object.fromEntries( // 獲取新任務數據
+                        Object.entries(Progress_Info).map(([key, value]) => [key, Detec.ProgressParse(value)])
+                    );
+
+                    // 開始找到當前運行的任務
+                    for (const [key, value] of Object.entries(NewTask)) {
+                        const OldValue = OldTask[key] ?? value;
+
+                        if (value != OldValue) { // 找到第一個新值不等於舊值的
+                            MaxElement = key;
+                            Progress = value;
+                            break;
+                        } else if (value > Progress) { // 如果都相同, 就找當前對象最大
+                            MaxElement = key;
+                            Progress = value;
+                        }
                     };
+
+                    Detec.Storage("Task", NewTask); // 保存新任務狀態
                 };
 
                 // 處理進度 (寫在這裡是, AllProgress 找不到時, 也要正確試錯)
@@ -355,20 +371,20 @@
             });
         }
 
-        async Ran(CI) { // 傳入對應的頻道索引
+        async Ran(Index) { // 傳入對應的頻道索引
             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close(); // 將查找標籤合併成正則
             const Dir = this;
             const Self = Dir.config;
             const FindTag = new RegExp(Self.FindTag.join("|"));
 
             let NewWindow, OpenLink, article;
-            let Channel = document.querySelectorAll(Self.ActivityLink2)[CI];
+            let Channel = document.querySelectorAll(Self.ActivityLink2)[Index];
 
             if (Channel) {
                 NewWindow = window.open(Channel.href, "LiveWindow");
                 DirectorySearch(NewWindow);
             } else {
-                Channel = document.querySelectorAll(Self.ActivityLink1)[CI];
+                Channel = document.querySelectorAll(Self.ActivityLink1)[Index];
                 OpenLink = [...Channel.querySelectorAll("a")].reverse();
 
                 FindLive(0);
