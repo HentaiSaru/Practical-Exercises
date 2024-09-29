@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta2
+// @version             0.0.15-Beta3
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -214,7 +214,7 @@
             /* 初始化數據 */
             this.ProgressValue = ""; // 保存進度值字串
             this.CurrentTime = new Date(); // 保存當前時間
-            this.config = Object.assign(Config, {
+            this.Config = Object.assign(Config, {
                 EndLine: "div.gtpIYu", // 斷開觀察者的終止線
                 AllProgress: "div.ilRKfU", // 所有的掉寶進度
                 ProgressBar: "p.mLvNZ span", // 掉寶進度數據
@@ -228,7 +228,7 @@
             const Progress_Info = {}; // 保存進度的資訊
 
             const Detec = new Detection(); // Detec = 靜態函數需要將自身類實例化
-            const Self = Detec.config; // Self = 這樣只是讓語法短一點, 沒有必要性
+            const Self = Detec.Config; // Self = 這樣只是讓語法短一點, 沒有必要性
 
             const Display = Self.UpdateDisplay;
 
@@ -308,39 +308,20 @@
                 };
             };
 
-            const observer = new MutationObserver(Debounce(() => {
+            WaitElem(document, Self.EndLine, () => { // 等待頁面載入
                 Process(4); // 預設能試錯 5 次
-                observer.disconnect(); // 斷開觀察
                 Self.TryStayActive && StayActive(document);
-            }, 300));
-
-            // 後台運行, 使用 requestAnimationFrame 查找會不太穩定, 只能使用 MutationObserver
-            observer.observe(document, { 
-                subtree: !0,
-                childList: !0,
-                characterData: !0
-            });
-
-            Detec.PageRefresh(Display, Self.UpdateInterval); // 呼叫頁面刷新
+            }, {timeoutResult: true});
+            Detec.PageRefresh(Display, Self.UpdateInterval); // 頁面刷新
         }
     };
 
     /* 重啟邏輯 */
     class RestartLive {
         constructor() {
-            /* 簡易的 等待元素 */
-            this.WaitElem = async (Newindow, selector, found) => {
-                let element;
-                const observer = new MutationObserver(Throttle(() => {
-                    element = Newindow.document.querySelector(selector);
-                    element && (observer.disconnect(), found(element));
-                }, 200));
-                observer.observe(Newindow.document, { subtree: !0, childList: !0, characterData: !0 });
-            };
-
             /* 重啟直播的靜音(持續執行 15 秒) */
             this.LiveMute = async Newindow => {
-                this.WaitElem(Newindow, "video", video => {
+                WaitElem(Newindow.document, "video", video => {
                     const SilentInterval = setInterval(() => { video.muted = !0 }, 5e2);
                     setTimeout(() => { clearInterval(SilentInterval) }, 1.5e4);
                 })
@@ -348,11 +329,12 @@
 
             /* 直播自動最低畫質 */
             this.LiveLowQuality = async Newindow => {
-                this.WaitElem(Newindow, "[data-a-target='player-settings-button']", Menu => {
+                const Dom = Newindow.document;
+                WaitElem(Dom, "[data-a-target='player-settings-button']", Menu => {
                     Menu.click(); // 點擊設置選單
-                    this.WaitElem(Newindow, "[data-a-target='player-settings-menu-item-quality']", Quality => {
+                    WaitElem(Dom, "[data-a-target='player-settings-menu-item-quality']", Quality => {
                         Quality.click(); // 點擊畫質設定
-                        this.WaitElem(Newindow, "[data-a-target='player-settings-menu']", Settings => {
+                        WaitElem(Dom, "[data-a-target='player-settings-menu']", Settings => {
                             Settings.lastElementChild.click(); // 選擇最低畫質
                             setTimeout(() => { Menu.click() }, 800); // 等待一下關閉菜單
                         })
@@ -360,7 +342,7 @@
                 })
             };
 
-            this.config = Object.assign(Config, {
+            this.Config = Object.assign(Config, {
                 TagType: "span", // 頻道 Tag 標籤
                 Article: "article", // 直播目錄的文章
                 OfflineTag: "p.fQYeyD", // 顯示離線的標籤
@@ -374,7 +356,7 @@
         async Ran(Index) { // 傳入對應的頻道索引
             window.open("", "LiveWindow", "top=0,left=0,width=1,height=1").close(); // 將查找標籤合併成正則
             const Dir = this;
-            const Self = Dir.config;
+            const Self = Dir.Config;
             const FindTag = new RegExp(Self.FindTag.join("|"));
 
             let NewWindow, OpenLink, article;
@@ -483,6 +465,41 @@
         }
     };
 
+    /* 節流函數 */
+    function Throttle(func, delay) {
+        let lastTime = 0;
+        return (...args) => {
+            const now = Date.now();
+            if ((now - lastTime) >= delay) {
+                lastTime = now;
+                func(...args);
+            }
+        }
+    };
+
+    /* 簡易的 等待元素 */
+    async function WaitElem(
+        document, selector, found, { timeout=1e4, throttle=200, timeoutResult=false } = {}
+    ) {
+        let timer, element;
+
+        const observer = new MutationObserver(Throttle(() => {
+            element = document.querySelector(selector);
+            if (element) {
+                observer.disconnect();
+                clearTimeout(timer);
+                found(element);
+            }
+        }, throttle));
+
+        observer.observe(document, { subtree: !0, childList: !0, characterData: !0 });
+        timer = setTimeout(() => {
+            observer.disconnect();
+            timeoutResult &&found(element);
+        }, timeout);
+
+    };
+
     /* 使窗口保持活躍 */
     async function StayActive(Target) {
         const script = document.createElement("script");
@@ -509,27 +526,6 @@
             };
         `;
         Target.head.append(script);
-    };
-
-    function Throttle(func, delay) {
-        let lastTime = 0;
-        return (...args) => {
-            const now = Date.now();
-            if ((now - lastTime) >= delay) {
-                lastTime = now;
-                func(...args);
-            }
-        }
-    };
-
-    function Debounce(func, delay) {
-        let timer = null;
-        return (...args) => {
-            clearTimeout(timer);
-            timer = setTimeout(function() {
-                func(...args);
-            }, delay);
-        }
     };
 
     // 主運行調用
