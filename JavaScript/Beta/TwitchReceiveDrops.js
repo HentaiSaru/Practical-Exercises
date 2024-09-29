@@ -270,7 +270,7 @@
                             MaxElement = key;
                             Progress = value;
                             break;
-                        } else if (value > Progress) { // 如果都相同, 就找當前對象最大
+                        } else if (value > Progress) { // 如果都相同, 或沒有紀錄, 就找當前最大對象
                             MaxElement = key;
                             Progress = value;
                         }
