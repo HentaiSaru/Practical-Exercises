@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/07/19
+// @version      2024/09/30
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -579,29 +579,42 @@ class Syntax {
      * object = ScopeParsing("", object);
      */
     ScopeParsing(scope, object) {
-        const // 使用 set 避免重複索引
-            result = new Set(),
-            exclude = new Set(),
-            len = object.length;
-        for (const str of scope.split(/\s*[,\./]\s*/)) { // 使用 , . / 進行分割
-            // 取索引值 -1 是為了得到真正的索引值
-            if (/^\d+$/.test(str)) { // 單數字
-                result.add(Number(str)-1);
-            } else if (/^\d+(?:~\d+|-\d+)$/.test(str)) {
-                const
-                    range = str.split(/-|~/), // 數字 + (- | ~) + 數字, 並拆分出 前後數字
-                    start = Number(range[0]-1),
-                    end = Number(range[1]-1),
-                    judge = start <= end;
-                for ( // 根據範圍生成索引值, 判斷大小是避免有機掰人寫反的
-                    let i = start;
-                    judge ? i <= end : i >= end;
-                    judge ? i++ : i--
-                ) {result.add(i)}
-            } else if (/(!|-)+\d+/.test(str)) { // 單數字前面是 - 或 ! 代表排除 (與上方判斷順序不能改)
-                exclude.add(Number(str.slice(1)-1));
+        if (typeof scope != "string" || scope.trim() === "") return object;
+
+        const len = object.length;
+        const result = new Set(), exclude = new Set();
+        const scopeGenerate = (start, end, save) => { // 生成一個範圍
+            const judge = start <= end;
+            for ( // 根據數字大小順序, 生成索引值
+                let i = start;
+                judge ? i <= end : i >= end;
+                judge ? i++ : i--
+            ) {save.add(i)}
+        };
+
+        let str;
+        for (str of scope.split(/\s*[\.,|/]\s*/)) { // 使用 , . / | 進行分割
+            /* 可解析的類型
+             * 1, -2, !3, 4~5, -6~7, !8-9
+             */
+            if (/^(!|-)?\d+(~\d+|-\d+)?$/.test(str)) {
+                const noneHead = str.slice(1); // 獲取一個從 第二個字元開始的字串
+                const isExclude = /^[!-]/.test(str);
+                const isRange = /[~-]/.test(noneHead); // 由無頭字串, 判斷內部是否含有範圍字串
+
+                const [save, number] = isExclude
+                    ? [exclude, noneHead] // 是排除對象, 傳遞 (排除, 去除首字元為排除符的字串)
+                    : [result, str]; // 不是排除對象, 傳遞 (結果, 原始字串)
+
+                const [start, end] = isRange
+                    ? number.split(/-|~/) // 是範圍的已範圍符, 拆分成開始與結束
+                    : [number, number]; // 不是範圍的, 開始與結束相同
+
+                start == end
+                    ? save.add(+start - 1) // 單數字, 將開始與結束, 進行 -1 取得物件索引
+                    : scopeGenerate(+start - 1, +end - 1, save); // 是範圍
             }
-        }
+        };
 
         // 使用排除過濾出剩下的索引, 並按照順序進行排序
         const final_obj = [...result].filter(index => !exclude.has(index) && index < len && index >= 0).sort((a, b) => a - b);
