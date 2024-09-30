@@ -124,7 +124,7 @@
             // 導出數據
             this.Export = (NoChoice=false) => {
                 const bookmarks = this.GetBookmarks(NoChoice), export_data = {};
-                if (bookmarks.length > 0) {
+                if (bookmarks && bookmarks.length > 0) {
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
                         export_data[key] = value;
@@ -210,7 +210,7 @@
         /* 讀取書籤 */
         Read() {
             const bookmarks = this.GetBookmarks();
-            if (bookmarks.length > 0) {
+            if (bookmarks && bookmarks.length > 0) {
                 bookmarks.forEach((data, index)=> {
                     const [key, value] = Object.entries(data)[0];
                     setTimeout(()=> {
