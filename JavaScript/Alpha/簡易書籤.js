@@ -31,7 +31,7 @@
 // ==/UserScript==
 
 (async () => {
-    
+
     /* 主程式操作 */
     class Bookmark {
         constructor() {
