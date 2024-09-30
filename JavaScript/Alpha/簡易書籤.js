@@ -89,8 +89,8 @@
                         if (choose != null) {
                             const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
                             if (Scope.length > 5) {
-                                choose = prompt("(數量過大)\n可選擇範圍");
-                                return Syn.ScopeParsing(choose, Scope);
+                                choose = prompt("(數量過大)\n可選擇開啟數量");
+                                return Syn.ScopeParsing(`1~${choose}`, Scope);
                             } else {
                                 return Scope;
                             }
