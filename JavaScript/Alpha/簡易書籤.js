@@ -31,10 +31,12 @@
 // ==/UserScript==
 
 (async () => {
-    (new class Bookmark {
+    
+    /* 主程式操作 */
+    class Bookmark {
         constructor() {
-            this.AddClose = true; // 添加網址後關閉窗口
-            this.OpenClear = true; // 開啟後清除
+            this.AddClose = true; // 添加書籤後關閉窗口
+            this.OpenClear = true; // 開啟後清除數據
             this.ExportClear = true; // 導出後清除保存數據
 
             // 解碼
@@ -54,7 +56,7 @@
             );
 
             // 讀取書籤數據
-            this.GetBookmarks = () => {
+            this.GetBookmarks = (NoChoice=false) => {
                 let options = 0,
                 display = "",
                 read_data = new Map(),
@@ -79,12 +81,10 @@
 
                     // 將 map 數據轉成 array
                     const data_values = [...read_data.values()];
+                    // 無選擇模式, 立即回傳
+                    if (NoChoice) return data_values.flat();
 
                     while (true) {
-                        if (display == "") {
-                            return false;
-                        }
-
                         let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
                             const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
@@ -95,7 +95,7 @@
                                 return Scope;
                             }
                         } else {
-                            return false; // 空的代表都沒有輸入
+                            return false; // 代表都沒有輸入
                         }
                     }
                 } else {
@@ -106,7 +106,8 @@
             // 導入數據
             this.Import = (data) => {
                 try {
-                    for (const [key, value] of Object.entries(JSON.parse(data))) {
+                    data = typeof data === "string" ? JSON.parse(data) : data;
+                    for (const [key, value] of Object.entries(data)) {
                         Syn.Store("s", key, this.DataToPako(JSON.stringify(value)));
                     };
                     GM_notification({
@@ -120,8 +121,8 @@
             };
 
             // 導出數據
-            this.Export = () => {
-                const bookmarks = this.GetBookmarks(), export_data = {};
+            this.Export = (NoChoice=false) => {
+                const bookmarks = this.GetBookmarks(NoChoice), export_data = {};
                 if (bookmarks.length > 0) {
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
@@ -132,6 +133,27 @@
                 } else {
                     return false;
                 }
+            };
+
+            // 數據同步
+            this.Cloud = null;
+            this.DataSync = async (getCloud=true) => {
+                if (!this.Cloud) this.Cloud = await Cloud();
+
+                const RawCache = this.ExportClear; // 保存初始狀態
+                this.ExportClear = false; // 同步時不刪除數據
+
+                const ExportJson = this.Export(true);
+
+                if (getCloud) { // 判斷數據是否更新 (預設以雲端覆蓋本地)
+                    this.Cloud.Get();
+                } else if (ExportJson) { // (有數據) 添加數據
+                    this.Cloud.Update(JSON.parse(ExportJson));
+                } else { // 沒數據 (覆蓋所有數據)
+                    this.Cloud.Set({});
+                };
+
+                this.ExportClear = RawCache; // 恢復狀態
             };
         }
 
@@ -282,13 +304,15 @@
             const CollapseText = "收合菜單";
 
             function Collapse() { // 移除收合菜單
-                for (let i=1; i <= 4; i++) {
+                for (let i=1; i <= 6; i++) {
                     GM_unregisterMenuCommand("Expand-" + i)
                 }
             };
 
             function Expand() { // 展開添加菜單
                 Syn.Menu({
+                    "🔽 獲取雲端": {func: ()=> self.DataSync()},
+                    "🔼 備份雲端": {func: ()=> self.DataSync(false)},
                     "📥️ 導出 [Json]": {func: ()=> self.Export_Json()},
                     "📥️ 導出 [剪貼簿]": {func: ()=> self.Export_Clipboard()},
                     "📤️ 導入 [Json]": {func: ()=> self.Import_Json()},
@@ -337,6 +361,142 @@
             }
 
         };
-    }).Create();
+    };
 
+    const bookmark = new Bookmark();
+
+    /* 雲端備份 */
+    function Cloud() {
+        /* 載入備份 Uid */
+        let uid = Syn.Storage("UserBookmark-UID", {type: localStorage});
+
+        /* 初始化添加模組 */
+        const script = document.createElement("script");
+        script.type = "module";
+        script.id = "CloudModule";
+        script.textContent = `
+            import { initializeApp } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-app.js";
+            import { getDatabase, ref, set, get, update } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-database.js";
+            import { getAuth, GoogleAuthProvider, signInWithPopup } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
+
+            const ConnectConfig = {
+                apiKey: "AIzaSyANop-2LAthKTWk9YGlol3xyrUNDI8F4ZU",
+                authDomain: "bookmark-36144.firebaseapp.com",
+                databaseURL: "https://bookmark-36144-default-rtdb.asia-southeast1.firebasedatabase.app/",
+                projectId: "bookmark-36144",
+                storageBucket: "bookmark-36144.appspot.com",
+                messagingSenderId: "935998546049",
+                appId: "1:935998546049:web:78df63e7b6bdeccbb1ad80",
+            };
+
+            const app = initializeApp(ConnectConfig);
+            const database = getDatabase(app);
+            const auth = getAuth(app);
+
+            window.CloudModule = {
+                ref,
+                set,
+                get,
+                auth,
+                update,
+                database,
+                signInWithPopup,
+                GoogleAuthProvider,
+            };
+        `;
+
+        return new Promise((resolve, reject) => {
+            document.head.appendChild(script);
+
+            const Wait = (done) => {
+                const timer = setInterval(() => {
+                    const Module = unsafeWindow.CloudModule;
+                    if (Module?.ref) {
+                        clearInterval(timer);
+                        done(Module);
+                    }
+                })
+            }
+
+            Wait(Module => {
+                let verified = false;
+                const {
+                    ref, set, get, auth, update, database, signInWithPopup, GoogleAuthProvider
+                } = Module;
+
+                resolve({
+                    Login: () => {
+                        return new Promise((resolve, reject) => {
+                            signInWithPopup(auth, new GoogleAuthProvider())
+                                .then((result) => {
+                                    const user = result.user;
+                                    Syn.Log("登入成功", user);
+
+                                    uid = user.uid;
+                                    Syn.Storage("UserBookmark-UID", { value: user.uid, type: localStorage });
+
+                                    resolve(true);
+                                })
+                                .catch((error) => {
+                                    Syn.Log("登入失敗", error, { type: "error" });
+                                    reject(false);
+                                });
+                        });
+                    },
+                    Verify: async function () {
+                        if (!uid) {
+                            const state = await this.Login();
+                            if (!state) return false;
+                        }
+
+                        verified = true;
+                        return verified;
+                    },
+                    Update: function (Data) {
+                        if (!verified && !this.Verify()) return;
+
+                        update(ref(database, uid), Data)
+                            .then(() => {
+                                console.log("同步成功");
+                            })
+                            .catch((error) => {
+                                Syn.Log("同步失敗", {
+                                    "失敗數據": Data,
+                                    "失敗原因": error
+                                }, {type: "error"});
+                            });
+                    },
+                    Set: function (Data) {
+                        if (!verified && !this.Verify()) return;
+
+                        set(ref(database, uid), Data)
+                            .then(() => {
+                                console.log("同步成功");
+                            })
+                            .catch((error) => {
+                                console.error("同步失敗: ", error);
+                            });
+                    },
+                    Get: function () {
+                        if (!verified && !this.Verify()) return;
+
+                        get(ref(database, uid))
+                            .then((snapshot) => {
+                                if (snapshot.exists()) {
+                                    bookmark.Import(snapshot.val()); // 寫入數據到本地
+                                    console.log("獲取成功");
+                                } else {
+                                    console.error("雲端無備份");
+                                }
+                            })
+                            .catch((error) => {
+                                console.error("數據取得失敗: ", error);
+                            });
+                    }
+                })
+            });
+        })
+    };
+
+    bookmark.Create();
 })();
