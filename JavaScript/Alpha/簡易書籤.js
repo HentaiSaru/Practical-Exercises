@@ -99,6 +99,7 @@
                         }
                     }
                 } else {
+                    if (NoChoice) return false; // 沒選擇時回傳
                     alert("無保存的書籤");
                 }
             };
@@ -149,7 +150,7 @@
                     this.Cloud.Get();
                 } else if (ExportJson) { // (有數據) 添加數據
                     this.Cloud.Update(JSON.parse(ExportJson));
-                } else { // 沒數據 (覆蓋所有數據)
+                } else if (!getCloud) { // 沒數據 (覆蓋所有數據)
                     this.Cloud.Set({});
                 };
 
