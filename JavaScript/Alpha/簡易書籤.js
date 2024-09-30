@@ -87,16 +87,12 @@
 
                         let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
-                            if (choose == "all") { // 0 開啟全部
-                                return data_values.flat();
+                            const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
+                            if (Scope.length > 5) {
+                                choose = prompt("(數量過大)\n可選擇範圍");
+                                return Syn.ScopeParsing(choose, Scope);
                             } else {
-                                const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
-                                if (Scope.length > 5) {
-                                    choose = prompt("(數量過大)\n可選擇範圍");
-                                    return Syn.ScopeParsing(choose, Scope);
-                                } else {
-                                    return Scope;
-                                }
+                                return Scope;
                             }
                         } else {
                             return false; // 空的代表都沒有輸入
