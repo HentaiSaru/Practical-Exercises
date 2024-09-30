@@ -484,7 +484,8 @@
                         get(ref(database, uid))
                             .then((snapshot) => {
                                 if (snapshot.exists()) {
-                                    bookmark.Import(snapshot.val()); // 寫入數據到本地
+                                    Syn.Store("a").forEach(key => Syn.Store("d", key)); // 同步時先移除所有舊數據
+                                    bookmark.Import(snapshot.val()); // 寫入新數據到本地
                                     console.log("獲取成功");
                                 } else {
                                     console.error("雲端無備份");
