@@ -27,7 +27,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/blueimp-md5/2.19.0/js/md5.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // ==/UserScript==
 
 (async () => {
@@ -36,17 +36,11 @@
             this.AddClose = true; // 添加網址後關閉窗口
             this.OpenClear = true; // 開啟後清除
             this.ExportClear = true; // 導出後清除保存數據
-            this.Url_Exclude = /^(?:https?:\/\/)?(?:www\.)?/i;
-            this.Url_Parse = /^(?:https?:\/\/)?(?:[^@\n]+@)?(?:www\.)?([^:\/\n?]+)/img;
 
             // 解碼
-            this.decode = (str) => decodeURIComponent(str);
-
+            this.Decode = (str) => decodeURIComponent(str);
             // 解析域名
-            this.DomainName = (url) => {
-                return url.match(this.Url_Parse)[0].replace(this.Url_Exclude, "");
-            };
-
+            this.DomainName = (url) => new URL(url).hostname;
             // 數據轉 pako 的數組
             this.DataToPako = (str) => pako.deflateRaw(str).toString();
 
@@ -73,7 +67,7 @@
                 if (all_data.length > 0) {
                     all_data.forEach(key => {// 讀取後分類
                         const recover = this.PakoToData(Syn.Store("g", key));
-                        recover && process(this.DomainName(recover.url), {[key]: recover});
+                        recover && process(this.DomainName(recover.Url), {[key]: recover});
                     });
 
                     // 對數據進行排序
@@ -93,16 +87,15 @@
 
                         let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
-                            choose = choose == "" ? "all" : choose;
-
                             if (choose == "all") { // 0 開啟全部
                                 return data_values.flat();
                             } else {
-                                const scope = Syn.ScopeParsing(choose, data_values); // 接收範圍參數
-                                if (scope.length > 0) {
-                                    return scope.flat();
+                                const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
+                                if (Scope.length > 5) {
+                                    choose = prompt("(數量過大)\n可選擇範圍");
+                                    return Syn.ScopeParsing(choose, Scope);
                                 } else {
-                                    alert("錯誤的代號");
+                                    return Scope;
                                 }
                             }
                         } else {
@@ -133,7 +126,7 @@
             // 導出數據
             this.Export = () => {
                 const bookmarks = this.GetBookmarks(), export_data = {};
-                if (bookmarks) {
+                if (bookmarks.length > 0) {
                     bookmarks.forEach(data => {
                         const [key, value] = Object.entries(data)[0]; // 解構數據
                         export_data[key] = value;
@@ -150,13 +143,13 @@
         Add() {
             try {
                 const
-                    url = this.decode(Syn.Device.Url),
+                    url = this.Decode(Syn.Device.Url),
                     title = document.title || `Source_${url}`,
                     icon = Syn.$$("link[rel~='icon']"),
-                    icon_link = icon ? this.decode(icon.href) : "None";
+                    icon_link = icon ? this.Decode(icon.href) : "None";
 
                 // 組成數據
-                const data = JSON.stringify({
+                const data = JSON.stringify({ //! 如果修改保存的 Key, 那麼 GetBookmarks 解析, 和 Read 開啟都必須相應修改
                     Icon: icon_link, Url: url, Title: title,
                 })
                 , save = this.DataToPako(data)
@@ -198,14 +191,16 @@
         /* 讀取書籤 */
         Read() {
             const bookmarks = this.GetBookmarks();
-            if (bookmarks) {
+            if (bookmarks.length > 0) {
                 bookmarks.forEach((data, index)=> {
                     const [key, value] = Object.entries(data)[0];
                     setTimeout(()=> {
-                        GM_openInTab(value.url);
+                        GM_openInTab(value.Url);
                         this.OpenClear && Syn.Store("d", key); // 刪除開啟的數據
                     }, 500 * index);
                 })
+            } else if (bookmarks) {
+                alert("選擇錯誤");
             }
         };
 
