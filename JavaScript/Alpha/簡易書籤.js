@@ -149,7 +149,7 @@
                 if (getCloud) { // 判斷數據是否更新 (預設以雲端覆蓋本地)
                     this.Cloud.Get();
                 } else if (ExportJson) { // (有數據) 添加數據
-                    this.Cloud.Update(JSON.parse(ExportJson));
+                    this.Cloud.Set(JSON.parse(ExportJson));
                 } else if (!getCloud) { // 沒數據 (覆蓋所有數據)
                     this.Cloud.Set({});
                 };
