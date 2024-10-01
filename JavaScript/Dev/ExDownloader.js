@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta2
+// @version      0.0.16-Beta3
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -33,7 +33,7 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 // ==/UserScript==
 
@@ -277,7 +277,10 @@
                         ? (Original.href ?? Resample.src ?? Resample.href)
                         : (Resample.src ?? Resample.href);
 
-                    ImageData.push([index, Link]);
+                    ImageData.push([index, {
+                        PageUrl: url,
+                        ImageUrl: Link
+                    }]);
 
                     DConfig.DisplayCache = `[${++Task}/${Pages}]`;
                     document.title = DConfig.DisplayCache;
@@ -295,6 +298,46 @@
                     Task++;
                 }
             };
+        };
+
+        /* 重新獲取圖片數據 (試錯) -> [索引, 頁面連結, 圖片連結] */
+        ReGetImageData(Index, Url) {
+            function GetLink(index, url, page) {
+                const Resample = Syn.$$("#img", { root: page });
+                const Original = Syn.$$("#i6 div:last-of-type a", { root: page });
+
+                if (!Resample) return false;
+
+                const Link = Config.Original
+                    ? (Original.href ?? Resample.src ?? Resample.href)
+                    : (Resample.src ?? Resample.href);
+
+                // 索引, 頁面連結, 圖片連結
+                return [index, url, Link]; 
+            };
+
+            let Token = Config.ReTry; // 取得試錯次數
+            return new Promise((resolve, reject) => {
+                this.Worker.postMessage({ index: Index, url: Url, time: Date.now(), delay: DConfig.Image_ID});
+                this.Worker.onmessage = (e) => {
+                    const { index, url, html, time, delay, error } = e.data;
+
+                    if (error) {
+                        this.Worker.postMessage({ Index, url: Url, time: time, delay: delay});
+                    } else {
+                        if (Token <= 0) reject(false); // 真的一直失敗的結束 (應該很難被觸發)
+
+                        const result = GetLink(index, url, Syn.DomParse(html));
+                        if (result) {
+                            resolve(result);
+                        }
+                        else {
+                            this.Worker.postMessage({ Index, url: Url, time: time, delay: delay});
+                            Token-1;
+                        }
+                    }
+                };
+            });
         };
 
         /* 任務啟動器 (配置處理) */
@@ -353,34 +396,44 @@
                 }
             }, "Enforce");
 
+            function RunClear() {
+                if (!ClearCache) {
+                    ClearCache = true;
+                    sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
+                    Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
+                }
+            };
+
             // 更新請求狀態 (開始請求時間, 數據的索引, 圖片連結, 圖片數據, 錯誤狀態)
-            function StatusUpdate(time, index, url, blob, error = false) {
+            function StatusUpdate(time, index, purl, iurl, blob, error = false) {
                 Data.delete(index); // 清除完成的任務
                 if (Enforce) return;
                 [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
 
-                if (error && typeof url === "string") {
-                    Data.set(index, url); // 錯誤的重新添加 (正確的數據才添加)
+                if (error && typeof iurl === "string") { // 錯誤的重新添加 (正確的數據才添加)
+                    Data.set(index, {
+                        PageUrl: purl,
+                        ImageUrl: iurl
+                    });
                 } else {
-                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", url)}`, blob); // 保存正確的數據 (有資料夾)
+                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", iurl)}`, blob); // 保存正確的數據 (有資料夾)
                 }
 
                 DConfig.DisplayCache = `[${++Progress}/${Total}]`;
                 document.title = DConfig.DisplayCache;
-                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
+                // 為了避免移除指向導致的錯誤
+                self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
 
                 if (Progress === Total) {
                     Total = Data.size; // 再次取得數據量
 
                     if (Total > 0 && ReTry-- > 0) { // 重試次數足夠
+
                         DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
 
-                        setTimeout(() => {
-                            if (Enforce) return;
-                            Start(Data);
-                        }, 1500);
+                        Start(Data, true);
                     } else { // 觸發壓縮
                         if (Total > 0) {
                             const SortData = [...Data].sort((a, b) => a[0] - b[0]); // 排序
@@ -397,54 +450,148 @@
             };
 
             // 請求數據
-            function Request(index, url) {
+            function Request(Index, Purl, Iurl) {
                 if (Enforce) return;
                 const time = Date.now(); // 請求開始時間
 
-                if (typeof url !== "undefined") {
+                if (typeof Iurl !== "undefined") {
                     GM_xmlhttpRequest({
-                        url: url,
+                        url: Iurl,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
+                            const status = response.status;
                             const blob = response.response;
-                            blob instanceof Blob && blob.size > 0
-                                ? StatusUpdate(time, index, url, blob)
-                                : StatusUpdate(time, index, url, null, true);
+                            status == 200 && blob instanceof Blob && blob.size > 0
+                                ? StatusUpdate(time, Index, Purl, Iurl, blob)
+                                : StatusUpdate(time, Index, Purl, Iurl, null, true);
                         }, onerror: () => {
-                            StatusUpdate(time, index, url, null, true);
+                            StatusUpdate(time, Index, Purl, Iurl, null, true);
                         }
                     });
                 } else {
-                    if (!ClearCache) {
-                        ClearCache = true;
-                        sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
-                        Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
-                    }
-
-                    StatusUpdate(time, index, null, null, true);
+                    RunClear();
+                    StatusUpdate(time, Index, null, null, true);
                 }
             };
 
             // 發起請求任務
-            async function Start(DataMap) {
+            async function Start(DataMap, ReGet=false) {
                 if (Enforce) return;
 
                 Init(); // 進行初始化
                 let Task = 0;
 
-                for (const [Index, Url] of DataMap.entries()) {
+                for (const [Index, Uri] of DataMap.entries()) {
                     if (Enforce) break;
 
-                    Request(Index, Url);
-                    if (++Task === Thread) { // 允許同時發出的請求數 (假線程)
-                        Task = 0;
-                        await Syn.Sleep(Delay);
+                    if (ReGet) {
+                        const Result = await self.ReGetImageData(Index, Uri.PageUrl);
+                        if (Result) {
+                            const [Index, Purl, Iurl] = Result;
+                            Request(Index, Purl, Iurl);
+                        } else {
+                            RunClear();
+                            Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                        }
+                    } else {
+                        Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                        if (++Task === Thread) { // 允許同時發出的請求數 (假線程)
+                            Task = 0;
+                            await Syn.Sleep(Delay);
+                        }
                     }
                 }
             };
 
             Start(Data);
+        };
+
+        /* 單圖 下載 */
+        async SingleDownload(Data) {
+            const self = this;
+
+            let Total = Data.size;
+            const Fill = Syn.GetFill(Total);
+            const TaskPromises = []; // 紀錄任務完成
+
+            let Progress = 0;
+            let RetryDelay = 1e3;
+            let ClearCache = false;
+            let ReTry = Config.ReTry;
+            let Delay = DConfig.Download_ID;
+            let Thread = DConfig.Download_IT;
+
+            function RunClear() {
+                if (!ClearCache) {
+                    ClearCache = true;
+                    sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
+                    Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
+                }
+            };
+
+            async function Request(Index, Purl, Iurl, Retry) {
+                const time = Date.now();
+                return new Promise((resolve, reject) => {
+                    if (typeof Iurl !== "undefined") {
+                        GM_download({
+                            url: Iurl,
+                            name: `${self.ComicName}-${Syn.Mantissa(Index, Fill, "0", Iurl)}`,
+                            onload: () => {
+                                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+
+                                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                                document.title = DConfig.DisplayCache;
+                                self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
+                                resolve();
+                            },
+                            onerror: () => {
+                                if (Retry > 0) {
+                                    [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
+                                    Syn.Log(null, `[Delay:${Delay}|Thread:${Thread}|Retry:${Retry}] : [${Iurl}]`, { dev: Config.Dev, type: "error" });
+
+                                    setTimeout(() => {
+                                        self.ReGetImageData(Index, Purl)
+                                            .then((data) => {
+                                                const [Index, Purl, Iurl] = data;
+                                                Request(Index, Purl, Iurl, Retry-1);
+                                                reject();
+                                            })
+                                            .catch((err) => {
+                                                RunClear();
+                                                reject();
+                                            });
+                                    }, RetryDelay += 1e3); // 如果取得數據失敗, 代表資源衝突了, 就需要設置更高的延遲
+                                } else {
+                                    reject(new Error("Request error"));
+                                }
+                            }
+                        });
+                    } else {
+                        RunClear();
+                        reject();
+                    }
+                });
+            };
+
+            /* 發起請求任務 */
+            let Task = 0;
+            for (const [Index, Uri] of Data.entries()) {
+                TaskPromises.push(Request(Index, Uri.PageUrl, Uri.ImageUrl, ReTry));
+                if (++Task === Thread) {
+                    Task = 0;
+                    await Syn.Sleep(Delay);
+                }
+            };
+            await Promise.allSettled(TaskPromises); // 等待任務完成
+
+            this.Button.textContent = Lang.Transl("下載完成");
+            this.Button = null; // 避免後續意外, 直接移除指針
+
+            setTimeout(() => {
+                document.title = `✓ ${OriginalTitle}`;
+                this.Reset();
+            }, 3000);
         };
 
         /* 壓縮輸出 */
@@ -462,6 +609,7 @@
                 setTimeout(() => {
                     self.Button.disabled = false;
                     self.Button.textContent = ModeDisplay;
+                    self.Button = null;
                 }, 4500);
             };
 
@@ -481,7 +629,9 @@
             }).then(zip => {
                 saveAs(zip, `${this.ComicName}.zip`);
                 document.title = `✓ ${OriginalTitle}`;
+
                 this.Button.textContent = Lang.Transl("壓縮完成");
+                this.Button = null;
 
                 setTimeout(() => {
                     this.Reset();
@@ -489,80 +639,6 @@
             }).catch(result => {
                 ErrorProcess(result);
             })
-        };
-
-        /* 單圖 下載 */
-        async SingleDownload(Data) {
-            const self = this;
-
-            let Total = Data.size;
-            const Fill = Syn.GetFill(Total);
-            const TaskPromises = []; // 紀錄任務完成
-
-            let Progress = 0;
-            let ClearCache = false;
-            let ReTry = Config.ReTry;
-            let Delay = DConfig.Download_ID;
-            let Thread = DConfig.Download_IT;
-
-            async function Request(index, url, retry) {
-                const time = Date.now();
-                return new Promise((resolve, reject) => {
-                    if (typeof url !== "undefined") {
-                        GM_download({
-                            url: url,
-                            name: `${self.ComicName}-${Syn.Mantissa(index, Fill, "0", url)}`,
-                            onload: () => {
-                                [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
-
-                                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
-                                document.title = DConfig.DisplayCache;
-                                self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`;
-                                resolve();
-                            },
-                            onerror: () => {
-                                if (retry > 0) {
-                                    [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
-
-                                    Syn.Log(null, `[Delay:${Delay}|Thread:${Thread}|Retry:${retry}] : [${url}]`, { dev: Config.Dev, type: "error" });
-
-                                    setTimeout(() => {
-                                        reject();
-                                        Request(index, url, retry-1);
-                                    }, Delay * 2);
-                                } else {
-                                    reject(new Error("Request error"));
-                                }
-                            }
-                        });
-                    } else {
-                        if (!ClearCache) {
-                            ClearCache = true;
-                            sessionStorage.removeItem(DConfig.GetKey()); // 清除緩存
-                            Syn.Log(Lang.Transl("清理警告"), Lang.Transl("下載數據不完整將清除緩存, 建議刷新頁面後重載"), { type: "warn" });
-                        }
-
-                        reject();
-                    }
-                });
-            };
-
-            /* 發起請求任務 */
-            let Task = 0;
-            for (const [Index, Url] of Data.entries()) {
-                TaskPromises.push(Request(Index, Url, ReTry));
-                if (++Task === Thread) {
-                    Task = 0;
-                    await Syn.Sleep(Delay);
-                }
-            };
-            await Promise.allSettled(TaskPromises); // 等待任務完成
-
-            this.Button.textContent = Lang.Transl("下載完成");
-            setTimeout(() => {
-                document.title = `✓ ${OriginalTitle}`;
-                this.Reset();
-            }, 3000);
         };
     };
 
