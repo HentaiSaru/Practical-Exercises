@@ -52,7 +52,7 @@
 
     /* 使用者配置 */
     const Config = {
-        Dev: false,           // 開發模式 (會顯示除錯訊息)
+        Dev: true,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
         ResetScope: true,     // 下載完成後 重置範圍設置
@@ -325,12 +325,11 @@
                     if (error) {
                         this.Worker.postMessage({ Index, url: Url, time: time, delay: delay});
                     } else {
+                        console.log(Token); //! 除錯用
                         if (Token <= 0) reject(false); // 真的一直失敗的結束 (應該很難被觸發)
 
                         const result = GetLink(index, url, Syn.DomParse(html));
-                        if (result) {
-                            resolve(result);
-                        }
+                        if (result) resolve(result);
                         else {
                             this.Worker.postMessage({ Index, url: Url, time: time, delay: delay});
                             Token-1;
@@ -365,6 +364,20 @@
             DConfig.CurrentDownloadMode
                 ? this.PackDownload(DataMap)
                 : this.SingleDownload(DataMap);
+
+            Syn.Log(
+                Lang.Transl("任務配置"),
+                {
+                    ReTry: Config.ReTry,
+                    Original: Config.Original,
+                    ResetScope: Config.ResetScope,
+                    CompleteClose: Config.CompleteClose,
+                    SortReverse: DConfig.SortReverse,
+                    DownloadMode: DConfig.CurrentDownloadMode,
+                    CompressionLevel: DConfig.Compr_Level
+                },
+                { dev: Config.Dev }
+            );
         };
 
         /* 打包壓縮 下載 */
@@ -486,7 +499,11 @@
                     if (Enforce) break;
 
                     if (ReGet) {
+                        console.log(DataMap); //! 除錯用
+                        Syn.Log(Lang.Transl("重新取得數據"), { Uri: Uri.PageUrl }, { dev: Config.Dev });
                         const Result = await self.ReGetImageData(Index, Uri.PageUrl);
+                        Syn.Log(Lang.Transl("取得結果"), { Result: Result }, { dev: Config.Dev });
+
                         if (Result) {
                             const [Index, Purl, Iurl] = Result;
                             Request(Index, Purl, Iurl);
@@ -788,6 +805,9 @@
                 "壓縮失敗": "压缩失败",
                 "下載完成": "下载完成",
                 "清理警告": "清理警告",
+                "任務配置": "任务配置",
+                "取得結果": "取得结果",
+                "重新取得數據": "重新取得数据",
                 "確認設置範圍": "确认设置范围",
                 "剩餘重載次數": "剩余重载次数",
                 "下載失敗數據": "下载失败数据",
@@ -818,6 +838,9 @@
                 "壓縮失敗": "Compression failed",
                 "下載完成": "Download complete",
                 "清理警告": "Clean up warning",
+                "任務配置": "Task Configuration",
+                "取得結果": "Fetch Results",
+                "重新取得數據": "Refetch Data",
                 "確認設置範圍": "Confirm range settings",
                 "剩餘重載次數": "Remaining reload attempts",
                 "下載失敗數據": "Failed download data",
@@ -848,6 +871,9 @@
                 "壓縮失敗": "압축 실패",
                 "下載完成": "다운로드 완료",
                 "清理警告": "경고 정리",
+                "任務配置": "작업 설정",
+                "取得結果": "결과 가져오기",
+                "重新取得數據": "데이터 다시 가져오기",
                 "確認設置範圍": "설정 범위 확인",
                 "剩餘重載次數": "남은 재시도 횟수",
                 "下載失敗數據": "다운로드 실패 데이터",
@@ -878,6 +904,9 @@
                 "壓縮失敗": "圧縮失敗",
                 "下載完成": "ダウンロード完了",
                 "清理警告": "警告のクリーニング",
+                "任務配置": "タスク設定",
+                "取得結果": "結果を取得",
+                "重新取得數據": "データを再取得",
                 "確認設置範圍": "設定範囲の確認",
                 "剩餘重載次數": "残りのリロード回数",
                 "下載失敗數據": "ダウンロード失敗データ",
