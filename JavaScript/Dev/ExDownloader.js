@@ -325,7 +325,6 @@
                     if (error) {
                         this.Worker.postMessage({ Index, url: Url, time: time, delay: delay});
                     } else {
-                        console.log(Token); //! 除錯用
                         if (Token <= 0) reject(false); // 真的一直失敗的結束 (應該很難被觸發)
 
                         const result = GetLink(index, url, Syn.DomParse(html));
@@ -499,7 +498,6 @@
                     if (Enforce) break;
 
                     if (ReGet) {
-                        console.log(DataMap); //! 除錯用
                         Syn.Log(Lang.Transl("重新取得數據"), { Uri: Uri.PageUrl }, { dev: Config.Dev });
                         const Result = await self.ReGetImageData(Index, Uri.PageUrl);
                         Syn.Log(Lang.Transl("取得結果"), { Result: Result }, { dev: Config.Dev });
