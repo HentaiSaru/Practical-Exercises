@@ -66,7 +66,7 @@
         MAX_CONCURRENCY: 15, // 最大併發數
         TIME_THRESHOLD: 350, // 響應時間閥值
 
-        MAX_Delay: 3500,     // 最大延遲
+        MAX_Delay: 3000,     // 最大延遲
         Home_ID: 100,        // 主頁初始延遲
         Home_ND: 80,         // 主頁最小延遲
         Image_ID: 30,        // 圖頁初始延遲
@@ -268,7 +268,7 @@
                     const Original = Syn.$$("#i6 div:last-of-type a", { root: page });
 
                     if (!Resample) { // 處理找不到圖片的錯誤
-                        this.Worker.postMessage({ index: index, url: url, time: Date.now(), delay: Delay });
+                        self.Worker.postMessage({ index: index, url: url, time: Date.now(), delay: Delay });
                         return;
                     };
 
@@ -470,11 +470,12 @@
                     GM_xmlhttpRequest({
                         url: Iurl,
                         method: "GET",
+                        timeout: 1e4,
+                        nocache: false,
                         responseType: "blob",
                         onload: response => {
-                            const status = response.status;
                             const blob = response.response;
-                            status == 200 && blob instanceof Blob && blob.size > 0
+                            response.status == 200 && blob instanceof Blob && blob.size > 0
                                 ? StatusUpdate(time, Index, Purl, Iurl, blob)
                                 : StatusUpdate(time, Index, Purl, Iurl, null, true);
                         }, onerror: () => {
