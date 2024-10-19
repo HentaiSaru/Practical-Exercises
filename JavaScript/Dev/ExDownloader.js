@@ -118,7 +118,7 @@
                 let queue = [], processing = false;
                 onmessage = function(e) {
                     queue.push(e.data);
-                    !processing ? (processing = true, processQueue()) : null;
+                    !processing && (processing = true, processQueue());
                 }
                 async function processQueue() {
                     if (queue.length > 0) {
