@@ -435,15 +435,13 @@
                     Init();
                 }
             }
-            function Request(Index, Purl, Iurl) {
+            async function Request(Index, Purl, Iurl) {
                 if (Enforce) return;
                 const time = Date.now();
                 if (typeof Iurl !== "undefined") {
                     GM_xmlhttpRequest({
                         url: Iurl,
                         method: "GET",
-                        timeout: 1e4,
-                        nocache: false,
                         responseType: "blob",
                         onload: response => {
                             const blob = response.response;

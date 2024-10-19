@@ -462,7 +462,7 @@
             };
 
             // 請求數據
-            function Request(Index, Purl, Iurl) {
+            async function Request(Index, Purl, Iurl) {
                 if (Enforce) return;
                 const time = Date.now(); // 請求開始時間
 
@@ -470,8 +470,6 @@
                     GM_xmlhttpRequest({
                         url: Iurl,
                         method: "GET",
-                        timeout: 1e4,
-                        nocache: false,
                         responseType: "blob",
                         onload: response => {
                             const blob = response.response;
