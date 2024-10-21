@@ -22,7 +22,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 // @resource     Img https://cdn-icons-png.flaticon.com/512/8298/8298181.png
-// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1456525/ClassSyntax_min.js
 // ==/UserScript==
 
 (async () => {
@@ -256,6 +256,40 @@
             }
         };
 
+        /* 功能注入 */
+        async Injec() {
+            const Menu = async (name) => { // 簡化註冊菜單
+                this.Menu({
+                    [name]: {func: ()=> this.Banned()}
+                });
+            };
+
+            this.GetBannedHost(NotBanned => {
+                if (NotBanned) {
+                    const FindMedia = this.Debounce((func) => {
+                        const media_object = [
+                            ...this.$$("video, audio", {all: true})
+                        ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
+                        media_object.length > 0 && func(media_object);
+                    }, 400);
+
+                    this.Observer(document, ()=> { // 觀察者持續觸發查找
+                        const Time = this.Runtime();
+
+                        FindMedia(media => {
+                            this.MediaObserver.disconnect();
+                            this.Trigger(media, Time);
+                        });
+
+                    }, {mark: "Media-Booster", attributes: false, throttle: 500}, back=> {
+                        this.MediaObserver = back.ob;
+                        this.ObserverOption = back.op;
+                        Menu(this.Lang.Transl("❌ 禁用增幅"));
+                    });
+                } else Menu(this.Lang.Transl("✅ 啟用增幅"));
+            });
+        };
+
         /* 調整菜單 */
         async BoosterMenu() {
             if (!this.$$("Booster_Modal_Background")) {
@@ -315,40 +349,6 @@
                     setTimeout(()=> {Modal.parentNode.remove()}, 800);
                 }
             }
-        };
-
-        /* 功能注入 */
-        async Injec() {
-            const Menu = async (name) => { // 簡化註冊菜單
-                this.Menu({
-                    [name]: {func: ()=> this.Banned()}
-                });
-            };
-
-            this.GetBannedHost(NotBanned => {
-                if (NotBanned) {
-                    const FindMedia = this.Debounce((func) => {
-                        const media_object = [
-                            ...this.$$("video, audio", {all: true})
-                        ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
-                        media_object.length > 0 && func(media_object);
-                    }, 400);
-
-                    this.Observer(document, ()=> { // 觀察者持續觸發查找
-                        const Time = this.Runtime();
-
-                        FindMedia(media => {
-                            this.MediaObserver.disconnect();
-                            this.Trigger(media, Time);
-                        });
-
-                    }, {mark: "Media-Booster", attributes: false, throttle: 500}, back=> {
-                        this.MediaObserver = back.ob;
-                        this.ObserverOption = back.op;
-                        Menu(this.Lang.Transl("❌ 禁用增幅"));
-                    });
-                } else Menu(this.Lang.Transl("✅ 啟用增幅"));
-            });
         };
 
         /* 語言 */
