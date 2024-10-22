@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta2
+// @version      0.0.11-Beta3
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -20,25 +20,36 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 
-// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1456525/ClassSyntax_min.js
 // ==/UserScript==
 
 (async () => {
-    /*
-        設置是否使用該功能, 沒有設定參數, 這只是臨時的寫法, 之後會刪除掉
-        (0 = 不使用 | 1 = 使用 | mode = 有些有不同模式 2..3..n)
-    */
+    /* 臨時的自定義 (當 Enable = false 時, 其餘的設置將無效) */
     const Config = {
-        BGColor: 1, // 背景換色 [目前還沒有自訂], 改代碼可搜索 #595959, 並修改該字串
-        RegisterHotkey: 3, // 快捷功能 mode: 1 = 翻頁 | 2 = 翻頁+滾動 | 3 翻頁+滾動+換頁繼續滾動
-        AutoTurnPage: 5, // 自動換頁 mode: 1 = 快速 | 2 = 普通 | 3 = 緩慢 | 4 = 一般無盡 | 5 = 優化無盡
+        BGColor: {
+            Enable: true,
+            Color: "#595959",
+        },
+        AutoTurnPage: { // 自動翻頁
+            Enable: true,
+            Mode: 5, // 1 = 快速 | 2 = 普通 | 3 = 緩慢 | 4 = 一般無盡 | 5 = 優化無盡
+        },
+        RegisterHotkey: { // 快捷功能
+            Enable: true,
+            Function: { // 移動端不適用以下配置
+                TurnPage: true, // 翻頁
+                AutoScroll: true, // 自動滾動
+                KeepScroll: true, // 換頁繼續滾動
+                ManualScroll: false, // 手動滾動啟用時, 將會變成點擊一次, 根據視點翻一頁 且 自動滾動會無效
+            }
+        }
     };
     new class Manga extends Syntax {
         constructor() {
             super();
             this.ScrollPixels = 2;
             this.WaitPicture = 1e3;
-            this.JumpTrigger = false;
+            this.IsFinalPage = false;
             this.AdCleanup = this.Body = null;
             this.ContentsPage = this.HomePage = null;
             this.PreviousPage = this.NextPage = null;
@@ -125,20 +136,30 @@
                 this.Down_scroll = this.Device.sY() + this.Device.iH() >= document.documentElement.scrollHeight ? (this.storage("scroll", false),
                     false) : true;
             }, 1e3);
-            this.scroll = move => {
+            this.AutoScroll = move => {
                 requestAnimationFrame(() => {
                     if (this.Up_scroll && move < 0) {
                         window.scrollBy(0, move);
                         this.TopDetected();
-                        this.scroll(move);
+                        this.AutoScroll(move);
                     } else if (this.Down_scroll && move > 0) {
                         window.scrollBy(0, move);
                         this.BottomDetected();
-                        this.scroll(move);
+                        this.AutoScroll(move);
                     }
                 });
             };
-            this.FinalPage = link => link.startsWith("javascript");
+            this.ManualScroll = move => {
+                window.scrollBy({
+                    left: 0,
+                    top: move,
+                    behavior: "smooth"
+                });
+            };
+            this.FinalPage = link => {
+                this.IsFinalPage = link.startsWith("javascript");
+                return this.IsFinalPage;
+            };
             this.VisibleObjects = object => object.filter(img => img.height > 0 || img.src);
             this.ObserveObject = object => object[Math.max(object.length - 2, 0)];
             this.DetectionValue = object => this.VisibleObjects(object).length >= Math.floor(object.length * .5);
@@ -186,9 +207,12 @@
                 removeBlockedListeners();
             }, 500);
         }
-        async BackgroundStyle() {
+        async BackgroundStyle(Color) {
             this.Body.style.cssText = `
-                background: ${this.ImgStyle.BG_Color} !important;
+                background: ${Color} !important;
+            `;
+            document.documentElement.style.cssText = `
+                overflow: visible !important;
             `;
         }
         async AutoReload() {
@@ -229,44 +253,54 @@
                 this.AutoReload();
             }, this.WaitPicture);
         }
-        async HotkeySwitch(mode) {
+        async HotkeySwitch(Use) {
+            let JumpState = false;
             if (this.Device.Type() == "Desktop") {
-                if (mode == 3 && this.IsMainPage) {
+                if (this.IsMainPage && Use.KeepScroll && Use.AutoScroll && !Use.ManualScroll) {
                     this.Down_scroll = this.storage("scroll");
-                    this.Down_scroll && this.scroll(this.ScrollPixels);
+                    this.Down_scroll && this.AutoScroll(this.ScrollPixels);
                 }
-                const UP_ScrollSpeed = this.ScrollPixels * -1;
-                this.Listen(window, "keydown", event => {
+                const UP_ScrollSpeed = -this.ScrollPixels;
+                const CanScroll = Use.AutoScroll || Use.ManualScroll;
+                this.AddListener(window, "keydown", event => {
                     const key = event.key;
-                    if (key == "ArrowLeft" && !this.JumpTrigger) {
+                    if (key == "ArrowLeft" && Use.TurnPage && !JumpState) {
                         event.stopImmediatePropagation();
-                        this.JumpTrigger = !this.FinalPage(this.PreviousPage) ? true : false;
+                        JumpState = !this.FinalPage(this.PreviousPage);
                         location.assign(this.PreviousPage);
-                    } else if (key == "ArrowRight" && !this.JumpTrigger) {
+                    } else if (key == "ArrowRight" && Use.TurnPage && !JumpState) {
                         event.stopImmediatePropagation();
-                        this.JumpTrigger = !this.FinalPage(this.NextPage) ? true : false;
+                        JumpState = !this.FinalPage(this.NextPage);
                         location.assign(this.NextPage);
-                    } else if (key == "ArrowUp" && mode >= 2) {
+                    } else if (key == "ArrowUp" && CanScroll) {
                         event.stopImmediatePropagation();
                         event.preventDefault();
-                        if (this.Up_scroll) {
-                            this.Up_scroll = false;
-                        } else if (!this.Up_scroll || this.Down_scroll) {
-                            this.Down_scroll = false;
-                            this.Up_scroll = true;
-                            this.scroll(UP_ScrollSpeed);
+                        if (Use.ManualScroll) {
+                            this.ManualScroll(-this.Device.iH());
+                        } else {
+                            if (this.Up_scroll) {
+                                this.Up_scroll = false;
+                            } else if (!this.Up_scroll || this.Down_scroll) {
+                                this.Down_scroll = false;
+                                this.Up_scroll = true;
+                                this.AutoScroll(UP_ScrollSpeed);
+                            }
                         }
-                    } else if (key == "ArrowDown" && mode >= 2) {
+                    } else if (key == "ArrowDown" && CanScroll) {
                         event.stopImmediatePropagation();
                         event.preventDefault();
-                        if (this.Down_scroll) {
-                            this.Down_scroll = false;
-                            this.storage("scroll", false);
-                        } else if (this.Up_scroll || !this.Down_scroll) {
-                            this.Up_scroll = false;
-                            this.Down_scroll = true;
-                            this.storage("scroll", true);
-                            this.scroll(this.ScrollPixels);
+                        if (Use.ManualScroll) {
+                            this.ManualScroll(this.Device.iH());
+                        } else {
+                            if (this.Down_scroll) {
+                                this.Down_scroll = false;
+                                this.storage("scroll", false);
+                            } else if (this.Up_scroll || !this.Down_scroll) {
+                                this.Up_scroll = false;
+                                this.Down_scroll = true;
+                                this.storage("scroll", true);
+                                this.AutoScroll(this.ScrollPixels);
+                            }
                         }
                     }
                 }, {
@@ -275,32 +309,32 @@
             } else if (this.Device.Type() == "Mobile") {
                 const sidelineX = .35 * this.Device.iW(), sidelineY = this.Device.iH() / 4 * .2;
                 let startX, startY, moveX, moveY;
-                this.Listen(window, "touchstart", event => {
+                this.AddListener(window, "touchstart", event => {
                     startX = event.touches[0].clientX;
                     startY = event.touches[0].clientY;
                 }, {
                     passive: true
                 });
-                this.Listen(window, "touchmove", this.Throttle(event => {
-                    requestAnimationFrame(() => {
-                        moveX = event.touches[0].clientX - startX;
-                        moveY = event.touches[0].clientY - startY;
-                        if (Math.abs(moveY) < sidelineY) {
-                            if (moveX > sidelineX && !this.JumpTrigger) {
-                                this.JumpTrigger = !this.FinalPage(this.PreviousPage) ? true : false;
-                                location.assign(this.PreviousPage);
-                            } else if (moveX < -sidelineX && !this.JumpTrigger) {
-                                this.JumpTrigger = !this.FinalPage(this.NextPage) ? true : false;
-                                location.assign(this.NextPage);
-                            }
+                this.AddListener(window, "touchmove", this.Throttle(event => {
+                    moveX = event.touches[0].clientX - startX;
+                    moveY = event.touches[0].clientY - startY;
+                    if (Math.abs(moveY) < sidelineY) {
+                        if (moveX > sidelineX && !JumpState) {
+                            event.stopImmediatePropagation();
+                            JumpState = !this.FinalPage(this.PreviousPage);
+                            location.assign(this.PreviousPage);
+                        } else if (moveX < -sidelineX && !JumpState) {
+                            event.stopImmediatePropagation();
+                            JumpState = !this.FinalPage(this.NextPage);
+                            location.assign(this.NextPage);
                         }
-                    });
+                    }
                 }, 200), {
                     passive: true
                 });
             }
         }
-        async AutoPageTurn(mode) {
+        async AutoPageTurn(Mode) {
             let self = this, hold, point, img;
             self.Observer_Next = new IntersectionObserver(observed => {
                 observed.forEach(entry => {
@@ -312,7 +346,7 @@
             }, {
                 threshold: hold
             });
-            switch (mode) {
+            switch (Mode) {
                 case 2:
                     hold = .5;
                     point = self.$$("li:nth-child(3) a.read_page_link");
@@ -325,7 +359,7 @@
 
                 case 4:
                 case 5:
-                    this.UnlimitedPageTurn(mode == 5);
+                    this.UnlimitedPageTurn(Mode == 5);
                     break;
 
                 default:
@@ -363,13 +397,12 @@
                 }
             `, this.Id.Scroll);
             if (this.IsMainPage) {
-                document.documentElement.style.cssText = `
-                    overflow: visible !important;
-                `;
                 this.Listen(window, "message", event => {
                     const data = event.data;
-                    document.title = data[0];
-                    history.pushState(null, null, data[1]);
+                    if (data && data.length > 0) {
+                        document.title = data[0];
+                        history.pushState(null, null, data[1]);
+                    }
                 });
             } else {
                 this.AddStyle(`
@@ -463,7 +496,7 @@
                         if (Optimized) {
                             self.$$("title").id = self.Id.Title;
                             const adapt = self.Device.Type() == "Desktop" ? .5 : .7;
-                            const hold = Math.min(adapt, (self.Device.iH() * adapt) / TopImg.clientHeight);
+                            const hold = Math.min(adapt, self.Device.iH() * adapt / TopImg.clientHeight);
                             const ReleaseMemory = new IntersectionObserver(observed => {
                                 observed.forEach(entry => {
                                     if (entry.isIntersecting) {
@@ -487,19 +520,15 @@
                 }
             }
         }
-        async SettingMenu() { }
-        async MenuStyle() {
-            this.AddStyle(``, this.Id.Menu);
-        }
         async Injection() {
             this.BlockAds();
+            this.PictureStyle();
             try {
                 this.Get_Data(state => {
                     if (state) {
-                        Config.BGColor > 0 && this.BackgroundStyle();
-                        this.PictureStyle();
-                        Config.RegisterHotkey > 0 && this.HotkeySwitch(Config.RegisterHotkey);
-                        Config.AutoTurnPage > 0 && this.AutoPageTurn(Config.AutoTurnPage);
+                        Config.BGColor.Enable && this.BackgroundStyle(Config.BGColor.Color);
+                        Config.AutoTurnPage.Enable && this.AutoPageTurn(Config.AutoTurnPage.Mode);
+                        Config.RegisterHotkey.Enable && this.HotkeySwitch(Config.RegisterHotkey.Function);
                     } else this.Log(null, "Error");
                 });
             } catch (error) {
