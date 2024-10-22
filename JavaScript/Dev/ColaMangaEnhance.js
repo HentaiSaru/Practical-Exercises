@@ -70,7 +70,7 @@ Todo 未來添加
                 TurnPage: true, // 翻頁
                 AutoScroll: true, // 自動滾動
                 KeepScroll: true, // 換頁繼續滾動
-                ManualScroll: false, // 手動滾動啟用時, 將會變成點擊一次, 根據視點翻一頁 且 上面兩個設置會無效
+                ManualScroll: false, // 手動滾動啟用時, 將會變成點擊一次, 根據視點翻一頁 且 自動滾動會無效
             }
         }
     };
