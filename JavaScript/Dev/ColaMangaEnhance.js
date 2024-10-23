@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta3
+// @version      0.0.11-Beta4
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -291,7 +291,9 @@ Todo 未來添加
                     if (entry.isIntersecting) {entry.target.dispatchEvent(click)}
                 });
             }, { threshold: .3 });
-            this.$$("span.mh_btn:not(.contact)", {all: true, root: this.MangaList}).forEach(b => { observer.observe(b) });
+
+            this.$$("span.mh_btn:not(.contact):not(.read_page_link)", {all: true, root: this.MangaList})
+                .forEach(reloadBtn => observer.observe(reloadBtn));
         }
 
         /* 圖片樣式 */
@@ -374,29 +376,29 @@ Todo 未來添加
                 }, { capture: true });
             } else if (this.Device.Type() == "Mobile") {
 
-                const sidelineX = .35 * this.Device.iW(), sidelineY = (this.Device.iH() / 4) * .2;
                 let startX, startY, moveX, moveY;
+                const sidelineX = this.Device.iW() * .3;
+                const sidelineY = (this.Device.iH() / 4) * .3;
 
                 this.AddListener(window, "touchstart", event => {
                     startX = event.touches[0].clientX;
                     startY = event.touches[0].clientY;
                 }, { passive: true });
 
-                this.AddListener(window, "touchmove", this.Throttle(event => {
-                    moveX = event.touches[0].clientX - startX;
+                this.AddListener(window, "touchmove", this.Debounce(event => {
                     moveY = event.touches[0].clientY - startY;
                     if (Math.abs(moveY) < sidelineY) { // 限制 Y 軸移動
+                        moveX = event.touches[0].clientX - startX;
+
                         if (moveX > sidelineX && !JumpState) { // 右滑 回到上頁, 需要大於限制 X 軸移動
-                            event.stopImmediatePropagation();
                             JumpState = !this.FinalPage(this.PreviousPage);
                             location.assign(this.PreviousPage);
                         } else if (moveX < -sidelineX && !JumpState) { // 左滑 到下一頁, 需要大於限制 X 軸移動
-                            event.stopImmediatePropagation();
                             JumpState = !this.FinalPage(this.NextPage);
                             location.assign(this.NextPage);
                         }
                     }
-                }, 200), { passive: true });
+                }, 60), { passive: true });
             }
         }
 
@@ -461,13 +463,15 @@ Todo 未來添加
                 }
             `, this.Id.Scroll);
 
-            // 監聽當前觀看到的頁面, (修改 網址 & 標題)
+            // 修改當前觀看的頁面 (根據無盡翻頁的變化)
             if (this.IsMainPage) {
-                this.Listen(window, "message", event => { // 監聽歷史紀錄
+                this.Listen(window, "message", event => {
                     const data = event.data;
                     if (data && data.length > 0) {
-                        document.title = data[0];
-                        history.pushState(null, null, data[1]);
+                        document.title = data[0]; // 修改最上層標題
+                        this.NextPage = data[3]; // 修改上一頁跳轉連結
+                        this.PreviousPage = data[1]; // 修改下一頁跳轉連結
+                        history.pushState(null, null, data[2]); // 修改網址並添加到歷史紀錄
                     }
                 })
             } else { // 第二頁開始, 不斷向上找到主頁
@@ -535,7 +539,7 @@ Todo 未來添加
 
             /* 翻頁邏輯 */
             async function TurnPage() {
-                let URL, Content, StylelRules=self.$$(`#${self.Id.Scroll}`).sheet.cssRules;
+                let Content, CurrentUrl, StylelRules=self.$$(`#${self.Id.Scroll}`).sheet.cssRules;
 
                 if (self.FinalPage(self.NextPage)) { // 檢測是否是最後一頁 (恢復隱藏的元素)
                     StylelRules[0].style.display = "block";
@@ -549,8 +553,8 @@ Todo 未來添加
                 // 等待 iframe 載入完成
                 function Waitload() {
                     iframe.onload = () => {
-                        URL = iframe.contentWindow.location.href;
-                        URL != self.NextPage && (iframe.src = self.NextPage, Waitload()); // 避免載入錯誤頁面
+                        CurrentUrl = iframe.contentWindow.location.href;
+                        CurrentUrl != self.NextPage && (iframe.src = self.NextPage, Waitload()); // 避免載入錯誤頁面
 
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
@@ -568,8 +572,18 @@ Todo 未來添加
                             observed.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     UrlUpdate.disconnect();
-                                    self.Log("無盡翻頁", self.NextPage);
-                                    window.parent.postMessage([Content.title, URL], self.Origin);
+                                    self.Log("無盡翻頁", CurrentUrl);
+
+                                    const PageLink = self.$$("div.mh_readend ul a", {all: true, root: Content.body});
+                                    const PreviousUrl = PageLink[0]?.href;
+                                    const NextUrl = PageLink[2]?.href;
+
+                                    window.parent.postMessage([
+                                        Content.title,
+                                        PreviousUrl,
+                                        CurrentUrl,
+                                        NextUrl
+                                    ], self.Origin);
                                 }
                             });
                         }, { threshold: .1 });
@@ -618,11 +632,11 @@ Todo 未來添加
         /* 功能注入 */
         async Injection() {
             this.BlockAds();
-            this.PictureStyle();
 
             try {
                 this.Get_Data(state=> {
-                    if (state) {
+                    if (state) { // 在這邊載入的功能都是需要等到, 找到元素才操作比較不會出錯
+                        this.PictureStyle();
                         Config.BGColor.Enable && this.BackgroundStyle(Config.BGColor.Color);
                         Config.AutoTurnPage.Enable && this.AutoPageTurn(Config.AutoTurnPage.Mode);
                         Config.RegisterHotkey.Enable && this.HotkeySwitch(Config.RegisterHotkey.Function);
