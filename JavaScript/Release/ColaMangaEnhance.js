@@ -3,7 +3,7 @@
 // @name:zh-TW   ColaManga 瀏覽增強
 // @name:zh-CN   ColaManga 浏览增强
 // @name:en      ColaManga Browsing Enhancement
-// @version      0.0.11-Beta3
+// @version      0.0.11-Beta4
 // @author       Canaan HS
 // @description       隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
 // @description:zh-TW 隱藏廣告內容，提昇瀏覽體驗。自訂背景顏色，圖片大小調整。當圖片載入失敗時，自動重新載入圖片。提供熱鍵功能：[← 上一頁]、[下一頁 →]、[↑ 自動上滾動]、[↓ 自動下滾動]。當用戶滾動到頁面底部時，自動跳轉到下一頁。
@@ -229,12 +229,10 @@
             }, {
                 threshold: .3
             });
-            this.$$("span.mh_btn:not(.contact)", {
+            this.$$("span.mh_btn:not(.contact):not(.read_page_link)", {
                 all: true,
                 root: this.MangaList
-            }).forEach(b => {
-                observer.observe(b);
-            });
+            }).forEach(reloadBtn => observer.observe(reloadBtn));
         }
         async PictureStyle() {
             if (this.Device.Type() == "Desktop") {
@@ -307,29 +305,28 @@
                     capture: true
                 });
             } else if (this.Device.Type() == "Mobile") {
-                const sidelineX = .35 * this.Device.iW(), sidelineY = this.Device.iH() / 4 * .2;
                 let startX, startY, moveX, moveY;
+                const sidelineX = this.Device.iW() * .3;
+                const sidelineY = this.Device.iH() / 4 * .3;
                 this.AddListener(window, "touchstart", event => {
                     startX = event.touches[0].clientX;
                     startY = event.touches[0].clientY;
                 }, {
                     passive: true
                 });
-                this.AddListener(window, "touchmove", this.Throttle(event => {
-                    moveX = event.touches[0].clientX - startX;
+                this.AddListener(window, "touchmove", this.Debounce(event => {
                     moveY = event.touches[0].clientY - startY;
                     if (Math.abs(moveY) < sidelineY) {
+                        moveX = event.touches[0].clientX - startX;
                         if (moveX > sidelineX && !JumpState) {
-                            event.stopImmediatePropagation();
                             JumpState = !this.FinalPage(this.PreviousPage);
                             location.assign(this.PreviousPage);
                         } else if (moveX < -sidelineX && !JumpState) {
-                            event.stopImmediatePropagation();
                             JumpState = !this.FinalPage(this.NextPage);
                             location.assign(this.NextPage);
                         }
                     }
-                }, 200), {
+                }, 60), {
                     passive: true
                 });
             }
@@ -401,7 +398,9 @@
                     const data = event.data;
                     if (data && data.length > 0) {
                         document.title = data[0];
-                        history.pushState(null, null, data[1]);
+                        this.NextPage = data[3];
+                        this.PreviousPage = data[1];
+                        history.pushState(null, null, data[2]);
                     }
                 });
             } else {
@@ -462,7 +461,7 @@
                 }, self.WaitPicture);
             }
             async function TurnPage() {
-                let URL, Content, StylelRules = self.$$(`#${self.Id.Scroll}`).sheet.cssRules;
+                let Content, CurrentUrl, StylelRules = self.$$(`#${self.Id.Scroll}`).sheet.cssRules;
                 if (self.FinalPage(self.NextPage)) {
                     StylelRules[0].style.display = "block";
                     return;
@@ -471,8 +470,9 @@
                 Waitload();
                 function Waitload() {
                     iframe.onload = () => {
-                        URL = iframe.contentWindow.location.href;
-                        URL != self.NextPage && (iframe.src = self.NextPage, Waitload());
+                        CurrentUrl = iframe.contentWindow.location.href;
+                        CurrentUrl != self.NextPage && (iframe.src = self.NextPage,
+                            Waitload());
                         Content = iframe.contentWindow.document;
                         Content.body.style.overflow = "hidden";
                         const TopImg = self.$$("#mangalist img", {
@@ -485,8 +485,14 @@
                             observed.forEach(entry => {
                                 if (entry.isIntersecting) {
                                     UrlUpdate.disconnect();
-                                    self.Log("無盡翻頁", self.NextPage);
-                                    window.parent.postMessage([Content.title, URL], self.Origin);
+                                    self.Log("無盡翻頁", CurrentUrl);
+                                    const PageLink = self.$$("div.mh_readend ul a", {
+                                        all: true,
+                                        root: Content.body
+                                    });
+                                    const PreviousUrl = PageLink[0]?.href;
+                                    const NextUrl = PageLink[2]?.href;
+                                    window.parent.postMessage([Content.title, PreviousUrl, CurrentUrl, NextUrl], self.Origin);
                                 }
                             });
                         }, {
@@ -522,10 +528,10 @@
         }
         async Injection() {
             this.BlockAds();
-            this.PictureStyle();
             try {
                 this.Get_Data(state => {
                     if (state) {
+                        this.PictureStyle();
                         Config.BGColor.Enable && this.BackgroundStyle(Config.BGColor.Color);
                         Config.AutoTurnPage.Enable && this.AutoPageTurn(Config.AutoTurnPage.Mode);
                         Config.RegisterHotkey.Enable && this.HotkeySwitch(Config.RegisterHotkey.Function);
