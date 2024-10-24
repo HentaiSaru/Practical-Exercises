@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta4
+// @version      0.0.16-Beta5
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -52,7 +52,7 @@
 
     /* 使用者配置 */
     const Config = {
-        Dev: true,           // 開發模式 (會顯示除錯訊息)
+        Dev: false,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
         ResetScope: true,     // 下載完成後 重置範圍設置
@@ -63,17 +63,17 @@
     const DConfig = {
         Compr_Level: 5,      // 壓縮的等級
         MIN_CONCURRENCY: 5,  // 最小併發數
-        MAX_CONCURRENCY: 15, // 最大併發數
-        TIME_THRESHOLD: 350, // 響應時間閥值
+        MAX_CONCURRENCY: 16, // 最大併發數
+        TIME_THRESHOLD: 1000, // 響應時間閥值
 
         MAX_Delay: 3000,     // 最大延遲
         Home_ID: 100,        // 主頁初始延遲
         Home_ND: 80,         // 主頁最小延遲
-        Image_ID: 30,        // 圖頁初始延遲
-        Image_ND: 24,        // 圖頁最小延遲
-        Download_IT: 5,      // 下載初始線程
-        Download_ID: 300,    // 下載初始延遲
-        Download_ND: 240,    // 下載最小延遲
+        Image_ID: 34,        // 圖頁初始延遲
+        Image_ND: 28,        // 圖頁最小延遲
+        Download_IT: 6,      // 下載初始線程
+        Download_ID: 800,    // 下載初始延遲
+        Download_ND: 400,    // 下載最小延遲
 
         Lock: false, // 鎖定狀態
         SortReverse: false, // 排序反轉
@@ -89,6 +89,7 @@
         },
         Dynamic: function (Time, Delay, Thread = null, MIN_Delay) {
             let ResponseTime = (Date.now() - Time), delay, thread;
+            
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.floor(Math.min(Delay * 1.1, this.MAX_Delay));
                 if (Thread != null) {
@@ -348,7 +349,7 @@
             // 範圍設置
             if (DConfig.Scope) {
                 DataMap = new Map( // 該函數主要是處理物件類型, 所以需要轉換
-                    Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]) // 有範圍設置的重新設置 Index
+                    Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]) // Map 的部份是重新設置 Index
                 );
             };
 
@@ -390,24 +391,24 @@
             let Enforce = false; // 判斷強制下載狀態
             let ClearCache = false; // 判斷緩存是否被清除
             let ReTry = Config.ReTry; // 重試次數
-            let Progress, Thread, Delay; // 宣告變數
+            let Task, Progress, Thread, Delay; // 宣告變數
 
             // 初始化變數
             function Init() {
+                Task = 0; // 初始任務數
                 Progress = 0; // 初始進度
                 Delay = DConfig.Download_ID; // 初始延遲
                 Thread = DConfig.Download_IT; // 初始線程數
             };
 
-            Syn.Menu({
-                [Lang.Transl("📥 強制壓縮下載")]: {
-                    func: () => {
-                        Enforce = true; // 強制下載 (實驗性)
-                        self.Compression(Zip);
-                    }, hotkey: "d"
-                }
-            }, "Enforce");
+            // 強制下載
+            function Force() {
+                Enforce = true; // 強制下載 (實驗性)
+                Init(); // 數據初始化
+                self.Compression(Zip); // 觸發壓縮
+            };
 
+            // 清除緩存
             function RunClear() {
                 if (!ClearCache) {
                     ClearCache = true;
@@ -418,9 +419,9 @@
 
             // 更新請求狀態 (開始請求時間, 數據的索引, 圖片連結, 圖片數據, 錯誤狀態)
             function StatusUpdate(time, index, purl, iurl, blob, error = false) {
-                Data.delete(index); // 清除完成的任務
                 if (Enforce) return;
                 [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
+                Data.delete(index); // 清除完成的任務
 
                 if (error && typeof iurl === "string") { // 錯誤的重新添加 (正確的數據才添加)
                     Data.set(index, {
@@ -435,6 +436,7 @@
                 document.title = DConfig.DisplayCache;
                 // 為了避免移除指向導致的錯誤
                 self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
+                --Task; // 完成任務後扣除計數
 
                 if (Progress === Total) {
                     Total = Data.size; // 再次取得數據量
@@ -453,8 +455,7 @@
                             Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), { type: "error" });
                         }
 
-                        Enforce = true;
-                        self.Compression(Zip);
+                        Force();
                     }
                 } else if (Progress > Total) {
                     Init();
@@ -462,24 +463,35 @@
             };
 
             // 請求數據
-            async function Request(Index, Purl, Iurl) {
+            function Request(Index, Purl, Iurl) {
                 if (Enforce) return;
-                const time = Date.now(); // 請求開始時間
 
                 if (typeof Iurl !== "undefined") {
+                    const time = Date.now(); // 請求開始時間
+                    let timeout = null; // 超時計時器
+                    ++Task; // 任務開始計數
+
                     GM_xmlhttpRequest({
                         url: Iurl,
+                        timeout: 2e4,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
+                            clearTimeout(timeout);
                             const blob = response.response;
                             response.status == 200 && blob instanceof Blob && blob.size > 0
                                 ? StatusUpdate(time, Index, Purl, Iurl, blob)
                                 : StatusUpdate(time, Index, Purl, Iurl, null, true);
                         }, onerror: () => {
+                            clearTimeout(timeout);
                             StatusUpdate(time, Index, Purl, Iurl, null, true);
                         }
                     });
+
+                    timeout = setTimeout(() => { // 實驗性超時計時器 (20 秒超時)
+                        StatusUpdate(time, Index, Purl, Iurl, null, true);
+                    }, 2e4);
+
                 } else {
                     RunClear();
                     StatusUpdate(time, Index, null, null, true);
@@ -489,9 +501,7 @@
             // 發起請求任務
             async function Start(DataMap, ReGet=false) {
                 if (Enforce) return;
-
                 Init(); // 進行初始化
-                let Task = 0;
 
                 for (const [Index, Uri] of DataMap.entries()) {
                     if (Enforce) break;
@@ -509,16 +519,22 @@
                             Request(Index, Uri.PageUrl, Uri.ImageUrl);
                         }
                     } else {
-                        Request(Index, Uri.PageUrl, Uri.ImageUrl);
-                        if (++Task === Thread) { // 允許同時發出的請求數 (假線程)
-                            Task = 0;
+
+                        while (Task >= Thread) { // 根據線程數量暫時卡住迴圈
                             await Syn.Sleep(Delay);
                         }
+
+                        Request(Index, Uri.PageUrl, Uri.ImageUrl);
                     }
                 }
             };
 
             Start(Data);
+            Syn.Menu({
+                [Lang.Transl("📥 強制壓縮下載")]: {
+                    func: () => Force(), hotkey: "d"
+                }
+            }, "Enforce");
         };
 
         /* 單圖 下載 */
@@ -529,6 +545,7 @@
             const Fill = Syn.GetFill(Total);
             const TaskPromises = []; // 紀錄任務完成
 
+            let Task = 0;
             let Progress = 0;
             let RetryDelay = 1e3;
             let ClearCache = false;
@@ -545,9 +562,12 @@
             };
 
             async function Request(Index, Purl, Iurl, Retry) {
-                const time = Date.now();
                 return new Promise((resolve, reject) => {
                     if (typeof Iurl !== "undefined") {
+
+                        const time = Date.now();
+                        ++Task;
+
                         GM_download({
                             url: Iurl,
                             name: `${self.ComicName}-${Syn.Mantissa(Index, Fill, "0", Iurl)}`,
@@ -557,6 +577,7 @@
                                 DConfig.DisplayCache = `[${++Progress}/${Total}]`;
                                 document.title = DConfig.DisplayCache;
                                 self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
+                                --Task;
                                 resolve();
                             },
                             onerror: () => {
@@ -564,6 +585,7 @@
                                     [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
                                     Syn.Log(null, `[Delay:${Delay}|Thread:${Thread}|Retry:${Retry}] : [${Iurl}]`, { dev: Config.Dev, type: "error" });
 
+                                    --Task;
                                     setTimeout(() => {
                                         self.ReGetImageData(Index, Purl)
                                             .then((data) => {
@@ -577,6 +599,7 @@
                                             });
                                     }, RetryDelay += 1e3); // 如果取得數據失敗, 代表資源衝突了, 就需要設置更高的延遲
                                 } else {
+                                    --Task;
                                     reject(new Error("Request error"));
                                 }
                             }
@@ -589,13 +612,13 @@
             };
 
             /* 發起請求任務 */
-            let Task = 0;
             for (const [Index, Uri] of Data.entries()) {
-                TaskPromises.push(Request(Index, Uri.PageUrl, Uri.ImageUrl, ReTry));
-                if (++Task === Thread) {
-                    Task = 0;
+
+                while (Task >= Thread) {
                     await Syn.Sleep(Delay);
                 }
+
+                TaskPromises.push(Request(Index, Uri.PageUrl, Uri.ImageUrl, ReTry));
             };
             await Promise.allSettled(TaskPromises); // 等待任務完成
 
