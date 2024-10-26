@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta5
+// @version      0.0.16-Beta6
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -343,13 +343,12 @@
                 dev: Config.Dev
             });
             if (DConfig.Scope) {
-                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]));
+                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]));
             }
             if (DConfig.SortReverse) {
                 const Size = DataMap.size - 1;
                 DataMap = new Map([...DataMap.entries()].map(([index, url]) => [Size - index, url]));
             }
-            DConfig.CurrentDownloadMode ? this.PackDownload(DataMap) : this.SingleDownload(DataMap);
             Syn.Log(Lang.Transl("任務配置"), {
                 ReTry: Config.ReTry,
                 Original: Config.Original,
@@ -361,6 +360,8 @@
             }, {
                 dev: Config.Dev
             });
+            this.Button.textContent = Lang.Transl("開始下載");
+            DConfig.CurrentDownloadMode ? this.PackDownload(DataMap) : this.SingleDownload(DataMap);
         }
         async PackDownload(Data) {
             const self = this;
@@ -378,6 +379,15 @@
                 Thread = DConfig.Download_IT;
             }
             function Force() {
+                if (Total > 0) {
+                    const SortData = [...Data].sort((a, b) => a[0] - b[0]);
+                    SortData.splice(0, 0, {
+                        ErrorPage: SortData.map(item => item[0]).join(",")
+                    });
+                    Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), {
+                        type: "error"
+                    });
+                }
                 Enforce = true;
                 Init();
                 self.Compression(Zip);
@@ -413,22 +423,9 @@
                         DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
-                        Start(Data, true);
-                    } else {
-                        if (Total > 0) {
-                            const SortData = [...Data].sort((a, b) => a[0] - b[0]);
-                            SortData.splice(0, 0, {
-                                ErrorPage: SortData.map(item => item[0]).join(",")
-                            });
-                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), {
-                                type: "error"
-                            });
-                        }
-                        Force();
-                    }
-                } else if (Progress > Total) {
-                    Init();
-                }
+                        setTimeout(() => Start(Data, true), 2e3);
+                    } else Force();
+                } else if (Progress > Total) Init();
             }
             function Request(Index, Purl, Iurl) {
                 if (Enforce) return;
@@ -634,14 +631,14 @@
                 const Position = `
                     .Download_Button {
                         float: right;
-                        width: 9rem;
+                        width: 12rem;
                         cursor: pointer;
-                        font-weight: bold;
+                        font-weight: 800;
                         line-height: 20px;
                         border-radius: 5px;
                         position: relative;
-                        padding: 1px 5px 2px;
-                        font-family: arial,helvetica,sans-serif;
+                        padding: 5px 5px;
+                        font-family: arial, helvetica, sans-serif;
                     }
                 `;
                 const E_Style = `
