@@ -32,7 +32,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/lz-string/1.5.0/lz-string.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // ==/UserScript==
 
 /**
@@ -49,8 +49,8 @@
 (function() {
     class AutoLogin {
         constructor() {
-            this.Url = Syn.Device.Url;
             this.Domain = Syn.Device.Host;
+            this.Url = Syn.Device.Url.split("?")[0];
             this.LoginInfo = Syn.Store("g", this.Domain, {});
 
             // 保存資訊模板
@@ -214,7 +214,7 @@
                     } else { // 多個帳號輸入類型, 暴力解法 全部都輸入
                         AccountEnter.forEach(account => {
                             if (
-                                /acc|log|user/i.test(account.getAttribute("name")) // 多數類型
+                                /acc|log|user|email/i.test(account.getAttribute("name")) // 多數類型
                                 || account.getAttribute("oninput") // B 站類型
                             ) {
                                 this.OBL(account, Account); // 動態輸入帳號
