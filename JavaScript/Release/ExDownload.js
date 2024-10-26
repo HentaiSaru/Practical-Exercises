@@ -382,7 +382,7 @@
                 if (Total > 0) {
                     const SortData = [...Data].sort((a, b) => a[0] - b[0]);
                     SortData.splice(0, 0, {
-                        ErrorPage: SortData.map(item => item[0]).join(",")
+                        ErrorPage: SortData.map(item => ++item[0]).join(",")
                     });
                     Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), {
                         type: "error"
@@ -423,7 +423,7 @@
                         DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
-                        setTimeout(() => Start(Data, true), 2e3);
+                        setTimeout(() => { Start(Data, true) }, 2e3);
                     } else Force();
                 } else if (Progress > Total) Init();
             }

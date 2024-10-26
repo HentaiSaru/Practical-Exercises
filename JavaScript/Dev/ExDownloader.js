@@ -52,7 +52,7 @@
 
     /* 使用者配置 */
     const Config = {
-        Dev: false,           // 開發模式 (會顯示除錯訊息)
+        Dev: true,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
         ResetScope: true,     // 下載完成後 重置範圍設置
@@ -404,7 +404,7 @@
             function Force() {
                 if (Total > 0) { // 如果總數 > 0, 代表有下載失敗的數據
                     const SortData = [...Data].sort((a, b) => a[0] - b[0]); // 排序
-                    SortData.splice(0, 0, {ErrorPage: SortData.map(item => item[0]).join(",")}); // 將錯誤的頁面添加到, 索引 0 (字串形式)
+                    SortData.splice(0, 0, {ErrorPage: SortData.map(item => ++item[0]).join(",")}); // 在 SortData 索引 0 加入 ErrorPage, ++item[0] 是因為使用者設置的範圍, 與數據的索引不同
                     Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), { type: "error" });
                 };
 
@@ -452,7 +452,7 @@
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
 
-                        setTimeout(()=> Start(Data, true), 2e3); // 等待 2 秒後重新下載
+                        setTimeout(()=> {Start(Data, true)}, 2e3); // 等待 2 秒後重新下載
                     } else Force(); // 直接強制壓縮
                 } else if (Progress > Total) Init(); // 避免進度超過總數, 當超過時初始化
             };
