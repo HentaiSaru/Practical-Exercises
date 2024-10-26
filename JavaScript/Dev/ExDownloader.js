@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta5
+// @version      0.0.16-Beta6
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -348,9 +348,7 @@
 
             // 範圍設置
             if (DConfig.Scope) {
-                DataMap = new Map( // 該函數主要是處理物件類型, 所以需要轉換
-                    Syn.ScopeParsing(DConfig.Scope, [...DataMap]).map((value, index) => [index, value[1]]) // Map 的部份是重新設置 Index
-                );
+                DataMap = new Map(Syn.ScopeParsing(DConfig.Scope, [...DataMap]));
             };
 
             // 反向排序 (需要再範圍設置後, 才運行反向)
@@ -360,10 +358,6 @@
                     [...DataMap.entries()].map(([index, url]) => [Size - index, url]) // 用原始長度 - 索引值 進行反向替換
                 );
             };
-
-            DConfig.CurrentDownloadMode
-                ? this.PackDownload(DataMap)
-                : this.SingleDownload(DataMap);
 
             Syn.Log(
                 Lang.Transl("任務配置"),
@@ -378,6 +372,11 @@
                 },
                 { dev: Config.Dev }
             );
+
+            this.Button.textContent = Lang.Transl("開始下載");
+            DConfig.CurrentDownloadMode
+                ? this.PackDownload(DataMap)
+                : this.SingleDownload(DataMap);
         };
 
         /* 打包壓縮 下載 */
@@ -403,6 +402,12 @@
 
             // 強制下載
             function Force() {
+                if (Total > 0) { // 如果總數 > 0, 代表有下載失敗的數據
+                    const SortData = [...Data].sort((a, b) => a[0] - b[0]); // 排序
+                    SortData.splice(0, 0, {ErrorPage: SortData.map(item => item[0]).join(",")}); // 將錯誤的頁面添加到, 索引 0 (字串形式)
+                    Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), { type: "error" });
+                };
+
                 Enforce = true; // 強制下載 (實驗性)
                 Init(); // 數據初始化
                 self.Compression(Zip); // 觸發壓縮
@@ -447,19 +452,9 @@
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
 
-                        Start(Data, true);
-                    } else { // 觸發壓縮
-                        if (Total > 0) {
-                            const SortData = [...Data].sort((a, b) => a[0] - b[0]); // 排序
-                            SortData.splice(0, 0, {ErrorPage: SortData.map(item => item[0]).join(",")}); // 將錯誤的頁面添加到, 索引 0 (字串形式)
-                            Syn.Log(Lang.Transl("下載失敗數據"), JSON.stringify(SortData, null, 4), { type: "error" });
-                        }
-
-                        Force();
-                    }
-                } else if (Progress > Total) {
-                    Init();
-                }
+                        setTimeout(()=> Start(Data, true), 2e3); // 等待 2 秒後重新下載
+                    } else Force(); // 直接強制壓縮
+                } else if (Progress > Total) Init(); // 避免進度超過總數, 當超過時初始化
             };
 
             // 請求數據
@@ -688,14 +683,14 @@
                 const Position = `
                     .Download_Button {
                         float: right;
-                        width: 9rem;
+                        width: 12rem;
                         cursor: pointer;
-                        font-weight: bold;
+                        font-weight: 800;
                         line-height: 20px;
                         border-radius: 5px;
                         position: relative;
-                        padding: 1px 5px 2px;
-                        font-family: arial,helvetica,sans-serif;
+                        padding: 5px 5px;
+                        font-family: arial, helvetica, sans-serif;
                     }
                 `;
 
