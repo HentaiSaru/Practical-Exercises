@@ -85,11 +85,11 @@
                     if (NoChoice) return data_values.flat();
 
                     while (true) {
-                        let choose = unsafeWindow.prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
+                        let choose = prompt(`直接確認為全部開啟\n輸入開啟範圍(說明) =>\n單個: 1, 2, 3\n範圍: 1~5, 6-10\n排除: !5, -10\n\n輸入代號:\n${display}\n`);
                         if (choose != null) {
                             const Scope = Syn.ScopeParsing(choose, data_values).flat(); // 接收範圍參數
                             if (Scope.length > 5) {
-                                choose = unsafeWindow.prompt("(數量過大)\n可選擇開啟數量");
+                                choose = prompt("(數量過大)\n可選擇開啟數量");
                                 return Syn.ScopeParsing(`1~${choose}`, Scope);
                             } else {
                                 return Scope;
@@ -100,7 +100,7 @@
                     }
                 } else {
                     if (NoChoice) return false; // 沒選擇時回傳
-                    unsafeWindow.alert("無保存的書籤");
+                    alert("無保存的書籤");
                 }
             };
 
@@ -117,7 +117,7 @@
                         timeout: 1500
                     });
                 } catch {
-                    unsafeWindow.alert("導入錯誤");
+                    alert("導入錯誤");
                 }
             };
 
@@ -185,7 +185,7 @@
 
                 this.AddClose && setTimeout(()=> window.close(), 500);
             } catch (error) {
-                unsafeWindow.alert(error);
+                alert(error);
             }
         };
 
@@ -219,7 +219,7 @@
                     }, 500 * index);
                 })
             } else if (bookmarks) {
-                unsafeWindow.alert("選擇錯誤");
+                alert("選擇錯誤");
             }
         };
 
@@ -265,7 +265,7 @@
 
         /* 導入 剪貼簿 */
         Import_Clipboard() {
-            const data = unsafeWindow.prompt("貼上導入的數據: ");
+            const data = prompt("貼上導入的數據: ");
             data && this.Import(data);
         };
 
