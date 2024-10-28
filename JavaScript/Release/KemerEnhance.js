@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta1
+// @version      0.0.49-Beta2
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -35,8 +35,8 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -44,15 +44,15 @@
 // @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
 
-(async function() {
+(async () => {
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
         Global: {
-            BlockAds: {mode: 0, enable: true}, // 阻擋廣告
-            BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
-            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
-            DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
-            SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
+            BlockAds: { mode: 0, enable: true }, // 阻擋廣告
+            BackToTop: { mode: 0, enable: true }, // 翻頁後回到頂部
+            KeyScroll: { mode: 1, enable: true }, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
+            DeleteNotice: { mode: 0, enable: true }, // 刪除上方公告
+            SidebarCollapse: { mode: 0, enable: true }, // 側邊攔摺疊
             FixArtist: { // 修復作者名稱
                 mode: 0,
                 enable: true,
@@ -69,9 +69,9 @@
             },
         },
         Preview: {
-            CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-            CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-            QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子
+            CardZoom: { mode: 2, enable: true }, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+            CardText: { mode: 2, enable: true }, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
+            QuickPostToggle: { mode: 0, enable: true }, // 快速切換帖子
             NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟
                 mode: 0,
                 enable: true,
@@ -80,11 +80,11 @@
             },
         },
         Content: {
-            ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕
-            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
-            CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
-            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
-            OriginalImage: {mode: 1, enable: true}, // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+            ExtraButton: { mode: 0, enable: true }, // 額外的下方按鈕
+            LinkBeautify: { mode: 0, enable: true }, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
+            CommentFormat: { mode: 0, enable: true }, // 評論區重新排版
+            VideoBeautify: { mode: 1, enable: true }, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
+            OriginalImage: { mode: 1, enable: true }, // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
         }
     };
     const Url = Syn.Device.Url;
@@ -98,73 +98,57 @@
         const FavorArtist = /^(https?:\/\/)?(www\.)?.+\/favorites(?:\?(?!type=post).*)?$/;
         const Announcement = /^(https?:\/\/)?(www\.)?.+\/(dms|(?:.+\/user\/[^\/]+\/announcements))(\?.*)?$/;
         const Display_Lang = {
-            Traditional: {
-                RM_01: "📝 設置選單",
-                MT_01: "設置菜單",
-                MO_01: "圖像設置",
-                MB_01: "讀取設定",
-                MB_02: "關閉離開",
-                MB_03: "保存應用",
-                ML_01: "語言",
-                ML_02: "英文",
-                ML_03: "繁體",
-                ML_04: "簡體",
-                ML_05: "日文",
-                MIS_01: "圖片高度",
-                MIS_02: "圖片寬度",
-                MIS_03: "圖片最大寬度",
-                MIS_04: "圖片間隔高度"
-            },
+            Traditional: {},
             Simplified: {
-                RM_01: "📝 设置菜单",
-                MT_01: "设置菜单",
-                MO_01: "图像设置",
-                MB_01: "读取设置",
-                MB_02: "关闭退出",
-                MB_03: "保存应用",
-                ML_01: "语言",
-                ML_02: "英文",
-                ML_03: "繁体",
-                ML_04: "简体",
-                ML_05: "日文",
-                MIS_01: "图片高度",
-                MIS_02: "图片宽度",
-                MIS_03: "图片最大宽度",
-                MIS_04: "图片间隔高度"
+                "📝 設置選單": "📝 设置菜单",
+                "設置菜單": "设置菜单",
+                "圖像設置": "图像设置",
+                "讀取設定": "读取设置",
+                "關閉離開": "关闭退出",
+                "保存應用": "保存应用",
+                "語言": "语言",
+                "英文": "英文",
+                "繁體": "繁体",
+                "簡體": "简体",
+                "日文": "日文",
+                "圖片高度": "图片高度",
+                "圖片寬度": "图片宽度",
+                "圖片最大寬度": "图片最大宽度",
+                "圖片間隔高度": "图片间隔高度"
             },
             Japan: {
-                RM_01: "📝 設定メニュー",
-                MT_01: "設定メニュー",
-                MO_01: "画像設定",
-                MB_01: "設定の読み込み",
-                MB_02: "閉じて終了する",
-                MB_03: "保存して適用する",
-                ML_01: "言語",
-                ML_02: "英語",
-                ML_03: "繁体字",
-                ML_04: "簡体字",
-                ML_05: "日本語",
-                MIS_01: "画像の高さ",
-                MIS_02: "画像の幅",
-                MIS_03: "画像の最大幅",
-                MIS_04: "画像の間隔の高さ"
+                "📝 設置選單": "📝 設定メニュー",
+                "設置菜單": "設定メニュー",
+                "圖像設置": "画像設定",
+                "讀取設定": "設定の読み込み",
+                "關閉離開": "閉じて終了する",
+                "保存應用": "保存して適用する",
+                "語言": "言語",
+                "英文": "英語",
+                "繁體": "繁体字",
+                "簡體": "簡体字",
+                "日文": "日本語",
+                "圖片高度": "画像の高さ",
+                "圖片寬度": "画像の幅",
+                "圖片最大寬度": "画像の最大幅",
+                "圖片間隔高度": "画像の間隔の高さ"
             },
             English: {
-                RM_01: "📝 Settings Menu",
-                MT_01: "Settings Menu",
-                MO_01: "Image Settings",
-                MB_01: "Load Settings",
-                MB_02: "Close and Exit",
-                MB_03: "Save and Apply",
-                ML_01: "Language",
-                ML_02: "English",
-                ML_03: "Traditional Chinese",
-                ML_04: "Simplified Chinese",
-                ML_05: "Japanese",
-                MIS_01: "Image Height",
-                MIS_02: "Image Width",
-                MIS_03: "Maximum Image Width",
-                MIS_04: "Image Spacing Height"
+                "📝 設置選單": "📝 Settings Menu",
+                "設置菜單": "Settings Menu",
+                "圖像設置": "Image Settings",
+                "讀取設定": "Load Settings",
+                "關閉離開": "Close and Exit",
+                "保存應用": "Save and Apply",
+                "語言": "Language",
+                "英文": "English",
+                "繁體": "Traditional Chinese",
+                "簡體": "Simplified Chinese",
+                "日文": "Japanese",
+                "圖片高度": "Image Height",
+                "圖片寬度": "Image Width",
+                "圖片最大寬度": "Maximum Image Width",
+                "圖片間隔高度": "Image Spacing Height"
             }
         }, Match = {
             "zh-TW": Display_Lang.Traditional,
@@ -175,15 +159,6 @@
             "en-US": Display_Lang.English,
             ja: Display_Lang.Japan
         };
-        (async () => {
-            const DV = Syn.Store("g", "DataVersion", 0);
-            if (DV < 1) {
-                [ "MenuSet", "ImgSet", "language" ].forEach(key => {
-                    Syn.Store("d", key);
-                });
-                Syn.Store("s", "DataVersion", 1);
-            }
-        })();
         const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
         const SaveKey = {
             Img: "ImgStyle",
@@ -532,15 +507,16 @@
                     }
                     .button-space { margin: 0 0.6rem; }
                     .form-hidden {
-                        opacity: 0;
-                        height: 0;
                         width: 0;
+                        height: 0;
+                        opacity: 0;
+                        padding: 10px;
                         overflow: hidden;
                         transition: opacity 0.8s, height 0.8s, width 0.8s;
                     }
                     .toggle-menu {
-                        height: 0;
                         width: 0;
+                        height: 0;
                         padding: 0;
                         margin: 0;
                     }
@@ -566,9 +542,9 @@
                 Syn.StoreListen(Object.values(SaveKey), call => {
                     if (call.far) {
                         if (Syn.Type(call.nv) == "String") {
-                            MenuTrigger(Match[call.nv]);
+                            MenuTrigger();
                         } else {
-                            for (const [ key, value ] of Object.entries(call.nv)) {
+                            for (const [key, value] of Object.entries(call.nv)) {
                                 Style_Pointer[key](value);
                             }
                         }
@@ -582,10 +558,11 @@
             IsSearch: Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
             IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
             Language: () => {
-                const log = Syn.Store("g", SaveKey.Lang);
+                const Log = Syn.Store("g", SaveKey.Lang);
+                const ML = Match[Log] ?? Match["en-US"];
                 return {
-                    log: log,
-                    lang: Match[log] ?? Match["en-US"]
+                    Log: Log,
+                    Transl: Str => ML[Str] ?? Str
                 };
             },
             Rendering: ({
@@ -615,23 +592,23 @@
             return Bool && Syn.Type(Bool) == "Boolean" && Syn.Type(Num) == "Number" ? true : false;
         };
         const Order = {
-            Global: [ "SidebarCollapse", "DeleteNotice", "BlockAds", "TextToLink", "FixArtist", "BackToTop", "KeyScroll" ],
-            Preview: [ "NewTabOpens", "QuickPostToggle", "CardZoom", "CardText" ],
-            Content: [ "LinkBeautify", "VideoBeautify", "OriginalImage", "ExtraButton", "CommentFormat" ]
+            Global: ["SidebarCollapse", "DeleteNotice", "BlockAds", "TextToLink", "FixArtist", "BackToTop", "KeyScroll"],
+            Preview: ["NewTabOpens", "QuickPostToggle", "CardZoom", "CardText"],
+            Content: ["LinkBeautify", "VideoBeautify", "OriginalImage", "ExtraButton", "CommentFormat"]
         };
         const LoadFunc = {
             Global_Cache: undefined,
             Preview_Cache: undefined,
             Content_Cache: undefined,
-            Global: function() {
+            Global: function () {
                 if (!this.Global_Cache) this.Global_Cache = Global_Function();
                 return this.Global_Cache;
             },
-            Preview: function() {
+            Preview: function () {
                 if (!this.Preview_Cache) this.Preview_Cache = Preview_Function();
                 return this.Preview_Cache;
             },
-            Content: function() {
+            Content: function () {
                 if (!this.Content_Cache) this.Content_Cache = Content_Function();
                 return this.Content_Cache;
             }
@@ -668,7 +645,7 @@
                     DLL.Style.Postview();
                     Call("Content");
                     DLL.Style.Menu();
-                    MenuTrigger(DLL.Language().lang);
+                    MenuTrigger();
                 }
             },
             ExtraInitial: async () => {
@@ -681,24 +658,24 @@
     function Global_Function() {
         const LoadFunc = {
             TextToLink_Cache: undefined,
-            TextToLink_Dependent: function(Config) {
+            TextToLink_Dependent: function (Config) {
                 if (!this.TextToLink_Cache) {
                     this.TextToLink_Cache = {
                         Protocol_F: /^(?!https?:\/\/)/,
                         Exclusion_F: /onfanbokkusuokibalab\.net/,
                         URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
-                        ParseModify: async function(father, content) {
+                        ParseModify: async function (father, content) {
                             if (this.Exclusion_F.test(content)) return;
                             father.innerHTML = content.replace(this.URL_F, url => {
                                 const decode = decodeURIComponent(url).trim();
                                 return `<a href="${decode.replace(this.Protocol_F, "https://")}">${decode}</a>`;
                             });
                         },
-                        Process: async function(pre) {
+                        Process: async function (pre) {
                             const Text = pre.textContent;
                             this.URL_F.test(Text) && this.ParseModify(pre, Text);
                         },
-                        Multiprocessing: async function(root) {
+                        Multiprocessing: async function (root) {
                             for (const p of Syn.$$("p", {
                                 all: true,
                                 root: root
@@ -715,7 +692,7 @@
                             }
                         },
                         JumpTrigger: async root => {
-                            const [ Newtab, Active, Insert ] = [ Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false ];
+                            const [Newtab, Active, Insert] = [Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false];
                             Syn.Listen(root, "click", event => {
                                 const target = event.target.closest("a:not(.fileThumb)");
                                 target && (event.preventDefault(), !Newtab ? location.assign(target.href) : GM_openInTab(target.href, {
@@ -731,7 +708,7 @@
                 return this.TextToLink_Cache;
             },
             FixArtist_Cache: undefined,
-            FixArtist_Dependent: function() {
+            FixArtist_Dependent: function () {
                 if (!this.FixArtist_Cache) {
                     const Fix_Requ = {
                         Record_Cache: undefined,
@@ -740,15 +717,15 @@
                             type: localStorage,
                             error: new Map()
                         }),
-                        Save_Record: async function(save) {
+                        Save_Record: async function (save) {
                             await Syn.Storage("fix_record_v2", {
                                 type: localStorage,
-                                value: new Map([ ...this.Get_Record(), ...save ])
+                                value: new Map([...this.Get_Record(), ...save])
                             });
                             this.Fix_Cache.clear();
                         },
                         Save_Work: (() => Syn.Debounce(() => Fix_Requ.Save_Record(Fix_Requ.Fix_Cache), 1e3))(),
-                        Fix_Name_Support: new Set([ "pixiv", "fanbox" ]),
+                        Fix_Name_Support: new Set(["pixiv", "fanbox"]),
                         Fix_Tag_Support: {
                             ID: /Patreon|Fantia|Pixiv|Fanbox/gi,
                             Patreon: "https://www.patreon.com/user?u={id}",
@@ -759,7 +736,7 @@
                             OnlyFans: "https://onlyfans.com/{name}",
                             Fansly: "https://fansly.com/{name}/posts"
                         },
-                        Fix_Request: async function(url, headers = {}) {
+                        Fix_Request: async function (url, headers = {}) {
                             return new Promise(resolve => {
                                 GM_xmlhttpRequest({
                                     method: "GET",
@@ -771,7 +748,7 @@
                                 });
                             });
                         },
-                        Get_Pixiv_Name: async function(id) {
+                        Get_Pixiv_Name: async function (id) {
                             const response = await this.Fix_Request(`https://www.pixiv.net/ajax/user/${id}?full=1&lang=ja`, {
                                 referer: "https://www.pixiv.net/"
                             });
@@ -784,12 +761,12 @@
                                 return user_name;
                             } else return;
                         },
-                        Fix_Url: function(url) {
+                        Fix_Url: function (url) {
                             url = url.match(/\/([^\/]+)\/([^\/]+)\/([^\/]+)$/) || url.match(/\/([^\/]+)\/([^\/]+)$/);
                             url = url.splice(1).map(url => url.replace(/\/?(www\.|\.com|\.jp|\.net|\.adult|user\?u=)/g, ""));
-                            return url.length >= 3 ? [ url[0], url[2] ] : url;
+                            return url.length >= 3 ? [url[0], url[2]] : url;
                         },
-                        Fix_Update_Ui: async function(href, id, name_onj, tag_obj, text) {
+                        Fix_Update_Ui: async function (href, id, name_onj, tag_obj, text) {
                             const edit = GM_addElement("fix_edit", {
                                 id: id,
                                 class: "edit_artist",
@@ -797,7 +774,7 @@
                             });
                             name_onj.parentNode.insertBefore(edit, name_onj);
                             name_onj.outerHTML = `<fix_name jump="${href}">${text.trim()}</fix_name>`;
-                            const [ tag_text, support_id, support_name ] = [ tag_obj.textContent, this.Fix_Tag_Support.ID, this.Fix_Tag_Support.NAME ];
+                            const [tag_text, support_id, support_name] = [tag_obj.textContent, this.Fix_Tag_Support.ID, this.Fix_Tag_Support.NAME];
                             if (support_id.test(tag_text)) {
                                 tag_obj.innerHTML = tag_text.replace(support_id, tag => {
                                     return `<fix_tag jump="${this.Fix_Tag_Support[tag].replace("{id}", id)}">${tag}</fix_tag>`;
@@ -808,7 +785,7 @@
                                 });
                             }
                         },
-                        Fix_Trigger: async function(object) {
+                        Fix_Trigger: async function (object) {
                             const {
                                 Url,
                                 TailId,
@@ -831,7 +808,7 @@
                                 }
                             }
                         },
-                        Search_Fix: async function(items) {
+                        Search_Fix: async function (items) {
                             items.setAttribute("fix", true);
                             const url = items.href;
                             const img = Syn.$$("img", {
@@ -853,7 +830,7 @@
                                 })
                             });
                         },
-                        Other_Fix: async function(artist, tag = "", href = null, reTag = "<fix_view>") {
+                        Other_Fix: async function (artist, tag = "", href = null, reTag = "<fix_view>") {
                             try {
                                 const parent = artist.parentNode;
                                 const url = href ?? parent.href;
@@ -865,14 +842,14 @@
                                     NameObject: artist,
                                     TagObject: tag
                                 });
-                                $(parent).replaceWith(function() {
+                                $(parent).replaceWith(function () {
                                     return $(reTag, {
                                         html: $(this).html()
                                     });
                                 });
-                            } catch {}
+                            } catch { }
                         },
-                        Dynamic_Fix: async function(Listen, Operat, Config = null) {
+                        Dynamic_Fix: async function (Listen, Operat, Config = null) {
                             let observer, options;
                             Syn.Observer(Listen, () => {
                                 this.Record_Cache = this.Get_Record();
@@ -881,21 +858,21 @@
                                     if (operat) {
                                         clearInterval(wait);
                                         switch (Config) {
-                                          case 1:
-                                            this.Other_Fix(operat);
-                                            setTimeout(() => {
-                                                observer.disconnect();
-                                                observer.observe(Listen.children[0], options);
-                                            }, 300);
-                                            break;
+                                            case 1:
+                                                this.Other_Fix(operat);
+                                                setTimeout(() => {
+                                                    observer.disconnect();
+                                                    observer.observe(Listen.children[0], options);
+                                                }, 300);
+                                                break;
 
-                                          default:
-                                            for (const items of Syn.$$("a", {
-                                                all: true,
-                                                root: operat
-                                            })) {
-                                                !items.getAttribute("fix") && this.Search_Fix(items);
-                                            }
+                                            default:
+                                                for (const items of Syn.$$("a", {
+                                                    all: true,
+                                                    root: operat
+                                                })) {
+                                                    !items.getAttribute("fix") && this.Search_Fix(items);
+                                                }
                                         }
                                     }
                                 });
@@ -960,11 +937,11 @@
                 if (DLL.IsContent) {
                     Syn.WaitElem("div.post__body", body => {
                         Func.JumpTrigger(body);
-                        const [ article, content ] = [ Syn.$$("article", {
+                        const [article, content] = [Syn.$$("article", {
                             root: body
                         }), Syn.$$("div.post__content", {
                             root: body
-                        }) ];
+                        })];
                         if (article) {
                             let span;
                             for (span of Syn.$$("span.choice-text", {
@@ -998,7 +975,7 @@
             FixArtist: async Config => {
                 DLL.Style.Global();
                 const Func = LoadFunc.FixArtist_Dependent();
-                const [ Device, Newtab, Active, Insert ] = [ Syn.Device.Type(), Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false ];
+                const [Device, Newtab, Active, Insert] = [Syn.Device.Type(), Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false];
                 Syn.AddListener(document.body, "click", event => {
                     const target = event.target;
                     if (target.matches("fix_edit")) {
@@ -1018,7 +995,7 @@
                                     const change_name = text.value.trim();
                                     if (change_name != original_name) {
                                         display.textContent = change_name;
-                                        Func.Save_Record(new Map([ [ target.id, change_name ] ]));
+                                        Func.Save_Record(new Map([[target.id, change_name]]));
                                     }
                                     text.remove();
                                 }, {
@@ -1063,7 +1040,7 @@
                         });
                     }
                 } else if (DLL.IsContent) {
-                    const [ artist, title ] = [ Syn.$$(".post__user-name"), Syn.$$("h1 span:nth-child(2)") ];
+                    const [artist, title] = [Syn.$$(".post__user-name"), Syn.$$("h1 span:nth-child(2)")];
                     Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
                 } else {
                     const artist = Syn.$$("span[itemprop='name']");
@@ -1094,40 +1071,40 @@
                 };
                 const UP_ScrollSpeed = Scroll_Requ.Scroll_Pixels * -1;
                 let Scroll, Up_scroll = false, Down_scroll = false;
-                const [ TopDetected, BottomDetected ] = [ Syn.Throttle(() => {
+                const [TopDetected, BottomDetected] = [Syn.Throttle(() => {
                     Up_scroll = Syn.Device.sY() == 0 ? false : true;
                 }, 600), Syn.Throttle(() => {
                     Down_scroll = Syn.Device.sY() + Syn.Device.iH() >= document.documentElement.scrollHeight ? false : true;
-                }, 600) ];
+                }, 600)];
                 switch (Config.mode) {
-                  case 2:
-                    Scroll = Move => {
-                        const Interval = setInterval(() => {
-                            if (!Up_scroll && !Down_scroll) {
-                                clearInterval(Interval);
-                            }
+                    case 2:
+                        Scroll = Move => {
+                            const Interval = setInterval(() => {
+                                if (!Up_scroll && !Down_scroll) {
+                                    clearInterval(Interval);
+                                }
+                                if (Up_scroll && Move < 0) {
+                                    window.scrollBy(0, Move);
+                                    TopDetected();
+                                } else if (Down_scroll && Move > 0) {
+                                    window.scrollBy(0, Move);
+                                    BottomDetected();
+                                }
+                            }, Scroll_Requ.Scroll_Interval);
+                        };
+
+                    default:
+                        Scroll = Move => {
                             if (Up_scroll && Move < 0) {
                                 window.scrollBy(0, Move);
                                 TopDetected();
+                                requestAnimationFrame(() => Scroll(Move));
                             } else if (Down_scroll && Move > 0) {
                                 window.scrollBy(0, Move);
                                 BottomDetected();
+                                requestAnimationFrame(() => Scroll(Move));
                             }
-                        }, Scroll_Requ.Scroll_Interval);
-                    };
-
-                  default:
-                    Scroll = Move => {
-                        if (Up_scroll && Move < 0) {
-                            window.scrollBy(0, Move);
-                            TopDetected();
-                            requestAnimationFrame(() => Scroll(Move));
-                        } else if (Down_scroll && Move > 0) {
-                            window.scrollBy(0, Move);
-                            BottomDetected();
-                            requestAnimationFrame(() => Scroll(Move));
-                        }
-                    };
+                        };
                 }
                 Syn.Listen(window, "keydown", Syn.Throttle(event => {
                     const key = event.key;
@@ -1161,7 +1138,7 @@
     function Preview_Function() {
         return {
             NewTabOpens: async Config => {
-                const [ Newtab, Active, Insert ] = [ Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false ];
+                const [Newtab, Active, Insert] = [Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false];
                 Syn.AddListener(document.body, "click", event => {
                     const target = event.target.closest("article a");
                     target && (event.preventDefault(), !Newtab ? location.assign(target.href) : GM_openInTab(target.href, {
@@ -1195,11 +1172,11 @@
                         url: link,
                         nocache: false,
                         onload: response => {
-                            const new_section = Syn.$$("section", {
+                            const Section = Syn.$$("section", {
                                 root: response.responseXML
                             });
                             ReactDOM.render(React.createElement(DLL.Rendering, {
-                                content: new_section.innerHTML
+                                content: Section.innerHTML
                             }), old_section);
                             history.pushState(null, null, link);
                         },
@@ -1211,8 +1188,8 @@
             },
             CardZoom: async Config => {
                 switch (Config.mode) {
-                  case 2:
-                    Syn.AddStyle(`
+                    case 2:
+                        Syn.AddStyle(`
                             .post-card a:hover {
                                 overflow: auto;
                                 z-index: 99999;
@@ -1229,8 +1206,8 @@
                             }
                         `, "CardZoom_Effects_2", false);
 
-                  default:
-                    Syn.AddStyle(`
+                    default:
+                        Syn.AddStyle(`
                             * { --card-size: 13vw; }
                             .post-card { margin: .3vw; }
                             .post-card a img { border-radius: 8px; }
@@ -1245,8 +1222,8 @@
             CardText: async Config => {
                 if (Syn.Device.Type() === "Mobile") return;
                 switch (Config.mode) {
-                  case 2:
-                    Syn.AddStyle(`
+                    case 2:
+                        Syn.AddStyle(`
                             .post-card__header, .post-card__footer {
                                 opacity: 0.4;
                                 transition: opacity 0.3s;
@@ -1256,10 +1233,10 @@
                                 opacity: 1;
                             }
                         `, "CardText_Effects_2", false);
-                    break;
+                        break;
 
-                  default:
-                    Syn.AddStyle(`
+                    default:
+                        Syn.AddStyle(`
                             .post-card__header {
                                 opacity: 0;
                                 z-index: 1;
@@ -1289,7 +1266,7 @@
     function Content_Function() {
         const LoadFunc = {
             LinkBeautify_Cache: undefined,
-            LinkBeautify_Dependent: function() {
+            LinkBeautify_Dependent: function () {
                 if (!this.LinkBeautify_Cache) {
                     this.LinkBeautify_Cache = async function ShowBrowse(Browse) {
                         GM_xmlhttpRequest({
@@ -1321,7 +1298,7 @@
                 return this.LinkBeautify_Cache;
             },
             VideoBeautify_Cache: undefined,
-            VideoBeautify_Dependent: function() {
+            VideoBeautify_Dependent: function () {
                 if (!this.VideoBeautify_Cache) {
                     this.VideoBeautify_Cache = function VideoRendering({
                         stream
@@ -1344,7 +1321,7 @@
                 return this.VideoBeautify_Cache;
             },
             ExtraButton_Cache: undefined,
-            ExtraButton_Dependent: function() {
+            ExtraButton_Dependent: function () {
                 if (!this.ExtraButton_Cache) {
                     this.ExtraButton_Cache = async function GetNextPage(url, old_main) {
                         GM_xmlhttpRequest({
@@ -1352,13 +1329,18 @@
                             url: url,
                             nocache: false,
                             onload: response => {
-                                const New_main = Syn.$$("main", {
-                                    root: response.responseXML
+                                const XML = response.responseXML;
+                                const Main = Syn.$$("main", {
+                                    root: XML
                                 });
                                 ReactDOM.render(React.createElement(DLL.Rendering, {
-                                    content: New_main.innerHTML
+                                    content: Main.innerHTML
                                 }), old_main);
+                                const Title = Syn.$$("title", {
+                                    root: XML
+                                })?.textContent;
                                 history.pushState(null, null, url);
+                                Title && (document.title = Title);
                                 setTimeout(() => {
                                     Enhance.ExtraInitial();
                                     Syn.WaitElem("div.post__content", post => {
@@ -1392,7 +1374,7 @@
             }
         };
         return {
-            LinkBeautify: async function(Config) {
+            LinkBeautify: async function (Config) {
                 Syn.AddStyle(`
                     .View {
                         top: -10px;
@@ -1427,7 +1409,7 @@
                     throttle: 600
                 });
             },
-            VideoBeautify: async function(Config) {
+            VideoBeautify: async function (Config) {
                 Syn.AddStyle(`
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
@@ -1437,22 +1419,22 @@
                         const VideoRendering = LoadFunc.VideoBeautify_Dependent();
                         let li;
                         for (li of parents) {
-                            let [ node, title, stream ] = [ undefined, Syn.$$("summary", {
+                            let [node, title, stream] = [undefined, Syn.$$("summary", {
                                 root: li
                             }), Syn.$$("source", {
                                 root: li
-                            }) ];
+                            })];
                             if (!title || !stream) continue;
                             if (title.previousElementSibling) continue;
                             let link;
                             for (link of post) {
                                 if (link.textContent.includes(title.textContent)) {
                                     switch (Config.mode) {
-                                      case 2:
-                                        link.parentNode.remove();
+                                        case 2:
+                                            link.parentNode.remove();
 
-                                      default:
-                                        node = link.cloneNode(true);
+                                        default:
+                                            node = link.cloneNode(true);
                                     }
                                 }
                             }
@@ -1472,7 +1454,7 @@
                     throttle: 600
                 });
             },
-            OriginalImage: async function(Config) {
+            OriginalImage: async function (Config) {
                 Syn.WaitElem("div.post__thumbnail", thumbnail => {
                     const Origina_Requ = {
                         Reload: async (Img, Retry) => {
@@ -1484,10 +1466,10 @@
                                         src: src,
                                         alt: "Loading Failed"
                                     });
-                                    Img.onload = function() {
+                                    Img.onload = function () {
                                         Img.classList.remove("Image-loading-indicator");
                                     };
-                                    Img.onerror = function() {
+                                    Img.onerror = function () {
                                         Origina_Requ.Reload(Img, Retry - 1);
                                     };
                                 }, 1e3);
@@ -1517,15 +1499,15 @@
                                 key: "img",
                                 src: href.href,
                                 className: "Image-loading-indicator Image-style",
-                                onLoad: function() {
+                                onLoad: function () {
                                     Syn.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
                                 },
-                                onError: function() {
+                                onError: function () {
                                     Origina_Requ.Reload(Syn.$$(`#${ID} img`), 10);
                                 }
                             }));
                         },
-                        FastAuto: async function() {
+                        FastAuto: async function () {
                             this.FailedClick();
                             thumbnail.forEach((object, index) => {
                                 setTimeout(() => {
@@ -1558,12 +1540,12 @@
                             a.id = `IMG-${index}`;
                             a.removeAttribute("href");
                             a.removeAttribute("download");
-                            img.onload = function() {
+                            img.onload = function () {
                                 img.classList.remove("Image-loading-indicator");
                                 Origina_Requ.SlowAuto(++index);
                             };
                         },
-                        ObserveTrigger: function() {
+                        ObserveTrigger: function () {
                             this.FailedClick();
                             return new IntersectionObserver(observed => {
                                 observed.forEach(entry => {
@@ -1586,37 +1568,37 @@
                     };
                     let observer;
                     switch (Config.mode) {
-                      case 2:
-                        Origina_Requ.SlowAuto(0);
-                        break;
+                        case 2:
+                            Origina_Requ.SlowAuto(0);
+                            break;
 
-                      case 3:
-                        observer = Origina_Requ.ObserveTrigger();
-                        thumbnail.forEach((object, index) => {
-                            object.alt = `IMG-${index}`;
-                            observer.observe(object);
-                        });
-                        break;
-
-                      default:
-                        if (document.visibilityState === "hidden") {
-                            Syn.Listen(document, "visibilitychange", () => {
-                                document.visibilityState === "visible" && Origina_Requ.FastAuto();
-                            }, {
-                                once: true
+                        case 3:
+                            observer = Origina_Requ.ObserveTrigger();
+                            thumbnail.forEach((object, index) => {
+                                object.alt = `IMG-${index}`;
+                                observer.observe(object);
                             });
-                        } else Origina_Requ.FastAuto();
+                            break;
+
+                        default:
+                            if (document.visibilityState === "hidden") {
+                                Syn.Listen(document, "visibilitychange", () => {
+                                    document.visibilityState === "visible" && Origina_Requ.FastAuto();
+                                }, {
+                                    once: true
+                                });
+                            } else Origina_Requ.FastAuto();
                     }
                 }, {
                     all: true,
                     throttle: 600
                 });
             },
-            ExtraButton: async function(Config) {
+            ExtraButton: async function (Config) {
                 DLL.Style.Awesome();
                 const GetNextPage = LoadFunc.ExtraButton_Dependent();
                 Syn.WaitElem("h2.site-section__subheading", comments => {
-                    const [ Prev, Next, Svg, Span, Buffer ] = [ Syn.$$("a.post__nav-link.prev"), Syn.$$("a.post__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment() ];
+                    const [Prev, Next, Svg, Span, Buffer] = [Syn.$$("a.post__nav-link.prev"), Syn.$$("a.post__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment()];
                     Svg.innerHTML = `
                         <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
                             <style>svg{fill: ${DLL.Color}}</style>
@@ -1647,7 +1629,7 @@
                     throttle: 600
                 });
             },
-            CommentFormat: async function(Config) {
+            CommentFormat: async function (Config) {
                 Syn.AddStyle(`
                     .post__comments {display: flex; flex-wrap: wrap;}
                     .post__comments>*:last-child {margin-bottom: 0.5rem;}
@@ -1666,21 +1648,25 @@
     async function $on(element, type, listener) {
         $(element).on(type, listener);
     }
-    async function MenuTrigger(lang) {
+    async function MenuTrigger(callback = null) {
+        const {
+            Log,
+            Transl
+        } = DLL.Language();
+        callback && callback({
+            Log: Log,
+            Transl: Transl
+        });
         Syn.Menu({
-            [lang.RM_01]: {
-                func: () => Create_Menu()
+            [Transl("📝 設置選單")]: {
+                func: () => Create_Menu(Log, Transl)
             }
         });
     }
-    function Create_Menu() {
+    function Create_Menu(Log, Transl) {
         if (Syn.$$(".modal-background")) return;
         const set = DLL.ImgSet();
-        const {
-            log,
-            lang
-        } = DLL.Language();
-        const img_data = [ set.Height, set.Width, set.MaxWidth, set.Spacing ];
+        const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing];
         let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
         const menu = `
             <div class="modal-background">
@@ -1688,11 +1674,11 @@
                     <table class="modal-box">
                         <tr>
                             <td class="menu">
-                                <h2 class="menu-text">${lang.MT_01}</h2>
+                                <h2 class="menu-text">${Transl("設置菜單")}</h2>
                                 <ul>
                                     <li>
                                         <a class="toggle-menu" href="#image-settings-show">
-                                            <button class="menu-options" id="image-settings">${lang.MO_01}</button>
+                                            <button class="menu-options" id="image-settings">${Transl("圖像設置")}</button>
                                         </a>
                                     <li>
                                     <li>
@@ -1708,19 +1694,19 @@
                                         <td class="content" id="set-content">
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_01}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片高度")}：</h2>
                                                     <p><input type="number" id="Height" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_02}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片寬度")}：</h2>
                                                     <p><input type="number" id="Width" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_03}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片最大寬度")}：</h2>
                                                     <p><input type="number" id="MaxWidth" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_04}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片間隔高度")}：</h2>
                                                     <p><input type="number" id="Spacing" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                             </div>
@@ -1729,17 +1715,17 @@
                                     <tr>
                                         <td class="button-area">
                                             <select id="language">
-                                                <option value="" disabled selected>${lang.ML_01}</option>
-                                                <option value="en-US">${lang.ML_02}</option>
-                                                <option value="zh-TW">${lang.ML_03}</option>
-                                                <option value="zh-CN">${lang.ML_04}</option>
-                                                <option value="ja">${lang.ML_05}</option>
+                                                <option value="" disabled selected>${Transl("語言")}</option>
+                                                <option value="en-US">${Transl("英文")}</option>
+                                                <option value="zh-TW">${Transl("繁體")}</option>
+                                                <option value="zh-CN">${Transl("簡體")}</option>
+                                                <option value="ja">${Transl("日文")}</option>
                                             </select>
-                                            <button id="readsettings" class="button-options" disabled>${lang.MB_01}</button>
+                                            <button id="readsettings" class="button-options" disabled>${Transl("讀取設定")}</button>
                                             <span class="button-space"></span>
-                                            <button id="closure" class="button-options">${lang.MB_02}</button>
+                                            <button id="closure" class="button-options">${Transl("關閉離開")}</button>
                                             <span class="button-space"></span>
-                                            <button id="application" class="button-options">${lang.MB_03}</button>
+                                            <button id="application" class="button-options">${Transl("保存應用")}</button>
                                         </td>
                                     </tr>
                                 </table>
@@ -1753,7 +1739,6 @@
         $(".modal-interface").draggable({
             cursor: "grabbing"
         });
-        $(".modal-interface").tabs();
         const UnitOptions = `
             <select class="Image-input-settings" style="margin-left: 1rem;">
                 <option value="px" selected>px</option>
@@ -1797,7 +1782,7 @@
                 Syn.Store("s", DLL.SaveKey.Img, save_cache);
             },
             ImageSettings: async () => {
-                $on(".Image-input-settings", "input change", function(event) {
+                $on(".Image-input-settings", "input change", function (event) {
                     event.stopPropagation();
                     const target = $(this), value = target.val(), id = target.attr("id");
                     parent = target.closest("div");
@@ -1817,23 +1802,24 @@
                 });
             }
         };
-        $("#language").val(log ?? "en-US");
-        $on("#language", "input change", function(event) {
+        $("#language").val(Log ?? "en-US");
+        $on("#language", "input change", function (event) {
             event.stopPropagation();
             $("#language").off("input change");
             const value = $(this).val();
             Syn.Store("s", DLL.SaveKey.Lang, value);
             Menu_Requ.Menu_Save();
             Menu_Requ.Menu_Close();
-            MenuTrigger(DLL.Language().lang);
-            Create_Menu();
+            MenuTrigger(Updata => {
+                Create_Menu(Updata.Log, Updata.Transl);
+            });
         });
-        $on(".modal-interface", "click", function(event) {
+        $on(".modal-interface", "click", function (event) {
             const id = $(event.target).attr("id");
             if (id == "image-settings") {
                 img_set = $("#image-settings-show");
                 if (img_set.css("opacity") === "0") {
-                    img_set.find("p").each(function() {
+                    img_set.find("p").each(function () {
                         $(this).append(UnitOptions);
                     });
                     img_set.css({
