@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta1
+// @version      0.0.49-Beta2
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -35,8 +35,8 @@
 // @grant        GM_addValueChangeListener
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.13.3/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1404326/ObjectSyntax_min.js
+// @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -103,55 +103,37 @@
 
         // 展示語言
         const Display_Lang = {
-            Traditional: {
-                RM_01: "📝 設置選單",
-                MT_01: "設置菜單", MO_01: "圖像設置",
-                MB_01: "讀取設定", MB_02: "關閉離開", MB_03: "保存應用",
-                ML_01: "語言", ML_02: "英文", ML_03: "繁體", ML_04: "簡體", ML_05: "日文",
-                MIS_01: "圖片高度", MIS_02: "圖片寬度", MIS_03: "圖片最大寬度", MIS_04: "圖片間隔高度"
-            },
+            Traditional: {},
             Simplified: {
-                RM_01:"📝 设置菜单",
-                MT_01:"设置菜单", MO_01:"图像设置",
-                MB_01:"读取设置", MB_02:"关闭退出", MB_03:"保存应用",
-                ML_01:"语言", ML_02:"英文", ML_03:"繁体", ML_04:"简体", ML_05:"日文",
-                MIS_01:"图片高度", MIS_02:"图片宽度", MIS_03:"图片最大宽度", MIS_04:"图片间隔高度"
+                "📝 設置選單":"📝 设置菜单",
+                "設置菜單":"设置菜单", "圖像設置":"图像设置",
+                "讀取設定":"读取设置", "關閉離開":"关闭退出", "保存應用":"保存应用",
+                "語言":"语言", "英文":"英文", "繁體":"繁体", "簡體":"简体", "日文":"日文",
+                "圖片高度":"图片高度", "圖片寬度":"图片宽度", "圖片最大寬度":"图片最大宽度", "圖片間隔高度":"图片间隔高度"
             },
             Japan: {
-                RM_01:"📝 設定メニュー",
-                MT_01:"設定メニュー", MO_01:"画像設定",
-                MB_01:"設定の読み込み", MB_02:"閉じて終了する", MB_03:"保存して適用する",
-                ML_01:"言語", ML_02:"英語", ML_03:"繁体字", ML_04:"簡体字", ML_05:"日本語",
-                MIS_01:"画像の高さ", MIS_02:"画像の幅", MIS_03:"画像の最大幅", MIS_04:"画像の間隔の高さ"
+                "📝 設置選單":"📝 設定メニュー",
+                "設置菜單":"設定メニュー", "圖像設置":"画像設定",
+                "讀取設定":"設定の読み込み", "關閉離開":"閉じて終了する", "保存應用":"保存して適用する",
+                "語言":"言語", "英文":"英語", "繁體":"繁体字", "簡體":"簡体字", "日文":"日本語",
+                "圖片高度":"画像の高さ", "圖片寬度":"画像の幅", "圖片最大寬度":"画像の最大幅", "圖片間隔高度":"画像の間隔の高さ"
             },
             English: {
-                RM_01:"📝 Settings Menu",
-                MT_01:"Settings Menu", MO_01:"Image Settings",
-                MB_01:"Load Settings", MB_02:"Close and Exit", MB_03:"Save and Apply",
-                ML_01:"Language", ML_02:"English", ML_03:"Traditional Chinese", ML_04:"Simplified Chinese", ML_05:"Japanese",
-                MIS_01:"Image Height", MIS_02:"Image Width", MIS_03:"Maximum Image Width", MIS_04:"Image Spacing Height"
+                "📝 設置選單":"📝 Settings Menu",
+                "設置菜單":"Settings Menu", "圖像設置":"Image Settings",
+                "讀取設定":"Load Settings", "關閉離開":"Close and Exit", "保存應用":"Save and Apply",
+                "語言":"Language", "英文":"English", "繁體":"Traditional Chinese", "簡體":"Simplified Chinese", "日文":"Japanese",
+                "圖片高度":"Image Height", "圖片寬度":"Image Width", "圖片最大寬度":"Maximum Image Width", "圖片間隔高度":"Image Spacing Height"
             }
         }, Match = {
             "zh-TW": Display_Lang.Traditional, "zh-HK": Display_Lang.Traditional, "zh-MO": Display_Lang.Traditional,
             "zh-CN": Display_Lang.Simplified, "zh-SG": Display_Lang.Simplified,
-            "en-US": Display_Lang.English, "ja": Display_Lang.Japan,
+            "en-US": Display_Lang.English, "ja": Display_Lang.Japan
         };
-
-        (async ()=> { // 刪除舊版數據
-            const DV = Syn.Store("g", "DataVersion", 0);
-            if (DV < 1) {
-                ["MenuSet", "ImgSet", "language"].forEach(key=> {Syn.Store("d", key)});
-                Syn.Store("s", "DataVersion", 1);
-            }
-        })();
 
         // 所需樣式 (需要傳入顏色的, 就是需要動態適應顏色變化)
         const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
-        const SaveKey = {
-            Img: "ImgStyle",
-            Lang: "Language",
-            Menu: "MenuPoint",
-        };
+        const SaveKey = {Img: "ImgStyle", Lang: "Language", Menu: "MenuPoint"};
         // 導入使用者設定
         const UserSet = {
             MenuSet: () => {
@@ -170,7 +152,7 @@
             }
         };
 
-        // 動態調整樣式
+        // 動態調整圖片樣式
         let ImgRule, MenuRule;
         const ImportantStyle = async (element, property, value) => {
             requestAnimationFrame(() => {
@@ -191,7 +173,7 @@
             Spacing: value => ImportantStyle(ImgRule[1], "margin", `${value} auto`)
         };
 
-        // 依賴樣式
+        // 功能依賴樣式
         const Style = {
             Global: async () => { // 全域 修復所需
                 Syn.AddStyle(`
@@ -500,15 +482,16 @@
                     }
                     .button-space { margin: 0 0.6rem; }
                     .form-hidden {
-                        opacity: 0;
-                        height: 0;
                         width: 0;
+                        height: 0;
+                        opacity: 0;
+                        padding: 10px;
                         overflow: hidden;
                         transition: opacity 0.8s, height 0.8s, width 0.8s;
                     }
                     .toggle-menu {
-                        height: 0;
                         width: 0;
+                        height: 0;
                         padding: 0;
                         margin: 0;
                     }
@@ -536,7 +519,7 @@
                 Syn.StoreListen(Object.values(SaveKey), call => {
                     if (call.far) {
                         if (Syn.Type(call.nv) == "String") {
-                            MenuTrigger(Match[call.nv]);
+                            MenuTrigger();
                         } else {
                             for (const [key, value] of Object.entries(call.nv)) {
                                 Style_Pointer[key](value);
@@ -554,10 +537,12 @@
             IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
 
             Language: () => {
-                const log = Syn.Store("g", SaveKey.Lang);
+                const Log = Syn.Store("g", SaveKey.Lang);
+                const ML = Match[Log] ?? Match["en-US"];
+
                 return {
-                    log: log,
-                    lang: Match[log] ?? Match["en-US"], // 避免例外
+                    Log: Log,
+                    Transl: (Str) => ML[Str] ?? Str
                 }
             },
             Rendering: ({ content }) => React.createElement("div", { dangerouslySetInnerHTML: { __html: content } }),
@@ -569,11 +554,10 @@
 
     /* ==================== 配置解析 調用 ==================== */
     const Enhance = (() => {
-        // 配置參數驗證
+        // 配置參數驗證 (避免使用者配置錯誤)
         const Validate = (Bool, Num) => {
             return Bool && Syn.Type(Bool) == "Boolean" && Syn.Type(Num) == "Number"
-                ? true
-                : false;
+                ? true : false;
         };
         // 呼叫順序
         const Order = {
@@ -633,12 +617,11 @@
         async function Call(page, config=User_Config[page]) {
             const func = LoadFunc[page](); // 載入對應函數
 
-            for (Ord of Order[page]) { // 避免空值時, 解構出現例外, 給予其預設值
+            for (Ord of Order[page]) {
                 const {enable, mode, ...other} = config[Ord] ?? {};
 
-                if (Validate(enable, mode)) {
-                    // 將模式與, 可能有的其他選項, 作為 Config 傳遞
-                    func[Ord]?.({mode, ...other});
+                if (Validate(enable, mode)) { // 這個驗證非必要, 但因為使用者可自行配置, 要避免可能的錯誤
+                    func[Ord]?.({mode, ...other}); // 將模式與, 可能有的其他選項, 作為 Config 傳遞
                 }
             }
         }
@@ -653,7 +636,7 @@
                     Call("Content"); // 呼叫功能
 
                     DLL.Style.Menu(); // 導入 菜單樣式
-                    MenuTrigger(DLL.Language().lang); // 創建菜單
+                    MenuTrigger(); // 創建菜單
                 }
             },
             ExtraInitial: async () => {
@@ -1193,8 +1176,8 @@
                         url: link,
                         nocache: false,
                         onload: response => {
-                            const new_section = Syn.$$("section", {root: response.responseXML});
-                            ReactDOM.render(React.createElement(DLL.Rendering, { content: new_section.innerHTML }), old_section);
+                            const Section = Syn.$$("section", {root: response.responseXML});
+                            ReactDOM.render(React.createElement(DLL.Rendering, { content: Section.innerHTML }), old_section);
                             history.pushState(null, null, link);
                         },
                         onerror: error => {GetNextPage(link)}
@@ -1338,9 +1321,14 @@
                             url: url,
                             nocache: false,
                             onload: response => {
-                                const New_main = Syn.$$("main", {root: response.responseXML});
-                                ReactDOM.render(React.createElement(DLL.Rendering, { content: New_main.innerHTML }), old_main);
-                                history.pushState(null, null, url);
+                                const XML = response.responseXML;
+                                const Main = Syn.$$("main", {root: XML});
+                                ReactDOM.render(React.createElement(DLL.Rendering, { content: Main.innerHTML }), old_main); // 替換 main
+
+                                const Title = Syn.$$("title", {root: XML})?.textContent;
+                                history.pushState(null, null, url); // 修改連結與紀錄
+                                Title && (document.title = Title); // 修改標題
+
                                 setTimeout(()=> {
                                     Enhance.ExtraInitial(); // 重新呼叫增強
                                     Syn.WaitElem("div.post__content", post=> {
@@ -1629,14 +1617,16 @@
 
     /* ==================== 設置菜單 ==================== */
     async function $on(element, type, listener) {$(element).on(type, listener)};
-    async function MenuTrigger(lang) {
-        Syn.Menu({[lang.RM_01]: { func: ()=> Create_Menu() }});
+    async function MenuTrigger(callback = null) {
+        const {Log, Transl} = DLL.Language(); // 菜單觸發器, 每次創建都會獲取新數據
+
+        callback && callback({Log, Transl}); // 使用 callback 會額外回傳數據
+        Syn.Menu({[Transl("📝 設置選單")]: { func: ()=> Create_Menu(Log, Transl) }});
     }
-    function Create_Menu() {
+    function Create_Menu(Log, Transl) {
         if (Syn.$$(".modal-background")) return;
 
         const set = DLL.ImgSet();
-        const {log, lang} = DLL.Language();
         const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing]; // 這樣寫是為了讓讀取保存設置可以按照順序 (菜單有索引問題)
 
         let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
@@ -1647,11 +1637,11 @@
                     <table class="modal-box">
                         <tr>
                             <td class="menu">
-                                <h2 class="menu-text">${lang.MT_01}</h2>
+                                <h2 class="menu-text">${Transl("設置菜單")}</h2>
                                 <ul>
                                     <li>
                                         <a class="toggle-menu" href="#image-settings-show">
-                                            <button class="menu-options" id="image-settings">${lang.MO_01}</button>
+                                            <button class="menu-options" id="image-settings">${Transl("圖像設置")}</button>
                                         </a>
                                     <li>
                                     <li>
@@ -1667,19 +1657,19 @@
                                         <td class="content" id="set-content">
                                             <div id="image-settings-show" class="form-hidden">
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_01}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片高度")}：</h2>
                                                     <p><input type="number" id="Height" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_02}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片寬度")}：</h2>
                                                     <p><input type="number" id="Width" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_03}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片最大寬度")}：</h2>
                                                     <p><input type="number" id="MaxWidth" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                                 <div>
-                                                    <h2 class="narrative">${lang.MIS_04}：</h2>
+                                                    <h2 class="narrative">${Transl("圖片間隔高度")}：</h2>
                                                     <p><input type="number" id="Spacing" class="Image-input-settings" oninput="value = check(value)"></p>
                                                 </div>
                                             </div>
@@ -1688,17 +1678,17 @@
                                     <tr>
                                         <td class="button-area">
                                             <select id="language">
-                                                <option value="" disabled selected>${lang.ML_01}</option>
-                                                <option value="en-US">${lang.ML_02}</option>
-                                                <option value="zh-TW">${lang.ML_03}</option>
-                                                <option value="zh-CN">${lang.ML_04}</option>
-                                                <option value="ja">${lang.ML_05}</option>
+                                                <option value="" disabled selected>${Transl("語言")}</option>
+                                                <option value="en-US">${Transl("英文")}</option>
+                                                <option value="zh-TW">${Transl("繁體")}</option>
+                                                <option value="zh-CN">${Transl("簡體")}</option>
+                                                <option value="ja">${Transl("日文")}</option>
                                             </select>
-                                            <button id="readsettings" class="button-options" disabled>${lang.MB_01}</button>
+                                            <button id="readsettings" class="button-options" disabled>${Transl("讀取設定")}</button>
                                             <span class="button-space"></span>
-                                            <button id="closure" class="button-options">${lang.MB_02}</button>
+                                            <button id="closure" class="button-options">${Transl("關閉離開")}</button>
                                             <span class="button-space"></span>
-                                            <button id="application" class="button-options">${lang.MB_03}</button>
+                                            <button id="application" class="button-options">${Transl("保存應用")}</button>
                                         </td>
                                     </tr>
                                 </table>
@@ -1712,7 +1702,6 @@
         // 設置可拖動效果, 並添加到 dom 中
         $(document.body).append(menu);
         $(".modal-interface").draggable({ cursor: "grabbing" });
-        $(".modal-interface").tabs();
 
         // 調整選項
         const UnitOptions = `
@@ -1771,10 +1760,10 @@
                         DLL.Style_Pointer[id](`${value}${child.val()}`);
                     }
                 });
-            },
-        }
+            }
+        };
 
-        $("#language").val(log ?? "en-US"); // 添加語言設置
+        $("#language").val(Log ?? "en-US"); // 添加語言設置
         // 語言選擇
         $on("#language", "input change", function (event) {
             event.stopPropagation();
@@ -1785,8 +1774,9 @@
 
             Menu_Requ.Menu_Save();
             Menu_Requ.Menu_Close();
-            MenuTrigger(DLL.Language().lang); // 根據選擇語言更新菜單
-            Create_Menu(); // 重新創建
+            MenuTrigger(Updata => {
+                Create_Menu(Updata.Log, Updata.Transl); // 重新創建
+            });
         });
         // 監聽菜單的點擊事件
         $on(".modal-interface", "click", function (event) {
