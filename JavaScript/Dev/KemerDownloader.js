@@ -282,7 +282,7 @@
             // 更新請求狀態
             FolderName = FolderName != "" ? `${FolderName}/` : ""; // 處理資料夾名稱格式
             function Request_update(index, url, blob, retry=false) {
-                if (Self.ForceDownload) {return}
+                if (Self.ForceDownload) return;
                 requestAnimationFrame(()=> {
                     Data.delete(index);
                     if (retry) {
@@ -291,7 +291,7 @@
                         extension = Syn.ExtensionName(url); // 雖然 Mantissa 函數可直接傳遞 url 為第四個參數, 但因為需要 isVideo 的資訊, 所以分別操作
                         Self.isVideo(extension)
                             ? Zip.file(`${FolderName}${decodeURIComponent(url.split("?f=")[1])}`, blob)
-                            : Zip.file(`${FolderName}${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler, url))}.${extension}`, blob);
+                            : Zip.file(`${FolderName}${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler))}.${extension}`, blob);
                     }
 
                     show = `[${++progress}/${Total}]`;
@@ -320,7 +320,7 @@
 
             // 不使用 worker 的請求, 切換窗口時, 這裡的請求就會變慢
             async function Request(index, url) {
-                if (Self.ForceDownload) {return}
+                if (Self.ForceDownload) return;
                 GM_xmlhttpRequest({
                     url: url,
                     method: "GET",
@@ -352,8 +352,8 @@
             this.worker.onmessage = (e) => {
                 const { index, url, blob, error } = e.data;
                 error
-                ? (Request(index, url), Syn.Log("Download Failed", url, {dev: Config.Dev, collapsed: false}))
-                : (Request_update(index, url, blob), Syn.Log("Download Successful", url, {dev: Config.Dev, collapsed: false}));
+                    ? (Request(index, url), Syn.Log("Download Failed", url, {dev: Config.Dev, collapsed: false}))
+                    : (Request_update(index, url, blob), Syn.Log("Download Successful", url, {dev: Config.Dev, collapsed: false}));
             }
         }
 
