@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta2
+// @version      0.0.21-Beta3
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -55,6 +55,7 @@
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
         ExperimeDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     };
+
     /** ---------------------
      * 暫時的 檔名修改方案
      *
@@ -79,6 +80,7 @@
         FolderName: "{Title}", // 資料夾名稱 (用空字串, 就直接沒資料夾)
         FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
     };
+
     /** ---------------------
      * 設置 json 輸出格式
      *
@@ -99,6 +101,7 @@
         Mode: "OnlyMode",
         Settings: ["orlink", "dllink"],
     };
+
     /* --------------------- */
     let lock = false;
     const Lang = Language(Syn.Device.Lang);
@@ -193,13 +196,13 @@
                     }
                 };
                 const [compress_name, folder_name, fill_name] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-                const data = [...files.children].map(child => Syn.$$("a, img", {
+                const data = [...files.children].map(child => Syn.$$("rc, a, img", {
                     root: child
                 })), video = Syn.$$(".post__attachment a", {
                     all: true
                 }), final_data = Config.ContainsVideo ? [...data, ...video] : data;
                 for (const [index, file] of final_data.entries()) {
-                    DownloadData.set(index, file.href || file.src);
+                    DownloadData.set(index, file.href || file.src || file.getAttribute("src"));
                 }
                 Syn.Log("Get Data", {
                     FolderName: folder_name,
@@ -229,16 +232,14 @@
             }, "Enforce");
             FolderName = FolderName != "" ? `${FolderName}/` : "";
             function Request_update(index, url, blob, retry = false) {
-                if (Self.ForceDownload) {
-                    return;
-                }
+                if (Self.ForceDownload) return;
                 requestAnimationFrame(() => {
                     Data.delete(index);
                     if (retry) {
                         Data.set(index, url);
                     } else {
                         extension = Syn.ExtensionName(url);
-                        Self.isVideo(extension) ? Zip.file(`${FolderName}${decodeURIComponent(url.split("?f=")[1])}`, blob) : Zip.file(`${FolderName}${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler, url))}.${extension}`, blob);
+                        Self.isVideo(extension) ? Zip.file(`${FolderName}${decodeURIComponent(url.split("?f=")[1])}`, blob) : Zip.file(`${FolderName}${FillName.replace("fill", Syn.Mantissa(index, Amount, Filler))}.${extension}`, blob);
                     }
                     show = `[${++progress}/${Total}]`;
                     document.title = show;
@@ -266,9 +267,7 @@
                 });
             }
             async function Request(index, url) {
-                if (Self.ForceDownload) {
-                    return;
-                }
+                if (Self.ForceDownload) return;
                 GM_xmlhttpRequest({
                     url: url,
                     method: "GET",
