@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta2
+// @version      0.0.49-Beta3
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -22,6 +22,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
+// @connect      *
 // @run-at       document-end
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -84,7 +85,11 @@
             LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
             CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
             VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
-            OriginalImage: {mode: 1, enable: true}, // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+            OriginalImage: { // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
+                mode: 1,
+                enable: true,
+                experiment: true, // 實驗性替換方式
+            }
         }
     };
 
@@ -311,12 +316,18 @@
                 const set = UserSet.ImgSet();
                 const width = Syn.Device.iW() / 2;
                 Syn.AddStyle(`
+                    .post__files > div {
+                        position: relative;
+                    }
                     .Image-loading-indicator {
                         min-width: 50vW;
                         min-height: 50vh;
                         max-width: ${width}px;
                         max-height: ${width * 9 / 16}px;
                         border: 1px solid #fafafa;
+                    }
+                    .Image-loading-indicator-experiment {
+                        border: 3px solid #00ff7e;
                     }
                     .Image-style, figure img {
                         display: block;
@@ -327,6 +338,16 @@
                     }
                     .Image-loading-indicator:hover {
                         cursor: pointer;
+                    }
+                    .progress-indicator {
+                        top: 5px;
+                        left: 5px;
+                        colo: #fff;
+                        font-size: 14px;
+                        padding: 3px 6px;
+                        position: absolute;
+                        border-radius: 5px;
+                        background-color: rgba(0, 0, 0, 0.3);
                     }
                 `, "Image-Custom-Style", false);
                 ImgRule = Syn.$$("#Image-Custom-Style")?.sheet.cssRules;
@@ -1465,13 +1486,23 @@
                                 }
                             }, {capture: true, passive: true});
                         },
-                        ImgRendering: ({ ID, href }) => { // 渲染圖像
-                            return React.createElement("div", {
+                        /**
+                         * 渲染圖像
+                         *
+                         * @param {Object} { ID, Ourl, Nurl }
+                         * ID 用於標示用的
+                         * Ourl 原始連結, 當 Nurl 並非原始連結, 可以傳遞該參數保留原始數據 (預設: null)
+                         * Nurl 用於渲染圖片的新連結
+                         */
+                        ImgRendering: ({ ID, Ourl=null, Nurl }) => {
+                            return React.createElement((Ourl ? "rc" : "div"), {
                                 id: ID,
+                                src: Ourl,
                                 className: "Image-link"
-                            }, React.createElement("img", {
+                            },
+                            React.createElement("img", {
                                 key: "img",
-                                src: href.href,
+                                src: Nurl,
                                 className: "Image-loading-indicator Image-style",
                                 onLoad: function () {
                                     Syn.$$(`#${ID} img`).classList.remove("Image-loading-indicator");
@@ -1481,17 +1512,57 @@
                                 }
                             })
                         )},
+                        /**
+                         * 用於請求圖片數據為 blob 連結
+                         *
+                         * @param {Object} { Container, Url, Result }
+                         * Container 用於標示進度用的容器
+                         * Url 請求的圖片連結
+                         * Result 回傳圖片連結
+                         */
+                        Request: async function(Container, Url, Result) {
+                            const progressLabel = document.createElement("div");
+                            progressLabel.className = "progress-indicator";
+                            progressLabel.textContent = "0%";
+                            Container.appendChild(progressLabel);
+
+                            GM_xmlhttpRequest({
+                                url: Url,
+                                method: "GET",
+                                responseType: "blob",
+                                onprogress: progress => {
+                                    const done = ((progress.done / progress.total) * 100).toFixed(1);
+                                    progressLabel.textContent = `${done}%`;
+                                },
+                                onload: response => {
+                                    const blob = response.response;
+                                    blob instanceof Blob && blob.size > 0
+                                        ? Result(URL.createObjectURL(blob)) : Result(Url);
+                                },
+                                onerror: () => Result(Url)
+                            })
+                        },
                         FastAuto: async function() { // mode 1 預設 (快速自動)
                             this.FailedClick();
                             thumbnail.forEach((object, index) => {
                                 setTimeout(()=> {
                                     object.removeAttribute("class");
                                     const a = Syn.$$("a", {root: object});
-                                    ReactDOM.render(React.createElement(this.ImgRendering, { ID: `IMG-${index}`, href: a }), object);
+
+                                    if (Config.experiment) {
+                                        Syn.$$("img", {root: a}).classList.add("Image-loading-indicator-experiment");
+
+                                        this.Request(object, a.href, href => {
+                                            ReactDOM.render(React.createElement(this.ImgRendering, { ID: `IMG-${index}`, Ourl: a.href, Nurl: href }), object);
+                                        });
+                                    } else {
+                                        ReactDOM.render(React.createElement(this.ImgRendering, { ID: `IMG-${index}`, Nurl: a.href }), object);
+                                    }
+
                                 }, index * 300);
                             });
                         },
-                        SlowAuto: async (index) => {
+                        SlowAuto: async function(index) {
                             if (index == thumbnail.length) return;
                             const object = thumbnail[index];
                             object.removeAttribute("class");
@@ -1499,20 +1570,39 @@
                             const a = Syn.$$("a", {root: object});
                             const img = Syn.$$("img", {root: a});
 
-                            Object.assign(img, {
-                                className: "Image-loading-indicator Image-style",
-                                src: a.href,
-                            });
+                            const replace_core = (Nurl, Ourl=null) => {
 
-                            img.removeAttribute("data-src");
-                            a.id = `IMG-${index}`;
-                            a.removeAttribute("href");
-                            a.removeAttribute("download");
+                                const container = document.createElement((Ourl ? "rc" : "div"));
+                                Ourl && container.setAttribute("src", Ourl); // 當存在時進行設置
 
-                            img.onload = function() {
-                                img.classList.remove("Image-loading-indicator");
-                                Origina_Requ.SlowAuto(++index);
+                                Object.assign(container, {
+                                    id: `IMG-${index}`,
+                                    className: "Image-link"
+                                });
+
+                                const img = document.createElement("img");
+                                Object.assign(img, {
+                                    src: Nurl,
+                                    className: "Image-loading-indicator Image-style"
+                                });
+
+                                img.onload = function() {
+                                    img.classList.remove("Image-loading-indicator");
+                                    Origina_Requ.SlowAuto(++index);
+                                };
+
+                                object.innerHTML = ""; // 清空物件元素
+                                container.appendChild(img);
+                                object.appendChild(container);
                             };
+
+                            if (Config.experiment) { // 替換調用
+                                img.classList.add("Image-loading-indicator-experiment");
+
+                                this.Request(object, a.href, href => replace_core(href, a.href));
+                            } else {
+                                replace_core(a.href);
+                            }
                         },
                         ObserveTrigger: function() { // mode 3 (觀察觸發)
                             this.FailedClick();
@@ -1521,8 +1611,18 @@
                                     if (entry.isIntersecting) {
                                         const object = entry.target;
                                         observer.unobserve(object);
-                                        ReactDOM.render(React.createElement(this.ImgRendering, { ID: object.alt, href: Syn.$$("a", {root: object}) }), object);
                                         object.removeAttribute("class");
+
+                                        const a = Syn.$$("a", {root: object});
+                                        if (Config.experiment) {
+                                            Syn.$$("img", {root: a}).classList.add("Image-loading-indicator-experiment");
+
+                                            this.Request(object, a.href, href => {
+                                                ReactDOM.render(React.createElement(this.ImgRendering, { ID: object.alt, Ourl: a.href, Nurl: href }), object);
+                                            });
+                                        } else {
+                                            ReactDOM.render(React.createElement(this.ImgRendering, { ID: object.alt, Nurl: a.href }), object);
+                                        }
                                     }
                                 });
                             }, { threshold: 0.3 });
@@ -1535,6 +1635,7 @@
                         case 2:
                             Origina_Requ.SlowAuto(0);
                             break;
+
                         case 3:
                             observer = Origina_Requ.ObserveTrigger();
                             thumbnail.forEach((object, index) => {
