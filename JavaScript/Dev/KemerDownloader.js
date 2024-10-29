@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta2
+// @version      0.0.21-Beta3
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -232,13 +232,13 @@
                 ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                 const // 這種寫法適應於還未完全載入原圖時
-                    data = [...files.children].map(child => Syn.$$("a, img", {root: child})),
+                    data = [...files.children].map(child => Syn.$$("rc, a, img", {root: child})),
                     video = Syn.$$(".post__attachment a", {all: true}),
                     final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
                 // 使用 foreach, 他的異步特性可能造成一些意外, 因此使用 for
                 for (const [index, file] of final_data.entries()) {
-                    DownloadData.set(index, (file.href || file.src));
+                    DownloadData.set(index, (file.href || file.src || file.getAttribute("src")));
                 }
 
                 Syn.Log("Get Data", {
@@ -333,8 +333,8 @@
 
                         const blob = response.response;
                         blob instanceof Blob && blob.size > 0
-                        ? Request_update(index, url, blob)
-                        : Request_update(index, url, "", true);
+                            ? Request_update(index, url, blob)
+                            : Request_update(index, url, "", true);
                     },
                     onerror: () => {
                         Request_update(index, url, "", true);
