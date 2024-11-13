@@ -208,7 +208,7 @@
             /* 查找過期的項目將其刪除 */
             this.ExpiredCleanup = (Object, Adapter, Timestamp, Callback) => {
                 const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
-                this.CurrentTime > targetTime ? (this.config.ClearExpiration && Object.remove()) : Callback(Object);
+                this.CurrentTime > targetTime ? (this.Config.ClearExpiration && Object.remove()) : Callback(Object);
             };
 
             /* 初始化數據 */
