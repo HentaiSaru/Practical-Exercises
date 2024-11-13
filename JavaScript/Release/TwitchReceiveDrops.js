@@ -160,7 +160,7 @@
             };
             this.ExpiredCleanup = (Object, Adapter, Timestamp, Callback) => {
                 const targetTime = Adapter?.(Timestamp, this.CurrentTime.getFullYear()) ?? this.CurrentTime;
-                this.CurrentTime > targetTime ? this.config.ClearExpiration && Object.remove() : Callback(Object);
+                this.CurrentTime > targetTime ? this.Config.ClearExpiration && Object.remove() : Callback(Object);
             };
             this.ProgressValue = "";
             this.CurrentTime = new Date();
