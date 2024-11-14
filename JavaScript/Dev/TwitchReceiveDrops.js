@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta3
+// @version             0.0.15
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -224,7 +224,7 @@
 
         /* 主要運行 */
         static async Ran() {
-            let Progress = 0, MaxElement = 0; // 掉寶進度, 最大進度元素
+            let Task = 0, Progress = 0, MaxElement = 0; // 任務數量, 掉寶進度, 最大進度元素
             const Progress_Info = {}; // 保存進度的資訊
 
             const Detec = new Detection(); // Detec = 靜態函數需要將自身類實例化
@@ -246,13 +246,13 @@
                 if (All_Data && All_Data.length > 0) {
                     const Adapter = Detec.Adapter[document.documentElement.lang]; // 根據網站語言, 獲取適配器 (寫在這裡是避免反覆調用)
 
-                    All_Data.forEach((data, index) => { // 顯示進度, 重啟直播, 刪除過期, 都需要這邊的處理
+                    All_Data.forEach(data => { // 顯示進度, 重啟直播, 刪除過期, 都需要這邊的處理
                         Detec.ExpiredCleanup(
                             data, // 物件整體
                             Adapter, // 適配器
                             data.querySelector(Self.ActivityTime).textContent, // 時間戳
                             NotExpired => { // 分別取得各自的進度
-                                Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
+                                Progress_Info[Task++] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
                             }
                         )
                     });
@@ -345,8 +345,8 @@
             this.Config = Object.assign(Config, {
                 TagType: "span", // 頻道 Tag 標籤
                 Article: "article", // 直播目錄的文章
-                OfflineTag: "p.fQYeyD", // 顯示離線的標籤
-                ViewersTag: "span.hERoTc", // 觀看人數標籤
+                Offline: "p.fQYeyD", // 離線的直播 (離線文本)
+                Online: "span.hERoTc", // 正在直播的標籤 (觀看人數)
                 WatchLiveLink: "[data-a-target='preview-card-image-link']", // 觀看直播的連結
                 ActivityLink1: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']", // 參與活動的頻道連結
                 ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']",
@@ -371,9 +371,7 @@
 
                 FindLive(0);
                 async function FindLive(index) { // 持續找到有在直播的頻道
-                    if ((OpenLink.length - 1) < index) {
-                        return !1;
-                    }
+                    if ((OpenLink.length - 1) < index) return !1;
 
                     const href = OpenLink[index].href;
                     NewWindow = !NewWindow ? window.open(href, "LiveWindow") : (NewWindow.location.assign(href), NewWindow);
@@ -383,8 +381,8 @@
                     } else {
                         let Offline, Nowlive;
                         const observer = new MutationObserver(Throttle(() => {
-                            Offline = NewWindow.document.querySelector(Self.OfflineTag);
-                            Nowlive = NewWindow.document.querySelector(Self.ViewersTag);
+                            Nowlive = NewWindow.document.querySelector(Self.Online);
+                            Offline = NewWindow.document.querySelector(Self.Offline);
 
                             if (Offline) {
                                 observer.disconnect();
