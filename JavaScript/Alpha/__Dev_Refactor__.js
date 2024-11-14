@@ -162,7 +162,7 @@
         const Transl = (Str) => ML[Str] ?? Str;
         // 首次載入設置
         const {
-            MenuTop, MenuLeft,
+            SwitchStatus, MenuTop, MenuLeft,
             ImageBasicWidth, ImageMaxWidth,
             ImageBasicHight, ImageMaxHight,
             ImageSpacing, BackgroundColor
@@ -353,7 +353,7 @@
             Style = Syn.$$("#New-Style").sheet.cssRules;
         }, 1300);
 
-        return { LoadingConfig, ConfigAnalyze, StylePointer, Transl };
+        return { LoadingConfig, SwitchStatus, ConfigAnalyze, StylePointer, Transl };
     })();
 
     // 程式入口點
@@ -415,8 +415,65 @@
 
     // 翻頁核心
     async function PageTurnCore(container, total_page) {
+        document.title = document.title.split(" - ")[1]; // 變換 title 格式
+
         const RecordBox = new Map();
         let RecorNumber = 0;
+
+        if (Syn.Device.Type() === "Desktop") {
+
+            if (DLL.SwitchStatus) { /* 自動翻頁邏輯 */
+                const observer = new IntersectionObserver(observed => {
+                    observed.forEach(entry => {
+                        if (entry.isIntersecting) { 
+                            history.pushState(null, null, entry.target.alt); 
+                            observer.unobserve(entry.target);
+                        };
+                    });
+                }, { threshold: 0.3 });
+                function ReactRender({ OLink, src }) {
+                    return React.createElement("img", {
+                        className: "ImageOptimization",
+                        src: src,
+                        alt: OLink,
+                        loading: "lazy",
+                        ref: function (img) {
+                            if (img) { observer.observe(img) }
+                        }
+                    });
+                };
+                async function NextPage(link) {
+                    if (total_page > 0) {
+                        fetch(link)
+                            .then(response => response.text())
+                            .then(html => {
+                                const NHtml = Syn.$$("#photo_body", {root: Syn.DomParse(html)});
+                                const NLink = Syn.$$("a", {root: NHtml}).href;
+                                const NImg = Syn.$$("img", {root: NHtml}).src;
+                                ReactDOM.render(React.createElement(ReactRender, { OLink: link, src: NImg }), container.appendChild(document.createElement("div")));
+                                
+                                setTimeout(() => {
+                                    total_page--;
+                                    NextPage(NLink);
+                                }, 500);
+                            })
+                            .catch(error => {
+                                NextPage(link);
+                            });
+                    }
+                };
+
+                const link = Syn.$$("a", {root: container}).href; // 獲取下一頁連結
+                const img = Syn.$$("img", {root: container}).src; // 獲取圖像連結
+
+                ReactDOM.render(React.createElement(ReactRender, { OLink: Syn.Device.Url, src: img }), container);
+                Syn.$$("#header").scrollIntoView(); // 回到頂部
+                NextPage(link); // 觸發翻頁
+            } else { /* 手動翻頁邏輯 */
+
+            }
+        };
+
     };
 
     // 菜單 UI
@@ -566,7 +623,6 @@
             // 關閉菜單
             $(".modal-background").remove();
         });
-
     };
 
 })();
