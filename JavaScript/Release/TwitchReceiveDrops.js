@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15-Beta3
+// @version             0.0.15
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -37,8 +37,8 @@
         ClearExpiration: true, // 清除過期的掉寶進度
         ProgressDisplay: true, // 於標題展示掉寶進度
 
-        UpdateInterval: 90, // (seconds) 更新進度狀態的間隔
-        JudgmentInterval: 5, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
+        UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
+        JudgmentInterval: 6, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
         DropsButton: "button.ejeLlX", // 掉寶領取按鈕
         FindTag: ["drops", "啟用掉寶", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
@@ -172,7 +172,7 @@
             });
         }
         static async Ran() {
-            let Progress = 0, MaxElement = 0;
+            let Task = 0, Progress = 0, MaxElement = 0;
             const Progress_Info = {};
             const Detec = new Detection();
             const Self = Detec.Config;
@@ -185,9 +185,9 @@
                 const All_Data = document.querySelectorAll(Self.AllProgress);
                 if (All_Data && All_Data.length > 0) {
                     const Adapter = Detec.Adapter[document.documentElement.lang];
-                    All_Data.forEach((data, index) => {
+                    All_Data.forEach(data => {
                         Detec.ExpiredCleanup(data, Adapter, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
-                            Progress_Info[index] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
+                            Progress_Info[Task++] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
                         });
                     });
                     const OldTask = Detec.Storage("Task") ?? {};
@@ -264,8 +264,8 @@
             this.Config = Object.assign(Config, {
                 TagType: "span",
                 Article: "article",
-                OfflineTag: "p.fQYeyD",
-                ViewersTag: "span.hERoTc",
+                Offline: "p.fQYeyD",
+                Online: "span.hERoTc",
                 WatchLiveLink: "[data-a-target='preview-card-image-link']",
                 ActivityLink1: "[data-test-selector='DropsCampaignInProgressDescription-hint-text-parent']",
                 ActivityLink2: "[data-test-selector='DropsCampaignInProgressDescription-no-channels-hint-text']"
@@ -286,9 +286,7 @@
                 OpenLink = [...Channel.querySelectorAll("a")].reverse();
                 FindLive(0);
                 async function FindLive(index) {
-                    if (OpenLink.length - 1 < index) {
-                        return !1;
-                    }
+                    if (OpenLink.length - 1 < index) return !1;
                     const href = OpenLink[index].href;
                     NewWindow = !NewWindow ? window.open(href, "LiveWindow") : (NewWindow.location.assign(href),
                         NewWindow);
@@ -297,8 +295,8 @@
                     } else {
                         let Offline, Nowlive;
                         const observer = new MutationObserver(Throttle(() => {
-                            Offline = NewWindow.document.querySelector(Self.OfflineTag);
-                            Nowlive = NewWindow.document.querySelector(Self.ViewersTag);
+                            Nowlive = NewWindow.document.querySelector(Self.Online);
+                            Offline = NewWindow.document.querySelector(Self.Offline);
                             if (Offline) {
                                 observer.disconnect();
                                 FindLive(index + 1);
