@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta4
+// @version      0.0.21-Beta5
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -72,8 +72,9 @@
         ContainsVideo: false, // 下載時包含影片
         CompleteClose: false, // 下載完成後關閉
         ExperimeDownload: true, // 實驗功能 [json 下載]
+        ConcurrentDelay: 3, // 下載線程延遲 (秒) [壓縮下載]
+        ConcurrentQuantity: 5, // 下載線程數量 [壓縮下載]
         BatchOpenDelay: 500, // 一鍵開啟帖子的延遲 (ms)
-        ExperimeDownloadDelay: 300, // 實驗下載請求延遲 (ms)
     };
 
     /** ---------------------
@@ -98,7 +99,7 @@
         },
         CompressName: "({Artist}) {Title}", // 壓縮檔案名稱
         FolderName: "{Title}", // 資料夾名稱 (用空字串, 就直接沒資料夾)
-        FillName: "{Title} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
+        FillName: "{Artist} {Fill}", // 檔案名稱 [! 可以移動位置, 但不能沒有 {Fill}]
     };
 
     /** ---------------------
@@ -156,7 +157,7 @@
                     if (queue.length > 0) {
                         const {index, url} = queue.shift();
                         XmlRequest(index, url);
-                        setTimeout(processQueue, ${Config.ExperimeDownloadDelay});
+                        processQueue();
                     } else {processing = false}
                 }
 
@@ -214,10 +215,10 @@
         DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
             Syn.WaitMap([
                 ".post__title, .scrape__title",
-                ".post__thumbnail, .scrape__thumbnail",
+                ".post__files, .scrape__files",
                 ".post__user-name, .scrape__user-name, fix_name"
             ], found=> {
-                const [title, thumbnail, artist] = found;
+                const [title, files, artist] = found;
                 this.Button.disabled = lock = true;
                 const DownloadData = new Map();
 
@@ -242,7 +243,9 @@
                 ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                 const // 這種寫法適應於還未完全載入原圖時
-                    data = [...thumbnail.children].map(child => Syn.$$(IsNeko ? "div, rc, img" : "a, rc, img", {root: child})),
+                    data = [...files.children]
+                        .map(child => Syn.$$(IsNeko ? "div, rc, img" : "a, rc, img", { root: child }))
+                        .filter(Boolean),
                     video = Syn.$$(".post__attachment a, .scrape__attachment a", {all: true}),
                     final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
@@ -358,9 +361,18 @@
             }
 
             // 傳遞訊息
-            for (let index = 0; index < Total; index++) {
-                this.worker.postMessage({ index: index, url: Data.get(index) });
-                Self.Button.textContent = `${Lang.Transl("請求進度")} [${index + 1}/${Total}]`;
+            const Batch = Config.ConcurrentQuantity;
+            const Delay = Config.ConcurrentDelay * 1e3;
+
+            // 只是顯示給使用者讓其知道 有運作 (無實際作用)
+            Self.Button.textContent = `${Lang.Transl("請求進度")} [${Total}/${Total}]`;
+
+            for (let i = 0; i < Total; i += Batch) {
+                setTimeout(() => {
+                    for (let j = i; j < i + Batch && j < Total; j++) {
+                        this.worker.postMessage({ index: j, url: Data.get(j) });
+                    }
+                }, (i / Batch) * Delay);
             }
 
             // 接收訊息
@@ -437,7 +449,7 @@
             }, "Abort");
 
             async function Request(index) {
-                if (stop) {return}
+                if (stop) return;
                 link = Data.get(index);
                 extension = Syn.ExtensionName(link);
                 filename = Self.isVideo(extension)
@@ -494,7 +506,7 @@
 
             for (let i = 0; i < Total; i++) {
                 Promises.push(Request(i));
-                await Syn.Sleep(Config.ExperimeDownloadDelay);
+                await Syn.Sleep(1e3);
             }
 
             await Promise.allSettled(Promises);
@@ -642,7 +654,7 @@
                     if (queue.length > 0) {
                         const {index, title, url} = queue.shift();
                         XmlRequest(index, title, url);
-                        setTimeout(processQueue, ${Config.ExperimeDownloadDelay});
+                        processQueue();
                     } else {processing = false}
                 }
                 async function XmlRequest(index, title, url) {
