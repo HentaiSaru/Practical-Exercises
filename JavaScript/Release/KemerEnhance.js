@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta3
+// @version      0.0.49-Beta4
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -14,13 +14,14 @@
 
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
+// @match        *://nekohouse.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
-
-// @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
+// @match        *://*.nekohouse.su/*
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
 
 // @connect      *
 // @run-at       document-end
@@ -88,7 +89,7 @@
             OriginalImage: { // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
                 mode: 1,
                 enable: true,
-                experiment: true, // 實驗性替換方式
+                experiment: false, // 實驗性替換方式
             }
         }
     };
@@ -164,7 +165,11 @@
             "en-US": Display_Lang.English,
             ja: Display_Lang.Japan
         };
-        const Color = Syn.Device.Host.startsWith("coomer") ? "#99ddff !important" : "#e8a17d !important";
+        const Color = {
+            kemono: "#e8a17d !important",
+            coomer: "#99ddff !important",
+            nekohouse: "#bb91ff !important"
+        }[Syn.Device.Host.split(".")[0]];
         const SaveKey = {
             Img: "ImgStyle",
             Lang: "Language",
@@ -341,8 +346,16 @@
                 const set = UserSet.ImgSet();
                 const width = Syn.Device.iW() / 2;
                 Syn.AddStyle(`
-                    .post__files > div {
+                    .post__files > div,
+                    .scrape__files > div {
                         position: relative;
+                    }
+                    .Image-style, figure img {
+                        display: block;
+                        width: ${set.Width} !important;
+                        height: ${set.Height} !important;
+                        margin: ${set.Spacing} auto !important;
+                        max-width: ${set.MaxWidth} !important;
                     }
                     .Image-loading-indicator {
                         min-width: 50vW;
@@ -353,13 +366,6 @@
                     }
                     .Image-loading-indicator-experiment {
                         border: 3px solid #00ff7e;
-                    }
-                    .Image-style, figure img {
-                        display: block;
-                        width: ${set.Width} !important;
-                        height: ${set.Height} !important;
-                        margin: ${set.Spacing} auto !important;
-                        max-width: ${set.MaxWidth} !important;
                     }
                     .Image-loading-indicator:hover {
                         cursor: pointer;
@@ -578,6 +584,7 @@
             IsAnnouncement: Announcement.test(Url),
             IsSearch: Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
             IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
+            IsNeko: Syn.Device.Host.startsWith("nekohouse"),
             Language: () => {
                 const Log = Syn.Store("g", SaveKey.Lang);
                 const ML = Match[Log] ?? Match["en-US"];
@@ -697,7 +704,13 @@
                             this.URL_F.test(Text) && this.ParseModify(pre, Text);
                         },
                         Multiprocessing: async function (root) {
-                            for (const p of Syn.$$("p", {
+                            if (DLL.IsNeko) {
+                                const Text = root.textContent;
+                                this.URL_F.test(Text) && this.ParseModify(root, Text);
+                                return;
+                            }
+                            let p;
+                            for (p of Syn.$$("p", {
                                 all: true,
                                 root: root
                             })) {
@@ -956,11 +969,11 @@
                 if (!DLL.IsContent && !DLL.IsAnnouncement) return;
                 const Func = LoadFunc.TextToLink_Dependent(Config);
                 if (DLL.IsContent) {
-                    Syn.WaitElem("div.post__body", body => {
+                    Syn.WaitElem(".post__body, .scrape__body", body => {
                         Func.JumpTrigger(body);
                         const [article, content] = [Syn.$$("article", {
                             root: body
-                        }), Syn.$$("div.post__content", {
+                        }), Syn.$$(".post__content, .scrape__content", {
                             root: body
                         })];
                         if (article) {
@@ -981,8 +994,8 @@
                         throttle: 600
                     });
                 } else if (DLL.IsAnnouncement) {
-                    Syn.WaitElem("div.card-list__items pre", content => {
-                        Func.JumpTrigger(Syn.$$("div.card-list__items"));
+                    Syn.WaitElem(".card-list__items pre", content => {
+                        Func.JumpTrigger(Syn.$$(".card-list__items"));
                         let pre;
                         for (pre of content) {
                             pre.childNodes.length > 1 ? Func.Multiprocessing(pre) : Func.Process(pre);
@@ -1061,7 +1074,7 @@
                         });
                     }
                 } else if (DLL.IsContent) {
-                    const [artist, title] = [Syn.$$(".post__user-name"), Syn.$$("h1 span:nth-child(2)")];
+                    const [artist, title] = [Syn.$$(".post__user-name, .scrape__user-name"), Syn.$$("h1 span:nth-child(2)")];
                     Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
                 } else {
                     const artist = Syn.$$("span[itemprop='name']");
@@ -1364,7 +1377,7 @@
                                 Title && (document.title = Title);
                                 setTimeout(() => {
                                     Enhance.ExtraInitial();
-                                    Syn.WaitElem("div.post__content", post => {
+                                    Syn.WaitElem(".post__content, .scrape__content", post => {
                                         Syn.$$("p", {
                                             all: true,
                                             root: post
@@ -1382,7 +1395,7 @@
                                     }, {
                                         throttle: 300
                                     });
-                                    Syn.$$("h1.post__title").scrollIntoView();
+                                    Syn.$$(".post__title, .scrape__title").scrollIntoView();
                                 }, 300);
                             },
                             onerror: error => {
@@ -1414,7 +1427,7 @@
                     }
                     a:hover .View { display: block }
                 `, "Link_Effects", false);
-                Syn.WaitElem("a.post__attachment-link", post => {
+                Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
                     const ShowBrowse = LoadFunc.LinkBeautify_Dependent();
                     for (const link of post) {
                         link.setAttribute("download", "");
@@ -1436,7 +1449,7 @@
                     .post-video {height: 50%; width: 60%;}
                 `, "Video_Effects", false);
                 Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
-                    Syn.WaitElem("a.post__attachment-link", post => {
+                    Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
                         const VideoRendering = LoadFunc.VideoBeautify_Dependent();
                         let li;
                         for (li of parents) {
@@ -1476,7 +1489,12 @@
                 });
             },
             OriginalImage: async function (Config) {
-                Syn.WaitElem("div.post__thumbnail", thumbnail => {
+                Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", thumbnail => {
+                    const LinkObj = DLL.IsNeko ? "div" : "a";
+                    const HrefParse = element => {
+                        const Uri = element.href || element.getAttribute("href");
+                        return Uri.startsWith("http") ? Uri : `${Syn.Device.Orig}${Uri}`;
+                    };
                     const Origina_Requ = {
                         Reload: async (Img, Retry) => {
                             if (Retry > 0) {
@@ -1497,7 +1515,7 @@
                             }
                         },
                         FailedClick: async () => {
-                            Syn.Listen(Syn.$$("div.post__files"), "click", event => {
+                            Syn.Listen(Syn.$$(".post__files, .scrape__files"), "click", event => {
                                 const target = event.target.matches(".Image-link img");
                                 if (target && target.alt == "Loading Failed") {
                                     const src = img.src;
@@ -1555,24 +1573,25 @@
                             thumbnail.forEach((object, index) => {
                                 setTimeout(() => {
                                     object.removeAttribute("class");
-                                    const a = Syn.$$("a", {
+                                    const a = Syn.$$(LinkObj, {
                                         root: object
                                     });
+                                    const hrefP = HrefParse(a);
                                     if (Config.experiment) {
                                         Syn.$$("img", {
                                             root: a
                                         }).classList.add("Image-loading-indicator-experiment");
-                                        this.Request(object, a.href, href => {
+                                        this.Request(object, hrefP, href => {
                                             ReactDOM.render(React.createElement(this.ImgRendering, {
                                                 ID: `IMG-${index}`,
-                                                Ourl: a.href,
+                                                Ourl: hrefP,
                                                 Nurl: href
                                             }), object);
                                         });
                                     } else {
                                         ReactDOM.render(React.createElement(this.ImgRendering, {
                                             ID: `IMG-${index}`,
-                                            Nurl: a.href
+                                            Nurl: hrefP
                                         }), object);
                                     }
                                 }, index * 300);
@@ -1582,9 +1601,10 @@
                             if (index == thumbnail.length) return;
                             const object = thumbnail[index];
                             object.removeAttribute("class");
-                            const a = Syn.$$("a", {
+                            const a = Syn.$$(LinkObj, {
                                 root: object
                             });
+                            const hrefP = HrefParse(a);
                             const img = Syn.$$("img", {
                                 root: a
                             });
@@ -1610,9 +1630,9 @@
                             };
                             if (Config.experiment) {
                                 img.classList.add("Image-loading-indicator-experiment");
-                                this.Request(object, a.href, href => replace_core(href, a.href));
+                                this.Request(object, hrefP, href => replace_core(href, hrefP));
                             } else {
-                                replace_core(a.href);
+                                replace_core(hrefP);
                             }
                         },
                         ObserveTrigger: function () {
@@ -1623,24 +1643,25 @@
                                         const object = entry.target;
                                         observer.unobserve(object);
                                         object.removeAttribute("class");
-                                        const a = Syn.$$("a", {
+                                        const a = Syn.$$(LinkObj, {
                                             root: object
                                         });
+                                        const hrefP = HrefParse(a);
                                         if (Config.experiment) {
                                             Syn.$$("img", {
                                                 root: a
                                             }).classList.add("Image-loading-indicator-experiment");
-                                            this.Request(object, a.href, href => {
+                                            this.Request(object, hrefP, href => {
                                                 ReactDOM.render(React.createElement(this.ImgRendering, {
                                                     ID: object.alt,
-                                                    Ourl: a.href,
+                                                    Ourl: hrefP,
                                                     Nurl: href
                                                 }), object);
                                             });
                                         } else {
                                             ReactDOM.render(React.createElement(this.ImgRendering, {
                                                 ID: object.alt,
-                                                Nurl: a.href
+                                                Nurl: hrefP
                                             }), object);
                                         }
                                     }
@@ -1682,7 +1703,7 @@
                 DLL.Style.Awesome();
                 const GetNextPage = LoadFunc.ExtraButton_Dependent();
                 Syn.WaitElem("h2.site-section__subheading", comments => {
-                    const [Prev, Next, Svg, Span, Buffer] = [Syn.$$("a.post__nav-link.prev"), Syn.$$("a.post__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment()];
+                    const [Prev, Next, Svg, Span, Buffer] = [Syn.$$(".post__nav-link.prev, .scrape__nav-link.prev"), Syn.$$(".post__nav-link.next, .scrape__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment()];
                     Svg.innerHTML = `
                         <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
                             <style>svg{fill: ${DLL.Color}}</style>
@@ -1715,8 +1736,15 @@
             },
             CommentFormat: async function (Config) {
                 Syn.AddStyle(`
-                    .post__comments {display: flex; flex-wrap: wrap;}
-                    .post__comments>*:last-child {margin-bottom: 0.5rem;}
+                    .post__comments,
+                    .scrape__comments {
+                        display: flex;
+                        flex-wrap: wrap;
+                    }
+                    .post__comments > *:last-child,
+                    .scrape__comments > *:last-child {
+                        margin-bottom: 0.5rem;
+                    }
                     .comment {
                         margin: 0.5rem;
                         max-width: 25rem;
@@ -1752,7 +1780,31 @@
         const set = DLL.ImgSet();
         const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing];
         let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
-        const menu = `
+        const shadow = document.createElement("div");
+        const shadowRoot = shadow.attachShadow({
+            mode: "open"
+        });
+        const script = GM_addElement("script", {
+            id: "Img-Script",
+            textContent: Syn.$$("#Menu-Settings").textContent
+        });
+        shadowRoot.appendChild(script);
+        const style = GM_addElement("style", {
+            id: "Menu-Style",
+            textContent: Syn.$$("#Menu-Custom-Style").textContent
+        });
+        shadowRoot.appendChild(style);
+        const UnitOptions = `
+            <select class="Image-input-settings" style="margin-left: 1rem;">
+                <option value="px" selected>px</option>
+                <option value="%">%</option>
+                <option value="rem">rem</option>
+                <option value="vh">vh</option>
+                <option value="vw">vw</option>
+                <option value="auto">auto</option>
+            </select>
+        `;
+        shadowRoot.innerHTML += `
             <div class="modal-background">
                 <div class="modal-interface">
                     <table class="modal-box">
@@ -1819,29 +1871,24 @@
                 </div>
             </div>
         `;
-        $(document.body).append(menu);
-        $(".modal-interface").draggable({
+        $(document.body).append(shadow);
+        const $language = $(shadowRoot).find("#language");
+        const $readset = $(shadowRoot).find("#readsettings");
+        const $interface = $(shadowRoot).find(".modal-interface");
+        const $background = $(shadowRoot).find(".modal-background");
+        const $imageSet = $(shadowRoot).find("#image-settings-show");
+        $language.val(Log ?? "en-US");
+        $interface.draggable({
             cursor: "grabbing"
         });
-        const UnitOptions = `
-            <select class="Image-input-settings" style="margin-left: 1rem;">
-                <option value="px" selected>px</option>
-                <option value="%">%</option>
-                <option value="rem">rem</option>
-                <option value="vh">vh</option>
-                <option value="vw">vw</option>
-                <option value="auto">auto</option>
-            </select>
-        `;
         const Menu_Requ = {
             Menu_Close: () => {
-                $(".modal-background")?.off();
-                $(".modal-background")?.remove();
+                $background?.off();
+                shadow.remove();
             },
             Menu_Save: () => {
-                const menu_interface = $(".modal-interface");
-                const top = menu_interface.css("top");
-                const left = menu_interface.css("left");
+                const top = $interface.css("top");
+                const left = $interface.css("left");
                 Syn.Store("s", DLL.SaveKey.Menu, {
                     Top: top,
                     Left: left
@@ -1850,7 +1897,7 @@
                 DLL.Style_Pointer.Left(left);
             },
             Img_Save: () => {
-                img_set = $("#image-settings-show").find("p");
+                img_set = $imageSet.find("p");
                 img_data.forEach((read, index) => {
                     img_input = img_set.eq(index).find("input");
                     img_select = img_set.eq(index).find("select");
@@ -1866,7 +1913,7 @@
                 Syn.Store("s", DLL.SaveKey.Img, save_cache);
             },
             ImageSettings: async () => {
-                $on(".Image-input-settings", "input change", function (event) {
+                $on($(shadowRoot).find(".Image-input-settings"), "input change", function (event) {
                     event.stopPropagation();
                     const target = $(this), value = target.val(), id = target.attr("id");
                     parent = target.closest("div");
@@ -1886,10 +1933,9 @@
                 });
             }
         };
-        $("#language").val(Log ?? "en-US");
-        $on("#language", "input change", function (event) {
+        $on($language, "input change", function (event) {
             event.stopPropagation();
-            $("#language").off("input change");
+            $language.off("input change");
             const value = $(this).val();
             Syn.Store("s", DLL.SaveKey.Lang, value);
             Menu_Requ.Menu_Save();
@@ -1898,10 +1944,10 @@
                 Create_Menu(Updata.Log, Updata.Transl);
             });
         });
-        $on(".modal-interface", "click", function (event) {
+        $on($interface, "click", function (event) {
             const id = $(event.target).attr("id");
             if (id == "image-settings") {
-                img_set = $("#image-settings-show");
+                img_set = $imageSet;
                 if (img_set.css("opacity") === "0") {
                     img_set.find("p").each(function () {
                         $(this).append(UnitOptions);
@@ -1911,11 +1957,11 @@
                         width: "auto",
                         opacity: 1
                     });
-                    $("#readsettings").prop("disabled", false);
+                    $readset.prop("disabled", false);
                     Menu_Requ.ImageSettings();
                 }
             } else if (id == "readsettings") {
-                img_set = $("#image-settings-show").find("p");
+                img_set = $imageSet.find("p");
                 img_data.forEach((read, index) => {
                     img_input = img_set.eq(index).find("input");
                     img_select = img_set.eq(index).find("select");
