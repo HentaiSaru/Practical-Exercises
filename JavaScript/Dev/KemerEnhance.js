@@ -14,13 +14,14 @@
 
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
+// @match        *://nekohouse.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
-
-// @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
+// @match        *://*.nekohouse.su/*
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/2566/2566449.png
 
 // @connect      *
 // @run-at       document-end
