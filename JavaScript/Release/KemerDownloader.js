@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta3
+// @version      0.0.21-Beta4
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -15,12 +15,14 @@
 // @connect      *
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
+// @match        *://nekohouse.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
-// @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
+// @match        *://*.nekohouse.su/*
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @run-at       document-start
 // @grant        window.close
@@ -38,11 +40,11 @@
 // @grant        GM_unregisterMenuCommand
 
 // @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
-// @require      https://update.greasyfork.org/scripts/495339/1413531/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
 
 // @resource     json-processing https://cdn-icons-png.flaticon.com/512/2582/2582087.png
-// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/svg-with-js.min.css
+// @resource     font-awesome https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/svg-with-js.min.css
 // ==/UserScript==
 
 (async () => {
@@ -105,6 +107,7 @@
     /* --------------------- */
     let lock = false;
     const Lang = Language(Syn.Device.Lang);
+    const IsNeko = Syn.Device.Host === "nekohouse.su";
     class Download {
         constructor(CM, MD, BT) {
             this.Button = BT;
@@ -178,8 +181,8 @@
             } else { }
         }
         DownloadTrigger() {
-            Syn.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found => {
-                const [files, title, artist] = found;
+            Syn.WaitMap([".post__title, .scrape__title", ".post__thumbnail, .scrape__thumbnail", ".post__user-name, .scrape__user-name, fix_name"], found => {
+                const [title, thumbnail, artist] = found;
                 this.Button.disabled = lock = true;
                 const DownloadData = new Map();
                 this.Named_Data = {
@@ -190,19 +193,23 @@
                     artist: () => artist.textContent.trim(),
                     source: () => title.querySelector(":nth-child(2)").textContent.trim(),
                     time: () => {
+                        if (IsNeko) return "";
                         let published = Syn.$$(".post__published").cloneNode(true);
                         published.firstElementChild.remove();
                         return published.textContent.trim().split(" ")[0];
                     }
                 };
                 const [compress_name, folder_name, fill_name] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
-                const data = [...files.children].map(child => Syn.$$("rc, a, img", {
+                const data = [...thumbnail.children].map(child => Syn.$$(IsNeko ? "div, rc, img" : "a, rc, img", {
                     root: child
-                })), video = Syn.$$(".post__attachment a", {
+                })), video = Syn.$$(".post__attachment a, .scrape__attachment a", {
                     all: true
                 }), final_data = Config.ContainsVideo ? [...data, ...video] : data;
                 for (const [index, file] of final_data.entries()) {
-                    DownloadData.set(index, file.href || file.src || file.getAttribute("src"));
+                    const Uri = file.src || file.href || file.getAttribute("src") || file.getAttribute("href");
+                    if (Uri) {
+                        DownloadData.set(index, Uri.startsWith("http") ? Uri : `${Syn.Device.Orig}${Uri}`);
+                    }
                 }
                 Syn.Log("Get Data", {
                     FolderName: folder_name,
@@ -381,18 +388,10 @@
                         url: link,
                         name: filename,
                         conflictAction: "overwrite",
-                        onprogress: progress => {
-                            Syn.Log("Download Progress", {
-                                Index: index,
-                                ImgUrl: link,
-                                Progress: `${progress.loaded}/${progress.total}`
-                            }, {
-                                dev: Config.Dev,
-                                collapsed: false
-                            });
-                            DownloadTracking[index] = progress.loaded == progress.total;
-                            DownloadTracking[index] && completed();
+                        onload: () => {
+                            completed();
                         },
+                        onprogress: progress => { },
                         onerror: () => {
                             Syn.Log("Download Error", link, {
                                 dev: Config.Dev,
@@ -596,6 +595,7 @@
         async GetData() {
             if (this.Section) {
                 lock = true;
+                this.Pages = 1;
                 for (const page of Syn.$$(".pagination-button-disabled b", {
                     all: true
                 })) {
@@ -603,8 +603,6 @@
                     if (number) {
                         this.Pages = number;
                         break;
-                    } else {
-                        this.Pages = 1;
                     }
                 }
                 this.GetPageData(this.Section);
@@ -691,17 +689,17 @@
                 } = e.data;
                 if (!error) {
                     const DOM = Syn.DomParse(text);
-                    const original_link = url, pictures_number = Syn.$$("div.post__thumbnail", {
+                    const original_link = url, pictures_number = Syn.$$("post__thumbnail, .scrape__thumbnail", {
                         all: true,
                         root: DOM
-                    }).length, video_number = Syn.$$('ul[style*="text-align: center;list-style-type: none;"] li', {
+                    }).length, video_number = Syn.$$(".post__body li video, .scrape__files video", {
                         all: true,
                         root: DOM
-                    }).length, mega_link = Syn.$$("div.post__content strong", {
+                    }).length, mega_link = Syn.$$(".post__content strong, .scrape__content strong", {
                         all: true,
                         root: DOM
                     });
-                    Syn.$$("a.post__attachment-link", {
+                    Syn.$$("a.post__attachment-link, a.scrape__attachment-link", {
                         all: true,
                         root: DOM
                     }).forEach(link => {
@@ -793,7 +791,7 @@
             this.AddStyle();
             let Button, Files;
             const IntervalFind = setInterval(() => {
-                Files = Syn.$$("div.post__body h2", {
+                Files = Syn.$$(IsNeko ? "div.scrape__body h2" : "div.post__body h2", {
                     all: true
                 });
                 if (Files.length > 0) {
