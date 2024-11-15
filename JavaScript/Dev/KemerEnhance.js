@@ -1429,41 +1429,48 @@
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
                 `, "Video_Effects", false);
-                Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
-                    Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
-                        const VideoRendering = LoadFunc.VideoBeautify_Dependent();
 
-                        let li;
-                        for (li of parents) {
-                            let [node, title, stream] = [
-                                undefined,
-                                Syn.$$("summary", {root: li}),
-                                Syn.$$("source", {root: li})
-                            ];
-
-                            if (!title || !stream) continue;
-                            if (title.previousElementSibling) continue; // 排除極端狀況下的重複添加
-
-                            let link;
-                            for (link of post) {
-                                if (link.textContent.includes(title.textContent)) {
-                                    switch (Config.mode) {
-                                        case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
-                                            link.parentNode.remove();
-                                        default:
-                                            node = link.cloneNode(true);
+                if (DLL.IsNeko) {
+                    Syn.WaitElem(".scrape__files video", video => {
+                        video.forEach(media => media.setAttribute("preload", "auto"));
+                    }, {all: true, throttle: 600});
+                } else {
+                    Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
+                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                            const VideoRendering = LoadFunc.VideoBeautify_Dependent();
+    
+                            let li;
+                            for (li of parents) {
+                                let [node, title, stream] = [
+                                    undefined,
+                                    Syn.$$("summary", {root: li}),
+                                    Syn.$$("source", {root: li})
+                                ];
+    
+                                if (!title || !stream) continue;
+                                if (title.previousElementSibling) continue; // 排除極端狀況下的重複添加
+    
+                                let link;
+                                for (link of post) {
+                                    if (link.textContent.includes(title.textContent)) {
+                                        switch (Config.mode) {
+                                            case 2: // 因為移動節點 需要刪除再去複製 因此不使用 break
+                                                link.parentNode.remove();
+                                            default:
+                                                node = link.cloneNode(true);
+                                        }
                                     }
                                 }
+    
+                                // 重新渲染影片, 避免跑版
+                                ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
+                                // 將連結元素進行插入 (確保不重複添加)
+                                li.insertBefore(node, Syn.$$("summary", {root: li}));
                             }
-
-                            // 重新渲染影片, 避免跑版
-                            ReactDOM.render(React.createElement(VideoRendering, { stream: stream }), li);
-                            // 將連結元素進行插入 (確保不重複添加)
-                            li.insertBefore(node, Syn.$$("summary", {root: li}));
-                        }
-
-                    }, {all: true, throttle: 300});
-                }, {all: true, throttle: 600});
+    
+                        }, {all: true, throttle: 300});
+                    }, {all: true, throttle: 600});
+                }
             },
             OriginalImage: async function (Config) { /* 自動載入原圖 */
                 Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", thumbnail => {
