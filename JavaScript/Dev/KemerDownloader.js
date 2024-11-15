@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 下载器
 // @name:ja      Kemer ダウンローダー
 // @name:en      Kemer Downloader
-// @version      0.0.21-Beta3
+// @version      0.0.21-Beta4
 // @author       Canaan HS
 // @description         一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
 // @description:zh-TW   一鍵下載圖片 (壓縮下載/單圖下載) , 頁面數據創建 json 下載 , 一鍵開啟當前所有帖子
@@ -15,12 +15,14 @@
 // @connect      *
 // @match        *://kemono.su/*
 // @match        *://coomer.su/*
+// @match        *://nekohouse.su/*
 // @match        *://*.kemono.su/*
 // @match        *://*.coomer.su/*
-// @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
+// @match        *://*.nekohouse.su/*
 
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
+// @icon         https://cdn-icons-png.flaticon.com/512/2381/2381981.png
 
 // @run-at       document-start
 // @grant        window.close
@@ -124,6 +126,8 @@
 
     let lock = false;
     const Lang = Language(Syn.Device.Lang);
+    const IsNeko = Syn.Device.Host === "nekohouse.su"; // 臨時方案
+
     class Download {
         constructor(CM, MD, BT) {
             this.Button = BT;
@@ -208,8 +212,12 @@
 
         /* 下載觸發 [ 查找下載數據, 解析下載資訊, 呼叫下載函數 ] */
         DownloadTrigger() { // 下載數據, 文章標題, 作者名稱
-            Syn.WaitMap([".post__files", ".post__title", ".post__user-name, fix_name"], found=> {
-                const [files, title, artist] = found;
+            Syn.WaitMap([
+                ".post__title, .scrape__title",
+                ".post__thumbnail, .scrape__thumbnail",
+                ".post__user-name, .scrape__user-name, fix_name"
+            ], found=> {
+                const [title, thumbnail, artist] = found;
                 this.Button.disabled = lock = true;
                 const DownloadData = new Map();
 
@@ -219,6 +227,8 @@
                     artist: ()=> artist.textContent.trim(),
                     source: ()=> title.querySelector(":nth-child(2)").textContent.trim(),
                     time: ()=> {
+                        if (IsNeko) return "";
+
                         let published = Syn.$$(".post__published").cloneNode(true);
                         published.firstElementChild.remove();
                         return published.textContent.trim().split(" ")[0];
@@ -232,13 +242,18 @@
                 ] = Object.keys(FileName).slice(1).map(key => this.NameAnalysis(FileName[key]));
 
                 const // 這種寫法適應於還未完全載入原圖時
-                    data = [...files.children].map(child => Syn.$$("rc, a, img", {root: child})),
-                    video = Syn.$$(".post__attachment a", {all: true}),
+                    data = [...thumbnail.children].map(child => Syn.$$(IsNeko ? "div, rc, img" : "a, rc, img", {root: child})),
+                    video = Syn.$$(".post__attachment a, .scrape__attachment a", {all: true}),
                     final_data = Config.ContainsVideo ? [...data, ...video] : data;
 
                 // 使用 foreach, 他的異步特性可能造成一些意外, 因此使用 for
                 for (const [index, file] of final_data.entries()) {
-                    DownloadData.set(index, (file.href || file.src || file.getAttribute("src")));
+                    const Uri = file.src || file.href || file.getAttribute("src") || file.getAttribute("href");
+                    if (Uri) {
+                        DownloadData.set(index, (
+                            Uri.startsWith("http") ? Uri : `${Syn.Device.Orig}${Uri}`
+                        ));
+                    }
                 }
 
                 Syn.Log("Get Data", {
@@ -449,7 +464,11 @@
                         url: link,
                         name: filename,
                         conflictAction: "overwrite",
-                        onprogress: (progress) => { // 新版本的油猴插件, 這個回條怪怪的
+                        onload: () => {
+                            completed();
+                        },
+                        onprogress: (progress) => {
+                            /* 新版本的油猴插件, 這個回條怪怪的
                             Syn.Log("Download Progress", {
                                 Index: index,
                                 ImgUrl: link,
@@ -458,6 +477,7 @@
 
                             DownloadTracking[index] = (progress.loaded == progress.total);
                             DownloadTracking[index] && completed();
+                            */
                         },
                         onerror: () => {
                             Syn.Log("Download Error", link, {dev: Config.Dev, collapsed: false});
@@ -662,11 +682,14 @@
         async GetData() {
             if (this.Section) {
                 lock = true;
+                this.Pages = 1;
 
                 for (const page of Syn.$$(".pagination-button-disabled b", {all: true})) {
                     const number = Number(page.textContent);
-                    if (number) {this.Pages = number; break;}
-                    else {this.Pages = 1;}
+                    if (number) {
+                        this.Pages = number;
+                        break;
+                    }
                 }
 
                 this.GetPageData(this.Section);
@@ -717,7 +740,6 @@
                 await Syn.Sleep(10);
             }
 
-
             const menu = Syn.$$("a.pagination-button-after-current", {root: section});
             if (Config.ExperimeDownload) { // 使用較蠢的方式處理
 
@@ -753,11 +775,11 @@
                     const DOM = Syn.DomParse(text);
 
                     const original_link = url,
-                        pictures_number = Syn.$$("div.post__thumbnail", {all: true, root: DOM}).length,
-                        video_number = Syn.$$('ul[style*="text-align: center;list-style-type: none;"] li', {all: true, root: DOM}).length,
-                        mega_link = Syn.$$("div.post__content strong", {all: true, root: DOM});
+                        pictures_number = Syn.$$("post__thumbnail, .scrape__thumbnail", {all: true, root: DOM}).length,
+                        video_number = Syn.$$(".post__body li video, .scrape__files video", {all: true, root: DOM}).length,
+                        mega_link = Syn.$$(".post__content strong, .scrape__content strong", {all: true, root: DOM});
 
-                    Syn.$$("a.post__attachment-link", {all: true, root: DOM}).forEach(link => {
+                    Syn.$$("a.post__attachment-link, a.scrape__attachment-link", {all: true, root: DOM}).forEach(link => {
                         const analyze = decodeURIComponent(link.href).split("?f="),
                             download_link = analyze[0],
                             download_name = analyze[1];
@@ -792,8 +814,8 @@
             this.Page = {
                 Content: /^(https?:\/\/)?(www\.)?.+\/.+\/user\/.+\/post\/.+$/.test(this.URL),
                 Preview: /^(https?:\/\/)?(www\.)?.+\/posts\/?(\?.*)?$/.test(this.URL)
-                || /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/.test(this.URL)
-                || /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/.test(this.URL)
+                    || /^(https?:\/\/)?(www\.)?.+\/.+\/user\/[^\/]+(\?.*)?$/.test(this.URL)
+                    || /^(https?:\/\/)?(www\.)?.+\/dms\/?(\?.*)?$/.test(this.URL)
             }
 
             this.AddStyle = async () => {
@@ -838,14 +860,16 @@
             Syn.$$("section").setAttribute("Download-Button-Created", true); this.AddStyle();
             let Button, Files;
             const IntervalFind = setInterval(()=> {
-                Files = Syn.$$("div.post__body h2", {all: true});
+                Files = Syn.$$(IsNeko ? "div.scrape__body h2" : "div.post__body h2", {all: true});
+
                 if (Files.length > 0) {
                     clearInterval(IntervalFind);
+
                     try {
                         const CompressMode = Syn.Storage("Compression", {type: localStorage, error: true});
                         const ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
 
-                        // 創建 Span
+                        // 創建 Span (找到含有 Files 文本的對象)
                         Files = Array.from(Files).filter(file => file.textContent.trim() == "Files");
                         if (Files.length == 0) {
                             return;
