@@ -78,7 +78,7 @@
                 mode: 0,
                 enable: true,
                 newtab_active: false,
-                newtab_insert: false,
+                newtab_insert: true,
             },
         },
         Content: {
