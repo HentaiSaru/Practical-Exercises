@@ -1768,7 +1768,8 @@
         Syn.Menu({[Transl("📝 設置選單")]: { func: ()=> Create_Menu(Log, Transl) }});
     }
     function Create_Menu(Log, Transl) {
-        if (Syn.$$(".modal-background")) return;
+        const shadowID = "shadow";
+        if (Syn.$$(`#${shadowID}`)) return;
 
         const set = DLL.ImgSet();
         const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing]; // 這樣寫是為了讓讀取保存設置可以按照順序 (菜單有索引問題)
@@ -1776,7 +1777,7 @@
         let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
 
         // 創建陰影環境
-        const shadow = document.createElement("div");
+        const shadow = GM_addElement("div", { id: shadowID });
         const shadowRoot = shadow.attachShadow({mode: "open"});
 
         const script = GM_addElement("script", { id: "Img-Script", textContent: Syn.$$("#Menu-Settings").textContent });
