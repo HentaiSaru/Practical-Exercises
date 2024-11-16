@@ -52,7 +52,7 @@
         Global: {
             BlockAds: {mode: 0, enable: true}, // 阻擋廣告
             BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
-            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
+            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
             DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
             SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
             FixArtist: { // 修復作者名稱
