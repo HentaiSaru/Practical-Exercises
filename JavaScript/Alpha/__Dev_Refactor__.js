@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.13
+// @version         0.0.14
 // @author          Canaan HS
 // @description         漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
 // @description:zh-TW   漫畫觀看頁面自訂, 圖像大小, 背景顏色, 自動翻頁, 觀看模式
@@ -42,22 +42,8 @@
 
 (async () => {
 
-    /*
-        主要翻頁邏輯 (只試用電腦版)
-         - 自動翻頁
-         - 手動翻頁
-
-        設置菜單功能
-
-        (移動端需要的功能)
-        圖片樣式
-        背景顏色
-        開啟菜單
-
-    */
-
     // 資料遷移用 (未來刪除)
-    (async()=> {
+    (async () => {
         Syn.Store("g", "Mode_V2", false) && Syn.Store("d", "Mode_V2");
 
         const Settings = Syn.Store("g", "Settings");
@@ -93,11 +79,11 @@
         // 菜單使用的配置解析
         const ConfigAnalyze = (value) => {
             if (value === "auto") {
-                return {RangeValue: 9, DisplayText: "auto"};
+                return { RangeValue: 9, DisplayText: "auto" };
             } else if (value.endsWith("rem") || value.endsWith("%")) {
-                return {RangeValue: parseInt(value), DisplayText: value};
+                return { RangeValue: parseInt(value), DisplayText: value };
             } else {
-                return {RangeValue: value, DisplayText: "color"};
+                return { RangeValue: value, DisplayText: "color" };
             }
         };
 
@@ -108,7 +94,7 @@
             MenuLeft: value => Style[9].style.left = value,
             ImageSpacing: value => Style[0].style.margin = `${value} auto`,
             ImageBasicWidth: value => Style[0].style.width = value,
-            ImageMaxWidth: value => {Style[0].style.maxWidth = value; Style[2].style.maxWidth = value},
+            ImageMaxWidth: value => { Style[0].style.maxWidth = value; Style[2].style.maxWidth = value },
             ImageBasicHight: value => Style[0].style.height = value,
             ImageMaxHight: value => Style[0].style.maxHeight = value,
             BackgroundColor: value => Style[1].style.background = value
@@ -126,7 +112,8 @@
                 "背景顏色": "背景颜色",
                 "保存設置": "保存设置",
                 "滾動閱讀": "滚动阅读",
-                "翻頁閱讀": "翻页阅读"
+                "翻頁閱讀": "翻页阅读",
+                "🔲 開關菜單": "开关菜单"
             },
             Japan: {
                 "圖像設置": "画像設定",
@@ -138,7 +125,8 @@
                 "背景顏色": "背景色",
                 "保存設置": "設定の保存",
                 "滾動閱讀": "スクロール読み取り",
-                "翻頁閱讀": "ページ読み取り"
+                "翻頁閱讀": "ページ読み取り",
+                "🔲 開關菜單": "メニューの切り替え"
             },
             English: {
                 "圖像設置": "Image Settings",
@@ -150,7 +138,8 @@
                 "背景顏色": "BackgroundColor Color",
                 "保存設置": "Save Settings",
                 "滾動閱讀": "Scroll Read",
-                "翻頁閱讀": "TurnPage Read"
+                "翻頁閱讀": "TurnPage Read",
+                "🔲 開關菜單": "Toggle Menu"
             }
         }, Match = {
             "zh-TW": Display_Lang.Traditional, "zh-HK": Display_Lang.Traditional, "zh-MO": Display_Lang.Traditional,
@@ -353,11 +342,54 @@
             Style = Syn.$$("#New-Style").sheet.cssRules;
         }, 1300);
 
-        return { LoadingConfig, SwitchStatus, ConfigAnalyze, StylePointer, Transl };
+        return {
+            IsMobile: Syn.Device.Url.includes("photos-slist-aid"),
+            LoadingConfig, SwitchStatus,
+            ConfigAnalyze, StylePointer,
+            Transl
+        };
     })();
 
     // 程式入口點
     (async () => {
+        if (Syn.Device.Type() == "Mobile") return;
+
+        GM_registerMenuCommand(DLL.Transl("🔲 開關菜單"), () => MeunCreator(true));
+        Syn.AddListener(window, "keydown", event => {
+            const key = event.key;
+
+            if (key === "Shift") {
+                event.preventDefault();
+                MeunCreator();
+            } else if (key === "Escape") {
+                event.preventDefault();
+                Syn.$$(".modal-background")?.remove();
+            }
+
+        }, { capture: true });
+
+        if (DLL.IsMobile) {
+            const processedElements = new Map();
+
+            Syn.WaitElem("#img_list", list => {
+                Syn.Observer(list, () => {
+                    Syn.$$("div", { root: list, all: true }).forEach(item => {
+                        if (!processedElements.has(item)) {
+                            processedElements.set(item, true);
+
+                            item.style.cssText = "text-align: center";
+                            const img = Syn.$$("img", { root: item });
+
+                            img.removeAttribute("width");
+                            img.classList.add("ImageOptimization");
+                        };
+                    })
+                }, {throttle: 1500});
+            }, { raf: true, timeout: 10 });
+
+            return;
+        };
+
         Syn.WaitMap([
             ".png.bread", // 廣告
             "#bread", // 廣告容器
@@ -375,9 +407,6 @@
                 body_wrap, page_wrap, footer_wrap
             ] = found;
 
-            // 獲取總頁數, 總頁數 - 當前頁數
-            const total_page = Syn.$$("select option", {all: true}).length - +current_page.textContent;
-
             // 替換掉廣告區塊
             ReactDOM.render(
                 React.createElement("div", { dangerouslySetInnerHTML: { __html: ad.innerHTML } }), ad_container
@@ -386,100 +415,141 @@
             // 刪除不需要區塊
             photo_box.classList.remove("photo_body");
             [body_wrap, page_wrap, footer_wrap].forEach(element => {
-                element.remove();
+                element.style.display = "none";
             });
 
             // 載入翻頁
-            PageTurnCore(photo_box, total_page);
-
-            //! 需要添加語言適應到 DLL
-            GM_registerMenuCommand(DLL.Transl("開啟菜單"), ()=> MeunCreator());
-
-            if (Syn.Device.Type() === "Desktop") {
-                Syn.AddListener(window, "keydown", event => {
-                    const key = event.key;
-
-                    if (key === "Shift") {
-                        event.preventDefault();
-                        MeunCreator();
-                    } else if (key === "Escape") {
-                        event.preventDefault();
-                        Syn.$$(".modal-background")?.remove();
-                    }
-
-                }, { capture: true });
-            };
-
-        }, {raf: true, timeout: 10});
+            PageTurnCore(photo_box, +current_page.textContent);
+        }, { raf: true, timeout: 10 });
     })();
 
     // 翻頁核心
-    async function PageTurnCore(container, total_page) {
+    async function PageTurnCore(container, current_page) {
         document.title = document.title.split(" - ")[1]; // 變換 title 格式
 
-        const RecordBox = new Map();
-        let RecorNumber = 0;
+        const link = Syn.$$("a", { root: container }).href; // 獲取下一頁連結
+        const img = Syn.$$("img", { root: container }).src; // 獲取圖像連結
 
-        if (Syn.Device.Type() === "Desktop") {
+        if (DLL.SwitchStatus) { /* 自動翻頁邏輯 */
+            let total_page = Syn.$$("select option", { all: true }).length - current_page;
 
-            if (DLL.SwitchStatus) { /* 自動翻頁邏輯 */
-                const observer = new IntersectionObserver(observed => {
-                    observed.forEach(entry => {
-                        if (entry.isIntersecting) { 
-                            history.pushState(null, null, entry.target.alt); 
-                            observer.unobserve(entry.target);
-                        };
-                    });
-                }, { threshold: 0.3 });
-                function ReactRender({ OLink, src }) {
-                    return React.createElement("img", {
-                        className: "ImageOptimization",
-                        src: src,
-                        alt: OLink,
-                        loading: "lazy",
-                        ref: function (img) {
-                            if (img) { observer.observe(img) }
-                        }
-                    });
-                };
-                async function NextPage(link) {
-                    if (total_page > 0) {
-                        fetch(link)
-                            .then(response => response.text())
-                            .then(html => {
-                                const NHtml = Syn.$$("#photo_body", {root: Syn.DomParse(html)});
-                                const NLink = Syn.$$("a", {root: NHtml}).href;
-                                const NImg = Syn.$$("img", {root: NHtml}).src;
-                                ReactDOM.render(React.createElement(ReactRender, { OLink: link, src: NImg }), container.appendChild(document.createElement("div")));
-                                
-                                setTimeout(() => {
-                                    total_page--;
-                                    NextPage(NLink);
-                                }, 500);
-                            })
-                            .catch(error => {
-                                NextPage(link);
-                            });
+            const observer = new IntersectionObserver(observed => {
+                observed.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        history.pushState(null, null, entry.target.alt);
+                        observer.unobserve(entry.target);
+                    };
+                });
+            }, { threshold: 0.3 });
+            function ReactRender({ OLink, src }) {
+                return React.createElement("img", {
+                    src: src,
+                    alt: OLink,
+                    loading: "lazy",
+                    className: "ImageOptimization",
+                    ref: function (img) {
+                        if (img) { observer.observe(img) }
                     }
-                };
+                });
+            };
+            async function NextPage(link) {
+                if (total_page > 0) {
+                    fetch(link)
+                        .then(response => response.text())
+                        .then(html => {
+                            const NHtml = Syn.$$("#photo_body", { root: Syn.DomParse(html) });
+                            const NLink = Syn.$$("a", { root: NHtml }).href;
+                            const NImg = Syn.$$("img", { root: NHtml }).src;
+                            ReactDOM.render(React.createElement(ReactRender, { OLink: link, src: NImg }), container.appendChild(document.createElement("div")));
 
-                const link = Syn.$$("a", {root: container}).href; // 獲取下一頁連結
-                const img = Syn.$$("img", {root: container}).src; // 獲取圖像連結
+                            setTimeout(() => {
+                                total_page--;
+                                NextPage(NLink);
+                            }, 500);
+                        })
+                        .catch(error => {
+                            NextPage(link);
+                        });
+                }
+            };
 
-                ReactDOM.render(React.createElement(ReactRender, { OLink: Syn.Device.Url, src: img }), container);
-                Syn.$$("#header").scrollIntoView(); // 回到頂部
-                NextPage(link); // 觸發翻頁
-            } else { /* 手動翻頁邏輯 */
+            ReactDOM.render(React.createElement(ReactRender, { OLink: Syn.Device.Url, src: img }), container);
+            Syn.$$("#header").scrollIntoView(); // 回到頂部
+            NextPage(link); // 觸發翻頁
+        } else { /* 手動翻頁邏輯 */
+            function ReactRender({ number, src }) {
+                return React.createElement("img", {
+                    src: src,
+                    "data-number": number,
+                    className: "ImageOptimization"
+                })
+            };
+            async function TurnPage(Link) {
+                fetch(Link)
+                    .then(response => response.text())
+                    .then(html => {
+                        const Dom = Syn.DomParse(html);
+                        const Photo = Syn.$$("#photo_body", { root: Dom });
+                        const NImg = Syn.$$("img", { root: Photo }).src;
+                        ReactDOM.render(React.createElement(ReactRender, { number: RecorNumber, src: NImg }), container);
 
-            }
+                        const Page = Syn.$$(".newpage .btntuzao", { all: true, root: Dom });
+                        RecordBox.set(RecorNumber, { // 紀錄連結
+                            PrevLink: Page[0].href,
+                            NextLink: Page[1].href
+                        });
+
+                        history.pushState(null, null, Link);
+                        window.scrollTo(0, 0);
+                    })
+            };
+
+            let RecorNumber = current_page;
+            const RecordBox = new Map();
+            const Page = Syn.$$(".newpage .btntuzao", { all: true });
+
+            RecordBox.set(RecorNumber, { // 紀錄連結
+                PrevLink: Page[0].href,
+                NextLink: Page[1].href
+            });
+            ReactDOM.render(React.createElement(ReactRender, { number: RecorNumber, NLink: link, src: img }), container); // 重新渲染當前頁面
+
+            // 清除預設按鍵監聽
+            document.onkeydown = undefined;
+            // 後續監聽翻頁
+            $on(window, "keydown", event => {
+                const key = event.key;
+
+                if (key == "ArrowLeft" || key == "4") {
+                    event.stopImmediatePropagation();
+                    --RecorNumber;
+
+                    const dataNumber = +Syn.$$("img", { root: container }).getAttribute("data-number");
+                    const PrevLink = RecordBox.get(dataNumber - 1);
+
+                    if (PrevLink) TurnPage(PrevLink.PrevLink);
+                    else TurnPage(RecordBox.get(dataNumber).PrevLink); // 當 -1 沒有, 就用原本的
+
+                } else if (key == "ArrowRight" || key == "6") {
+                    event.stopImmediatePropagation();
+                    ++RecorNumber;
+
+                    const dataNumber = +Syn.$$("img", { root: container }).getAttribute("data-number");
+                    const NextLink = RecordBox.get(dataNumber).NextLink;
+
+                    TurnPage(NextLink);
+                }
+            });
         };
-
     };
 
     // 菜單 UI
-    async function $on(element, type, listener) {$(element).on(type, listener)};
-    async function MeunCreator() {
-        if (Syn.$$(".modal-background")) return;
+    async function $on(element, type, listener) { $(element).on(type, listener) };
+    async function MeunCreator(remove=false) {
+        if (Syn.$$(".modal-background")) {
+            if (remove) Syn.$$(".modal-background").remove();
+            return;
+        }
 
         const {
             SwitchStatus,
@@ -497,18 +567,22 @@
             Parsed.push(DLL.ConfigAnalyze(object));
         };
 
+        // 移動端頁面不需要
+        const mode = DLL.IsMobile ? "" : `
+            <div class="DMS">
+                <input type="checkbox" class="DMS-checkbox" id="SwitchMode" ${SwitchStatus ? "checked" : ""}>
+                <label class="DMS-label" for="SwitchMode">
+                    <span class="DMS-inner"></span>
+                    <span class="DMS-switch"></span>
+                </label>
+            </div>
+        `;
+
         const menu = `
             <div class="modal-background">
                 <div class="modal-interface">
                     <div style="display: flex; justify-content: space-between;">
-                        <h1 style="margin-bottom: 1rem; font-size: 1.3rem;">${DLL.Transl("圖像設置")}</h1>
-                        <div class="DMS">
-                            <input type="checkbox" class="DMS-checkbox" id="SwitchMode" ${SwitchStatus ? "checked" : ""}>
-                            <label class="DMS-label" for="SwitchMode">
-                                <span class="DMS-inner"></span>
-                                <span class="DMS-switch"></span>
-                            </label>
-                        </div>
+                        <h1 style="margin-bottom: 1rem; font-size: 1.3rem;">${DLL.Transl("圖像設置")}</h1>${mode}
                     </div>
                     <p>
                         <Cins>${DLL.Transl("圖像間距")}</Cins><input type="range" id="ImageSpacing" class="slider" min="0" max="100" step="1" value="${Parsed[0].RangeValue}">
