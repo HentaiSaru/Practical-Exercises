@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         媒體音量增強器
-// @version      0.0.36
+// @version      0.0.37
 // @author       Canaan HS
 // @description  增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
 // @description:zh-TW 增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
@@ -17,7 +17,6 @@
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        GM_addStyle
 // @grant        GM_getResourceURL
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
@@ -77,6 +76,7 @@
             try {
                 if (!this.AudioContext) throw this.Lang.Transl("不支援音頻增強節點");
                 if (!this.MediaContent) this.MediaContent = new this.AudioContext();
+                if (this.MediaContent.state === "suspended") this.MediaContent.resume();
 
                 const nodecount = this.EnhanceNodes.length; // 紀錄運行前的節點數
                 for (const media of media_object) {
@@ -184,8 +184,56 @@
             try {
                 this.Increase = this.Store("g", this.Host) ?? 1.0; // 初始增量
                 this.Booster = this.BoosterFactory(media_object, search_time); // 添加節點
+            } catch (error) {
+                this.Log("Trigger Error : ", error, { type: "error", collapsed: false });
+            }
+        };
 
-                this.AddStyle(`
+        /* 功能注入 */
+        async Injec() {
+            const Menu = async (name) => { // 簡化註冊菜單
+                this.Menu({
+                    [name]: {func: ()=> this.Banned()}
+                });
+            };
+
+            this.GetBannedHost(NotBanned => {
+                if (NotBanned) {
+                    const FindMedia = this.Debounce((func) => {
+                        const media_object = [
+                            ...this.$$("video, audio", {all: true})
+                        ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
+                        media_object.length > 0 && func(media_object);
+                    }, 400);
+
+                    this.Observer(document, ()=> { // 觀察者持續觸發查找
+                        const Time = this.Runtime();
+
+                        FindMedia(media => {
+                            this.MediaObserver.disconnect();
+                            this.Trigger(media, Time);
+                        });
+
+                    }, {mark: "Media-Booster", attributes: false, throttle: 500}, back=> {
+                        this.MediaObserver = back.ob;
+                        this.ObserverOption = back.op;
+                        Menu(this.Lang.Transl("❌ 禁用增幅"));
+                    });
+                } else Menu(this.Lang.Transl("✅ 啟用增幅"));
+            });
+        };
+
+        /* 調整菜單 */
+        async BoosterMenu() {
+            const shadowID = "Booster_Modal_Background";
+            if (this.$$(`#${shadowID}`)) return;
+
+            const shadow = document.createElement("div");
+            const shadowRoot = shadow.attachShadow({mode: "open"});
+            shadow.id = shadowID;
+
+            shadowRoot.innerHTML = `
+                <style id="Booster-Menu">
                     Booster_Modal_Background {
                         top: 0;
                         left: 0;
@@ -250,105 +298,60 @@
                         opacity: 0;
                         pointer-events: none;
                     }
-                `, "Booster-Menu", false);
-            } catch (error) {
-                this.Log("Trigger Error : ", error, { type: "error", collapsed: false });
-            }
-        };
+                </style>
+                <Booster_Modal_Background id="Booster-Modal-Menu">
+                    <div class="Booster-Modal-Content">
+                        <div>
+                            <h2 style="color: #3754f8;">${this.Lang.Transl("音量增強")}</h2>
+                            <div class="Booster-Multiplier">
+                                <span>
+                                    <img src="${GM_getResourceURL("Img")}">${this.Lang.Transl("增強倍數 ")}
+                                    <span id="Booster-CurrentValue">${this.Increase}</span>${this.Lang.Transl(" 倍")}
+                                </span>
+                            </div>
+                            <input type="range" id="Adjustment-Sound-Enhancement" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
+                        </div>
+                        <div style="text-align: right;">
+                            <button class="Booster-Modal-Button" id="Booster-Menu-Close">${this.Lang.Transl("關閉")}</button>
+                            <button class="Booster-Modal-Button" id="Booster-Sound-Save">${this.Lang.Transl("保存")}</button>
+                        </div>
+                    </div>
+                </Booster_Modal_Background>
+            `
+            document.body.appendChild(shadow);
 
-        /* 功能注入 */
-        async Injec() {
-            const Menu = async (name) => { // 簡化註冊菜單
-                this.Menu({
-                    [name]: {func: ()=> this.Banned()}
-                });
+            const shadowGate = shadow.shadowRoot;
+            // 不知道為什麼 querySelector 才找的到, this.$$() 底層是用 getElements 找不到
+            const Modal = shadowGate.querySelector("Booster_Modal_Background");
+            const CurrentValue = shadowGate.querySelector("#Booster-CurrentValue");
+            const Slider = shadowGate.querySelector("#Adjustment-Sound-Enhancement");
+
+            function DeleteMenu() {
+                Modal.classList.add("Booster-Modal-Background-Closur");
+                setTimeout(()=> {shadow.remove()}, 800);
             };
 
-            this.GetBannedHost(NotBanned => {
-                if (NotBanned) {
-                    const FindMedia = this.Debounce((func) => {
-                        const media_object = [
-                            ...this.$$("video, audio", {all: true})
-                        ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
-                        media_object.length > 0 && func(media_object);
-                    }, 400);
-
-                    this.Observer(document, ()=> { // 觀察者持續觸發查找
-                        const Time = this.Runtime();
-
-                        FindMedia(media => {
-                            this.MediaObserver.disconnect();
-                            this.Trigger(media, Time);
-                        });
-
-                    }, {mark: "Media-Booster", attributes: false, throttle: 500}, back=> {
-                        this.MediaObserver = back.ob;
-                        this.ObserverOption = back.op;
-                        Menu(this.Lang.Transl("❌ 禁用增幅"));
-                    });
-                } else Menu(this.Lang.Transl("✅ 啟用增幅"));
+            // 監聽設定拉條
+            let Current;
+            this.Listen(Slider, "input", event => {
+                Current = event.target.value;
+                CurrentValue.textContent = Current;
+                this.Booster.setVolume(Current);
             });
-        };
 
-        /* 調整菜單 */
-        async BoosterMenu() {
-            if (!this.$$("Booster_Modal_Background")) {
-                const modal = document.createElement("div");
-                modal.innerHTML = `
-                    <Booster_Modal_Background id="Booster-Modal-Menu">
-                        <div class="Booster-Modal-Content">
-                            <div>
-                                <h2 style="color: #3754f8;">${this.Lang.Transl("音量增強")}</h2>
-                                <div class="Booster-Multiplier">
-                                    <span>
-                                        <img src="${GM_getResourceURL("Img")}">${this.Lang.Transl("增強倍數 ")}
-                                        <span id="Booster-CurrentValue">${this.Increase}</span>${this.Lang.Transl(" 倍")}
-                                    </span>
-                                </div>
-                                <input type="range" id="Adjustment-Sound-Enhancement" class="Booster-Slider" min="0" max="20.0" value="${this.Increase}" step="0.1"><br>
-                            </div>
-                            <div style="text-align: right;">
-                                <button class="Booster-Modal-Button" id="Booster-Menu-Close">${this.Lang.Transl("關閉")}</button>
-                                <button class="Booster-Modal-Button" id="Booster-Sound-Save">${this.Lang.Transl("保存")}</button>
-                            </div>
-                        </div>
-                    </Booster_Modal_Background>
-                `
-                document.body.appendChild(modal);
-
-                const CurrentValue = this.$$("#Booster-CurrentValue");
-                const slider = this.$$("#Adjustment-Sound-Enhancement");
-
-                // 監聽設定拉條
-                let Current;
-                this.Listen(slider, "input", event => {
-                    requestAnimationFrame(()=> {
-                        Current = event.target.value;
-                        CurrentValue.textContent = Current;
-                        this.Booster.setVolume(Current);
-                    });
-                }, { passive: true, capture: true });
-
-                // 監聽保存關閉
-                const Modal = this.$$("Booster_Modal_Background");
-                this.Listen(Modal, "click", click => {
-                    click.stopPropagation();
-                    const target = click.target;
-                    if (target.id === "Booster-Sound-Save") {
-                        const value = parseFloat(slider.value);
-                        this.Increase = value;
-                        this.Store("s", this.Host, value);
-                        DeleteMenu();
-                    } else if (
-                        target.id === "Booster-Menu-Close" || target.id === "Booster-Modal-Menu"
-                    ) {DeleteMenu()}
-                }, { capture: true });
-
-                function DeleteMenu() {
-                    Modal.classList.add("Booster-Modal-Background-Closur");
-                    setTimeout(()=> {Modal.parentNode.remove()}, 800);
-                }
-            }
+            // 監聽保存關閉
+            this.Listen(Modal, "click", click => {
+                click.stopPropagation();
+                const target = click.target;
+                if (target.id === "Booster-Sound-Save") {
+                    const value = parseFloat(Slider.value);
+                    this.Increase = value;
+                    this.Store("s", this.Host, value);
+                    DeleteMenu();
+                } else if (
+                    target.id === "Booster-Menu-Close" || target.id === "Booster-Modal-Menu"
+                ) {DeleteMenu()}
+            });
         };
 
         /* 語言 */
