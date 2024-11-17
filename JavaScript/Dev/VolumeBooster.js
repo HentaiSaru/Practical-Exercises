@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         媒體音量增強器
-// @version      0.0.37
+// @version      0.0.38
 // @author       Canaan HS
 // @description  增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
 // @description:zh-TW 增強媒體音量最高至 20 倍，可記住增強設置後自動應用，部分網站可能無效或無聲，可選擇禁用。
@@ -33,6 +33,7 @@
             this.Increase = null; // 保存增量
             this.EnhanceNodes = []; // 保存被增強的節點
             this.MediaContent = null; // 保存音頻上下文實例
+            this.EnhancedElement = new Map(); // 紀錄被增強的節點
             this.AudioContext = window.AudioContext || window.webkitAudioContext;
 
             /* 觀察用變數 */
@@ -128,10 +129,10 @@
                         .connect(CompressorNode)
                         .connect(this.MediaContent.destination);
 
-                    // 節點創建標記
-                    media.setAttribute("Enhanced-Node", true);
                     // 將完成的節點添加
                     this.EnhanceNodes.push(GainNode);
+                    // 紀錄被增強的節點
+                    this.EnhancedElement.set(media, true);
                 };
 
                 // 打印完成狀態 (要有增加節點才會打印)
@@ -191,18 +192,18 @@
 
         /* 功能注入 */
         async Injec() {
-            const Menu = async (name) => { // 簡化註冊菜單
-                this.Menu({
-                    [name]: {func: ()=> this.Banned()}
-                });
-            };
-
             this.GetBannedHost(NotBanned => {
+                const Menu = async (name) => { // 簡化註冊菜單
+                    this.Menu({
+                        [name]: {func: ()=> this.Banned()}
+                    });
+                };
+
                 if (NotBanned) {
                     const FindMedia = this.Debounce((func) => {
                         const media_object = [
                             ...this.$$("video, audio", {all: true})
-                        ].filter(media => media && !media.hasAttribute("Enhanced-Node"));
+                        ].filter(media => !this.EnhancedElement.has(media));
                         media_object.length > 0 && func(media_object);
                     }, 400);
 
@@ -317,7 +318,7 @@
                         </div>
                     </div>
                 </Booster_Modal_Background>
-            `
+            `;
             document.body.appendChild(shadow);
 
             const shadowGate = shadow.shadowRoot;
