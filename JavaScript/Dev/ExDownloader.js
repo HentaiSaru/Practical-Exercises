@@ -266,7 +266,7 @@
             function GetLink(index, url, page) {
                 try {
                     const Resample = Syn.$$("#img", { root: page });
-                    const Original = Syn.$$("#i6 div:last-of-type a", { root: page });
+                    const Original = Syn.$$("#i6 div:last-of-type a", { root: page })?.href || "#";
 
                     if (!Resample) { // 處理找不到圖片的錯誤
                         self.Worker.postMessage({ index: index, url: url, time: Date.now(), delay: Delay });
@@ -274,9 +274,8 @@
                     };
 
                     // 處理圖片連結
-                    const Link = Config.Original
-                        ? (Original.href ?? Resample.src ?? Resample.href)
-                        : (Resample.src ?? Resample.href);
+                    const Link = Config.Original && !Original.endsWith("#")
+                        ? Original : Resample.src || Resample.href;
 
                     ImageData.push([index, {
                         PageUrl: url,
@@ -305,13 +304,12 @@
         ReGetImageData(Index, Url) {
             function GetLink(index, url, page) {
                 const Resample = Syn.$$("#img", { root: page });
-                const Original = Syn.$$("#i6 div:last-of-type a", { root: page });
+                const Original = Syn.$$("#i6 div:last-of-type a", { root: page })?.href || "#";
 
                 if (!Resample) return false;
 
-                const Link = Config.Original
-                    ? (Original.href ?? Resample.src ?? Resample.href)
-                    : (Resample.src ?? Resample.href);
+                const Link = Config.Original && !Original.endsWith("#")
+                    ? Original : Resample.src || Resample.href;
 
                 // 索引, 頁面連結, 圖片連結
                 return [index, url, Link]; 
