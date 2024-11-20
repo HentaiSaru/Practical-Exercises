@@ -21,10 +21,9 @@
     Def.WaitMap([
         "h1.entry-title", "#custom_html-11", "#wppd-disclaimer-container", // 這排不要修改 (如果有一個找不到, 就不會運作)
         "#custom_html-13", "#custom_html-14", "#text-4", // 這排為刪除元素, 可以自由增減
-        ".bp-messages-wrap.bp-better-messages-list", // 聊天室
         ".wp-dark-mode-switcher.wp-dark-mode-ignore.style-4.floating.right_bottom" // 暗黑模式切換按鈕
     ], found=> {
-        const [title, password, container,...needless] = found;
+        const [title, password, container, ...needless] = found;
 
         Def.AddStyle(`
             #wppd-disclaimer-container {
@@ -39,7 +38,7 @@
         container.replaceChildren(clone, password);
         needless.forEach(node => node.remove());
 
-    }, {timeout: 15, throttle: 300});
+    }, {timeout: 15, throttle: 300, timeoutResult: true});
 
     function Syn() {
         function Throttle (func, delay) {
