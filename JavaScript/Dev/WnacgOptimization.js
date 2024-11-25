@@ -4,7 +4,7 @@
 // @name:zh-CN      wnacg 优化
 // @name:ja         wnacg 最適化
 // @name:en         wnacg Optimization
-// @version         0.0.14
+// @version         0.0.15
 // @author          Canaan HS
 // @description         電腦版頁面支持切換自動翻頁或手動按鍵翻頁，並可自定背景顏色及圖像大小。電腦開啟的手機頁面 (移動端不適用)，則可自定背景顏色及圖像大小。
 // @description:zh-TW   電腦版頁面支持切換自動翻頁或手動按鍵翻頁，並可自定背景顏色及圖像大小。電腦開啟的手機頁面 (移動端不適用)，則可自定背景顏色及圖像大小。
@@ -97,7 +97,9 @@
             ImageMaxWidth: value => { Style[0].style.maxWidth = value; Style[2].style.maxWidth = value },
             ImageBasicHight: value => Style[0].style.height = value,
             ImageMaxHight: value => Style[0].style.maxHeight = value,
-            BackgroundColor: value => Style[1].style.background = value
+            BackgroundColor: (element, value) => {
+                element.style.setProperty("background-color", value, "important");
+            }
         };
 
         const Display_Lang = {
@@ -168,7 +170,23 @@
             }
             body {
                 overflow-x: visible !important;
-                background-color: ${BackgroundColor};
+                background-color: ${BackgroundColor} !important;
+            }
+            a, em {
+                color: #fff !important;
+            }
+            .nav li a {
+                float: left;
+                line-height: 40px;
+                height: 40px;
+                width: 85px;
+                font-size: 14px;
+                color: #fff !important;
+                text-decoration: none;
+                text-align: center;
+                font-weight: bold;
+                text-align: center;
+                background: #5F5F5F !important;
             }
             .tocaowrap {
                 width: 100%;
@@ -180,9 +198,6 @@
                 margin: 0 5px;
                 background-color: #5F5F5F;
             }
-            a, em {
-                color: #fff;
-            }
             #header {
                 background: #5F5F5F;
                 border-bottom: 1px solid #dfe1e1;
@@ -193,19 +208,6 @@
             #header:hover {
                 opacity: 1;
                 transform: translateY(0rem);
-            }
-            .nav li a {
-                float: left;
-                line-height: 40px;
-                height: 40px;
-                width: 85px;
-                font-size: 14px;
-                color: #fff;
-                text-decoration: none;
-                text-align: center;
-                font-weight: bold;
-                text-align: center;
-                background: #5F5F5F;
             }
             .modal-background {
                 top: 0;
@@ -617,7 +619,9 @@
             </div>
         `;
 
-        $(document.body).append(menu);
+        const body = document.body;
+
+        $(body).append(menu);
         $(".modal-interface").draggable({ // 添加拖動
             scroll: true,
             opacity: 0.8,
@@ -628,7 +632,7 @@
         $on("#BackgroundColor", "input", event => {
             id = event.target.id;
             value = $(event.target).val();
-            DLL.StylePointer[id](value);
+            DLL.StylePointer[id](body, value);
         });
         $on("#ImageSpacing", "input", event => {
             showContainer = $(event.target).next(".Cshow");
