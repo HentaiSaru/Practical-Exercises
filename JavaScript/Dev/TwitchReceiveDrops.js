@@ -245,7 +245,7 @@
                             Adapter, // 適配器
                             data.querySelector(Self.ActivityTime).textContent, // 時間戳
                             NotExpired => { // 取得未過期的物件
-                                // 嘗試查找領取按鈕 (可能會出現因為過期, 而無法自動領取問題)
+                                // 嘗試查找領取按鈕 (可能會出現因為過期, 而無法自動領取問題, 除非我在另外寫一個 All_Data 遍歷)
                                 NotExpired.querySelectorAll("button").forEach(draw => { draw.click() });
                                 // 紀錄為第幾個任務數, 與掉寶進度
                                 Progress_Info[Task++] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
