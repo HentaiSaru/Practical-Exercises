@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta4
+// @version      0.0.49-Beta5
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -33,6 +33,7 @@
 // @grant        GM_getResourceURL
 // @grant        GM_xmlhttpRequest
 // @grant        GM_getResourceText
+// @grant        window.onurlchange
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
@@ -50,11 +51,11 @@
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
         Global: {
-            BlockAds: {mode: 0, enable: true}, // 阻擋廣告
-            BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
-            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的, coomer 無效他被阻止了)
-            DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
-            SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
+            BlockAds: { mode: 0, enable: true }, // 阻擋廣告
+            BackToTop: { mode: 0, enable: true }, // 翻頁後回到頂部
+            KeyScroll: { mode: 1, enable: true }, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
+            DeleteNotice: { mode: 0, enable: true }, // 刪除上方公告
+            SidebarCollapse: { mode: 0, enable: true }, // 側邊攔摺疊
             FixArtist: { // 修復作者名稱
                 mode: 0,
                 enable: true,
@@ -71,21 +72,21 @@
             },
         },
         Preview: {
-            CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-            CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-            QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子
-            NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟
+            CardZoom: { mode: 2, enable: true }, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+            CardText: { mode: 2, enable: true }, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
+            QuickPostToggle: { mode: 0, enable: true }, // 快速切換帖子 (部份網站失效)
+            NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟 (部份網站失效)
                 mode: 0,
                 enable: true,
                 newtab_active: false,
-                newtab_insert: false,
+                newtab_insert: true,
             },
         },
         Content: {
-            ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕
-            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
-            CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
-            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
+            ExtraButton: { mode: 0, enable: true }, // 額外的下方按鈕 (存在 Bug)
+            LinkBeautify: { mode: 0, enable: true }, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
+            CommentFormat: { mode: 0, enable: true }, // 評論區重新排版
+            VideoBeautify: { mode: 1, enable: true }, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
             OriginalImage: { // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
                 mode: 1,
                 enable: true,
@@ -93,7 +94,7 @@
             }
         }
     };
-    const Url = Syn.Device.Url;
+    let Url = Syn.Device.Url;
     const DLL = (() => {
         const Posts = /^(https?:\/\/)?(www\.)?.+\/posts\/?.*$/;
         const Search = /^(https?:\/\/)?(www\.)?.+\/artists\/?.*$/;
@@ -580,10 +581,10 @@
             }
         };
         return {
-            IsContent: Content.test(Url),
-            IsAnnouncement: Announcement.test(Url),
-            IsSearch: Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
-            IsAllPreview: Posts.test(Url) || User.test(Url) || Favor.test(Url),
+            IsContent: () => Content.test(Url),
+            IsAnnouncement: () => Announcement.test(Url),
+            IsSearch: () => Search.test(Url) || Link.test(Url) || FavorArtist.test(Url),
+            IsAllPreview: () => Posts.test(Url) || User.test(Url) || Favor.test(Url),
             IsNeko: Syn.Device.Host.startsWith("nekohouse"),
             Language: () => {
                 const Log = Syn.Store("g", SaveKey.Lang);
@@ -669,7 +670,7 @@
         return {
             Run: async () => {
                 Call("Global");
-                if (DLL.IsAllPreview) Call("Preview"); else if (DLL.IsContent) {
+                if (DLL.IsAllPreview()) Call("Preview"); else if (DLL.IsContent()) {
                     DLL.Style.Postview();
                     Call("Content");
                     DLL.Style.Menu();
@@ -683,6 +684,12 @@
         };
     })();
     Enhance.Run();
+    Syn.AddListener(window, "urlchange", change => {
+        Url = change.url;
+        setTimeout(() => {
+            Enhance.Run();
+        }, 800);
+    });
     function Global_Function() {
         const LoadFunc = {
             TextToLink_Cache: undefined,
@@ -851,7 +858,6 @@
                             const parse = this.Fix_Url(url);
                             img.setAttribute("jump", url);
                             items.removeAttribute("href");
-                            img.removeAttribute("src");
                             this.Fix_Trigger({
                                 Url: url,
                                 TailId: parse[1],
@@ -960,15 +966,14 @@
                         };
                         document.querySelector("div.ex-over-btn")?.click();
                         document.querySelector(".root--ujvuu button")?.click();
-                        document.querySelectorAll(".ad-container").forEach(ad => {ad.remove()});
                     });
                     Ad_observer.observe(document.head, {childList: true, subtree: true});
                 `, "Ad-blocking-script", false);
             },
             TextToLink: async Config => {
-                if (!DLL.IsContent && !DLL.IsAnnouncement) return;
+                if (!DLL.IsContent() && !DLL.IsAnnouncement()) return;
                 const Func = LoadFunc.TextToLink_Dependent(Config);
-                if (DLL.IsContent) {
+                if (DLL.IsContent()) {
                     Syn.WaitElem(".post__body, .scrape__body", body => {
                         Func.JumpTrigger(body);
                         const [article, content] = [Syn.$$("article", {
@@ -991,9 +996,9 @@
                             pre ? Func.Process(pre) : Func.Multiprocessing(content);
                         }
                     }, {
-                        throttle: 600
+                        raf: true
                     });
-                } else if (DLL.IsAnnouncement) {
+                } else if (DLL.IsAnnouncement()) {
                     Syn.WaitElem(".card-list__items pre", content => {
                         Func.JumpTrigger(Syn.$$(".card-list__items"));
                         let pre;
@@ -1013,6 +1018,7 @@
                 Syn.AddListener(document.body, "click", event => {
                     const target = event.target;
                     if (target.matches("fix_edit")) {
+                        event.stopImmediatePropagation();
                         const display = target.nextElementSibling;
                         const text = GM_addElement("textarea", {
                             class: "edit_textarea",
@@ -1039,9 +1045,10 @@
                             }, 50);
                         }, 300);
                     } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
+                        event.stopImmediatePropagation();
                         const jump = target.getAttribute("jump");
                         if (!target.parentNode.matches("fix_cont") && jump) {
-                            !Newtab || DLL.IsSearch && Device == "Mobile" ? location.assign(jump) : GM_openInTab(jump, {
+                            !Newtab || DLL.IsSearch() && Device == "Mobile" ? location.assign(jump) : GM_openInTab(jump, {
                                 active: Active,
                                 insert: Insert
                             });
@@ -1055,37 +1062,48 @@
                     mark: "FixArtist"
                 });
                 Func.Record_Cache = Func.Get_Record();
-                if (DLL.IsSearch) {
-                    const card_items = Syn.$$(".card-list__items");
-                    if (DLL.Link.test(Url)) {
-                        const artist = Syn.$$("span[itemprop='name']");
-                        artist && Func.Other_Fix(artist);
-                        for (const items of Syn.$$("a", {
-                            all: true,
-                            root: card_items
-                        })) {
-                            Func.Search_Fix(items);
+                if (DLL.IsSearch()) {
+                    Syn.WaitElem(".card-list__items", card_items => {
+                        if (DLL.Link.test(Url)) {
+                            const artist = Syn.$$("span[itemprop='name']");
+                            artist && Func.Other_Fix(artist);
+                            for (const items of Syn.$$("a", {
+                                all: true,
+                                root: card_items
+                            })) {
+                                Func.Search_Fix(items);
+                            }
+                            Url.endsWith("new") && Func.Dynamic_Fix(card_items, card_items);
+                        } else {
+                            Func.Dynamic_Fix(card_items, card_items);
+                            GM_addElement(card_items, "fix-trigger", {
+                                style: "display: none;"
+                            });
                         }
-                        Url.endsWith("new") && Func.Dynamic_Fix(card_items, card_items);
-                    } else {
-                        Func.Dynamic_Fix(card_items, card_items);
-                        GM_addElement(card_items, "fix-trigger", {
-                            style: "display: none;"
-                        });
-                    }
-                } else if (DLL.IsContent) {
-                    const [artist, title] = [Syn.$$(".post__user-name, .scrape__user-name"), Syn.$$("h1 span:nth-child(2)")];
-                    Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
+                    }, {
+                        raf: true,
+                        timeout: 15
+                    });
+                } else if (DLL.IsContent()) {
+                    Syn.WaitMap(["h1 span:nth-child(2)", ".post__user-name, .scrape__user-name"], found => {
+                        const [title, artist] = found;
+                        Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
+                    }, {
+                        raf: true,
+                        timeout: 15
+                    });
                 } else {
-                    const artist = Syn.$$("span[itemprop='name']");
-                    if (artist) {
+                    Syn.WaitElem("span[itemprop='name']", artist => {
                         Func.Other_Fix(artist);
-                        if (User_Config.Preview.QuickPostToggle.enable) {
+                        if (User_Config.Preview.QuickPostToggle.enable && DLL.IsNeko) {
                             setTimeout(() => {
                                 Func.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
                             }, 300);
                         }
-                    }
+                    }, {
+                        raf: true,
+                        timeout: 15
+                    });
                 }
             },
             BackToTop: async Config => {
@@ -1186,6 +1204,7 @@
             },
             QuickPostToggle: async Config => {
                 DLL.Style.Preview();
+                if (!DLL.IsNeko) return;
                 Syn.AddListener(document.body, "click", event => {
                     const target = event.target.closest("menu a");
                     target && (event.preventDefault(), GetNextPage(target.href));
@@ -1303,25 +1322,38 @@
             LinkBeautify_Dependent: function () {
                 if (!this.LinkBeautify_Cache) {
                     this.LinkBeautify_Cache = async function ShowBrowse(Browse) {
+                        const URL = DLL.IsNeko ? Browse.href : Browse.href.replace("posts", "api/v1/posts");
                         GM_xmlhttpRequest({
                             method: "GET",
-                            url: Browse.href,
+                            url: URL,
                             onload: response => {
-                                const Main = Syn.$$("main", {
-                                    root: response.responseXML
-                                });
-                                const View = GM_addElement("View", {
-                                    class: "View"
-                                });
-                                const Buffer = document.createDocumentFragment();
-                                for (const br of Syn.$$("br", {
-                                    all: true,
-                                    root: Main
-                                })) {
-                                    Buffer.append(document.createTextNode(br.previousSibling.textContent.trim()), br);
+                                if (DLL.IsNeko) {
+                                    const Main = Syn.$$("main", {
+                                        root: response.responseXML
+                                    });
+                                    const View = GM_addElement("View", {
+                                        class: "View"
+                                    });
+                                    const Buffer = document.createDocumentFragment();
+                                    for (const br of Syn.$$("br", {
+                                        all: true,
+                                        root: Main
+                                    })) {
+                                        Buffer.append(document.createTextNode(br.previousSibling.textContent.trim()), br);
+                                    }
+                                    View.appendChild(Buffer);
+                                    Browse.appendChild(View);
+                                } else {
+                                    const View = GM_addElement("View", {
+                                        class: "View"
+                                    });
+                                    const Buffer = document.createDocumentFragment();
+                                    for (const text of JSON.parse(response.responseText)["archive"]["file_list"]) {
+                                        Buffer.append(document.createTextNode(text), GM_addElement("br"));
+                                    }
+                                    View.appendChild(Buffer);
+                                    Browse.appendChild(View);
                                 }
-                                View.appendChild(Buffer);
-                                Browse.appendChild(View);
                             },
                             onerror: error => {
                                 ShowBrowse(Browse);
@@ -1393,7 +1425,7 @@
                                             /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
                                         });
                                     }, {
-                                        throttle: 300
+                                        raf: true
                                     });
                                     Syn.$$(".post__title, .scrape__title").scrollIntoView();
                                 }, 300);
@@ -1439,8 +1471,8 @@
                         ShowBrowse(Browse);
                     }
                 }, {
-                    all: true,
-                    throttle: 600
+                    raf: true,
+                    all: true
                 });
             },
             VideoBeautify: async function (Config) {
@@ -1448,45 +1480,54 @@
                     .video-title {margin-top: 0.5rem;}
                     .post-video {height: 50%; width: 60%;}
                 `, "Video_Effects", false);
-                Syn.WaitElem("ul[style*='text-align: center;list-style-type: none;'] li:not([id])", parents => {
-                    Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
-                        const VideoRendering = LoadFunc.VideoBeautify_Dependent();
-                        let li;
-                        for (li of parents) {
-                            let [node, title, stream] = [undefined, Syn.$$("summary", {
-                                root: li
-                            }), Syn.$$("source", {
-                                root: li
-                            })];
-                            if (!title || !stream) continue;
-                            if (title.previousElementSibling) continue;
-                            let link;
-                            for (link of post) {
-                                if (link.textContent.includes(title.textContent)) {
-                                    switch (Config.mode) {
-                                        case 2:
-                                            link.parentNode.remove();
-
-                                        default:
-                                            node = link.cloneNode(true);
-                                    }
-                                }
-                            }
-                            ReactDOM.render(React.createElement(VideoRendering, {
-                                stream: stream
-                            }), li);
-                            li.insertBefore(node, Syn.$$("summary", {
-                                root: li
-                            }));
-                        }
+                if (DLL.IsNeko) {
+                    Syn.WaitElem(".scrape__files video", video => {
+                        video.forEach(media => media.setAttribute("preload", "auto"));
                     }, {
                         all: true,
-                        throttle: 300
+                        throttle: 600
                     });
-                }, {
-                    all: true,
-                    throttle: 600
-                });
+                } else {
+                    Syn.WaitElem("ul[style*='text-align: center; list-style-type: none;'] li:not([id])", parents => {
+                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                            const VideoRendering = LoadFunc.VideoBeautify_Dependent();
+                            let li;
+                            for (li of parents) {
+                                let [node, title, stream] = [undefined, Syn.$$("summary", {
+                                    root: li
+                                }), Syn.$$("source", {
+                                    root: li
+                                })];
+                                if (!title || !stream) continue;
+                                if (title.previousElementSibling) continue;
+                                let link;
+                                for (link of post) {
+                                    if (link.textContent.includes(title.textContent)) {
+                                        switch (Config.mode) {
+                                            case 2:
+                                                link.parentNode.remove();
+
+                                            default:
+                                                node = link.cloneNode(true);
+                                        }
+                                    }
+                                }
+                                ReactDOM.render(React.createElement(VideoRendering, {
+                                    stream: stream
+                                }), li);
+                                li.insertBefore(node, Syn.$$("summary", {
+                                    root: li
+                                }));
+                            }
+                        }, {
+                            all: true,
+                            throttle: 300
+                        });
+                    }, {
+                        all: true,
+                        throttle: 600
+                    });
+                }
             },
             OriginalImage: async function (Config) {
                 Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", thumbnail => {
@@ -1695,8 +1736,8 @@
                             } else Origina_Requ.FastAuto();
                     }
                 }, {
-                    all: true,
-                    throttle: 600
+                    raf: true,
+                    all: true
                 });
             },
             ExtraButton: async function (Config) {
@@ -1704,17 +1745,19 @@
                 const GetNextPage = LoadFunc.ExtraButton_Dependent();
                 Syn.WaitElem("h2.site-section__subheading", comments => {
                     const [Prev, Next, Svg, Span, Buffer] = [Syn.$$(".post__nav-link.prev, .scrape__nav-link.prev"), Syn.$$(".post__nav-link.next, .scrape__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment()];
+                    Svg.id = "To_top";
                     Svg.innerHTML = `
                         <svg xmlns="http://www.w3.org/2000/svg" height="1em" viewBox="0 0 512 512" style="margin-left: 10px;cursor: pointer;">
                             <style>svg{fill: ${DLL.Color}}</style>
                             <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                         </svg>
                     `;
-                    Span.id = "next_box";
-                    Span.style = "float: right";
                     const Next_btn = Next.cloneNode(true);
                     Next_btn.setAttribute("jump", Next_btn.href);
                     Next_btn.removeAttribute("href");
+                    Span.id = "Next_box";
+                    Span.style = "float: right; cursor: pointer;";
+                    Span.appendChild(Next_btn);
                     Syn.Listen(Svg, "click", () => {
                         Syn.$$("header").scrollIntoView();
                     }, {
@@ -1722,16 +1765,23 @@
                         passive: true
                     });
                     Syn.Listen(Next_btn, "click", () => {
-                        GetNextPage(Next_btn.getAttribute("jump"), Syn.$$("main"));
+                        if (DLL.IsNeko) {
+                            GetNextPage(Next_btn.getAttribute("jump"), Syn.$$("main"));
+                        } else {
+                            Svg.remove();
+                            Span.remove();
+                            Next.click();
+                        }
                     }, {
                         capture: true,
                         once: true
                     });
-                    Span.appendChild(Next_btn);
-                    Buffer.append(Svg, Span);
-                    comments.appendChild(Buffer);
+                    if (!Syn.$$("#To_top") && !Syn.$$("#Next_box")) {
+                        Buffer.append(Svg, Span);
+                        comments.appendChild(Buffer);
+                    }
                 }, {
-                    throttle: 600
+                    raf: true
                 });
             },
             CommentFormat: async function (Config) {
@@ -1776,11 +1826,14 @@
         });
     }
     function Create_Menu(Log, Transl) {
-        if (Syn.$$(".modal-background")) return;
+        const shadowID = "shadow";
+        if (Syn.$$(`#${shadowID}`)) return;
         const set = DLL.ImgSet();
         const img_data = [set.Height, set.Width, set.MaxWidth, set.Spacing];
         let analyze, parent, child, img_set, img_input, img_select, set_value, save_cache = {};
-        const shadow = document.createElement("div");
+        const shadow = GM_addElement("div", {
+            id: shadowID
+        });
         const shadowRoot = shadow.attachShadow({
             mode: "open"
         });
