@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15
+// @version             0.0.16-Beta
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -40,7 +40,6 @@
         UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 6, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        DropsButton: "button.ejeLlX", // 掉寶領取按鈕
         FindTag: ["drops", "啟用掉寶", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     };
     class Detection {
@@ -178,15 +177,14 @@
             const Self = Detec.Config;
             const Display = Self.UpdateDisplay;
             const Process = Token => {
-                document.querySelectorAll(Self.DropsButton).forEach(draw => {
-                    draw.click();
-                });
-                if (!Self.RestartLive && !Self.EndAutoClose && !Self.ClearExpiration && !Self.ProgressDisplay) return;
                 const All_Data = document.querySelectorAll(Self.AllProgress);
                 if (All_Data && All_Data.length > 0) {
                     const Adapter = Detec.Adapter[document.documentElement.lang];
                     All_Data.forEach(data => {
                         Detec.ExpiredCleanup(data, Adapter, data.querySelector(Self.ActivityTime).textContent, NotExpired => {
+                            NotExpired.querySelectorAll("button").forEach(draw => {
+                                draw.click();
+                            });
                             Progress_Info[Task++] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
                         });
                     });
@@ -336,20 +334,16 @@
                                 const Word = {
                                     Traditional: {},
                                     Simplified: {
-                                        "搜尋失敗": "搜索失败",
-                                        "找不到啟用掉落的頻道": "找不到启用掉落的频道"
+                                        "搜尋失敗": "搜索失败", "找不到啟用掉落的頻道": "找不到启用掉落的频道"
                                     },
                                     Korea: {
-                                        "搜尋失敗": "검색 실패",
-                                        "找不到啟用掉落的頻道": "드롭이 활성화된 채널을 찾을 수 없습니다"
+                                        "搜尋失敗": "검색 실패", "找不到啟用掉落的頻道": "드롭이 활성화된 채널을 찾을 수 없습니다"
                                     },
                                     Japan: {
-                                        "搜尋失敗": "検索失敗",
-                                        "找不到啟用掉落的頻道": "ドロップが有効なチャンネルが見つかりません"
+                                        "搜尋失敗": "検索失敗", "找不到啟用掉落的頻道": "ドロップが有効なチャンネルが見つかりません"
                                     },
                                     English: {
-                                        "搜尋失敗": "Search failed",
-                                        "找不到啟用掉落的頻道": "Can't find a channel with drops enabled"
+                                        "搜尋失敗": "Search failed", "找不到啟用掉落的頻道": "Can't find a channel with drops enabled"
                                     }
                                 }, Match = {
                                     ko: Word.Korea,
