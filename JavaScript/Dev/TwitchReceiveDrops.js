@@ -5,7 +5,7 @@
 // @name:en             Twitch Auto Claim Drops
 // @name:ja             Twitch 自動ドロップ受け取り
 // @name:ko             Twitch 자동 드롭 수령
-// @version             0.0.15
+// @version             0.0.16-Beta
 // @author              Canaan HS
 // @description         Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
 // @description:zh-TW   Twitch 自動領取 (掉寶/Drops) , 窗口標籤顯示進度 , 直播結束時還沒領完 , 會自動尋找任意掉寶直播 , 並開啟後繼續掛機 , 代碼自訂義設置
@@ -41,7 +41,6 @@
         UpdateInterval: 120, // (seconds) 更新進度狀態的間隔
         JudgmentInterval: 6, // (Minute) 經過多長時間進度無增加, 就重啟直播 [設置太短會可能誤檢測]
 
-        DropsButton: "button.ejeLlX", // 掉寶領取按鈕
         FindTag: ["drops", "啟用掉寶", "启用掉宝", "드롭활성화됨"], // 查找直播標籤, 只要有包含該字串即可
     };
 
@@ -234,12 +233,6 @@
 
             /* 主要處理函數 */
             const Process = (Token) => {
-                document.querySelectorAll(Self.DropsButton).forEach(draw => { draw.click() }); // 領取按鈕
-
-                if ( // 上述附加功能都沒使用, 就直接跳過
-                    !Self.RestartLive && !Self.EndAutoClose &&
-                    !Self.ClearExpiration && !Self.ProgressDisplay
-                ) return;
 
                 // 這邊寫這麼複雜是為了處理, (1: 只有一個, 2: 存在兩個以上, 3: 存在兩個以上但有些過期)
                 const All_Data = document.querySelectorAll(Self.AllProgress);
@@ -251,7 +244,10 @@
                             data, // 物件整體
                             Adapter, // 適配器
                             data.querySelector(Self.ActivityTime).textContent, // 時間戳
-                            NotExpired => { // 分別取得各自的進度
+                            NotExpired => { // 取得未過期的物件
+                                // 嘗試查找領取按鈕 (可能會出現因為過期, 而無法自動領取問題)
+                                NotExpired.querySelectorAll("button").forEach(draw => { draw.click() });
+                                // 紀錄為第幾個任務數, 與掉寶進度
                                 Progress_Info[Task++] = [...NotExpired.querySelectorAll(Self.ProgressBar)].map(progress => +progress.textContent);
                             }
                         )
