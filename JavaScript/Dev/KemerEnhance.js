@@ -39,7 +39,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+// @require      https://raw.githubusercontent.com/Canaan-HS/Practical-Exercises/refs/heads/Main/JavaScript/API/ObjectSyntax.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -695,6 +695,25 @@
                         Protocol_F: /^(?!https?:\/\/)/,
                         Exclusion_F: /onfanbokkusuokibalab\.net/,
                         URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
+                        getTextNodes: function (root) {
+                            const nodes = [];
+                            const tree = document.createTreeWalker(
+                                root,
+                                NodeFilter.SHOW_TEXT,
+                                {
+                                    acceptNode: (node) => {
+                                        URL_F.lastIndex = 0;
+                                        const content = node.textContent.trim();
+                                        if (!content || this.Exclusion_F.test(content)) return NodeFilter.FILTER_REJECT;
+                                        return this.URL_F.test(content) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                                    }
+                                }
+                            );
+                            while (tree.nextNode()) {
+                                nodes.push(tree.currentNode.parentElement); // 回傳父節點
+                            }
+                            return nodes;
+                        },
                         ParseModify: async function (father, content) { // 解析後轉換網址
                             if (this.Exclusion_F.test(content)) return;
 
@@ -732,7 +751,7 @@
                                 Config.newtab_insert ?? false,
                             ];
 
-                            Syn.Listen(root, "click", event => {
+                            Syn.AddListener(root, "click", event => {
                                 const target = event.target.closest("a:not(.fileThumb)");
                                 if (!target ||target.hasAttribute("download")) return;
 
@@ -982,23 +1001,20 @@
                                 Func.ParseModify(span, span.textContent);
                             }
                         } else if (content) {
-                            const pre = Syn.$$("pre", {root: content});
-                            pre
-                                ? Func.Process(pre)
-                                : Func.Multiprocessing(content);
+                            Func.getTextNodes(content).forEach(node => {
+                                Func.ParseModify(node, node.textContent);
+                            })
                         }
                     }, {raf: true});
 
                 } else if (DLL.IsAnnouncement()) {
-                    Syn.WaitElem(".card-list__items pre", content => {
-                        Func.JumpTrigger(Syn.$$(".card-list__items"));
+                    Syn.WaitElem(".card-list__items pre", () => {
+                        const items = Syn.$$(".card-list__items");
 
-                        let pre;
-                        for (pre of content) {
-                            pre.childNodes.length > 1
-                                ? Func.Multiprocessing(pre)
-                                : Func.Process(pre);
-                        }
+                        Func.JumpTrigger(items);
+                        Func.getTextNodes(items).forEach(node => {
+                            Func.ParseModify(node, node.textContent);
+                        });
                     }, {raf: true, all: true});
                 }
             },
@@ -1157,7 +1173,7 @@
                         }
                 }
 
-                Syn.Listen(window, "keydown", Syn.Throttle(event => {
+                Syn.AddListener(window, "keydown", Syn.Throttle(event => {
                     const key = event.key;
                     if (key == "ArrowUp") {
                         event.stopImmediatePropagation();
@@ -1710,11 +1726,7 @@
                             break;
 
                         default:
-                            if (document.visibilityState === "hidden") { // 當可見時才觸發快速自動原圖
-                                Syn.Listen(document, "visibilitychange", ()=> {
-                                    document.visibilityState === "visible" && Origina_Requ.FastAuto();
-                                }, { once: true });
-                            } else Origina_Requ.FastAuto();
+                            Origina_Requ.FastAuto();
                     }
                 }, {raf: true, all: true});
             },
@@ -1748,12 +1760,12 @@
                     Span.appendChild(Next_btn);
 
                     // 點擊回到上方的按鈕
-                    Syn.Listen(Svg, "click", () => {
+                    Syn.AddListener(Svg, "click", () => {
                         Syn.$$("header").scrollIntoView();
                     }, { capture: true, passive: true });
 
                     // 點擊切換下一頁按鈕
-                    Syn.Listen(Next_btn, "click", ()=> {
+                    Syn.AddListener(Next_btn, "click", ()=> {
                         if (DLL.IsNeko) {
                             GetNextPage(
                                 Next_btn.getAttribute("jump"),
