@@ -734,13 +734,12 @@
 
                             Syn.Listen(root, "click", event => {
                                 const target = event.target.closest("a:not(.fileThumb)");
+                                if (!target ||target.hasAttribute("download")) return;
 
-                                target && (
-                                    event.preventDefault(),
-                                    !Newtab
-                                        ? location.assign(target.href)
-                                        : GM_openInTab(target.href, { active: Active, insert: Insert })
-                                );
+                                event.preventDefault();
+                                !Newtab
+                                    ? location.assign(target.href)
+                                    : GM_openInTab(target.href, { active: Active, insert: Insert });
                             }, {capture: true});
                         }
                     }
