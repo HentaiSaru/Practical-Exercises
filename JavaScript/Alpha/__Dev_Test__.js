@@ -71,3 +71,30 @@ function Translation(text) {
 }
 
 Translation("");
+
+const Exclusion_F = /onfanbokkusuokibalab\.net/;
+const URL_F = /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g;
+
+function getTextNodes(root) {
+    const tree = document.createTreeWalker(
+        root,
+        NodeFilter.SHOW_TEXT,
+        {
+            acceptNode: (node) => {
+                const content = node.textContent.trim();
+                if (!content || Exclusion_F.test(content)) return NodeFilter.FILTER_REJECT;
+
+                URL_F.lastIndex = 0;
+                return URL_F.test(content) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+            }
+        }
+    );
+    const nodes = [];
+    while (tree.nextNode()) {
+        nodes.push(tree.currentNode.parentElement);
+    }
+    return nodes;
+};
+
+const nodes = getTextNodes(document.querySelector(".post__content pre"));
+console.log(nodes);
