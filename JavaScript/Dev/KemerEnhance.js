@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta5
+// @version      0.0.49-Beta6
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -702,7 +702,7 @@
                                 NodeFilter.SHOW_TEXT,
                                 {
                                     acceptNode: (node) => {
-                                        URL_F.lastIndex = 0;
+                                        this.URL_F.lastIndex = 0;
                                         const content = node.textContent.trim();
                                         if (!content || this.Exclusion_F.test(content)) return NodeFilter.FILTER_REJECT;
                                         return this.URL_F.test(content) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
@@ -987,7 +987,7 @@
                 const Func = LoadFunc.TextToLink_Dependent(Config);
 
                 if (DLL.IsContent()) {
-                    Syn.WaitElem(".post__body, .scrape__body", body => {
+                    Syn.WaitElem(".post__body, .scrape__body", null, {raf: true, timeout: 10}).then(body => {
                         Func.JumpTrigger(body);
 
                         const [article, content] = [
@@ -1005,17 +1005,17 @@
                                 Func.ParseModify(node, node.textContent);
                             })
                         }
-                    }, {raf: true});
+                    });
 
                 } else if (DLL.IsAnnouncement()) {
-                    Syn.WaitElem(".card-list__items pre", () => {
+                    Syn.WaitElem(".card-list__items pre", null, {raf: true, timeout: 10}).then(() => {
                         const items = Syn.$$(".card-list__items");
 
                         Func.JumpTrigger(items);
                         Func.getTextNodes(items).forEach(node => {
                             Func.ParseModify(node, node.textContent);
                         });
-                    }, {raf: true, all: true});
+                    })
                 }
             },
             FixArtist: async (Config) => { /* 修復藝術家名稱 */
@@ -1077,7 +1077,7 @@
                 Func.Record_Cache = Func.Get_Record(); // 讀取修復 數據到緩存
                 // 搜尋頁面, 與一些特殊預覽頁
                 if (DLL.IsSearch()) {
-                    Syn.WaitElem(".card-list__items", card_items => {
+                    Syn.WaitElem(".card-list__items", null, {raf: true, timeout: 15}).then(card_items => {
                         if (DLL.Link.test(Url)) {
                             const artist = Syn.$$("span[itemprop='name']");
                             artist && Func.Other_Fix(artist); // 預覽頁的 名稱修復
@@ -1091,19 +1091,19 @@
                             Func.Dynamic_Fix(card_items, card_items);
                             GM_addElement(card_items, "fix-trigger", {style: "display: none;"});
                         }
-                    }, { raf: true, timeout: 15 });
+                    });
 
                 } else if (DLL.IsContent()) { // 是內容頁面
                     Syn.WaitMap([
                         "h1 span:nth-child(2)",
                         ".post__user-name, .scrape__user-name"
-                    ], found => {
+                    ], null, {raf: true, timeout: 15}).then(found => {
                         const [title, artist] = found;
                         Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
-                    }, { raf: true, timeout: 15 });
+                    });
 
                 } else { // 預覽頁面
-                    Syn.WaitElem("span[itemprop='name']", artist => {
+                    Syn.WaitElem("span[itemprop='name']", null, {raf: true, timeout: 15}).then(artist => {
                         Func.Other_Fix(artist);
 
                         if (User_Config.Preview.QuickPostToggle.enable && DLL.IsNeko) { // 啟用該功能才需要動態監聽
@@ -1111,7 +1111,7 @@
                                 Func.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
                             }, 300);
                         }
-                    }, { raf: true, timeout: 15 });
+                    });
                 }
             },
             BackToTop: async (Config) => { /* 翻頁後回到頂部 */
@@ -1411,7 +1411,7 @@
 
                                 setTimeout(()=> {
                                     Enhance.ExtraInitial(); // 重新呼叫增強
-                                    Syn.WaitElem(".post__content, .scrape__content", post=> {
+                                    Syn.WaitElem(".post__content, .scrape__content", null, {raf: true, timeout: 5}).then(post => {
                                         // 刪除所有只有 br 標籤的元素
                                         Syn.$$("p", {all: true, root: post}).forEach(p=> {
                                             p.childNodes.forEach(node=>{node.nodeName == "BR" && node.parentNode.remove()});
@@ -1420,7 +1420,7 @@
                                         Syn.$$("a", {all: true, root: post}).forEach(a=> {
                                             /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove()
                                         });
-                                    }, { raf: true });
+                                    });
                                     Syn.$$(".post__title, .scrape__title").scrollIntoView(); // 滾動到上方
                                 }, 300);
                             },
@@ -1453,7 +1453,7 @@
                     a:hover .View { display: block }
                 `, "Link_Effects", false);
 
-                Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", null, {raf: true, all: true, timeout: 5}).then(post => {
                     const ShowBrowse = LoadFunc.LinkBeautify_Dependent();
 
                     for (const link of post) {
@@ -1467,7 +1467,7 @@
                         Browse.style.position = "relative"; // 修改樣式避免跑版
                         ShowBrowse(Browse); // 請求顯示 Browse 數據
                     }
-                }, {raf: true, all: true});
+                });
             },
             VideoBeautify: async function (Config) { /* 調整影片區塊大小, 將影片名稱轉換成下載連結 */
                 Syn.AddStyle(`
@@ -1476,12 +1476,12 @@
                 `, "Video_Effects", false);
 
                 if (DLL.IsNeko) {
-                    Syn.WaitElem(".scrape__files video", video => {
+                    Syn.WaitElem(".scrape__files video", null, {raf: true, all: true, timeout: 5}).then(video => {
                         video.forEach(media => media.setAttribute("preload", "auto"));
-                    }, {all: true, throttle: 600});
+                    });
                 } else {
-                    Syn.WaitElem("ul[style*='text-align: center; list-style-type: none;'] li:not([id])", parents => {
-                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                    Syn.WaitElem("ul[style*='text-align: center; list-style-type: none;'] li:not([id])", null, {raf: true, all: true, timeout: 5}).then(parents => {
+                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", null, {raf: true, all: true, timeout: 5}).then(post => {
                             const VideoRendering = LoadFunc.VideoBeautify_Dependent();
     
                             let li;
@@ -1513,12 +1513,12 @@
                                 li.insertBefore(node, Syn.$$("summary", {root: li}));
                             }
     
-                        }, {all: true, throttle: 300});
-                    }, {all: true, throttle: 600});
+                        });
+                    });
                 }
             },
             OriginalImage: async function (Config) { /* 自動載入原圖 */
-                Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", thumbnail => {
+                Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", null, {raf: true, all: true, timeout: 6}).then(thumbnail => {
                     /**
                      * 針對 Neko 網站的支援
                      */
@@ -1728,12 +1728,12 @@
                         default:
                             Origina_Requ.FastAuto();
                     }
-                }, {raf: true, all: true});
+                });
             },
             ExtraButton: async function (Config) { /* 下方額外擴充按鈕 (這個該死的功能, 在換頁後會造成其他功能各種 Bug, 浪費我許多時間處理, 真不知道我寫他幹嘛) */
                 DLL.Style.Awesome(); // 導入 Awesome 需求樣式
                 const GetNextPage = LoadFunc.ExtraButton_Dependent();
-                Syn.WaitElem("h2.site-section__subheading", comments => {
+                Syn.WaitElem("h2.site-section__subheading", null, {raf: true, timeout: 10}).then(comments => {
 
                     const [Prev, Next, Svg, Span, Buffer] = [
                         Syn.$$(".post__nav-link.prev, .scrape__nav-link.prev"),
@@ -1784,7 +1784,7 @@
                         comments.appendChild(Buffer);
                     }
 
-                }, {raf: true});
+                });
             },
             CommentFormat: async function (Config) { /* 評論區 重新排版 */
                 Syn.AddStyle(`
