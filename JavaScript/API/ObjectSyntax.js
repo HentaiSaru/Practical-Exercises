@@ -16,21 +16,21 @@
  * @example
  * Syn.func()
  */
-const Syn = (()=> {
+const Syn = (() => {
     const
         Mark = {}, // Observer() & StoreListen()
         Parser = new DOMParser(), // DomParse()
         ListenerRecord = new Map(), // AddListener() & RemovListener()
         Type = (object) => Object.prototype.toString.call(object).slice(8, -1),
         Print = { // Log()
-            log: label=> console.log(label),
-            warn: label=> console.warn(label),
-            trace: label=> console.trace(label),
-            error: label=> console.error(label),
-            count: label=> console.count(label),
+            log: label => console.log(label),
+            warn: label => console.warn(label),
+            trace: label => console.trace(label),
+            error: label => console.error(label),
+            count: label => console.count(label),
         },
         Query = { // $$()
-            Match: (Str)=> /[ .#=:]/.test(Str),
+            Match: (Str) => /[ .#=:]/.test(Str),
             "#": (source, select) => source.getElementById(select.slice(1)),
             ".": (source, select, all) => {
                 const query = source.getElementsByClassName(select.slice(1));
@@ -45,7 +45,7 @@ const Syn = (()=> {
             }
         },
         TemplateMatch = { // FormatTemplate()
-            Process: (template, key, value=null)=> {
+            Process: (template, key, value = null) => {
                 const temp = template[key.toLowerCase()];
                 return Type(temp) === "Function"
                     ? temp(value)
@@ -83,10 +83,10 @@ const Syn = (()=> {
         /* ========== 通用常用函數 ========== */
         Type,
         Device: {
-            sX: ()=> window.scrollX,
-            sY: ()=> window.scrollY,
-            iW: ()=> window.innerWidth,
-            iH: ()=> window.innerHeight,
+            sX: () => window.scrollX,
+            sY: () => window.scrollY,
+            iW: () => window.innerWidth,
+            iH: () => window.innerHeight,
             _Type: undefined,
             Url: location.href,
             Orig: location.origin,
@@ -94,10 +94,10 @@ const Syn = (()=> {
             Path: location.pathname,
             Lang: navigator.language,
             Agen: navigator.userAgent,
-            Type: function() {
+            Type: function () {
                 return this._Type = this._Type ? this._Type
                     : (this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agen) || this.iW < 768
-                    ? "Mobile" : "Desktop");
+                        ? "Mobile" : "Desktop");
             }
         },
 
@@ -112,12 +112,12 @@ const Syn = (()=> {
          * $$("查找元素", {all: true, root: 查找來源})
          */
         $$: (selector, {
-            all=false,
-            root=document
-        }={})=> {
+            all = false,
+            root = document
+        } = {}) => {
             const type = !Query.Match(selector)
-            ? "tag" : Query.Match(selector.slice(1))
-            ? "default" : selector[0];
+                ? "tag" : Query.Match(selector.slice(1))
+                    ? "default" : selector[0];
             return Query[type](root, selector, all);
         },
 
@@ -126,7 +126,7 @@ const Syn = (()=> {
          * @param {Integer} delay - 延遲毫秒
          * @returns { Promise }
          */
-        Sleep: (delay)=> new Promise(resolve => setTimeout(resolve, delay)),
+        Sleep: (delay) => new Promise(resolve => setTimeout(resolve, delay)),
 
         /**
          * * { 打印元素 }
@@ -140,11 +140,11 @@ const Syn = (()=> {
          * collapsed=true - 打印後是否收起
          * }
          */
-        Log: async(group=null, label="print", {
-            dev=true,
-            type="log",
-            collapsed=true
-        }={})=> {
+        Log: async (group = null, label = "print", {
+            dev = true,
+            type = "log",
+            collapsed = true
+        } = {}) => {
             if (!dev) return;
 
             const Call = Print[type] || Print.log;
@@ -163,7 +163,7 @@ const Syn = (()=> {
          * @param {string} ID   - 創建 ID
          * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
          */
-        AddStyle: async(Rule, ID="New-Style", RepeatAdd=true)=> {
+        AddStyle: async (Rule, ID = "New-Style", RepeatAdd = true) => {
             let style = document.getElementById(ID);
             if (!style) {
                 style = document.createElement("style");
@@ -179,7 +179,7 @@ const Syn = (()=> {
          * @param {string} ID   - 創建 ID
          * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
          */
-        AddScript: async(Rule, ID="New-Script", RepeatAdd=true)=> {
+        AddScript: async (Rule, ID = "New-Script", RepeatAdd = true) => {
             let script = document.getElementById(ID);
             if (!script) {
                 script = document.createElement("script");
@@ -204,17 +204,17 @@ const Syn = (()=> {
          *      console.log(註冊狀態)
          * })
          */
-        Listen: async(
+        Listen: async (
             element,
             type,
             listener,
-            add={},
-            resolve=null
-        )=> {
+            add = {},
+            resolve = null
+        ) => {
             try {
                 element.addEventListener(type, listener, add);
                 resolve && resolve(true);
-            } catch {resolve && resolve(false)}
+            } catch { resolve && resolve(false) }
         },
 
         /**
@@ -233,12 +233,12 @@ const Syn = (()=> {
          *   mark: "自訂檢測 key" (預設是由 element 作為 key)
          * }
          */
-        AddListener: async(
+        AddListener: async (
             element,
             type,
             listener,
-            add={}
-        )=> {
+            add = {}
+        ) => {
             const { mark, ...options } = add;
             const key = mark ?? element;
             const Record = ListenerRecord.get(key);
@@ -258,7 +258,7 @@ const Syn = (()=> {
          * @example
          * RemovListener("監聽的物件" or "自訂 key", "監聽的類型")
          */
-        RemovListener: (element, type)=> {
+        RemovListener: (element, type) => {
             const Listen = ListenerRecord.get(element)?.get(type);
             if (Listen) {
                 element.removeEventListener(type, Listen);
@@ -288,27 +288,27 @@ const Syn = (()=> {
          * })
          */
         Observer: async function (object, trigger, {
-            mark=false,
-            throttle=0,
-            subtree=true,
-            childList=true,
-            attributes=true,
-            characterData=false,
-        }={},
-            callback=null
+            mark = false,
+            throttle = 0,
+            subtree = true,
+            childList = true,
+            attributes = true,
+            characterData = false,
+        } = {},
+            callback = null
         ) {
             if (mark) {
-                if (Mark[mark]) {return}
-                else {Mark[mark] = true}
+                if (Mark[mark]) { return }
+                else { Mark[mark] = true }
             }
             const op = {
                 subtree: subtree,
                 childList: childList,
                 attributes: attributes,
                 characterData: characterData
-            }, ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
+            }, ob = new MutationObserver(this.Throttle(() => { trigger() }, throttle));
             ob.observe(object, op);
-            callback && callback({ob, op});
+            callback && callback({ ob, op });
         },
 
         /**
@@ -338,22 +338,22 @@ const Syn = (()=> {
          * 
          * WaitElem("元素", null, {設置參數}).then(found => { console.log(found); });
          */
-        WaitElem: async function(selector, found=null, {
-            raf=false,
-            all=false,
-            timeout=8,
-            throttle=50,
-            subtree=true,
-            childList=true,
-            attributes=false,
-            characterData=false,
-            timeoutResult=false,
-            object=document.body,
-        }={}) {
+        WaitElem: async function (selector, found = null, {
+            raf = false,
+            all = false,
+            timeout = 8,
+            throttle = 50,
+            subtree = true,
+            childList = true,
+            attributes = false,
+            characterData = false,
+            timeoutResult = false,
+            object = document.body,
+        } = {}) {
             const self = this;
 
             return new Promise((resolve, reject) => {
-                const Core = async function() {
+                const Core = async function () {
                     let timer, element, result;
 
                     if (raf) {
@@ -449,29 +449,29 @@ const Syn = (()=> {
          *          const [e1, e2, e3] = found;
          *      });
          */
-        async WaitMap(selectors, found=null, {
-            raf=false,
-            timeout=8,
-            throttle=50,
-            subtree=true,
-            childList=true,
-            attributes=false,
-            characterData=false,
-            timeoutResult=false,
-            object=document.body,
-        }={}) {
+        async WaitMap(selectors, found = null, {
+            raf = false,
+            timeout = 8,
+            throttle = 50,
+            subtree = true,
+            childList = true,
+            attributes = false,
+            characterData = false,
+            timeoutResult = false,
+            object = document.body,
+        } = {}) {
             const self = this;
 
             return new Promise((resolve, reject) => {
-                const Core = async function() {
+                const Core = async function () {
                     let timer, elements;
 
                     if (raf) {
                         let AnimationFrame;
-                    
+
                         const query = () => {
                             elements = selectors.map(selector => document.querySelector(selector));
-                            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                            if (elements.every(element => { return element !== null && typeof element !== "undefined" })) {
                                 cancelAnimationFrame(AnimationFrame);
                                 clearTimeout(timer);
 
@@ -481,9 +481,9 @@ const Syn = (()=> {
                                 AnimationFrame = requestAnimationFrame(query);
                             }
                         };
-                    
+
                         AnimationFrame = requestAnimationFrame(query);
-                    
+
                         timer = setTimeout(() => {
                             cancelAnimationFrame(AnimationFrame);
 
@@ -492,11 +492,11 @@ const Syn = (()=> {
                                 resolve(elements);
                             }
                         }, (1000 * timeout));
-                    
+
                     } else {
                         const observer = new MutationObserver(self.Throttle(() => {
                             elements = selectors.map(selector => document.querySelector(selector));
-                            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                            if (elements.every(element => { return element !== null && typeof element !== "undefined" })) {
                                 observer.disconnect();
                                 clearTimeout(timer);
 
@@ -504,14 +504,14 @@ const Syn = (()=> {
                                 resolve(elements);
                             }
                         }, throttle));
-                    
+
                         observer.observe(object, {
                             subtree: subtree,
                             childList: childList,
                             attributes: attributes,
                             characterData: characterData
                         });
-                    
+
                         timer = setTimeout(() => {
                             observer.disconnect();
                             if (timeoutResult) {
@@ -545,7 +545,7 @@ const Syn = (()=> {
          * Storage("數據", {value: 123, type: localStorage})
          * Storage("數據", {type: localStorage})
          */
-        Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
+        Storage(key, { type = sessionStorage, value = null, error = undefined } = {}) {
             let data;
             return value != null
                 ? StorageMatch[Type(value)](type, key, value)
@@ -559,14 +559,14 @@ const Syn = (()=> {
          * @param {htnl} html - 要解析成 html 的文檔
          * @returns {htnl}    - html 文檔
          */
-        DomParse: (html)=> Parser.parseFromString(html, "text/html"),
+        DomParse: (html) => Parser.parseFromString(html, "text/html"),
 
         /**
          * * { 排除不能用做檔名的字串 }
          * @param {string} name - 要修正的字串
          * @returns {string}    - 排除後的字串
          */
-        NameFilter: (name)=> name.replace(/[\/\?<>\\:\*\|":]/g, ""),
+        NameFilter: (name) => name.replace(/[\/\?<>\\:\*\|":]/g, ""),
 
         /**
          * * { 取得下載圖片時的填充量 }
@@ -577,14 +577,14 @@ const Syn = (()=> {
          * const box = [下載圖片的連結]
          * const Fill = GetFill(box);
          */
-        GetFill: (pages)=> Math.max(2, `${pages}`.length),
+        GetFill: (pages) => Math.max(2, `${pages}`.length),
 
         /**
          * * { 解析網址字串的副檔名 }
          * @param {string} link - 含有副檔名的連結
          * @returns {string}    - 回傳副檔名字串
          */
-        ExtensionName: (link)=> {
+        ExtensionName: (link) => {
             try {
                 return link.match(/\.([^.]+)$/)[1].toLowerCase() || "png";
             } catch {
@@ -601,7 +601,7 @@ const Syn = (()=> {
          * @param {string} type    - 圖片的副檔名, 輸入圖片的連結
          * @returns {string}       - 經填充後的尾數
          */
-        Mantissa: function(index, padding, filler="0", type=null) {
+        Mantissa: function (index, padding, filler = "0", type = null) {
             return type
                 ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
                 : `${++index}`.padStart(padding, filler);
@@ -617,7 +617,7 @@ const Syn = (()=> {
          * @example
          * object = ScopeParsing("", object);
          */
-        ScopeParsing: (scope, object)=> {
+        ScopeParsing: (scope, object) => {
             if (typeof scope != "string" || scope.trim() === "") return object;
 
             const len = object.length;
@@ -628,7 +628,7 @@ const Syn = (()=> {
                     let i = start;
                     judge ? i <= end : i >= end;
                     judge ? i++ : i--
-                ) {save.add(i)}
+                ) { save.add(i) }
             };
 
             let str;
@@ -680,7 +680,7 @@ const Syn = (()=> {
          * const result = FormatTemplate(template, format);
          * console.log(result);
          */
-        FormatTemplate: (template, format)=> {
+        FormatTemplate: (template, format) => {
 
             if (Type(template) !== "Object") {
                 return "Template must be an object";
@@ -692,13 +692,13 @@ const Syn = (()=> {
             );
 
             if (Type(format) === "String") {
-                return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> TemplateMatch.Process(template, key));
+                return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key) => TemplateMatch.Process(template, key));
 
             } else if (Type(format) === "Object") {
                 return Object.entries(format).map(([key, value]) => TemplateMatch.Process(template, key, value));
 
             } else {
-                return {"Unsupported format": format};
+                return { "Unsupported format": format };
 
             }
         },
@@ -715,7 +715,7 @@ const Syn = (()=> {
          *      console.log(Success);
          * })
          */
-        OutputJson: async(Data, Name, Success=null)=> {
+        OutputJson: async (Data, Name, Success = null) => {
             try {
                 Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
                 Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
@@ -727,8 +727,8 @@ const Syn = (()=> {
 
                 await new Promise(resolve => setTimeout(resolve, 100));
                 Json.remove();
-                Success && Success({State: true});
-            } catch (error) {Success && Success({State: false, Info: error})}
+                Success && Success({ State: true });
+            } catch (error) { Success && Success({ State: false, Info: error }) }
         },
 
         /* ========== 特別用途函數 ========== */
@@ -738,8 +738,8 @@ const Syn = (()=> {
          * @param {string} code - 運行代碼
          * @returns {Worker}    - 創建的 Worker 連結
          */
-        WorkerCreation: (code)=> {
-            const blob = new Blob([code], {type: "application/javascript"});
+        WorkerCreation: (code) => {
+            const blob = new Blob([code], { type: "application/javascript" });
             return new Worker(URL.createObjectURL(blob));
         },
 
@@ -761,13 +761,13 @@ const Syn = (()=> {
          * let start = Runtime();
          * Runtime(start);
          */
-        Runtime: (time=null, {log=true, format=true, lable="Elapsed Time:", style="\x1b[1m\x1b[36m%s\x1b[0m"}={})=> {
+        Runtime: (time = null, { log = true, format = true, lable = "Elapsed Time:", style = "\x1b[1m\x1b[36m%s\x1b[0m" } = {}) => {
             if (!time) return performance.now();
-        
+
             const result = format
                 ? `${((performance.now() - time) / 1e3).toPrecision(3)}s`
                 : performance.now() - time;
-        
+
             return log ? console.log(style, `${lable} ${result}`) : result;
         },
 
@@ -779,7 +779,7 @@ const Syn = (()=> {
          * @example
          * GetDate("{year}/{month}/{date} {hour}:{minute}")
          */
-        GetDate: (format=null)=> {
+        GetDate: (format = null) => {
             const date = new Date();
             const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
 
@@ -813,7 +813,7 @@ const Syn = (()=> {
          * document.addEventListener("pointermove", Throttle(()=> {
          * }), 100)
          */
-        Throttle: (func, delay)=> {
+        Throttle: (func, delay) => {
             let lastTime = 0;
             return (...args) => {
                 const now = Date.now();
@@ -833,11 +833,11 @@ const Syn = (()=> {
          * @example
          * 使用方法同上, 改成 Debounce() 即可
          */
-        Debounce: (func, delay=500)=> {
+        Debounce: (func, delay = 500) => {
             let timer = null;
             return (...args) => {
                 clearTimeout(timer);
-                timer = setTimeout(function() {
+                timer = setTimeout(function () {
                     func(...args);
                 }, delay);
             }
@@ -865,9 +865,9 @@ const Syn = (()=> {
          * "菜單2": ()=> { 方法2(參數) }
          *}, "ID");
          */
-        Menu: async(Item, ID="Menu", Index=1)=> {
+        Menu: async (Item, ID = "Menu", Index = 1) => {
             for (const [Name, options] of Object.entries(Item)) {
-                GM_registerMenuCommand(Name, ()=> {options.func()}, {
+                GM_registerMenuCommand(Name, () => { options.func() }, {
                     title: options.desc,
                     id: `${ID}-${Index++}`,
                     autoClose: options.close,
@@ -894,7 +894,7 @@ const Syn = (()=> {
          * 數據A = store("g", "資料A", null)
          * store("sj", "資料B", "數據B")
          */
-        Store: (operat, key=null, value=null)=> StoreMatch[operat](key, value),
+        Store: (operat, key = null, value = null) => StoreMatch[operat](key, value),
 
         /**
          ** { 監聽保存值的變化 }
@@ -915,12 +915,12 @@ const Syn = (()=> {
          *      console.log(call.key, call.nv);
          * })
          */
-        StoreListen: async(object, callback)=> {
+        StoreListen: async (object, callback) => {
             object.forEach(label => {
                 if (!Mark[label]) {
                     Mark[label] = true;
-                    GM_addValueChangeListener(label, function(key, old_value, new_value, remote) {
-                        callback({key, ov: old_value, nv: new_value, far: remote});
+                    GM_addValueChangeListener(label, function (key, old_value, new_value, remote) {
+                        callback({ key, ov: old_value, nv: new_value, far: remote });
                     })
                 }
             })

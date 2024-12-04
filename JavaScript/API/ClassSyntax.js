@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ClassSyntax
-// @version      2024/09/30
+// @version      2024/12/05
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Class Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -31,11 +31,11 @@ class Syntax {
         this.ListenerRecord = new Map();
         this.Type = (object) => Object.prototype.toString.call(object).slice(8, -1);
         this.Print = {
-            log: label=> console.log(label),
-            warn: label=> console.warn(label),
-            trace: label=> console.trace(label),
-            error: label=> console.error(label),
-            count: label=> console.count(label),
+            log: label => console.log(label),
+            warn: label => console.warn(label),
+            trace: label => console.trace(label),
+            error: label => console.error(label),
+            count: label => console.count(label),
         };
         this.Query = {
             Match: /[ .#=:]/,
@@ -50,12 +50,12 @@ class Syntax {
             },
             "default": (source, select, all) => {
                 return all
-                ? source.querySelectorAll(select)
-                : source.querySelector(select);
+                    ? source.querySelectorAll(select)
+                    : source.querySelector(select);
             }
         };
         this.TemplateMatch = {
-            Process: (template, key, value=null)=> {
+            Process: (template, key, value = null) => {
                 const temp = template[key.toLowerCase()];
                 return this.Type(temp) === "Function"
                     ? temp(value)
@@ -89,10 +89,10 @@ class Syntax {
                 (storage.setItem(key, JSON.stringify([...value])), true)
         };
         this.Device = {
-            sX: ()=> window.scrollX,
-            sY: ()=> window.scrollY,
-            iW: ()=> window.innerWidth,
-            iH: ()=> window.innerHeight,
+            sX: () => window.scrollX,
+            sY: () => window.scrollY,
+            iW: () => window.innerWidth,
+            iH: () => window.innerHeight,
             _Type: undefined,
             Url: location.href,
             Orig: location.origin,
@@ -100,10 +100,10 @@ class Syntax {
             Path: location.pathname,
             Lang: navigator.language,
             Agen: navigator.userAgent,
-            Type: function() {
+            Type: function () {
                 return this._Type = this._Type ? this._Type
                     : (this._Type = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(this.Agen) || this.iW < 768
-                    ? "Mobile" : "Desktop");
+                        ? "Mobile" : "Desktop");
             }
         };
     }
@@ -121,11 +121,11 @@ class Syntax {
      * $$("查找元素", {all: true, root: 查找來源})
      */
     $$(selector, {
-        all=false,
-        root=document
-    }={}) {
+        all = false,
+        root = document
+    } = {}) {
         const type = !this.Query.Match.test(selector) ? "tag"
-        : this.Query.Match.test(selector.slice(1)) ? "default" : selector[0];
+            : this.Query.Match.test(selector.slice(1)) ? "default" : selector[0];
         return this.Query[type](root, selector, all);
     }
 
@@ -150,11 +150,11 @@ class Syntax {
      * collapsed=true - 打印後是否收起
      * }
      */
-    async Log(group=null, label="print", {
-        dev=true,
-        type="log",
-        collapsed=true
-    }={}) {
+    async Log(group = null, label = "print", {
+        dev = true,
+        type = "log",
+        collapsed = true
+    } = {}) {
         if (!dev) return;
 
         const Call = this.Print[type] || this.Print.log;
@@ -173,7 +173,7 @@ class Syntax {
      * @param {string} ID   - 創建 ID
      * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
      */
-    async AddStyle(Rule, ID="New-Style", RepeatAdd=true) {
+    async AddStyle(Rule, ID = "New-Style", RepeatAdd = true) {
         let style = document.getElementById(ID);
         if (!style) {
             style = document.createElement("style");
@@ -189,7 +189,7 @@ class Syntax {
      * @param {string} ID   - 創建 ID
      * @param {boolean} RepeatAdd - 有重複 ID 的對象時, 禁用他將無法在同一個 ID 的樣式內增加
      */
-    async AddScript(Rule, ID="New-Script", RepeatAdd=true) {
+    async AddScript(Rule, ID = "New-Script", RepeatAdd = true) {
         let script = document.getElementById(ID);
         if (!script) {
             script = document.createElement("script");
@@ -218,13 +218,13 @@ class Syntax {
         element,
         type,
         listener,
-        add={},
-        resolve=null
+        add = {},
+        resolve = null
     ) {
         try {
             element.addEventListener(type, listener, add);
             resolve && resolve(true);
-        } catch {resolve && resolve(false)}
+        } catch { resolve && resolve(false) }
     }
 
     /**
@@ -247,7 +247,7 @@ class Syntax {
         element,
         type,
         listener,
-        add={}
+        add = {}
     ) {
         const { mark, ...options } = add;
         const key = mark ?? element;
@@ -296,26 +296,26 @@ class Syntax {
      *      const options = back.op;
      * })
      */
-     async Observer(object, trigger, {
-        mark=false,
-        throttle=0,
-        subtree=true,
-        childList=true,
-        attributes=true,
-        characterData=false,
-    }={}, callback=null) {
+    async Observer(object, trigger, {
+        mark = false,
+        throttle = 0,
+        subtree = true,
+        childList = true,
+        attributes = true,
+        characterData = false,
+    } = {}, callback = null) {
         if (mark) {
-            if (this.Mark[mark]) {return}
-            else {this.Mark[mark] = true}
+            if (this.Mark[mark]) { return }
+            else { this.Mark[mark] = true }
         }
         const op = {
             subtree: subtree,
             childList: childList,
             attributes: attributes,
             characterData: characterData
-        }, ob = new MutationObserver(this.Throttle(() => {trigger()}, throttle));
+        }, ob = new MutationObserver(this.Throttle(() => { trigger() }, throttle));
         ob.observe(object, op);
-        callback && callback({ob, op});
+        callback && callback({ ob, op });
     }
 
     /**
@@ -341,66 +341,89 @@ class Syntax {
      * WaitElem("元素", found=> {
      *      console.log(found); 找到的元素
      * }, {設置參數});
+     * 
+     * WaitElem("元素", null, {設置參數}).then(found => { console.log(found); });
      */
-     async WaitElem(selector, found, {
-        raf=false,
-        all=false,
-        timeout=8,
-        throttle=50,
-        subtree=true,
-        childList=true,
-        attributes=false,
-        characterData=false,
-        timeoutResult=false,
-        object=document.body,
-    }={}) {
-        let timer, element, result;
+    async WaitElem(selector, found, {
+        raf = false,
+        all = false,
+        timeout = 8,
+        throttle = 50,
+        subtree = true,
+        childList = true,
+        attributes = false,
+        characterData = false,
+        timeoutResult = false,
+        object = document.body,
+    } = {}) {
+        const self = this;
 
-        if (raf) {
-            let AnimationFrame;
+        return new Promise((resolve, reject) => {
+            const Core = async function () {
+                let timer, element, result;
 
-            const query = () => {
-                element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-                result = all ? element.length > 0 : element;
-                if (result) {
-                    cancelAnimationFrame(AnimationFrame);
-                    clearTimeout(timer);
-                    found(element);
-                } else {
+                if (raf) {
+                    let AnimationFrame;
+
+                    const query = () => {
+                        element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                        result = all ? element.length > 0 : element;
+                        if (result) {
+                            cancelAnimationFrame(AnimationFrame);
+                            clearTimeout(timer);
+
+                            found && found(element);
+                            resolve(element);
+                        } else {
+                            AnimationFrame = requestAnimationFrame(query);
+                        }
+                    };
+
                     AnimationFrame = requestAnimationFrame(query);
+
+                    timer = setTimeout(() => {
+                        cancelAnimationFrame(AnimationFrame);
+
+                        if (timeoutResult) {
+                            found && found(element);
+                            resolve(element);
+                        }
+                    }, (1000 * timeout));
+
+                } else {
+                    const observer = new MutationObserver(self.Throttle(() => {
+                        element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                        result = all ? element.length > 0 : element;
+                        if (result) {
+                            observer.disconnect();
+                            clearTimeout(timer);
+
+                            found && found(element);
+                            resolve(element);
+                        }
+                    }, throttle));
+
+                    observer.observe(object, {
+                        subtree: subtree,
+                        childList: childList,
+                        attributes: attributes,
+                        characterData: characterData
+                    });
+
+                    timer = setTimeout(() => {
+                        observer.disconnect();
+                        if (timeoutResult) {
+                            found && found(element);
+                            resolve(element);
+                        }
+                    }, (1000 * timeout));
                 }
             };
 
-            AnimationFrame = requestAnimationFrame(query);
-
-            timer = setTimeout(() => {
-                cancelAnimationFrame(AnimationFrame);
-                timeoutResult && found(element);
-            }, (1000 * timeout));
-
-        } else {
-            const observer = new MutationObserver(this.Throttle(() => {
-                element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-                result = all ? element.length > 0 : element;
-                if (result) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    found(element);
-                }
-            }, throttle));
-
-            observer.observe(object, {
-                subtree: subtree,
-                childList: childList,
-                attributes: attributes,
-                characterData: characterData
-            });
-
-            timer = setTimeout(() => {
-                observer.disconnect();
-                timeoutResult && found(element);
-            }, (1000 * timeout));
-        }
+            if (document.visibilityState === "hidden") {
+                document.addEventListener("visibilitychange", () => Core(), { once: true });
+            } else Core();
+        });
     }
 
     /**
@@ -425,63 +448,89 @@ class Syntax {
      * WaitMap(["元素1", "元素2", "元素3"], found=> {
      *      const [e1, e2, e3] = found;
      * }, {設置參數});
+     * 
+     * WaitMap(["元素1", "元素2", "元素3"], null, {設置參數})
+     *      .then(found => {
+     *          const [e1, e2, e3] = found;
+     *      });
      */
     async WaitMap(selectors, found, {
-        raf=false,
-        timeout=8,
-        throttle=50,
-        subtree=true,
-        childList=true,
-        attributes=false,
-        characterData=false,
-        timeoutResult=false,
-        object=document.body,
-    }={}) {
-        let timer, elements;
+        raf = false,
+        timeout = 8,
+        throttle = 50,
+        subtree = true,
+        childList = true,
+        attributes = false,
+        characterData = false,
+        timeoutResult = false,
+        object = document.body,
+    } = {}) {
+        const self = this;
 
-        if (raf) {
-            let AnimationFrame;
+        return new Promise((resolve, reject) => {
+            const Core = async function () {
+                let timer, elements;
 
-            const query = () => {
-                elements = selectors.map(selector => document.querySelector(selector));
-                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                    cancelAnimationFrame(AnimationFrame);
-                    clearTimeout(timer);
-                    found(elements);
-                } else {
+                if (raf) {
+                    let AnimationFrame;
+
+                    const query = () => {
+                        elements = selectors.map(selector => document.querySelector(selector));
+                        if (elements.every(element => { return element !== null && typeof element !== "undefined" })) {
+                            cancelAnimationFrame(AnimationFrame);
+                            clearTimeout(timer);
+
+                            found && found(elements);
+                            resolve(elements);
+                        } else {
+                            AnimationFrame = requestAnimationFrame(query);
+                        }
+                    };
+
                     AnimationFrame = requestAnimationFrame(query);
-                }
+
+                    timer = setTimeout(() => {
+                        cancelAnimationFrame(AnimationFrame);
+
+                        if (timeoutResult) {
+                            found && found(elements);
+                            resolve(elements);
+                        }
+                    }, (1000 * timeout));
+
+                } else {
+                    const observer = new MutationObserver(self.Throttle(() => {
+                        elements = selectors.map(selector => document.querySelector(selector));
+                        if (elements.every(element => { return element !== null && typeof element !== "undefined" })) {
+                            observer.disconnect();
+                            clearTimeout(timer);
+
+                            found && found(elements);
+                            resolve(elements);
+                        }
+                    }, throttle));
+
+                    observer.observe(object, {
+                        subtree: subtree,
+                        childList: childList,
+                        attributes: attributes,
+                        characterData: characterData
+                    });
+
+                    timer = setTimeout(() => {
+                        observer.disconnect();
+                        if (timeoutResult) {
+                            found && found(elements);
+                            resolve(elements);
+                        }
+                    }, (1000 * timeout));
+                };
             };
 
-            AnimationFrame = requestAnimationFrame(query);
-
-            timer = setTimeout(() => {
-                cancelAnimationFrame(AnimationFrame);
-                timeoutResult && found(elements);
-            }, (1000 * timeout));
-
-        } else {
-            const observer = new MutationObserver(this.Throttle(() => {
-                elements = selectors.map(selector => document.querySelector(selector));
-                if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                    observer.disconnect();
-                    clearTimeout(timer);
-                    found(elements);
-                }
-            }, throttle));
-
-            observer.observe(object, {
-                subtree: subtree,
-                childList: childList,
-                attributes: attributes,
-                characterData: characterData
-            });
-
-            timer = setTimeout(() => {
-                observer.disconnect();
-                timeoutResult && found(elements);
-            }, (1000 * timeout));
-        }
+            if (document.visibilityState === "hidden") {
+                document.addEventListener("visibilitychange", () => Core(), { once: true });
+            } else Core();
+        });
     }
 
     /**
@@ -501,7 +550,7 @@ class Syntax {
      * Storage("數據", {value: 123, type: localStorage})
      * Storage("數據", {type: localStorage})
      */
-     Storage(key, {type=sessionStorage, value=null, error=undefined}={}) {
+    Storage(key, { type = sessionStorage, value = null, error = undefined } = {}) {
         let data;
         return value != null
             ? this.StorageMatch[this.Type(value)](type, key, value)
@@ -562,10 +611,10 @@ class Syntax {
      * @param {string} type    - 圖片的副檔名, 輸入圖片的連結
      * @returns {string}       - 經填充後的尾數
      */
-    Mantissa(index, padding, filler="0", type=null) {
+    Mantissa(index, padding, filler = "0", type = null) {
         return type
-        ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
-        : `${++index}`.padStart(padding, filler);
+            ? `${++index}`.padStart(padding, filler) + `.${this.ExtensionName(type)}`
+            : `${++index}`.padStart(padding, filler);
     }
 
     /**
@@ -589,7 +638,7 @@ class Syntax {
                 let i = start;
                 judge ? i <= end : i >= end;
                 judge ? i++ : i--
-            ) {save.add(i)}
+            ) { save.add(i) }
         };
 
         let str;
@@ -653,13 +702,13 @@ class Syntax {
         );
 
         if (this.Type(format) === "String") {
-            return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key)=> this.TemplateMatch.Process(template, key));
+            return format.replace(/\{\s*([^}\s]+)\s*\}/g, (_, key) => this.TemplateMatch.Process(template, key));
 
         } else if (this.Type(format) === "Object") {
             return Object.entries(format).map(([key, value]) => this.TemplateMatch.Process(template, key, value));
 
         } else {
-            return {"Unsupported format": format};
+            return { "Unsupported format": format };
 
         }
     }
@@ -676,7 +725,7 @@ class Syntax {
      *      console.log(Success);
      * })
      */
-    async OutputJson(Data, Name, Success=null) {
+    async OutputJson(Data, Name, Success = null) {
         try {
             Data = typeof Data !== "string" ? JSON.stringify(Data, null, 4) : Data;
             Name = typeof Name !== "string" ? "Anonymous" : Name.replace(".json", "");
@@ -688,8 +737,8 @@ class Syntax {
 
             await new Promise(resolve => setTimeout(resolve, 100));
             Json.remove();
-            Success && Success({State: true});
-        } catch (error) {Success && Success({State: false, Info: error})}
+            Success && Success({ State: true });
+        } catch (error) { Success && Success({ State: false, Info: error }) }
     }
 
     /* ========== 特別用途函數 ========== */
@@ -700,7 +749,7 @@ class Syntax {
      * @returns {Worker}    - 創建的 Worker 連結
      */
     WorkerCreation(code) {
-        let blob = new Blob([code], {type: "application/javascript"});
+        let blob = new Blob([code], { type: "application/javascript" });
         return new Worker(URL.createObjectURL(blob));
     }
 
@@ -745,7 +794,7 @@ class Syntax {
      * @example
      * GetDate("{year}/{month}/{date} {hour}:{minute}")
      */
-    GetDate(format=null) {
+    GetDate(format = null) {
         const date = new Date();
         const defaultFormat = "{year}-{month}-{date} {hour}:{minute}:{second}";
 
@@ -800,11 +849,11 @@ class Syntax {
      *
      * }), 100)
      */
-    Debounce(func, delay=500) {
+    Debounce(func, delay = 500) {
         let timer = null;
         return (...args) => {
             clearTimeout(timer);
-            timer = setTimeout(function() {
+            timer = setTimeout(function () {
                 func(...args);
             }, delay);
         }
@@ -831,9 +880,9 @@ class Syntax {
      * "菜單2": ()=> { 方法2(參數) }
      *}, "ID");
      */
-     async Menu(Item, ID="Menu", Index=1) {
+    async Menu(Item, ID = "Menu", Index = 1) {
         for (const [Name, options] of Object.entries(Item)) {
-            GM_registerMenuCommand(Name, ()=> {options.func()}, {
+            GM_registerMenuCommand(Name, () => { options.func() }, {
                 title: options.desc,
                 id: `${ID}-${Index++}`,
                 autoClose: options.close,
@@ -859,7 +908,7 @@ class Syntax {
      * 數據A = store("g", "資料A", null)
      * store("sj", "資料B", "數據B")
      */
-    Store(operat, key=null, value=null) {
+    Store(operat, key = null, value = null) {
         return this.StoreMatch[operat](key, value);
     }
 
@@ -886,8 +935,8 @@ class Syntax {
         object.forEach(label => {
             if (!this.Mark[label]) {
                 this.Mark[label] = true;
-                GM_addValueChangeListener(label, function(key, old_value, new_value, remote) {
-                    callback({key, ov: old_value, nv: new_value, far: remote});
+                GM_addValueChangeListener(label, function (key, old_value, new_value, remote) {
+                    callback({ key, ov: old_value, nv: new_value, far: remote });
                 })
             }
         })
