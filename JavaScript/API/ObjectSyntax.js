@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         ObjectSyntax
-// @version      2024/09/30
+// @version      2024/12/05
 // @author       Canaan HS
 // @description  Library for simplifying code logic and syntax (Object Type)
 // @namespace    https://greasyfork.org/users/989635
@@ -335,8 +335,10 @@ const Syn = (()=> {
          * WaitElem("元素", found=> {
          *      console.log(found); 找到的元素
          * }, {設置參數});
+         * 
+         * WaitElem("元素", null, {設置參數}).then(found => { console.log(found); });
          */
-        WaitElem: async function(selector, found, {
+        WaitElem: async function(selector, found=null, {
             raf=false,
             all=false,
             timeout=8,
@@ -348,53 +350,76 @@ const Syn = (()=> {
             timeoutResult=false,
             object=document.body,
         }={}) {
-            let timer, element, result;
+            return new Promise((resolve, reject) => {
+                const Core = async function() {
+                    let timer, element, result;
 
-            if (raf) {
-                let AnimationFrame;
+                    if (raf) {
+                        let AnimationFrame;
 
-                const query = () => {
-                    element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-                    result = all ? element.length > 0 : element;
-                    if (result) {
-                        cancelAnimationFrame(AnimationFrame);
-                        clearTimeout(timer);
-                        found(element);
-                    } else {
+                        const query = () => {
+                            element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                            result = all ? element.length > 0 : element;
+                            if (result) {
+                                cancelAnimationFrame(AnimationFrame);
+                                clearTimeout(timer);
+
+                                found && found(element);
+                                resolve(element);
+                            } else {
+                                AnimationFrame = requestAnimationFrame(query);
+                            }
+                        };
+
                         AnimationFrame = requestAnimationFrame(query);
+
+                        timer = setTimeout(() => {
+                            cancelAnimationFrame(AnimationFrame);
+
+                            if (timeoutResult) {
+                                found && found(element);
+                                resolve(element);
+                            } else {
+                                reject(new Error("Timeout: Elements not found"));
+                            }
+                        }, (1000 * timeout));
+
+                    } else {
+                        const observer = new MutationObserver(this.Throttle(() => {
+                            element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
+                            result = all ? element.length > 0 : element;
+                            if (result) {
+                                observer.disconnect();
+                                clearTimeout(timer);
+
+                                found && found(element);
+                                resolve(element);
+                            }
+                        }, throttle));
+
+                        observer.observe(object, {
+                            subtree: subtree,
+                            childList: childList,
+                            attributes: attributes,
+                            characterData: characterData
+                        });
+
+                        timer = setTimeout(() => {
+                            observer.disconnect();
+                            if (timeoutResult) {
+                                found && found(element);
+                                resolve(element);
+                            } else {
+                                reject(new Error("Timeout: Elements not found"));
+                            }
+                        }, (1000 * timeout));
                     }
                 };
 
-                AnimationFrame = requestAnimationFrame(query);
-
-                timer = setTimeout(() => {
-                    cancelAnimationFrame(AnimationFrame);
-                    timeoutResult && found(element);
-                }, (1000 * timeout));
-
-            } else {
-                const observer = new MutationObserver(this.Throttle(() => {
-                    element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
-                    result = all ? element.length > 0 : element;
-                    if (result) {
-                        observer.disconnect();
-                        clearTimeout(timer);
-                        found(element);
-                    }
-                }, throttle));
-
-                observer.observe(object, {
-                    subtree: subtree,
-                    childList: childList,
-                    attributes: attributes,
-                    characterData: characterData
-                });
-
-                timer = setTimeout(() => {
-                    observer.disconnect();
-                    timeoutResult && found(element);
-                }, (1000 * timeout));
-            }
+                if (document.visibilityState === "hidden") {
+                    document.addEventListener("visibilitychange", () => Core(), { once: true });
+                } else Core();
+            });
         },
 
         /**
@@ -420,8 +445,13 @@ const Syn = (()=> {
          * WaitMap(["元素1", "元素2", "元素3"], found=> {
          *      const [e1, e2, e3] = found;
          * }, {設置參數});
+         * 
+         * WaitMap(["元素1", "元素2", "元素3"], null, {設置參數})
+         *      .then(found => {
+         *          const [e1, e2, e3] = found;
+         *      });
          */
-        async WaitMap(selectors, found, {
+        async WaitMap(selectors, found=null, {
             raf=false,
             timeout=8,
             throttle=50,
@@ -432,51 +462,74 @@ const Syn = (()=> {
             timeoutResult=false,
             object=document.body,
         }={}) {
-            let timer, elements;
+            return new Promise((resolve, reject) => {
+                const Core = async function() {
+                    let timer, elements;
 
-            if (raf) {
-                let AnimationFrame;
+                    if (raf) {
+                        let AnimationFrame;
+                    
+                        const query = () => {
+                            elements = selectors.map(selector => document.querySelector(selector));
+                            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                                cancelAnimationFrame(AnimationFrame);
+                                clearTimeout(timer);
 
-                const query = () => {
-                    elements = selectors.map(selector => document.querySelector(selector));
-                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                        cancelAnimationFrame(AnimationFrame);
-                        clearTimeout(timer);
-                        found(elements);
-                    } else {
+                                found && found(elements);
+                                resolve(elements);
+                            } else {
+                                AnimationFrame = requestAnimationFrame(query);
+                            }
+                        };
+                    
                         AnimationFrame = requestAnimationFrame(query);
-                    }
+                    
+                        timer = setTimeout(() => {
+                            cancelAnimationFrame(AnimationFrame);
+
+                            if (timeoutResult) {
+                                found && found(elements);
+                                resolve(elements);
+                            } else {
+                                reject(new Error("Timeout: Elements not found"));
+                            }
+                        }, (1000 * timeout));
+                    
+                    } else {
+                        const observer = new MutationObserver(this.Throttle(() => {
+                            elements = selectors.map(selector => document.querySelector(selector));
+                            if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
+                                observer.disconnect();
+                                clearTimeout(timer);
+
+                                found && found(elements);
+                                resolve(elements);
+                            }
+                        }, throttle));
+                    
+                        observer.observe(object, {
+                            subtree: subtree,
+                            childList: childList,
+                            attributes: attributes,
+                            characterData: characterData
+                        });
+                    
+                        timer = setTimeout(() => {
+                            observer.disconnect();
+                            if (timeoutResult) {
+                                found && found(elements);
+                                resolve(elements);
+                            } else {
+                                reject(new Error("Timeout: Elements not found"));
+                            }
+                        }, (1000 * timeout));
+                    };
                 };
 
-                AnimationFrame = requestAnimationFrame(query);
-
-                timer = setTimeout(() => {
-                    cancelAnimationFrame(AnimationFrame);
-                    timeoutResult && found(elements);
-                }, (1000 * timeout));
-
-            } else {
-                const observer = new MutationObserver(this.Throttle(() => {
-                    elements = selectors.map(selector => document.querySelector(selector));
-                    if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
-                        observer.disconnect();
-                        clearTimeout(timer);
-                        found(elements);
-                    }
-                }, throttle));
-
-                observer.observe(object, {
-                    subtree: subtree,
-                    childList: childList,
-                    attributes: attributes,
-                    characterData: characterData
-                });
-
-                timer = setTimeout(() => {
-                    observer.disconnect();
-                    timeoutResult && found(elements);
-                }, (1000 * timeout));
-            }
+                if (document.visibilityState === "hidden") {
+                    document.addEventListener("visibilitychange", () => Core(), { once: true });
+                } else Core();
+            });
         },
 
         /**
