@@ -350,6 +350,8 @@ const Syn = (()=> {
             timeoutResult=false,
             object=document.body,
         }={}) {
+            const self = this;
+
             return new Promise((resolve, reject) => {
                 const Core = async function() {
                     let timer, element, result;
@@ -379,13 +381,11 @@ const Syn = (()=> {
                             if (timeoutResult) {
                                 found && found(element);
                                 resolve(element);
-                            } else {
-                                reject(new Error("Timeout: Elements not found"));
                             }
                         }, (1000 * timeout));
 
                     } else {
-                        const observer = new MutationObserver(this.Throttle(() => {
+                        const observer = new MutationObserver(self.Throttle(() => {
                             element = all ? document.querySelectorAll(selector) : document.querySelector(selector);
                             result = all ? element.length > 0 : element;
                             if (result) {
@@ -409,8 +409,6 @@ const Syn = (()=> {
                             if (timeoutResult) {
                                 found && found(element);
                                 resolve(element);
-                            } else {
-                                reject(new Error("Timeout: Elements not found"));
                             }
                         }, (1000 * timeout));
                     }
@@ -462,6 +460,8 @@ const Syn = (()=> {
             timeoutResult=false,
             object=document.body,
         }={}) {
+            const self = this;
+
             return new Promise((resolve, reject) => {
                 const Core = async function() {
                     let timer, elements;
@@ -490,13 +490,11 @@ const Syn = (()=> {
                             if (timeoutResult) {
                                 found && found(elements);
                                 resolve(elements);
-                            } else {
-                                reject(new Error("Timeout: Elements not found"));
                             }
                         }, (1000 * timeout));
                     
                     } else {
-                        const observer = new MutationObserver(this.Throttle(() => {
+                        const observer = new MutationObserver(self.Throttle(() => {
                             elements = selectors.map(selector => document.querySelector(selector));
                             if (elements.every(element => {return element !== null && typeof element !== "undefined"})) {
                                 observer.disconnect();
@@ -519,8 +517,6 @@ const Syn = (()=> {
                             if (timeoutResult) {
                                 found && found(elements);
                                 resolve(elements);
-                            } else {
-                                reject(new Error("Timeout: Elements not found"));
                             }
                         }, (1000 * timeout));
                     };
