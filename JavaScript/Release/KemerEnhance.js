@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta5
+// @version      0.0.49-Beta6
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -39,7 +39,7 @@
 
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/jqueryui/1.14.0/jquery-ui.min.js
-// @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/495339/1496879/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react/18.3.1/umd/react.production.min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.3.1/umd/react-dom.production.min.js
 
@@ -51,11 +51,11 @@
     /*! mode: 某些功能可以設置模式 (輸入數字), enable: 是否啟用該功能 (布林) !*/
     const User_Config = {
         Global: {
-            BlockAds: { mode: 0, enable: true }, // 阻擋廣告
-            BackToTop: { mode: 0, enable: true }, // 翻頁後回到頂部
-            KeyScroll: { mode: 1, enable: true }, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
-            DeleteNotice: { mode: 0, enable: true }, // 刪除上方公告
-            SidebarCollapse: { mode: 0, enable: true }, // 側邊攔摺疊
+            BlockAds: {mode: 0, enable: true}, // 阻擋廣告
+            BackToTop: {mode: 0, enable: true}, // 翻頁後回到頂部
+            KeyScroll: {mode: 1, enable: true}, // 上下鍵觸發自動滾動 [mode: 1 = 動畫偵滾動, mode: 2 = 間隔滾動] (選擇對於自己較順暢的)
+            DeleteNotice: {mode: 0, enable: true}, // 刪除上方公告
+            SidebarCollapse: {mode: 0, enable: true}, // 側邊攔摺疊
             FixArtist: { // 修復作者名稱
                 mode: 0,
                 enable: true,
@@ -72,9 +72,9 @@
             },
         },
         Preview: {
-            CardZoom: { mode: 2, enable: true }, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
-            CardText: { mode: 2, enable: true }, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
-            QuickPostToggle: { mode: 0, enable: true }, // 快速切換帖子 (部份網站失效)
+            CardZoom: {mode: 2, enable: true}, // 縮放預覽卡大小 [mode: 1 = 卡片放大 , 2 = 卡片放大 + 懸浮縮放]
+            CardText: {mode: 2, enable: true}, // 預覽卡文字效果 [mode: 1 = 隱藏文字 , 2 = 淡化文字]
+            QuickPostToggle: {mode: 0, enable: true}, // 快速切換帖子 (部份網站失效)
             NewTabOpens: { // 預覽頁面的帖子都以新分頁開啟 (部份網站失效)
                 mode: 0,
                 enable: true,
@@ -83,10 +83,10 @@
             },
         },
         Content: {
-            ExtraButton: { mode: 0, enable: true }, // 額外的下方按鈕 (存在 Bug)
-            LinkBeautify: { mode: 0, enable: true }, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
-            CommentFormat: { mode: 0, enable: true }, // 評論區重新排版
-            VideoBeautify: { mode: 1, enable: true }, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
+            ExtraButton: {mode: 0, enable: true}, // 額外的下方按鈕 (存在 Bug)
+            LinkBeautify: {mode: 0, enable: true}, // 下載連結美化, 當出現 (browse »), 滑鼠懸浮會直接顯示內容, 並移除多餘的字串
+            CommentFormat: {mode: 0, enable: true}, // 評論區重新排版
+            VideoBeautify: {mode: 1, enable: true}, // 影片美化 [mode: 1 = 複製下載節點 , 2 = 移動下載節點] (有啟用 LinkBeautify, 會與原始狀態不同)
             OriginalImage: { // 自動原圖 [mode: 1 = 快速自動 , 2 = 慢速自動 , 3 = 觀察後觸發]
                 mode: 1,
                 enable: true,
@@ -699,6 +699,21 @@
                         Protocol_F: /^(?!https?:\/\/)/,
                         Exclusion_F: /onfanbokkusuokibalab\.net/,
                         URL_F: /(?:https?:\/\/[^\s]+)|(?:[a-zA-Z0-9]+\.)?(?:[a-zA-Z0-9]+)\.[^\s]+\/[^\s]+/g,
+                        getTextNodes: function (root) {
+                            const nodes = [];
+                            const tree = document.createTreeWalker(root, NodeFilter.SHOW_TEXT, {
+                                acceptNode: node => {
+                                    this.URL_F.lastIndex = 0;
+                                    const content = node.textContent.trim();
+                                    if (!content || this.Exclusion_F.test(content)) return NodeFilter.FILTER_REJECT;
+                                    return this.URL_F.test(content) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                                }
+                            });
+                            while (tree.nextNode()) {
+                                nodes.push(tree.currentNode.parentElement);
+                            }
+                            return nodes;
+                        },
                         ParseModify: async function (father, content) {
                             if (this.Exclusion_F.test(content)) return;
                             father.innerHTML = content.replace(this.URL_F, url => {
@@ -734,12 +749,14 @@
                         },
                         JumpTrigger: async root => {
                             const [Newtab, Active, Insert] = [Config.newtab ?? true, Config.newtab_active ?? false, Config.newtab_insert ?? false];
-                            Syn.Listen(root, "click", event => {
+                            Syn.AddListener(root, "click", event => {
                                 const target = event.target.closest("a:not(.fileThumb)");
-                                target && (event.preventDefault(), !Newtab ? location.assign(target.href) : GM_openInTab(target.href, {
+                                if (!target || target.hasAttribute("download")) return;
+                                event.preventDefault();
+                                !Newtab ? location.assign(target.href) : GM_openInTab(target.href, {
                                     active: Active,
                                     insert: Insert
-                                }));
+                                });
                             }, {
                                 capture: true
                             });
@@ -974,7 +991,10 @@
                 if (!DLL.IsContent() && !DLL.IsAnnouncement()) return;
                 const Func = LoadFunc.TextToLink_Dependent(Config);
                 if (DLL.IsContent()) {
-                    Syn.WaitElem(".post__body, .scrape__body", body => {
+                    Syn.WaitElem(".post__body, .scrape__body", null, {
+                        raf: true,
+                        timeout: 10
+                    }).then(body => {
                         Func.JumpTrigger(body);
                         const [article, content] = [Syn.$$("article", {
                             root: body
@@ -990,24 +1010,21 @@
                                 Func.ParseModify(span, span.textContent);
                             }
                         } else if (content) {
-                            const pre = Syn.$$("pre", {
-                                root: content
+                            Func.getTextNodes(content).forEach(node => {
+                                Func.ParseModify(node, node.textContent);
                             });
-                            pre ? Func.Process(pre) : Func.Multiprocessing(content);
                         }
-                    }, {
-                        raf: true
                     });
                 } else if (DLL.IsAnnouncement()) {
-                    Syn.WaitElem(".card-list__items pre", content => {
-                        Func.JumpTrigger(Syn.$$(".card-list__items"));
-                        let pre;
-                        for (pre of content) {
-                            pre.childNodes.length > 1 ? Func.Multiprocessing(pre) : Func.Process(pre);
-                        }
-                    }, {
+                    Syn.WaitElem(".card-list__items pre", null, {
                         raf: true,
-                        all: true
+                        timeout: 10
+                    }).then(() => {
+                        const items = Syn.$$(".card-list__items");
+                        Func.JumpTrigger(items);
+                        Func.getTextNodes(items).forEach(node => {
+                            Func.ParseModify(node, node.textContent);
+                        });
                     });
                 }
             },
@@ -1063,7 +1080,10 @@
                 });
                 Func.Record_Cache = Func.Get_Record();
                 if (DLL.IsSearch()) {
-                    Syn.WaitElem(".card-list__items", card_items => {
+                    Syn.WaitElem(".card-list__items", null, {
+                        raf: true,
+                        timeout: 15
+                    }).then(card_items => {
                         if (DLL.Link.test(Url)) {
                             const artist = Syn.$$("span[itemprop='name']");
                             artist && Func.Other_Fix(artist);
@@ -1080,29 +1100,26 @@
                                 style: "display: none;"
                             });
                         }
-                    }, {
-                        raf: true,
-                        timeout: 15
                     });
                 } else if (DLL.IsContent()) {
-                    Syn.WaitMap(["h1 span:nth-child(2)", ".post__user-name, .scrape__user-name"], found => {
-                        const [title, artist] = found;
-                        Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
-                    }, {
+                    Syn.WaitMap(["h1 span:nth-child(2)", ".post__user-name, .scrape__user-name"], null, {
                         raf: true,
                         timeout: 15
+                    }).then(found => {
+                        const [title, artist] = found;
+                        Func.Other_Fix(artist, title, artist.href, "<fix_cont>");
                     });
                 } else {
-                    Syn.WaitElem("span[itemprop='name']", artist => {
+                    Syn.WaitElem("span[itemprop='name']", null, {
+                        raf: true,
+                        timeout: 15
+                    }).then(artist => {
                         Func.Other_Fix(artist);
                         if (User_Config.Preview.QuickPostToggle.enable && DLL.IsNeko) {
                             setTimeout(() => {
                                 Func.Dynamic_Fix(Syn.$$("section"), "span[itemprop='name']", 1);
                             }, 300);
                         }
-                    }, {
-                        raf: true,
-                        timeout: 15
                     });
                 }
             },
@@ -1158,7 +1175,7 @@
                             }
                         };
                 }
-                Syn.Listen(window, "keydown", Syn.Throttle(event => {
+                Syn.AddListener(window, "keydown", Syn.Throttle(event => {
                     const key = event.key;
                     if (key == "ArrowUp") {
                         event.stopImmediatePropagation();
@@ -1409,7 +1426,10 @@
                                 Title && (document.title = Title);
                                 setTimeout(() => {
                                     Enhance.ExtraInitial();
-                                    Syn.WaitElem(".post__content, .scrape__content", post => {
+                                    Syn.WaitElem(".post__content, .scrape__content", null, {
+                                        raf: true,
+                                        timeout: 5
+                                    }).then(post => {
                                         Syn.$$("p", {
                                             all: true,
                                             root: post
@@ -1424,8 +1444,6 @@
                                         }).forEach(a => {
                                             /\.(jpg|jpeg|png|gif)$/i.test(a.href) && a.remove();
                                         });
-                                    }, {
-                                        raf: true
                                     });
                                     Syn.$$(".post__title, .scrape__title").scrollIntoView();
                                 }, 300);
@@ -1459,7 +1477,11 @@
                     }
                     a:hover .View { display: block }
                 `, "Link_Effects", false);
-                Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", null, {
+                    raf: true,
+                    all: true,
+                    timeout: 5
+                }).then(post => {
                     const ShowBrowse = LoadFunc.LinkBeautify_Dependent();
                     for (const link of post) {
                         link.setAttribute("download", "");
@@ -1470,9 +1492,6 @@
                         Browse.style.position = "relative";
                         ShowBrowse(Browse);
                     }
-                }, {
-                    raf: true,
-                    all: true
                 });
             },
             VideoBeautify: async function (Config) {
@@ -1481,15 +1500,24 @@
                     .post-video {height: 50%; width: 60%;}
                 `, "Video_Effects", false);
                 if (DLL.IsNeko) {
-                    Syn.WaitElem(".scrape__files video", video => {
-                        video.forEach(media => media.setAttribute("preload", "auto"));
-                    }, {
+                    Syn.WaitElem(".scrape__files video", null, {
+                        raf: true,
                         all: true,
-                        throttle: 600
+                        timeout: 5
+                    }).then(video => {
+                        video.forEach(media => media.setAttribute("preload", "auto"));
                     });
                 } else {
-                    Syn.WaitElem("ul[style*='text-align: center; list-style-type: none;'] li:not([id])", parents => {
-                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", post => {
+                    Syn.WaitElem("ul[style*='text-align: center; list-style-type: none;'] li:not([id])", null, {
+                        raf: true,
+                        all: true,
+                        timeout: 5
+                    }).then(parents => {
+                        Syn.WaitElem(".post__attachment-link, .scrape__attachment-link", null, {
+                            raf: true,
+                            all: true,
+                            timeout: 5
+                        }).then(post => {
                             const VideoRendering = LoadFunc.VideoBeautify_Dependent();
                             let li;
                             for (li of parents) {
@@ -1519,18 +1547,16 @@
                                     root: li
                                 }));
                             }
-                        }, {
-                            all: true,
-                            throttle: 300
                         });
-                    }, {
-                        all: true,
-                        throttle: 600
                     });
                 }
             },
             OriginalImage: async function (Config) {
-                Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", thumbnail => {
+                Syn.WaitElem(".post__thumbnail, .scrape__thumbnail", null, {
+                    raf: true,
+                    all: true,
+                    timeout: 6
+                }).then(thumbnail => {
                     const LinkObj = DLL.IsNeko ? "div" : "a";
                     const HrefParse = element => {
                         const Uri = element.href || element.getAttribute("href");
@@ -1727,23 +1753,17 @@
                             break;
 
                         default:
-                            if (document.visibilityState === "hidden") {
-                                Syn.Listen(document, "visibilitychange", () => {
-                                    document.visibilityState === "visible" && Origina_Requ.FastAuto();
-                                }, {
-                                    once: true
-                                });
-                            } else Origina_Requ.FastAuto();
+                            Origina_Requ.FastAuto();
                     }
-                }, {
-                    raf: true,
-                    all: true
                 });
             },
             ExtraButton: async function (Config) {
                 DLL.Style.Awesome();
                 const GetNextPage = LoadFunc.ExtraButton_Dependent();
-                Syn.WaitElem("h2.site-section__subheading", comments => {
+                Syn.WaitElem("h2.site-section__subheading", null, {
+                    raf: true,
+                    timeout: 10
+                }).then(comments => {
                     const [Prev, Next, Svg, Span, Buffer] = [Syn.$$(".post__nav-link.prev, .scrape__nav-link.prev"), Syn.$$(".post__nav-link.next, .scrape__nav-link.next"), document.createElement("svg"), document.createElement("span"), document.createDocumentFragment()];
                     Svg.id = "To_top";
                     Svg.innerHTML = `
@@ -1758,13 +1778,13 @@
                     Span.id = "Next_box";
                     Span.style = "float: right; cursor: pointer;";
                     Span.appendChild(Next_btn);
-                    Syn.Listen(Svg, "click", () => {
+                    Syn.AddListener(Svg, "click", () => {
                         Syn.$$("header").scrollIntoView();
                     }, {
                         capture: true,
                         passive: true
                     });
-                    Syn.Listen(Next_btn, "click", () => {
+                    Syn.AddListener(Next_btn, "click", () => {
                         if (DLL.IsNeko) {
                             GetNextPage(Next_btn.getAttribute("jump"), Syn.$$("main"));
                         } else {
@@ -1780,8 +1800,6 @@
                         Buffer.append(Svg, Span);
                         comments.appendChild(Buffer);
                     }
-                }, {
-                    raf: true
                 });
             },
             CommentFormat: async function (Config) {
