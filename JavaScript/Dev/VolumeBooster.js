@@ -162,10 +162,10 @@
                     };
                 };
 
-                // 完成後繼續監聽 (3 秒後)
+                // 完成後繼續監聽 (5 秒後)
                 setTimeout(()=> {
                     this.MediaObserver.observe(document, this.ObserverOption);
-                }, 3e3);
+                }, 5e3);
 
                 return {
                     setVolume: increase => { // 設置音量
