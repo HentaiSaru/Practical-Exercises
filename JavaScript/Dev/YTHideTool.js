@@ -5,7 +5,7 @@
 // @name:ja      YouTube 非表示ツール
 // @name:ko      유튜브 숨기기 도구
 // @name:en      Youtube Hide Tool
-// @version      0.0.35
+// @version      0.0.36
 // @author       Canaan HS
 // @description         該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
 // @description:zh-TW   該腳本能夠自動隱藏 YouTube 影片結尾的推薦卡，當滑鼠懸浮於影片上方時，推薦卡會恢復顯示。並額外提供快捷鍵切換功能，可隱藏留言區、影片推薦、功能列表，及切換至極簡模式。設置會自動保存，並在下次開啟影片時自動套用。
@@ -20,6 +20,7 @@
 // @license      MIT
 // @namespace    https://greasyfork.org/users/989635
 
+// @noframes
 // @run-at       document-start
 // @grant        GM_setValue
 // @grant        GM_getValue
@@ -27,7 +28,7 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_addValueChangeListener
 
-// @require      https://update.greasyfork.org/scripts/487608/1413530/ClassSyntax_min.js
+// @require      https://update.greasyfork.org/scripts/487608/1496878/ClassSyntax_min.js
 // ==/UserScript==
 
 (async ()=> {
@@ -57,13 +58,18 @@
 
             this.HotKey = Config.HotKey;
             this.Lang = this.Language(this.Device.Lang);
+
+            /* 支援的頁面才會載入 */
+            this.Live = /^(https?:\/\/)www\.youtube\.com\/live\/.*$/; // 直播影片
             this.Video = /^(https?:\/\/)www\.youtube\.com\/watch\?v=.+$/; // 影片播放區
             this.Playlist = /^(https?:\/\/)www\.youtube\.com\/playlist\?list=.+$/; // 播放清單
 
             /* 判斷頁面 */
-            this.Page = (url) => this.Video.test(url)
-                ? "Video" : this.Playlist.test(url)
-                ? "Playlist" : "NotSupport";
+            this.PageType = (url) =>
+                this.Video.test(url) ? "Video"
+                : this.Live.test(url) ? "Live"
+                : this.Playlist.test(url) ? "Playlist"
+                : "NotSupport";
 
             /* 標題格式 (傳入標題元素) */
             this.TitleFormat = (title) => title.textContent.replace(/^\s+|\s+$/g, "");
@@ -126,19 +132,20 @@
 
         /* 注入操作 */
         async Injec(URL) {
-            const Page = this.Page(URL);
+            const Page = this.PageType(URL);
             this.DevPrint(this.Lang.Transl("頁面類型"), Page);
 
             if (Page == "NotSupport" || this.InjecRecord[URL]) return;
 
             // 等待的元素是, 判定可開始查找的框架
-            this.WaitElem("#columns, #contents", trigger=> {
+            this.WaitElem("#columns, #contents", null, {object: document, timeout: 20, characterData: true, timeoutResult: true}).then(trigger=> {
                 if (!trigger) {
                     this.Log(null, this.Lang.Transl("查找框架失敗"), {type: "error"});
                     return;
                 }
 
-                if (Page == "Video") {
+                /* 針對不同頁面處理 */
+                if (["Video", "Live"].includes(Page)) {
                     Config.Dev && (this.RST = this.Runtime());
 
                     // 隱藏結尾推薦樣式
@@ -162,7 +169,7 @@
                         "title", "#title h1", "#end", "#below",
                         "#secondary.style-scope.ytd-watch-flexy", "#secondary-inner",
                         "#related", "#comments", "#actions"
-                    ], found => {
+                    ], null, {throttle: 100, characterData: true, timeoutResult: true}).then(found => {
                         const [
                             title, h1, end, below, secondary, inner, related, comments, actions
                         ] = found;
@@ -274,12 +281,12 @@
                         };
 
                         this.InjecRecord[URL] = true;
-                    }, {throttle: 100, characterData: true, timeoutResult: true});
+                    });
 
                 } else if (Page == "Playlist") {
                     Config.Dev && (this.RST = this.Runtime());
 
-                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", playlist=> {
+                    this.WaitElem("ytd-playlist-header-renderer.style-scope.ytd-browse", null, {throttle: 100, characterData: true, timeoutResult: true}).then(playlist=> {
 
                         this.DevPrint(this.Lang.Transl("隱藏元素"), playlist);
                         if (!this.MRM) this.MRM = GM_registerMenuCommand(this.Lang.Transl("📜 預設熱鍵"), ()=> {alert(this.Lang.Transl("快捷提示"))});
@@ -297,10 +304,9 @@
                         });
 
                         this.InjecRecord[URL] = true;
-                    }, {throttle: 100, characterData: true, timeoutResult: true});
-
+                    });
                 };
-            }, {object: document, timeout: 60, characterData: true, timeoutResult: true});
+            });
         };
 
         Language(lang) {
