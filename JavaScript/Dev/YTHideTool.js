@@ -42,7 +42,7 @@
             RecomViewing: k => k.altKey && Config.HotKey.Adapt(k) == "1", // 推薦觀看
             Comment: k => k.altKey && Config.HotKey.Adapt(k) == "2", // 留言區
             FunctionBar: k => k.altKey && Config.HotKey.Adapt(k) == "3", // 功能區
-            ListDesc: k => k.altKey && Config.HotKey.Adapt(k) == "4" // 播放清單資訊 
+            ListDesc: k => k.altKey && Config.HotKey.Adapt(k) == "4" // 播放清單資訊
         }
     };
 
