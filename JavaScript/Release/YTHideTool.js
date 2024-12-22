@@ -126,7 +126,7 @@
                         .ytp-ce-element {
                             display: none !important;
                         }
-                        #player.ytd-watch-flexy:hover .ytp-ce-element {
+                        #container.ytd-player:hover .ytp-ce-element {
                             display: block !important;
                         }
                         .ytp-show-tiles .ytp-videowall-still {
