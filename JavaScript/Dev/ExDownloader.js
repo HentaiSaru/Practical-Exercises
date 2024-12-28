@@ -457,6 +457,7 @@
             function Request(Index, Iurl) {
                 if (Enforce) return;
                 ++Task; // 任務開始計數
+                let timeout = null;
                 const time = Date.now(); // 請求開始時間
 
                 if (typeof Iurl !== "undefined") {
@@ -466,19 +467,26 @@
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
+                            clearTimeout(timeout);
                             const blob = response.response;
                             response.status == 200 && response.finalUrl == Iurl &&
                             blob instanceof Blob && blob.size > 0
                                 ? StatusUpdate(time, Index, Iurl, blob)
                                 : StatusUpdate(time, Index, Iurl, null, true);
                         }, onerror: () => {
+                            clearTimeout(timeout);
                             StatusUpdate(time, Index, Iurl, null, true);
                         }
                     });
                 } else {
                     RunClear();
+                    clearTimeout(timeout);
                     StatusUpdate(time, Index, Iurl, null, true);
                 }
+
+                timeout = setTimeout(() => {
+                    StatusUpdate(time, Index, Iurl, null, true);
+                }, 15000);
             };
 
             // 發起請求任務
