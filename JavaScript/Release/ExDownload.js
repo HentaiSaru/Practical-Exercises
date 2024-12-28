@@ -428,6 +428,7 @@
             function Request(Index, Iurl) {
                 if (Enforce) return;
                 ++Task;
+                let timeout = null;
                 const time = Date.now();
                 if (typeof Iurl !== "undefined") {
                     GM_xmlhttpRequest({
@@ -436,17 +437,23 @@
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
+                            clearTimeout(timeout);
                             const blob = response.response;
                             response.status == 200 && response.finalUrl == Iurl && blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, Index, Iurl, blob) : StatusUpdate(time, Index, Iurl, null, true);
                         },
                         onerror: () => {
+                            clearTimeout(timeout);
                             StatusUpdate(time, Index, Iurl, null, true);
                         }
                     });
                 } else {
                     RunClear();
+                    clearTimeout(timeout);
                     StatusUpdate(time, Index, Iurl, null, true);
                 }
+                timeout = setTimeout(() => {
+                    StatusUpdate(time, Index, Iurl, null, true);
+                }, 15000);
             }
             async function Start(DataMap, ReGet = false) {
                 if (Enforce) return;
