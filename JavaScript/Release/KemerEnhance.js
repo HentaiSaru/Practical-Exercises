@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta6
+// @version      0.0.49-Beta7
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -1061,7 +1061,7 @@
                                 });
                             }, 50);
                         }, 300);
-                    } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
+                    } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img.fancy-image__image")) {
                         event.stopImmediatePropagation();
                         const jump = target.getAttribute("jump");
                         if (!target.parentNode.matches("fix_cont") && jump) {
@@ -1772,7 +1772,7 @@
                             <path d="M256 512A256 256 0 1 0 256 0a256 256 0 1 0 0 512zM135.1 217.4l107.1-99.9c3.8-3.5 8.7-5.5 13.8-5.5s10.1 2 13.8 5.5l107.1 99.9c4.5 4.2 7.1 10.1 7.1 16.3c0 12.3-10 22.3-22.3 22.3H304v96c0 17.7-14.3 32-32 32H240c-17.7 0-32-14.3-32-32V256H150.3C138 256 128 246 128 233.7c0-6.2 2.6-12.1 7.1-16.3z"></path>
                         </svg>
                     `;
-                    const Next_btn = Next.cloneNode(true);
+                    const Next_btn = Next?.cloneNode(true) ?? document.createElement("div");
                     Next_btn.setAttribute("jump", Next_btn.href);
                     Next_btn.removeAttribute("href");
                     Span.id = "Next_box";
