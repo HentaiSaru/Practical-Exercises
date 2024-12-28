@@ -4,7 +4,7 @@
 // @name:zh-CN   Kemer 增强
 // @name:ja      Kemer 強化
 // @name:en      Kemer Enhancement
-// @version      0.0.49-Beta6
+// @version      0.0.49-Beta7
 // @author       Canaan HS
 // @description        美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
 // @description:zh-TW  美化介面和重新排版，包括移除廣告和多餘的橫幅，修正繪師名稱和編輯相關的資訊保存，自動載入原始圖像，菜單設置圖像大小間距，快捷鍵觸發自動滾動，解析文本中的連結並轉換為可點擊的連結，快速的頁面切換和跳轉功能，並重新定向到新分頁
@@ -1060,7 +1060,7 @@
                                 }, { once: true, passive: true });
                             }, 50);
                         }, 300);
-                    } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img")) {
+                    } else if (target.matches("fix_name") || target.matches("fix_tag") || target.matches("img.fancy-image__image")) {
                         event.stopImmediatePropagation();
 
                         const jump = target.getAttribute("jump");
@@ -1751,7 +1751,7 @@
                         </svg>
                     `;
 
-                    const Next_btn = Next.cloneNode(true);
+                    const Next_btn = Next?.cloneNode(true) ?? document.createElement("div");
                     Next_btn.setAttribute("jump", Next_btn.href);
                     Next_btn.removeAttribute("href");
 
