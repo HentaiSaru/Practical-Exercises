@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta6
+// @version      0.0.16-Beta7
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -66,14 +66,14 @@
         MAX_CONCURRENCY: 16, // 最大併發數
         TIME_THRESHOLD: 1000, // 響應時間閥值
 
-        MAX_Delay: 3000,     // 最大延遲
+        MAX_Delay: 2000,     // 最大延遲
         Home_ID: 100,        // 主頁初始延遲
         Home_ND: 80,         // 主頁最小延遲
         Image_ID: 34,        // 圖頁初始延遲
         Image_ND: 28,        // 圖頁最小延遲
-        Download_IT: 6,      // 下載初始線程
-        Download_ID: 800,    // 下載初始延遲
-        Download_ND: 400,    // 下載最小延遲
+        Download_IT: 8,      // 下載初始線程
+        Download_ID: 600,    // 下載初始延遲
+        Download_ND: 300,    // 下載最小延遲
 
         Lock: false, // 鎖定狀態
         SortReverse: false, // 排序反轉
@@ -87,9 +87,9 @@
             if (!this.KeyCache) this.KeyCache = `DownloadCache_${Syn.Device.Path.split("/").slice(2, 4).join("")}`;
             return this.KeyCache;
         },
-        Dynamic: function (Time, Delay, Thread = null, MIN_Delay) {
+        Dynamic: function (Time, Delay, Thread = null, MIN_Delay) { // Todo - 等待優化動態調整邏輯
             let ResponseTime = (Date.now() - Time), delay, thread;
-            
+
             if (ResponseTime > this.TIME_THRESHOLD) {
                 delay = Math.floor(Math.min(Delay * 1.1, this.MAX_Delay));
                 if (Thread != null) {
@@ -421,25 +421,21 @@
             };
 
             // 更新請求狀態 (開始請求時間, 數據的索引, 圖片連結, 圖片數據, 錯誤狀態)
-            function StatusUpdate(time, index, purl, iurl, blob, error = false) {
+            function StatusUpdate(time, index, iurl, blob, error = false) {
                 if (Enforce) return;
                 [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND); // 動態變更延遲與線程
-                Data.delete(index); // 清除完成的任務
-
-                if (error && typeof iurl === "string") { // 錯誤的重新添加 (正確的數據才添加)
-                    Data.set(index, {
-                        PageUrl: purl,
-                        ImageUrl: iurl
-                    });
-                } else {
-                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", iurl)}`, blob); // 保存正確的數據 (有資料夾)
-                }
 
                 DConfig.DisplayCache = `[${++Progress}/${Total}]`;
-                document.title = DConfig.DisplayCache;
+
                 // 為了避免移除指向導致的錯誤
                 self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
-                --Task; // 完成任務後扣除計數
+                document.title = DConfig.DisplayCache;
+
+                // Todo: 等待調整更完善判斷, 是否下載成功的條件
+                if (!error && blob) {
+                    Data.delete(index); // 清除完成的任務
+                    Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", iurl)}`, blob); // 保存正確的數據 (有資料夾)
+                };
 
                 if (Progress === Total) {
                     Total = Data.size; // 再次取得數據量
@@ -453,41 +449,35 @@
                         setTimeout(()=> {Start(Data, true)}, 2e3); // 等待 2 秒後重新下載
                     } else Force(); // 直接強制壓縮
                 } else if (Progress > Total) Init(); // 避免進度超過總數, 當超過時初始化
+
+                --Task; // 完成任務後扣除計數
             };
 
             // 請求數據
-            function Request(Index, Purl, Iurl) {
+            function Request(Index, Iurl) {
                 if (Enforce) return;
+                ++Task; // 任務開始計數
+                const time = Date.now(); // 請求開始時間
 
                 if (typeof Iurl !== "undefined") {
-                    const time = Date.now(); // 請求開始時間
-                    let timeout = null; // 超時計時器
-                    ++Task; // 任務開始計數
-
                     GM_xmlhttpRequest({
                         url: Iurl,
-                        timeout: 2e4,
+                        timeout: 15000,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
-                            clearTimeout(timeout);
                             const blob = response.response;
-                            response.status == 200 && blob instanceof Blob && blob.size > 0
-                                ? StatusUpdate(time, Index, Purl, Iurl, blob)
-                                : StatusUpdate(time, Index, Purl, Iurl, null, true);
+                            response.status == 200 && response.finalUrl == Iurl &&
+                            blob instanceof Blob && blob.size > 0
+                                ? StatusUpdate(time, Index, Iurl, blob)
+                                : StatusUpdate(time, Index, Iurl, null, true);
                         }, onerror: () => {
-                            clearTimeout(timeout);
-                            StatusUpdate(time, Index, Purl, Iurl, null, true);
+                            StatusUpdate(time, Index, Iurl, null, true);
                         }
                     });
-
-                    timeout = setTimeout(() => { // 實驗性超時計時器 (20 秒超時)
-                        StatusUpdate(time, Index, Purl, Iurl, null, true);
-                    }, 2e4);
-
                 } else {
                     RunClear();
-                    StatusUpdate(time, Index, null, null, true);
+                    StatusUpdate(time, Index, Iurl, null, true);
                 }
             };
 
@@ -506,10 +496,10 @@
 
                         if (Result) {
                             const [Index, Purl, Iurl] = Result;
-                            Request(Index, Purl, Iurl);
+                            Request(Index, Iurl);
                         } else {
                             RunClear();
-                            Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                            Request(Index, Uri.ImageUrl);
                         }
                     } else {
 
@@ -517,7 +507,7 @@
                             await Syn.Sleep(Delay);
                         }
 
-                        Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                        Request(Index, Uri.ImageUrl);
                     }
                 }
             };
