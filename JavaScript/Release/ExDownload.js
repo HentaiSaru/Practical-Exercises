@@ -5,7 +5,7 @@
 // @name:ja      [E/Ex-Hentai] ダウンローダー
 // @name:ko      [E/Ex-Hentai] 다운로더
 // @name:en      [E/Ex-Hentai] Downloader
-// @version      0.0.16-Beta6
+// @version      0.0.16-Beta7
 // @author       Canaan HS
 // @description         漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
 // @description:zh-TW   漫畫頁面創建下載按鈕, 可切換 (壓縮下載 | 單圖下載), 無須複雜設置一鍵點擊下載, 自動獲取(非原圖)進行下載
@@ -40,26 +40,27 @@
 (async () => {
     /* 使用者配置 */
     const Config = {
-        Dev: false,           // 開發模式 (會顯示除錯訊息)
+        Dev: true,           // 開發模式 (會顯示除錯訊息)
         ReTry: 10,            // 下載錯誤重試次數, 超過這個次數該圖片會被跳過
         Original: false,      // 是否下載原圖
         ResetScope: true,     // 下載完成後 重置範圍設置
         CompleteClose: false, // 下載完成自動關閉
     };
+
     /* 下載配置 (不清楚不要修改) */
     const DConfig = {
         Compr_Level: 5,
         MIN_CONCURRENCY: 5,
         MAX_CONCURRENCY: 16,
         TIME_THRESHOLD: 1e3,
-        MAX_Delay: 3e3,
+        MAX_Delay: 2e3,
         Home_ID: 100,
         Home_ND: 80,
         Image_ID: 34,
         Image_ND: 28,
-        Download_IT: 6,
-        Download_ID: 800,
-        Download_ND: 400,
+        Download_IT: 8,
+        Download_ID: 600,
+        Download_ND: 300,
         Lock: false,
         SortReverse: false,
         Scope: undefined,
@@ -251,7 +252,7 @@
                     });
                     const Original = Syn.$$("#i6 div:last-of-type a", {
                         root: page
-                    });
+                    })?.href || "#";
                     if (!Resample) {
                         self.Worker.postMessage({
                             index: index,
@@ -261,7 +262,7 @@
                         });
                         return;
                     }
-                    const Link = Config.Original ? Original.href ?? Resample.src ?? Resample.href : Resample.src ?? Resample.href;
+                    const Link = Config.Original && !Original.endsWith("#") ? Original : Resample.src || Resample.href;
                     ImageData.push([index, {
                         PageUrl: url,
                         ImageUrl: Link
@@ -293,9 +294,9 @@
                 });
                 const Original = Syn.$$("#i6 div:last-of-type a", {
                     root: page
-                });
+                })?.href || "#";
                 if (!Resample) return false;
-                const Link = Config.Original ? Original.href ?? Resample.src ?? Resample.href : Resample.src ?? Resample.href;
+                const Link = Config.Original && !Original.endsWith("#") ? Original : Resample.src || Resample.href;
                 return [index, url, Link];
             }
             let Token = Config.ReTry;
@@ -401,59 +402,50 @@
                     });
                 }
             }
-            function StatusUpdate(time, index, purl, iurl, blob, error = false) {
+            function StatusUpdate(time, index, iurl, blob, error = false) {
                 if (Enforce) return;
                 [Delay, Thread] = DConfig.Dynamic(time, Delay, Thread, DConfig.Download_ND);
-                Data.delete(index);
-                if (error && typeof iurl === "string") {
-                    Data.set(index, {
-                        PageUrl: purl,
-                        ImageUrl: iurl
-                    });
-                } else {
+                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
+                self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
+                document.title = DConfig.DisplayCache;
+                if (!error && blob) {
+                    Data.delete(index);
                     Zip.file(`${self.ComicName}/${Syn.Mantissa(index, Fill, "0", iurl)}`, blob);
                 }
-                DConfig.DisplayCache = `[${++Progress}/${Total}]`;
-                document.title = DConfig.DisplayCache;
-                self.Button && (self.Button.textContent = `${Lang.Transl("下載進度")}: ${DConfig.DisplayCache}`);
-                --Task;
                 if (Progress === Total) {
                     Total = Data.size;
                     if (Total > 0 && ReTry-- > 0) {
                         DConfig.DisplayCache = Lang.Transl("等待失敗重試...");
                         document.title = DConfig.DisplayCache;
                         self.Button.textContent = DConfig.DisplayCache;
-                        setTimeout(() => { Start(Data, true) }, 2e3);
+                        setTimeout(() => {
+                            Start(Data, true);
+                        }, 2e3);
                     } else Force();
                 } else if (Progress > Total) Init();
+                --Task;
             }
-            function Request(Index, Purl, Iurl) {
+            function Request(Index, Iurl) {
                 if (Enforce) return;
+                ++Task;
+                const time = Date.now();
                 if (typeof Iurl !== "undefined") {
-                    const time = Date.now();
-                    let timeout = null;
-                    ++Task;
                     GM_xmlhttpRequest({
                         url: Iurl,
-                        timeout: 2e4,
+                        timeout: 15e3,
                         method: "GET",
                         responseType: "blob",
                         onload: response => {
-                            clearTimeout(timeout);
                             const blob = response.response;
-                            response.status == 200 && blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, Index, Purl, Iurl, blob) : StatusUpdate(time, Index, Purl, Iurl, null, true);
+                            response.status == 200 && response.finalUrl == Iurl && blob instanceof Blob && blob.size > 0 ? StatusUpdate(time, Index, Iurl, blob) : StatusUpdate(time, Index, Iurl, null, true);
                         },
                         onerror: () => {
-                            clearTimeout(timeout);
-                            StatusUpdate(time, Index, Purl, Iurl, null, true);
+                            StatusUpdate(time, Index, Iurl, null, true);
                         }
                     });
-                    timeout = setTimeout(() => {
-                        StatusUpdate(time, Index, Purl, Iurl, null, true);
-                    }, 2e4);
                 } else {
                     RunClear();
-                    StatusUpdate(time, Index, null, null, true);
+                    StatusUpdate(time, Index, Iurl, null, true);
                 }
             }
             async function Start(DataMap, ReGet = false) {
@@ -475,16 +467,16 @@
                         });
                         if (Result) {
                             const [Index, Purl, Iurl] = Result;
-                            Request(Index, Purl, Iurl);
+                            Request(Index, Iurl);
                         } else {
                             RunClear();
-                            Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                            Request(Index, Uri.ImageUrl);
                         }
                     } else {
                         while (Task >= Thread) {
                             await Syn.Sleep(Delay);
                         }
-                        Request(Index, Uri.PageUrl, Uri.ImageUrl);
+                        Request(Index, Uri.ImageUrl);
                     }
                 }
             }
