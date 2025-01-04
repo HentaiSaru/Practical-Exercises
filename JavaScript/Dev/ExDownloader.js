@@ -669,7 +669,6 @@
             })
         };
     };
-
     class ButtonCore {
         constructor() {
             this.E = /https:\/\/e-hentai\.org\/g\/\d+\/[a-zA-Z0-9]+/;
@@ -752,11 +751,14 @@
         async ButtonCreation() {
             CompressMode = Syn.Store("g", "CompressedMode", []);
             ModeDisplay = CompressMode ? Lang.Transl("壓縮下載") : Lang.Transl("單圖下載");
+
             const download_button = GM_addElement(Syn.$$("#gd2"), "button", {
                 id: "ExDB", class: "Download_Button"
             });
+
             download_button.disabled = DConfig.Lock ? true : false;
             download_button.textContent = DConfig.Lock ? Lang.Transl("下載中鎖定") : ModeDisplay;
+
             Syn.AddListener(download_button, "click", () => {
                 DConfig.Lock = true;
                 download_button.disabled = true;
@@ -773,6 +775,7 @@
                 OriginalTitle = document.title;
                 Lang = Language(Syn.Device.Lang);
                 Core.ButtonCreation();
+                // Todo - 等待添加設置菜單
 
                 if (Syn.Storage(DConfig.GetKey())) {
                     const menu = GM_registerMenuCommand(Lang.Transl("🚮 清除數據緩存"), ()=> {
