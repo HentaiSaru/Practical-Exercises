@@ -32,9 +32,9 @@
 // @grant        GM_registerMenuCommand
 // @grant        GM_unregisterMenuCommand
 
-// @require      https://update.greasyfork.org/scripts/473358/1237031/JSZip.js
 // @require      https://update.greasyfork.org/scripts/495339/1456526/ObjectSyntax_min.js
 // @require      https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js
+// @require      https://raw.githubusercontent.com/Canaan-HS/Practical-Exercises/refs/heads/Main/JavaScript/API/JSZip.min.js
 // ==/UserScript==
 
 /* 需新開發功能
