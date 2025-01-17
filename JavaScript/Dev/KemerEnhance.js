@@ -962,7 +962,7 @@
                 `, "Collapse_Effects", false);
             },
             DeleteNotice: async (Config) => { /* 刪除公告通知 */
-                Syn.$$("body > div.content-wrapper.shifted > a")?.remove();
+                Syn.WaitElem("aside", null, {object: document, timeout: 5}).then(aside => aside.remove());
             },
             BlockAds: async (Config) => { /* (阻止/封鎖)廣告 */
                 Syn.AddStyle(`
